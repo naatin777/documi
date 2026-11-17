@@ -1475,6 +1475,13 @@ body {
 
 @page {
   margin: 12mm;
+
+  /* Chrome 131+ : margin box にページ番号を表示 (Firefox / Safari は無視) */
+  @bottom-right {
+    content: counter(page) ' / ' counter(pages);
+    font-size: 9pt;
+    color: #667085;
+  }
 }
 
 /* 画面では非表示。印刷と書き出し HTML でのみ表示する */
