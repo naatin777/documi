@@ -9,7 +9,9 @@
     "dev:server": "bun --watch src/server/index.ts",
     "build": "vite build",
     "start": "bun src/server/index.ts",
-    "test": "bun test"
+    "check": "bun check",
+    "test": "bun test",
+    "test:coverage": "bun test --coverage"
   },
   "dependencies": {
     "@ast-grep/lang-go": "^0.0.6",

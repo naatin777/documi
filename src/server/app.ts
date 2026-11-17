@@ -103,7 +103,7 @@ export function createApp(index: DocsIndex, options: AppOptions = {}): Hono {
   })
 
   // ブラウザ由来のクロスオリジン要求は拒否する (DNS rebinding / CSRF 対策)
-  app.all('/mcp', (c) => {
+  app.all('/mcp', async (c) => {
     const origin = c.req.header('origin')
     if (origin && !isLocalOrigin(origin)) {
       return c.json({ error: 'この Origin からの MCP アクセスは許可されていません' }, 403)
