@@ -27,6 +27,13 @@ describe('Markdown レンダリング', () => {
     expect(html).toContain('href="/pages/requirement/00001"')
   })
 
+  test('危険なスキームのリンクは無効化する', () => {
+    const html = render('[x](javascript:alert(1))\n\n[y](data:text/html,x)', 'markdown')
+    expect(html).not.toContain('href="javascript:')
+    expect(html).not.toContain('href="data:')
+    expect(html).toContain('md-broken-ref')
+  })
+
   test('Shiki 用コードブロックと Mermaid ブロックを描画する', () => {
     const html = render('```ts\nconst x = 1\n```\n\n```mermaid\nflowchart LR\n  A-->B\n```\n')
     expect(html).toContain('codeblock')

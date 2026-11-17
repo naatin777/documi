@@ -165,11 +165,19 @@ function renderLink(url: string, title: string | null | undefined, children: rea
   const inner = renderInlines(children, ctx)
   const to = resolveInternalHref(url)
   if (to) return <Link to={to}>{inner}</Link>
+  if (!isSafeHref(url)) return <span className="md-broken-ref">{inner}</span>
   return (
     <a href={url} title={title ?? undefined} target="_blank" rel="noreferrer">
       {inner}
     </a>
   )
+}
+
+/** リンク先のスキームを制限する (相対パス・アンカーは許可) */
+function isSafeHref(href: string): boolean {
+  const scheme = /^([a-z][a-z0-9+.-]*):/i.exec(href.trim())?.[1]
+  if (!scheme) return true
+  return ['http', 'https', 'mailto', 'tel'].includes(scheme.toLowerCase())
 }
 
 function resolveInternalHref(href: string): string | null {
