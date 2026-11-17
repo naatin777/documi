@@ -424,7 +424,7 @@ export async function resolveSourceSymbol(projectRoot: string, file: string, sym
   const loaded = await loadSourceFile(projectRoot, file)
   const def = EXT_TO_LANG.get(loaded.ext)
   if (!def) {
-    const supported = [...new Set([...EXT_TO_LANG.keys()])].sort().join(', ')
+    const supported = [...new Set(EXT_TO_LANG.keys())].sort().join(', ')
     throw new SourceError(`シンボル検索に対応していない拡張子です: .${loaded.ext} (対応: ${supported})`, 400)
   }
   if (!symbol || !symbol.trim()) throw new SourceError('symbol パラメータが必要です', 400)
@@ -453,7 +453,7 @@ export async function resolveSourceSymbol(projectRoot: string, file: string, sym
   }
 
   const c = found.one
-  const { code, startLine, endLine } = nodeCode(loaded.source, c.node)
+  const { code, startLine } = nodeCode(loaded.source, c.node)
   const { code: finalCode, truncated } = capCode(code)
   return {
     file: loaded.relPath,

@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { ErrorBoundary, type FallbackProps } from 'react-error-boundary'
 import { Navigate, Route, Routes, useLocation } from 'react-router-dom'
 import Explorer from './components/Explorer'
 import TopBar from './components/TopBar'
@@ -33,14 +34,30 @@ function AppShell() {
       <Explorer onClose={() => setNavOpen(false)} />
       {navOpen && <div className="nav-overlay" onClick={() => setNavOpen(false)} aria-hidden="true" />}
       <div className="doccols">
-        <Routes>
-          <Route path="/" element={<Navigate to="/glossary" replace />} />
-          <Route path="/glossary" element={<GlossaryLayout />} />
-          <Route path="/pages/:type/:id" element={<DocLayout />} />
-          <Route path="*" element={<NotFoundLayout />} />
-        </Routes>
+        <ErrorBoundary FallbackComponent={ErrorFallback} resetKeys={[location.pathname]}>
+          <Routes>
+            <Route path="/" element={<Navigate to="/glossary" replace />} />
+            <Route path="/glossary" element={<GlossaryLayout />} />
+            <Route path="/pages/:type/:id" element={<DocLayout />} />
+            <Route path="*" element={<NotFoundLayout />} />
+          </Routes>
+        </ErrorBoundary>
       </div>
     </div>
+  )
+}
+
+function ErrorFallback({ error, resetErrorBoundary }: FallbackProps) {
+  return (
+    <main className="content">
+      <div className="page">
+        <h1>表示中にエラーが発生しました</h1>
+        <p className="error-text">{error instanceof Error ? error.message : String(error)}</p>
+        <button type="button" className="button" onClick={resetErrorBoundary}>
+          再表示
+        </button>
+      </div>
+    </main>
   )
 }
 

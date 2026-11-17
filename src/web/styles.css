@@ -689,6 +689,20 @@ body {
   color: #dc2626;
 }
 
+.button {
+  padding: 7px 14px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--bg-subtle);
+  color: var(--text);
+  cursor: pointer;
+  font: inherit;
+}
+
+.button:hover {
+  background: var(--bg-hover);
+}
+
 /* ---------- Issues ---------- */
 
 .issues-panel {

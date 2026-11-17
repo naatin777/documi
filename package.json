@@ -10,6 +10,7 @@
     "build": "vite build",
     "start": "bun src/server/index.ts",
     "check": "bun check",
+    "lint": "oxlint --deny-warnings",
     "test": "bun test",
     "test:coverage": "bun test --coverage"
   },
@@ -28,6 +29,7 @@
     "mermaid": "^12.3.0",
     "react": "^19.1.0",
     "react-dom": "^19.1.0",
+    "react-error-boundary": "^6.1.6",
     "react-router-dom": "^7.9.0",
     "remark-gfm": "^4.0.1",
     "remark-math": "^6.0.0",
@@ -46,6 +48,8 @@
     "@vitejs/plugin-react": "^6.3.0",
     "concurrently": "^10.0.7",
     "mdast-util-mdx": "^3.0.0",
+    "oxc-transform-react": "^0.156.0",
+    "oxlint": "^1.94.0",
     "typescript": "^7.0.2",
     "vite": "^8.3.8"
   },
