@@ -71,9 +71,10 @@ DOCUMI_DOCS_DIR=/path/to/docs bun run start
 
 ### PDF 書き出し
 
-Web UI の PDF ボタンは、描画済みの HTML をサーバーへ送り headless Chrome で PDF を生成します。
-Chrome が見つからない場合は HTML 書き出しにフォールバックします。自動検出できない環境では
-`CHROME_PATH=/path/to/chrome` を指定してください（macOS の標準的なインストール先は自動検出されます）。
+Web UI の PDF ボタンは、描画済みの HTML をサーバーへ送り **Bun.WebView**（Bun 1.3.12+ の内蔵
+headless ブラウザ）の Chrome backend で PDF を生成します。Chrome / Chromium が見つからない場合は
+HTML 書き出しにフォールバックします。自動検出できない環境では `BUN_CHROME_PATH=/path/to/chrome`
+を指定してください（macOS の標準的なインストール先は自動検出されます）。追加の npm 依存はありません。
 
 ## Web UI
 
