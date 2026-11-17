@@ -28,6 +28,7 @@ function buildHtml(): string | null {
   for (const el of clone.querySelectorAll('button, .doc-tabs, .codeblock-toolbar')) el.remove()
 
   const title = source.querySelector('h1')?.textContent?.trim() || 'Documi'
+  const description = source.querySelector('.doc-description')?.textContent?.trim()
   const css = collectCss()
   return [
     '<!doctype html>',
@@ -35,7 +36,8 @@ function buildHtml(): string | null {
     '<head>',
     '<meta charset="utf-8">',
     '<meta name="viewport" content="width=device-width, initial-scale=1">',
-    `<title>${escapeHtml(title)}</title>`,
+    `<title>${escapeHtml(title)} — Documi</title>`,
+    description ? `<meta name="description" content="${escapeHtml(description)}">` : '',
     `<style>\n${css}\n</style>`,
     '</head>',
     '<body class="documi-export">',

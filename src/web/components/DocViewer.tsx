@@ -1,10 +1,12 @@
 import type { DocStatus, Document } from '../../core/types'
 import { ARTIFACT_TYPE_LABELS } from '../../core/types'
 import Markdown from './Markdown'
+import { PrintFooter, PrintHeader } from './PrintChrome'
 
 export default function DocViewer({ doc }: { doc: Document }) {
   return (
     <article className="page doc-page">
+      <PrintHeader label={`${ARTIFACT_TYPE_LABELS[doc.type]} · ${doc.id}`} title={doc.title} meta={doc.path} />
       <header className="doc-header">
         <div className="doc-badges">
           <span className={`badge badge-type type-${doc.type}`}>{ARTIFACT_TYPE_LABELS[doc.type]}</span>
@@ -36,6 +38,7 @@ export default function DocViewer({ doc }: { doc: Document }) {
       )}
 
       <Markdown body={doc.body} format={doc.format} />
+      <PrintFooter meta={doc.ref} />
     </article>
   )
 }
