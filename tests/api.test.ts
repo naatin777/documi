@@ -19,7 +19,7 @@ beforeEach(async () => {
     await mkdir(path.dirname(file), { recursive: true })
     await writeFile(file, `---\n${stringify(fm)}---\n\n${body}`)
   }
-  await write('glossary.md', { title: '用語集', description: 'desc' }, '# Glossary body\n')
+  await write('glossary.mdx', { title: '用語集', description: 'desc' }, '# Glossary body\n')
   await write(
     'requirements/00001-req.md',
     { type: 'requirement', title: 'Req One', description: 'first', status: 'accepted' },

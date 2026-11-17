@@ -17,7 +17,7 @@ export default function GlossaryLayout() {
       .catch((e: unknown) => setError(e instanceof Error ? e.message : String(e)))
   }, [])
 
-  const headings = useMemo(() => (glossary ? extractHeadings(glossary.body) : []), [glossary])
+  const headings = useMemo(() => (glossary ? extractHeadings(glossary.body, glossary.format) : []), [glossary])
 
   return (
     <>
@@ -38,7 +38,7 @@ export default function GlossaryLayout() {
           </header>
           {error && <p className="error-text">{error}</p>}
           {!glossary && !error && <p className="muted">読み込み中…</p>}
-          {glossary && <Markdown body={glossary.body} />}
+          {glossary && <Markdown body={glossary.body} format={glossary.format} />}
         </article>
       </main>
       <SidePanel headings={headings} />

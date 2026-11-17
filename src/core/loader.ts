@@ -384,14 +384,22 @@ function sortDocuments(documents: Document[]): void {
   })
 }
 
+/** .mdx を標準とし、既存データのために .md も読み込む */
+const GLOSSARY_FILENAMES = ['glossary.mdx', 'glossary.md'] as const
+
 async function loadGlossary(root: string, issues: IndexIssue[]): Promise<Glossary | null> {
-  const file = path.join(root, 'glossary.md')
-  let source: string
-  try {
-    source = await readFile(file, 'utf-8')
-  } catch {
-    return null
+  let name: (typeof GLOSSARY_FILENAMES)[number] | undefined
+  let source: string | undefined
+  for (const candidate of GLOSSARY_FILENAMES) {
+    try {
+      source = await readFile(path.join(root, candidate), 'utf-8')
+      name = candidate
+      break
+    } catch {
+      // 次の候補を試す
+    }
   }
+  if (name === undefined || source === undefined) return null
 
   let title = 'Glossary'
   let description = ''
@@ -408,11 +416,17 @@ async function loadGlossary(root: string, issues: IndexIssue[]): Promise<Glossar
   } catch (error) {
     issues.push({
       code: 'invalid-frontmatter',
-      message: `glossary.md: ${error instanceof FrontmatterError ? error.message : errorMessage(error)}`,
-      path: 'glossary.md',
+      message: `${name}: ${error instanceof FrontmatterError ? error.message : errorMessage(error)}`,
+      path: name,
     })
   }
-  return { title, description, path: 'glossary.md', body }
+  return {
+    title,
+    description,
+    path: name,
+    format: name.endsWith('.mdx') ? 'mdx' : 'markdown',
+    body,
+  }
 }
 
 function errorMessage(error: unknown): string {

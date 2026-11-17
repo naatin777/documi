@@ -134,11 +134,12 @@ function createDocumiMcpServer(index: DocsIndex): McpServer {
     },
     async () => {
       const glossary = index.glossary
-      if (!glossary) return errorResult('glossary が見つかりません (docs/glossary.md)')
+      if (!glossary) return errorResult('glossary が見つかりません (docs/glossary.mdx)')
       return jsonResult({
         title: glossary.title,
         description: glossary.description,
         path: glossary.path,
+        format: glossary.format,
         body: glossary.body,
       })
     },

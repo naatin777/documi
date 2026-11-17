@@ -20,7 +20,7 @@ relations:
 
 ## 処理フロー
 
-1. **走査**: 8 つの Artifact Type ディレクトリを読み、`NNNNN-kebab-case-slug.md(x)` に一致するファイルを収集する
+1. **走査**: 8 つの Artifact Type ディレクトリを読み、`NNNNN-kebab-case-slug.mdx`（`.md` も可）に一致するファイルを収集する
 2. **解析**: YAML frontmatter を分離・パースし、必須フィールドを検証する
 3. **検証**: ファイル名・ID 重複・type とディレクトリの一致・relations の形式を検証する
 4. **解決**: `relations` の参照先を `type:id` で引き、存在しない参照を issues として記録する

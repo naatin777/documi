@@ -22,7 +22,7 @@ Web UI と MCP Server の両方から同じ Document Core 経由で参照でき�
 | `verification` | `verification/` | 適合性の検証方法 |
 | `guide` | `guides/` | 利用・開発・運用手順 |
 
-各 Artifact は `NNNNN-kebab-case-slug.md`（または `.mdx`）というファイル名で、
+各 Artifact は `NNNNN-kebab-case-slug.mdx` というファイル名で（`.md` も読み込み可能）、
 5 桁の ID と YAML Frontmatter を持つ。識別子は `type:id` の形式（例: `requirement:00001`）。
 ID はファイル名から導出され、Slug の変更では変わらない。Type が異なれば同じ ID を使える。
 
@@ -42,7 +42,7 @@ relations:
 - `status`: `draft` / `accepted` / `deprecated`（実装・検証の状態とは独立）
 - 任意フィールド: `tags`, `sources`, `subtype`, `relations`, `perspective`
 - `relations`: 他 Artifact への外向き参照。逆参照は読み込み時に自動算出される
-- `docs/glossary.md` は Artifact Type を持たない特別な用語集
+- `docs/glossary.mdx` は Artifact Type を持たない特別な用語集（`glossary.md` も可）
 - Design は少なくとも 1 つの Requirement、Verification は Requirement / Design /
   Architecture / Contract のいずれかを参照する必要がある（違反は issues として報告）
 

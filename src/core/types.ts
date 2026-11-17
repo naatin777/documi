@@ -114,6 +114,7 @@ export interface Glossary {
   title: string
   description: string
   path: string
+  format: DocFormat
   body: string
 }
 

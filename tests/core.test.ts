@@ -265,6 +265,14 @@ describe('loadDocuments', () => {
     expect(index.glossary?.body).toContain('# 用語')
   })
 
+  test('glossary.mdx を MDX として読み込む', async () => {
+    await writeFile(path.join(root, 'glossary.mdx'), '---\ntitle: 用語集\ndescription: desc\n---\n\n# 用語\n\nbody\n')
+    const index = await loadDocuments(root)
+    expect(index.glossary?.path).toBe('glossary.mdx')
+    expect(index.glossary?.format).toBe('mdx')
+    expect(index.glossary?.body).toContain('# 用語')
+  })
+
   test('glossary がなくても読み込みできる', async () => {
     const index = await loadDocuments(root)
     expect(index.glossary).toBeNull()
