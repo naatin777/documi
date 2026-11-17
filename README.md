@@ -142,6 +142,7 @@ Web UI・REST API と同じ Document Core を使用する。
 
 | Endpoint | 説明 |
 |---|---|
+| `GET /api/health` | ヘルスチェック |
 | `GET /api/status` | ルート・文書数・issues |
 | `GET /api/documents` | 文書サマリ一覧（`?type=` で絞り込み） |
 | `GET /api/documents/:type/:id` | 文書詳細（本文・relations 込み） |

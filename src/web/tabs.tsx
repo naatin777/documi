@@ -8,9 +8,11 @@ import {
   type ReactNode,
 } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
+import { ID_PATTERN, isArtifactType } from '../core/types'
+import type { ArtifactType } from '../core/types'
 
 export interface DocTab {
-  type: string
+  type: ArtifactType
   id: string
   title: string
 }
@@ -35,8 +37,8 @@ function loadTabs(): DocTab[] {
       (t): t is DocTab =>
         typeof t === 'object' &&
         t !== null &&
-        typeof (t as DocTab).type === 'string' &&
-        typeof (t as DocTab).id === 'string' &&
+        isArtifactType((t as DocTab).type) &&
+        ID_PATTERN.test((t as DocTab).id) &&
         typeof (t as DocTab).title === 'string',
     )
   } catch {
@@ -44,11 +46,11 @@ function loadTabs(): DocTab[] {
   }
 }
 
-export function pageRef(pathname: string): { type: string; id: string } | null {
-  const m = pathname.match(/^\/pages\/([^/]+)\/([^/]+)/)
+export function pageRef(pathname: string): { type: ArtifactType; id: string } | null {
+  const m = /^\/pages\/([^/]+)\/([^/]+)/.exec(pathname)
   const type = m?.[1]
   const id = m?.[2]
-  return type && id ? { type, id } : null
+  return type && id && isArtifactType(type) && ID_PATTERN.test(id) ? { type, id } : null
 }
 
 export function TabsProvider({ children }: { children: ReactNode }) {

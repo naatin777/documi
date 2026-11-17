@@ -1,4 +1,5 @@
 import { readdir, readFile } from 'node:fs/promises'
+import type { Dirent } from 'node:fs'
 import path from 'node:path'
 import {
   ARTIFACT_TYPES,
@@ -14,6 +15,7 @@ import type {
   DocIssue,
   DocStatus,
   Document,
+  DocumentMeta,
   DocsIndex,
   Glossary,
   IndexIssue,
@@ -24,8 +26,10 @@ import { analyzeMdxBody } from './mdx'
 
 interface ParsedFile {
   document?: Document
-  fileIssue?: IndexIssue
 }
+
+/** Verification が参照すべき Artifact Type */
+const VERIFICATION_RELATION_TYPES: readonly ArtifactType[] = ['requirement', 'design', 'architecture', 'contract']
 
 /**
  * docs ディレクトリを走査し、全 Artifact を読み込んで
@@ -80,7 +84,7 @@ export function getDocument(index: DocsIndex, type: string, id: string): Documen
   return index.byRef.get(documentRef(type, id))
 }
 
-async function readDirSafe(dir: string, issues: IndexIssue[]): Promise<import('node:fs').Dirent[] | undefined> {
+async function readDirSafe(dir: string, issues: IndexIssue[]): Promise<Dirent[] | undefined> {
   try {
     return await readdir(dir, { withFileTypes: true })
   } catch (error) {
@@ -190,7 +194,7 @@ interface MetaContext {
 }
 
 /** frontmatter を検証して DocumentMeta を構築する。必須項目が不正なら null。 */
-function buildMeta(raw: unknown, ctx: MetaContext): Omit<Document, 'declaredRelations' | 'relations' | 'incomingRelations' | 'issues'> | null {
+function buildMeta(raw: unknown, ctx: MetaContext): DocumentMeta | null {
   if (typeof raw !== 'object' || raw === null || Array.isArray(raw)) {
     ctx.issues.push({ code: 'invalid-frontmatter', message: 'frontmatter はオブジェクトである必要があります' })
     return null
@@ -221,7 +225,7 @@ function buildMeta(raw: unknown, ctx: MetaContext): Omit<Document, 'declaredRela
     return null
   }
 
-  const meta: Omit<Document, 'declaredRelations' | 'relations' | 'incomingRelations' | 'issues'> = {
+  const meta: DocumentMeta = {
     ref: documentRef(ctx.type, ctx.id),
     type: ctx.type,
     id: ctx.id,
@@ -308,8 +312,6 @@ function parseRelations(
 }
 
 function resolveRelations(documents: Document[], byRef: Map<string, Document>): void {
-  const VERIFICATION_TARGET_TYPES: ArtifactType[] = ['requirement', 'design', 'architecture', 'contract']
-
   for (const doc of documents) {
     const resolved: RelationTarget[] = []
     const kept: Partial<Record<ArtifactType, string[]>> = {}
@@ -338,7 +340,7 @@ function resolveRelations(documents: Document[], byRef: Map<string, Document>): 
     }
     if (
       doc.type === 'verification' &&
-      !VERIFICATION_TARGET_TYPES.some((t) => (doc.declaredRelations[t]?.length ?? 0) > 0)
+      !VERIFICATION_RELATION_TYPES.some((t) => (doc.declaredRelations[t]?.length ?? 0) > 0)
     ) {
       doc.issues.push({
         code: 'verification-requires-target',

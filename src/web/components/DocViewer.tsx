@@ -1,4 +1,4 @@
-import type { Document } from '../../core/types'
+import type { DocStatus, Document } from '../../core/types'
 import { ARTIFACT_TYPE_LABELS } from '../../core/types'
 import Markdown from './Markdown'
 
@@ -40,6 +40,6 @@ export default function DocViewer({ doc }: { doc: Document }) {
   )
 }
 
-function StatusBadge({ status }: { status: string }) {
+function StatusBadge({ status }: { status: DocStatus }) {
   return <span className={`badge badge-status badge-status-${status}`}>{status}</span>
 }

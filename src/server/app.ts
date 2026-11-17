@@ -3,6 +3,7 @@ import path from 'node:path'
 import { Hono } from 'hono'
 import { cors } from 'hono/cors'
 import { serveStatic } from '@hono/bun'
+import type { ContentfulStatusCode } from 'hono/utils/http-status'
 import { ID_PATTERN, isArtifactType } from '../core/types'
 import type { DocsIndex } from '../core/types'
 import { getDocument } from '../core/loader'
@@ -96,7 +97,7 @@ export function createApp(index: DocsIndex, options: AppOptions = {}): Hono {
         : await resolveSourceLines(projectRoot, file, lines!)
       return c.json(result)
     } catch (e) {
-      if (e instanceof SourceError) return c.json({ error: e.message }, e.status as 400)
+      if (e instanceof SourceError) return c.json({ error: e.message }, e.status as ContentfulStatusCode)
       throw e
     }
   })

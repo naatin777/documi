@@ -22,13 +22,14 @@ import type {
   MdxJsxFlowElement,
   MdxJsxTextElement,
 } from 'mdast-util-mdx'
+import type { DocFormat } from '../core/types'
 import { uniqueHeadingId } from './headingIds'
 import CodeBlock from './components/CodeBlock'
 import MermaidBlock from './components/MermaidBlock'
-import { CalloutBlock, MdxTabs, StepsBlock, type TabItem } from './components/MdxBlocks'
+import { CalloutBlock, StepsBlock, TabsBlock, type TabItem } from './components/MdxBlocks'
 import SourceRef from './components/SourceRef'
 
-export type DocFormat = 'markdown' | 'mdx'
+export type { DocFormat } from '../core/types'
 
 const processors = {
   markdown: unified().use(remarkParse).use(remarkGfm).use(remarkMath),
@@ -382,7 +383,7 @@ function renderTabs(node: JsxNode, ctx: Ctx): ReactNode {
     return <MdxError message="<Tabs> には <Tabs.Tab> が必要です" source="<Tabs>" />
   }
   const tabs: TabItem[] = items.map((it) => ({ label: it.label, content: it.content }))
-  return <MdxTabs tabs={tabs} />
+  return <TabsBlock tabs={tabs} />
 }
 
 function renderSteps(node: JsxNode, ctx: Ctx): ReactNode {

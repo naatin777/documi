@@ -1,21 +1,10 @@
 import { useEffect, useMemo, useState } from 'react'
 import { NavLink } from 'react-router-dom'
-import { ARTIFACT_TYPES } from '../../core/types'
+import { ARTIFACT_TYPE_SECTION_LABELS, ARTIFACT_TYPES } from '../../core/types'
 import type { ArtifactType } from '../../core/types'
 import { api } from '../api'
 import type { DocumentSummary, StatusResponse } from '../api'
 import { ThemeToggle } from '../theme'
-
-const SECTION_LABELS: Record<ArtifactType, string> = {
-  goal: 'Goals',
-  requirement: 'Requirements',
-  architecture: 'Architecture',
-  design: 'Designs',
-  decision: 'Decisions',
-  contract: 'Contracts',
-  verification: 'Verification',
-  guide: 'Guides',
-}
 
 interface ExplorerProps {
   onClose: () => void
@@ -96,7 +85,7 @@ export default function Explorer({ onClose }: ExplorerProps) {
                 >
                   <path d="M3 1.5L7 5L3 8.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
                 </svg>
-                <span className="nav-section-label">{SECTION_LABELS[type]}</span>
+                <span className="nav-section-label">{ARTIFACT_TYPE_SECTION_LABELS[type]}</span>
                 <span className="nav-count">{docs.length}</span>
               </button>
               {!isCollapsed && (

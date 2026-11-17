@@ -23,7 +23,7 @@ export interface TabItem {
   content: ReactNode
 }
 
-export function MdxTabs({ tabs }: { tabs: TabItem[] }) {
+export function TabsBlock({ tabs }: { tabs: TabItem[] }) {
   const [active, setActive] = useState(0)
   const selected = Math.min(active, tabs.length - 1)
   const current = tabs[selected]

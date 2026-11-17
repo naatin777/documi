@@ -11,6 +11,9 @@ export const ARTIFACT_TYPES = [
 
 export type ArtifactType = (typeof ARTIFACT_TYPES)[number]
 
+/** ドキュメント本文の形式 */
+export type DocFormat = 'markdown' | 'mdx'
+
 export const ARTIFACT_TYPE_DIRECTORIES: Record<ArtifactType, string> = {
   goal: 'goals',
   requirement: 'requirements',
@@ -31,6 +34,18 @@ export const ARTIFACT_TYPE_LABELS: Record<ArtifactType, string> = {
   contract: 'Contract',
   verification: 'Verification',
   guide: 'Guide',
+}
+
+/** Explorer のセクション見出し (複数形) */
+export const ARTIFACT_TYPE_SECTION_LABELS: Record<ArtifactType, string> = {
+  goal: 'Goals',
+  requirement: 'Requirements',
+  architecture: 'Architecture',
+  design: 'Designs',
+  decision: 'Decisions',
+  contract: 'Contracts',
+  verification: 'Verification',
+  guide: 'Guides',
 }
 
 export const DOC_STATUSES = ['draft', 'accepted', 'deprecated'] as const
@@ -77,7 +92,7 @@ export interface DocumentMeta {
   sources: string[]
   subtype?: string
   perspective?: string
-  format: 'markdown' | 'mdx'
+  format: DocFormat
   /** rootDir からの相対パス (posix 区切り) */
   path: string
   /** frontmatter を除いた本文 */

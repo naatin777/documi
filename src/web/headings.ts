@@ -1,5 +1,6 @@
+import type { DocFormat } from '../core/types'
 import { uniqueHeadingId, type Heading } from './headingIds'
-import { parseMarkdown, textOfMdast, type AnyNode, type DocFormat } from './mdast'
+import { parseMarkdown, textOfMdast, type AnyNode } from './mdast'
 
 export type { Heading } from './headingIds'
 

@@ -1,14 +1,14 @@
-import type { Document, Glossary, IndexIssue } from '../core/types'
+import type { ArtifactType, DocFormat, DocStatus, Document, Glossary, IndexIssue } from '../core/types'
 
 export interface DocumentSummary {
   ref: string
-  type: string
+  type: ArtifactType
   id: string
   title: string
   description: string
-  status: string
+  status: DocStatus
   path: string
-  format: string
+  format: DocFormat
   issueCount: number
 }
 

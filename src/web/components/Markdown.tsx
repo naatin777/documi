@@ -1,5 +1,6 @@
 import { useMemo } from 'react'
-import { parseMarkdown, renderMarkdown, type DocFormat } from '../mdast'
+import type { DocFormat } from '../../core/types'
+import { parseMarkdown, renderMarkdown } from '../mdast'
 
 interface MarkdownProps {
   body: string

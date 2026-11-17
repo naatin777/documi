@@ -132,21 +132,21 @@ const SWIFT_RULES: KindRule[] = [
 ]
 
 const LANGS: Record<string, LangDef> = {
-  TypeScript: {
+  typescript: {
     astLang: 'TypeScript',
     display: 'typescript',
     exts: ['ts', 'mts', 'cts'],
     kinds: TS_RULES,
     scopes: { class_declaration: 'name', abstract_class_declaration: 'name', interface_declaration: 'name', internal_module: 'name', module: 'name' },
   },
-  Tsx: {
+  tsx: {
     astLang: 'Tsx',
     display: 'tsx',
     exts: ['tsx'],
     kinds: TS_RULES,
     scopes: { class_declaration: 'name', abstract_class_declaration: 'name', interface_declaration: 'name', internal_module: 'name', module: 'name' },
   },
-  JavaScript: {
+  javascript: {
     astLang: 'JavaScript',
     display: 'javascript',
     exts: ['js', 'mjs', 'cjs'],
@@ -297,7 +297,7 @@ export async function resolveSourceLines(projectRoot: string, file: string, line
   const { code, truncated } = sliceLines(loaded.source, start, end, total)
   return {
     file: loaded.relPath,
-    language: loaded.ext,
+    language: EXT_TO_LANG.get(loaded.ext)?.display ?? loaded.ext,
     startLine: start,
     endLine: start + code.split('\n').length - 1,
     totalLines: total,
