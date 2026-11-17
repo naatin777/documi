@@ -275,7 +275,8 @@ body {
   gap: 2px;
 }
 
-.theme-toggle {
+.theme-toggle,
+.topbar-action {
   display: flex;
   align-items: center;
   justify-content: center;
@@ -288,7 +289,8 @@ body {
   cursor: pointer;
 }
 
-.theme-toggle:hover {
+.theme-toggle:hover,
+.topbar-action:hover {
   background: var(--bg-hover);
   color: var(--text);
 }
@@ -1467,4 +1469,63 @@ body {
 
 .markdown .md-raw {
   padding: 10px 14px;
+}
+
+/* ---------- HTML 書き出し / 印刷 ---------- */
+
+@page {
+  margin: 16mm;
+}
+
+.documi-export {
+  background: var(--bg);
+  color: var(--text);
+  padding: 24px 16px 64px;
+}
+
+.documi-export .page {
+  max-width: none;
+  margin: 0;
+  padding: 0;
+}
+
+@media print {
+  .topbar,
+  .explorer,
+  .doc-tabs,
+  .side-panel,
+  .nav-overlay,
+  .codeblock-toolbar,
+  .mermaid-zoom,
+  .theme-toggle,
+  .topbar-action,
+  .issues-panel {
+    display: none !important;
+  }
+
+  .app,
+  .doccols,
+  .content {
+    display: block !important;
+    height: auto !important;
+    min-height: 0 !important;
+    overflow: visible !important;
+  }
+
+  .page {
+    max-width: none !important;
+    padding: 0 !important;
+  }
+
+  .markdown pre,
+  .mermaid-svg,
+  .source-ref,
+  table {
+    break-inside: avoid;
+  }
+
+  .markdown a {
+    color: inherit;
+    text-decoration: none;
+  }
 }

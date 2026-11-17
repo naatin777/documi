@@ -1,3 +1,4 @@
+import ExportActions from './ExportActions'
 import { ThemeToggle } from '../theme'
 
 interface TopBarProps {
@@ -14,6 +15,7 @@ export default function TopBar({ onMenu }: TopBarProps) {
       </button>
       <span className="topbar-title">Documi</span>
       <div className="topbar-actions">
+        <ExportActions />
         <ThemeToggle />
       </div>
     </header>

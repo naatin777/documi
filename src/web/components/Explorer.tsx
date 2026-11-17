@@ -5,6 +5,7 @@ import type { ArtifactType } from '../../core/types'
 import { api } from '../api'
 import type { DocumentSummary, StatusResponse } from '../api'
 import { ThemeToggle } from '../theme'
+import ExportActions from './ExportActions'
 
 interface ExplorerProps {
   onClose: () => void
@@ -48,6 +49,7 @@ export default function Explorer({ onClose }: ExplorerProps) {
       <div className="explorer-header">
         <span className="brand">Documi</span>
         <div className="explorer-actions">
+          <ExportActions />
           <ThemeToggle />
           <button type="button" className="explorer-close" onClick={onClose} aria-label="Explorerを閉じる">
             <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
