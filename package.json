@@ -5,8 +5,9 @@
   "description": "Document management tool for specs, designs, decisions, and verification records",
   "type": "module",
   "scripts": {
-    "dev": "concurrently -k -n server,web -c blue,green \"bun run dev:server\" \"vite\"",
+    "dev": "bun run --parallel dev:server web",
     "dev:server": "bun --watch src/server/index.ts",
+    "web": "vite",
     "build": "vite build",
     "start": "bun src/server/index.ts",
     "check": "bun check",
@@ -49,7 +50,6 @@
     "@types/react": "^19.1.0",
     "@types/react-dom": "^19.1.0",
     "@vitejs/plugin-react": "^6.3.0",
-    "concurrently": "^10.0.7",
     "knip": "^6.45.1",
     "mdast-util-mdx": "^3.0.0",
     "oxc-transform-react": "^0.156.0",
