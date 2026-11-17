@@ -69,12 +69,7 @@ export default function Explorer({ onClose }: ExplorerProps) {
           const isCollapsed = collapsed.has(type)
           return (
             <section key={type} className={`nav-group type-${type}`}>
-              <button
-                type="button"
-                className="nav-section"
-                aria-expanded={!isCollapsed}
-                onClick={() => toggle(type)}
-              >
+              <button type="button" className="nav-section" aria-expanded={!isCollapsed} onClick={() => toggle(type)}>
                 <svg
                   className={`nav-chevron${isCollapsed ? ' collapsed' : ''}`}
                   width="10"
@@ -83,7 +78,13 @@ export default function Explorer({ onClose }: ExplorerProps) {
                   fill="none"
                   aria-hidden="true"
                 >
-                  <path d="M3 1.5L7 5L3 8.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                  <path
+                    d="M3 1.5L7 5L3 8.5"
+                    stroke="currentColor"
+                    strokeWidth="1.5"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
                 </svg>
                 <span className="nav-section-label">{ARTIFACT_TYPE_SECTION_LABELS[type]}</span>
                 <span className="nav-count">{docs.length}</span>
@@ -101,9 +102,7 @@ export default function Explorer({ onClose }: ExplorerProps) {
                       >
                         <span className="nav-id">{doc.id}</span>
                         <span className="nav-title">{doc.title}</span>
-                        {doc.issueCount > 0 && (
-                          <span className="issue-dot" title={`問題 ${doc.issueCount} 件`} />
-                        )}
+                        {doc.issueCount > 0 && <span className="issue-dot" title={`問題 ${doc.issueCount} 件`} />}
                       </NavLink>
                     </li>
                   ))}

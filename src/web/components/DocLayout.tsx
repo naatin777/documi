@@ -73,11 +73,7 @@ export default function DocLayout() {
         )}
         {doc && <DocViewer doc={doc} />}
       </main>
-      <SidePanel
-        headings={headings}
-        outgoing={doc?.relations ?? []}
-        incoming={doc?.incomingRelations ?? []}
-      />
+      <SidePanel headings={headings} outgoing={doc?.relations ?? []} incoming={doc?.incomingRelations ?? []} />
     </>
   )
 }

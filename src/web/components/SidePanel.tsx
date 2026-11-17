@@ -19,11 +19,7 @@ export default function SidePanel({ headings, outgoing, incoming }: SidePanelPro
           <ul className="rp-outline">
             {headings.map((h, i) => (
               <li key={`${h.id}-${i}`} style={{ paddingLeft: `${(h.level - 1) * 12}px` }}>
-                <button
-                  type="button"
-                  className="rp-outline-link"
-                  onClick={() => scrollToHeading(h.id)}
-                >
+                <button type="button" className="rp-outline-link" onClick={() => scrollToHeading(h.id)}>
                   {h.text}
                 </button>
               </li>

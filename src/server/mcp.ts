@@ -10,9 +10,7 @@ import { getDocument } from '../core/loader'
 // registerTool のジェネリクス推論が深くなりすぎるのを防ぐため ZodTypeAny に広げる。
 // 実行時のバリデーション (enum / regex) はスキーマ自体がそのまま担う。
 const artifactTypeSchema: ZodTypeAny = z.enum(ARTIFACT_TYPES)
-const optionalTypeSchema: ZodTypeAny = artifactTypeSchema
-  .optional()
-  .describe('絞り込む Artifact Type (省略時は全件)')
+const optionalTypeSchema: ZodTypeAny = artifactTypeSchema.optional().describe('絞り込む Artifact Type (省略時は全件)')
 
 const docRefSchema = {
   type: artifactTypeSchema.describe(

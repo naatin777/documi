@@ -9,7 +9,14 @@ import javaLang from '@ast-grep/lang-java'
 import kotlinLang from '@ast-grep/lang-kotlin'
 import swiftLang from '@ast-grep/lang-swift'
 
-registerDynamicLanguage({ go: goLang, rust: rustLang, python: pythonLang, java: javaLang, kotlin: kotlinLang, swift: swiftLang })
+registerDynamicLanguage({
+  go: goLang,
+  rust: rustLang,
+  python: pythonLang,
+  java: javaLang,
+  kotlin: kotlinLang,
+  swift: swiftLang,
+})
 
 export class SourceError extends Error {
   constructor(
@@ -21,7 +28,7 @@ export class SourceError extends Error {
   }
 }
 
-export interface SourceSymbolInfo {
+interface SourceSymbolInfo {
   name: string
   qualifiedName?: string
   kind: string
@@ -137,14 +144,26 @@ const LANGS: Record<string, LangDef> = {
     display: 'typescript',
     exts: ['ts', 'mts', 'cts'],
     kinds: TS_RULES,
-    scopes: { class_declaration: 'name', abstract_class_declaration: 'name', interface_declaration: 'name', internal_module: 'name', module: 'name' },
+    scopes: {
+      class_declaration: 'name',
+      abstract_class_declaration: 'name',
+      interface_declaration: 'name',
+      internal_module: 'name',
+      module: 'name',
+    },
   },
   tsx: {
     astLang: 'Tsx',
     display: 'tsx',
     exts: ['tsx'],
     kinds: TS_RULES,
-    scopes: { class_declaration: 'name', abstract_class_declaration: 'name', interface_declaration: 'name', internal_module: 'name', module: 'name' },
+    scopes: {
+      class_declaration: 'name',
+      abstract_class_declaration: 'name',
+      interface_declaration: 'name',
+      internal_module: 'name',
+      module: 'name',
+    },
   },
   javascript: {
     astLang: 'JavaScript',
@@ -209,11 +228,66 @@ for (const def of Object.values(LANGS)) {
 
 const TEXT_EXTS = new Set([
   ...EXT_TO_LANG.keys(),
-  'md', 'mdx', 'markdown', 'json', 'jsonc', 'yaml', 'yml', 'toml', 'xml', 'html', 'css',
-  'scss', 'less', 'sql', 'sh', 'bash', 'zsh', 'fish', 'txt', 'env', 'ini', 'cfg', 'conf',
-  'graphql', 'gql', 'proto', 'diff', 'patch', 'csv', 'lua', 'rb', 'php', 'c', 'h', 'cpp',
-  'cc', 'cxx', 'hpp', 'cs', 'fs', 'ex', 'exs', 'erl', 'hrl', 'clj', 'scala', 'groovy', 'gradle',
-  'make', 'mk', 'dockerfile', 'just', 'nix', 'zig', 'dart', 'r', 'jl', 'vim', 'tf', 'hcl',
+  'md',
+  'mdx',
+  'markdown',
+  'json',
+  'jsonc',
+  'yaml',
+  'yml',
+  'toml',
+  'xml',
+  'html',
+  'css',
+  'scss',
+  'less',
+  'sql',
+  'sh',
+  'bash',
+  'zsh',
+  'fish',
+  'txt',
+  'env',
+  'ini',
+  'cfg',
+  'conf',
+  'graphql',
+  'gql',
+  'proto',
+  'diff',
+  'patch',
+  'csv',
+  'lua',
+  'rb',
+  'php',
+  'c',
+  'h',
+  'cpp',
+  'cc',
+  'cxx',
+  'hpp',
+  'cs',
+  'fs',
+  'ex',
+  'exs',
+  'erl',
+  'hrl',
+  'clj',
+  'scala',
+  'groovy',
+  'gradle',
+  'make',
+  'mk',
+  'dockerfile',
+  'just',
+  'nix',
+  'zig',
+  'dart',
+  'r',
+  'jl',
+  'vim',
+  'tf',
+  'hcl',
 ])
 
 interface LoadedSource {
@@ -386,7 +460,10 @@ function collectCandidates(root: ReturnType<typeof parse>, def: LangDef): Candid
   return out
 }
 
-function findSymbol(candidates: Candidate[], symbol: string): { one: Candidate } | { many: Candidate[] } | { none: true } {
+function findSymbol(
+  candidates: Candidate[],
+  symbol: string,
+): { one: Candidate } | { many: Candidate[] } | { none: true } {
   const want = symbol.trim()
   const matches = candidates.filter((c) => {
     if (want.includes('.')) {
@@ -440,15 +517,11 @@ export async function resolveSourceSymbol(projectRoot: string, file: string, sym
   const found = findSymbol(candidates, symbol)
   if ('none' in found) {
     const similar = candidates.filter((c) => c.name === symbol.split('.').pop()).slice(0, 5)
-    const hint = similar.length
-      ? ` 候補: ${similar.map((c) => c.qualifiedName).join(', ')}`
-      : ''
+    const hint = similar.length ? ` 候補: ${similar.map((c) => c.qualifiedName).join(', ')}` : ''
     throw new SourceError(`シンボルが見つかりません: ${symbol}${hint}`, 404)
   }
   if ('many' in found) {
-    const list = found.many
-      .map((c) => `${c.qualifiedName} (${c.kind}, L${c.node.range().start.line + 1})`)
-      .join('; ')
+    const list = found.many.map((c) => `${c.qualifiedName} (${c.kind}, L${c.node.range().start.line + 1})`).join('; ')
     throw new SourceError(`シンボルが曖昧です: ${symbol} — ${list}`, 409)
   }
 

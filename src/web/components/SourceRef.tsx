@@ -32,7 +32,11 @@ export default function SourceRef({ file, symbol, lines }: SourceRefProps) {
     setLoading(true)
     setError(null)
     api
-      .source({ file, symbol: typeof symbol === 'string' ? symbol : undefined, lines: typeof lines === 'string' ? lines : undefined })
+      .source({
+        file,
+        symbol: typeof symbol === 'string' ? symbol : undefined,
+        lines: typeof lines === 'string' ? lines : undefined,
+      })
       .then((res) => {
         if (!cancelled) setData(res)
       })
@@ -50,9 +54,7 @@ export default function SourceRef({ file, symbol, lines }: SourceRefProps) {
   if (!valid) {
     return (
       <div className="source-ref source-ref-error">
-        <span className="error-text">
-          SourceRef には file と symbol または lines のどちらか一方が必要です
-        </span>
+        <span className="error-text">SourceRef には file と symbol または lines のどちらか一方が必要です</span>
       </div>
     )
   }

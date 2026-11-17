@@ -67,8 +67,14 @@ describe('loadDocuments', () => {
   })
 
   test('同じIDが異なるTypeに存在しても type:id で区別できる', async () => {
-    await writeDoc('requirements/00001-x.md', fm({ type: 'requirement', title: 'R', description: 'd', status: 'draft' }))
-    await writeDoc('designs/00001-y.md', fm({ type: 'design', title: 'D', description: 'd', status: 'draft', relations: { requirement: ['00001'] } }))
+    await writeDoc(
+      'requirements/00001-x.md',
+      fm({ type: 'requirement', title: 'R', description: 'd', status: 'draft' }),
+    )
+    await writeDoc(
+      'designs/00001-y.md',
+      fm({ type: 'design', title: 'D', description: 'd', status: 'draft', relations: { requirement: ['00001'] } }),
+    )
 
     const index = await loadDocuments(root)
     expect(getDocument(index, 'requirement', '00001')?.title).toBe('R')
@@ -125,12 +131,17 @@ describe('loadDocuments', () => {
         relations: { requirement: ['00001', '00999'] },
       }),
     )
-    await writeDoc('requirements/00001-r.md', fm({ type: 'requirement', title: 'R', description: 'd', status: 'draft' }))
+    await writeDoc(
+      'requirements/00001-r.md',
+      fm({ type: 'requirement', title: 'R', description: 'd', status: 'draft' }),
+    )
 
     const index = await loadDocuments(root)
     const design = getDocument(index, 'design', '00001')!
     expect(design.relations.map((r) => r.ref)).toEqual(['requirement:00001'])
-    expect(design.issues.some((i) => i.code === 'missing-relation' && i.message.includes('requirement:00999'))).toBe(true)
+    expect(design.issues.some((i) => i.code === 'missing-relation' && i.message.includes('requirement:00999'))).toBe(
+      true,
+    )
   })
 
   test('自己参照・重複参照・不正な relation を検出する', async () => {
@@ -165,15 +176,23 @@ describe('loadDocuments', () => {
       'designs/00002-ok.md',
       fm({ type: 'design', title: 'D2', description: 'd', status: 'draft', relations: { requirement: ['00001'] } }),
     )
-    await writeDoc('requirements/00001-r.md', fm({ type: 'requirement', title: 'R', description: 'd', status: 'draft' }))
+    await writeDoc(
+      'requirements/00001-r.md',
+      fm({ type: 'requirement', title: 'R', description: 'd', status: 'draft' }),
+    )
 
     const index = await loadDocuments(root)
     expect(getDocument(index, 'design', '00001')!.issues.map((i) => i.code)).toContain('design-requires-requirement')
-    expect(getDocument(index, 'design', '00002')!.issues.map((i) => i.code)).not.toContain('design-requires-requirement')
+    expect(getDocument(index, 'design', '00002')!.issues.map((i) => i.code)).not.toContain(
+      'design-requires-requirement',
+    )
   })
 
   test('Verification は対象参照が必須', async () => {
-    await writeDoc('verification/00001-empty.md', fm({ type: 'verification', title: 'V', description: 'd', status: 'draft' }))
+    await writeDoc(
+      'verification/00001-empty.md',
+      fm({ type: 'verification', title: 'V', description: 'd', status: 'draft' }),
+    )
     await writeDoc(
       'verification/00002-ok.md',
       fm({ type: 'verification', title: 'V2', description: 'd', status: 'draft', relations: { contract: ['00001'] } }),
@@ -181,12 +200,17 @@ describe('loadDocuments', () => {
     await writeDoc('contracts/00001-c.md', fm({ type: 'contract', title: 'C', description: 'd', status: 'draft' }))
 
     const index = await loadDocuments(root)
-    expect(getDocument(index, 'verification', '00001')!.issues.map((i) => i.code)).toContain('verification-requires-target')
+    expect(getDocument(index, 'verification', '00001')!.issues.map((i) => i.code)).toContain(
+      'verification-requires-target',
+    )
     expect(getDocument(index, 'verification', '00002')!.issues).toHaveLength(0)
   })
 
   test('type とディレクトリの不一致を検出する', async () => {
-    await writeDoc('requirements/00001-x.md', fm({ type: 'design', title: 'T', description: 'd', status: 'draft', relations: { requirement: ['00001'] } }))
+    await writeDoc(
+      'requirements/00001-x.md',
+      fm({ type: 'design', title: 'T', description: 'd', status: 'draft', relations: { requirement: ['00001'] } }),
+    )
 
     const index = await loadDocuments(root)
     expect(index.documents).toHaveLength(0)
@@ -235,10 +259,7 @@ describe('loadDocuments', () => {
   })
 
   test('glossary を読み込む', async () => {
-    await writeFile(
-      path.join(root, 'glossary.md'),
-      '---\ntitle: 用語集\ndescription: desc\n---\n\n# 用語\n\nbody\n',
-    )
+    await writeFile(path.join(root, 'glossary.md'), '---\ntitle: 用語集\ndescription: desc\n---\n\n# 用語\n\nbody\n')
     const index = await loadDocuments(root)
     expect(index.glossary?.title).toBe('用語集')
     expect(index.glossary?.body).toContain('# 用語')

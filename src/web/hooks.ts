@@ -34,13 +34,16 @@ export function useCopyText(): { copied: boolean; copy: (text: string) => void }
   const copy = useCallback((text: string) => {
     const clipboard = navigator.clipboard
     if (!clipboard) return
-    void clipboard.writeText(text).then(() => {
-      setCopied(true)
-      if (timer.current) clearTimeout(timer.current)
-      timer.current = setTimeout(() => setCopied(false), 1500)
-    }).catch(() => {
-      // clipboard が使えない環境では何もしない
-    })
+    void clipboard
+      .writeText(text)
+      .then(() => {
+        setCopied(true)
+        if (timer.current) clearTimeout(timer.current)
+        timer.current = setTimeout(() => setCopied(false), 1500)
+      })
+      .catch(() => {
+        // clipboard が使えない環境では何もしない
+      })
   }, [])
 
   return { copied, copy }

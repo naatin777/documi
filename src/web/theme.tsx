@@ -46,11 +46,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     }
   }, [mode, resolved])
 
-  return (
-    <ThemeContext.Provider value={{ mode, resolved, setMode }}>
-      {children}
-    </ThemeContext.Provider>
-  )
+  return <ThemeContext.Provider value={{ mode, resolved, setMode }}>{children}</ThemeContext.Provider>
 }
 
 const FALLBACK_THEME: ThemeContextValue = { mode: 'system', resolved: 'light', setMode: () => {} }

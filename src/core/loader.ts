@@ -221,7 +221,10 @@ function buildMeta(raw: unknown, ctx: MetaContext): DocumentMeta | null {
     return null
   }
   if (typeof fm.status !== 'string' || !(DOC_STATUSES as readonly string[]).includes(fm.status)) {
-    ctx.issues.push({ code: 'invalid-field', message: `status は ${DOC_STATUSES.join(' / ')} のいずれかである必要があります` })
+    ctx.issues.push({
+      code: 'invalid-field',
+      message: `status は ${DOC_STATUSES.join(' / ')} のいずれかである必要があります`,
+    })
     return null
   }
 
@@ -266,9 +269,10 @@ function buildMeta(raw: unknown, ctx: MetaContext): DocumentMeta | null {
   return meta
 }
 
-function parseRelations(
-  raw: unknown,
-): { declaredRelations: Partial<Record<ArtifactType, string[]>>; relationIssues: DocIssue[] } {
+function parseRelations(raw: unknown): {
+  declaredRelations: Partial<Record<ArtifactType, string[]>>
+  relationIssues: DocIssue[]
+} {
   const relationIssues: DocIssue[] = []
   const declared: Partial<Record<ArtifactType, string[]>> = {}
   const fm = raw as Record<string, unknown>
@@ -300,7 +304,10 @@ function parseRelations(
         continue
       }
       if (seen.has(entry)) {
-        relationIssues.push({ code: 'duplicate-relation', message: `relations.${key} に重複した ID があります: ${entry}` })
+        relationIssues.push({
+          code: 'duplicate-relation',
+          message: `relations.${key} に重複した ID があります: ${entry}`,
+        })
         continue
       }
       seen.add(entry)
@@ -335,8 +342,11 @@ function resolveRelations(documents: Document[], byRef: Map<string, Document>): 
     doc.declaredRelations = kept
     doc.relations = resolved
 
-    if (doc.type === 'design' && !(doc.declaredRelations.requirement?.length)) {
-      doc.issues.push({ code: 'design-requires-requirement', message: 'Design は少なくとも1つの Requirement を参照する必要があります' })
+    if (doc.type === 'design' && !doc.declaredRelations.requirement?.length) {
+      doc.issues.push({
+        code: 'design-requires-requirement',
+        message: 'Design は少なくとも1つの Requirement を参照する必要があります',
+      })
     }
     if (
       doc.type === 'verification' &&

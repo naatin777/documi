@@ -25,10 +25,12 @@ beforeEach(async () => {
     { type: 'requirement', title: 'Req One', description: 'first', status: 'accepted' },
     '# Req body\n\nSome **markdown** content.\n',
   )
-  await write(
-    'requirements/00002-req2.md',
-    { type: 'requirement', title: 'Req Two', description: 'second', status: 'draft' },
-  )
+  await write('requirements/00002-req2.md', {
+    type: 'requirement',
+    title: 'Req Two',
+    description: 'second',
+    status: 'draft',
+  })
   await write(
     'designs/00001-design.md',
     {
@@ -62,11 +64,7 @@ describe('REST API', () => {
     const res = await app.fetch(new Request('http://localhost/api/documents'))
     expect(res.status).toBe(200)
     const body = (await res.json()) as { documents: { ref: string; title: string; issueCount: number }[] }
-    expect(body.documents.map((d) => d.ref)).toEqual([
-      'requirement:00001',
-      'requirement:00002',
-      'design:00001',
-    ])
+    expect(body.documents.map((d) => d.ref)).toEqual(['requirement:00001', 'requirement:00002', 'design:00001'])
     expect(body.documents[0]).not.toHaveProperty('body')
   })
 
@@ -80,7 +78,9 @@ describe('REST API', () => {
   test('GET /api/documents/:type/:id で詳細を返す', async () => {
     const res = await app.fetch(new Request('http://localhost/api/documents/requirement/00001'))
     expect(res.status).toBe(200)
-    const body = (await res.json()) as { document: { body: string; relations: unknown[]; incomingRelations: { ref: string }[] } }
+    const body = (await res.json()) as {
+      document: { body: string; relations: unknown[]; incomingRelations: { ref: string }[] }
+    }
     expect(body.document.body).toContain('markdown')
     expect(body.document.incomingRelations.map((r) => r.ref)).toEqual(['design:00001'])
   })

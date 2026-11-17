@@ -76,12 +76,7 @@ export default function MermaidBlock({ code }: MermaidBlockProps) {
         </div>
       )}
       {svg && !showSource && (
-        <div
-          className="mermaid-svg"
-          role="img"
-          aria-label="Mermaid 図"
-          dangerouslySetInnerHTML={{ __html: svg }}
-        />
+        <div className="mermaid-svg" role="img" aria-label="Mermaid 図" dangerouslySetInnerHTML={{ __html: svg }} />
       )}
       {svg && showSource && (
         <pre className="codeblock-plain">
@@ -97,12 +92,7 @@ export default function MermaidBlock({ code }: MermaidBlockProps) {
           onClick={() => setZoomed(false)}
         >
           <div className="mermaid-zoom-inner" onClick={(e) => e.stopPropagation()}>
-            <button
-              type="button"
-              className="mermaid-zoom-close"
-              aria-label="閉じる"
-              onClick={() => setZoomed(false)}
-            >
+            <button type="button" className="mermaid-zoom-close" aria-label="閉じる" onClick={() => setZoomed(false)}>
               ×
             </button>
             <div dangerouslySetInnerHTML={{ __html: svg }} />

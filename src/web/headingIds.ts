@@ -5,7 +5,7 @@ export interface Heading {
 }
 
 /** GitHub 風のスラッグ化。レンダラ側と Outline 側で同じ関数を使う。 */
-export function slugify(text: string): string {
+function slugify(text: string): string {
   return text
     .toLowerCase()
     .trim()

@@ -35,11 +35,29 @@ beforeEach(async () => {
   )
   await write(
     'core/registry.go',
-    ['package main', '', 'type Registry struct{}', '', 'func (r *Registry) Register(name string) {}', '', 'func main() {}', ''].join('\n'),
+    [
+      'package main',
+      '',
+      'type Registry struct{}',
+      '',
+      'func (r *Registry) Register(name string) {}',
+      '',
+      'func main() {}',
+      '',
+    ].join('\n'),
   )
   await write(
     'src/store.rs',
-    ['pub struct Store;', '', 'impl Store {', '    pub fn get(&self) -> i32 { 1 }', '}', '', 'fn top_level() {}', ''].join('\n'),
+    [
+      'pub struct Store;',
+      '',
+      'impl Store {',
+      '    pub fn get(&self) -> i32 { 1 }',
+      '}',
+      '',
+      'fn top_level() {}',
+      '',
+    ].join('\n'),
   )
   await write(
     'src/app.py',
@@ -173,7 +191,10 @@ describe('resolveSourceSymbol', () => {
   test('ファイル変更後は最新の内容を返す', async () => {
     const before = await resolveSourceSymbol(root, 'src/sample.ts', 'helper')
     expect(before.code).toContain('return x * 2')
-    await writeFile(path.join(root, 'src/sample.ts'), 'export function helper(x: number): number {\n  return x * 3\n}\n')
+    await writeFile(
+      path.join(root, 'src/sample.ts'),
+      'export function helper(x: number): number {\n  return x * 3\n}\n',
+    )
     const after = await resolveSourceSymbol(root, 'src/sample.ts', 'helper')
     expect(after.code).toContain('return x * 3')
     expect(after.code).not.toContain('return x * 2')

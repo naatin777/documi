@@ -7,21 +7,8 @@ import remarkParse from 'remark-parse'
 import remarkGfm from 'remark-gfm'
 import remarkMath from 'remark-math'
 import remarkMdx from 'remark-mdx'
-import type {
-  BlockContent,
-  DefinitionContent,
-  List,
-  ListItem,
-  PhrasingContent,
-  Root,
-  RootContent,
-  Table,
-} from 'mdast'
-import type {
-  MdxJsxAttribute,
-  MdxJsxFlowElement,
-  MdxJsxTextElement,
-} from 'mdast-util-mdx'
+import type { BlockContent, DefinitionContent, List, ListItem, PhrasingContent, Root, RootContent, Table } from 'mdast'
+import type { MdxJsxAttribute, MdxJsxFlowElement, MdxJsxTextElement } from 'mdast-util-mdx'
 import type { DocFormat } from '../core/types'
 import { uniqueHeadingId } from './headingIds'
 import CodeBlock from './components/CodeBlock'
@@ -58,7 +45,13 @@ export function renderMarkdown(root: Root): ReactNode {
   return renderBlocks(root.children, ctx)
 }
 
-export type AnyNode = RootContent | BlockContent | PhrasingContent | DefinitionContent | MdxJsxFlowElement | MdxJsxTextElement
+export type AnyNode =
+  | RootContent
+  | BlockContent
+  | PhrasingContent
+  | DefinitionContent
+  | MdxJsxFlowElement
+  | MdxJsxTextElement
 
 function renderBlocks(nodes: readonly AnyNode[], ctx: Ctx): ReactNode {
   return nodes.map((node, i) => <Fragment key={i}>{renderBlock(node, ctx)}</Fragment>)
@@ -75,9 +68,7 @@ function renderBlock(node: AnyNode, ctx: Ctx): ReactNode {
     case 'heading': {
       const Tag = `h${node.depth}` as 'h1' | 'h2' | 'h3' | 'h4' | 'h5' | 'h6'
       const id = uniqueHeadingId(textOfMdast(node.children), ctx.headingIds)
-      return (
-        <Tag id={id}>{renderInlines(node.children, ctx)}</Tag>
-      )
+      return <Tag id={id}>{renderInlines(node.children, ctx)}</Tag>
     }
     case 'blockquote':
       return <blockquote>{renderBlocks(node.children, ctx)}</blockquote>
@@ -190,14 +181,8 @@ function resolveInternalHref(href: string): string | null {
 
 function renderList(node: List, ctx: Ctx): ReactNode {
   const tight = node.spread !== true
-  const items = node.children.map((item: ListItem, i: number) => (
-    <li key={i}>{renderListItem(item, tight, ctx)}</li>
-  ))
-  return node.ordered ? (
-    <ol start={node.start ?? undefined}>{items}</ol>
-  ) : (
-    <ul>{items}</ul>
-  )
+  const items = node.children.map((item: ListItem, i: number) => <li key={i}>{renderListItem(item, tight, ctx)}</li>)
+  return node.ordered ? <ol start={node.start ?? undefined}>{items}</ol> : <ul>{items}</ul>
 }
 
 function renderListItem(item: ListItem, tight: boolean, ctx: Ctx): ReactNode {
@@ -298,10 +283,7 @@ function renderJsx(node: JsxNode, ctx: Ctx, level: 'flow' | 'text'): ReactNode {
     switch (name) {
       case 'Callout':
         return (
-          <CalloutBlock
-            type={strProp(props, 'type')}
-            title={strProp(props, 'title')}
-          >
+          <CalloutBlock type={strProp(props, 'type')} title={strProp(props, 'title')}>
             {renderJsxChildren(node, ctx)}
           </CalloutBlock>
         )
@@ -311,11 +293,7 @@ function renderJsx(node: JsxNode, ctx: Ctx, level: 'flow' | 'text'): ReactNode {
         return renderSteps(node, ctx)
       case 'SourceRef':
         return (
-          <SourceRef
-            file={strProp(props, 'file')}
-            symbol={strProp(props, 'symbol')}
-            lines={strProp(props, 'lines')}
-          />
+          <SourceRef file={strProp(props, 'file')} symbol={strProp(props, 'symbol')} lines={strProp(props, 'lines')} />
         )
     }
   }
