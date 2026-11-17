@@ -9,6 +9,7 @@ import type { DocsIndex } from '../core/types'
 import { getDocument } from '../core/loader'
 import { resolveSourceLines, resolveSourceSymbol, SourceError } from '../core/source'
 import { handleMcpRequest } from './mcp'
+import { PdfError, renderPdf } from './pdf'
 
 export interface AppOptions {
   /** ビルド済みフロントエンド (dist) のパス。存在する場合のみ静的配信する */
@@ -102,6 +103,35 @@ export function createApp(index: DocsIndex, options: AppOptions = {}): Hono {
     }
   })
 
+  app.post('/api/export/pdf', async (c) => {
+    let body: unknown
+    try {
+      body = await c.req.json()
+    } catch {
+      return c.json({ error: 'JSON ボディが必要です' }, 400)
+    }
+    if (typeof body !== 'object' || body === null) {
+      return c.json({ error: 'JSON ボディが必要です' }, 400)
+    }
+    const { html } = body as { html?: unknown }
+    if (typeof html !== 'string' || html.trim() === '') {
+      return c.json({ error: 'html パラメータが必要です' }, 400)
+    }
+    try {
+      const pdf = await renderPdf(html)
+      const name = safePdfFileName((body as { filename?: unknown }).filename)
+      return new Response(new Blob([pdf as BlobPart], { type: 'application/pdf' }), {
+        headers: {
+          'Content-Type': 'application/pdf',
+          'Content-Disposition': `attachment; filename="${name}"`,
+        },
+      })
+    } catch (e) {
+      if (e instanceof PdfError) return c.json({ error: e.message }, e.status as ContentfulStatusCode)
+      throw e
+    }
+  })
+
   // ブラウザ由来のクロスオリジン要求は拒否する (DNS rebinding / CSRF 対策)
   app.all('/mcp', async (c) => {
     const origin = c.req.header('origin')
@@ -118,6 +148,15 @@ export function createApp(index: DocsIndex, options: AppOptions = {}): Hono {
   }
 
   return app
+}
+
+/** Content-Disposition に使うファイル名を安全な ASCII に制限する */
+function safePdfFileName(value: unknown): string {
+  const base = (typeof value === 'string' ? value : 'documi')
+    .replace(/[^\w.-]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .slice(0, 80)
+  return `${base || 'documi'}.pdf`
 }
 
 /** localhost / 127.0.0.1 / ::1 からの Origin のみ許可する */

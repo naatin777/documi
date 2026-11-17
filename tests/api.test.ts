@@ -100,6 +100,34 @@ describe('REST API', () => {
     expect(body.glossary.body).toContain('Glossary body')
   })
 
+  test('POST /api/export/pdf は html を検証する', async () => {
+    const res = await app.fetch(
+      new Request('http://localhost/api/export/pdf', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({}),
+      }),
+    )
+    expect(res.status).toBe(400)
+  })
+
+  test('POST /api/export/pdf は PDF を生成する (Chrome が無い環境では 501)', async () => {
+    const res = await app.fetch(
+      new Request('http://localhost/api/export/pdf', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ html: '<!doctype html><html><body><h1>Test</h1></body></html>' }),
+      }),
+    )
+    if (res.status === 200) {
+      expect(res.headers.get('content-type')).toContain('application/pdf')
+      const bytes = new Uint8Array(await res.arrayBuffer())
+      expect(new TextDecoder().decode(bytes.slice(0, 5))).toBe('%PDF-')
+    } else {
+      expect(res.status).toBe(501)
+    }
+  })
+
   test('GET /api/status は問題一覧を返す', async () => {
     const res = await app.fetch(new Request('http://localhost/api/status'))
     const body = (await res.json()) as { documentCount: number; issues: { path?: string; code: string }[] }

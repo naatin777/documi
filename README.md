@@ -69,6 +69,12 @@ bun run start -- --docs /path/to/docs
 DOCUMI_DOCS_DIR=/path/to/docs bun run start
 ```
 
+### PDF 書き出し
+
+Web UI の PDF ボタンは、描画済みの HTML をサーバーへ送り headless Chrome で PDF を生成します。
+Chrome が見つからない場合は HTML 書き出しにフォールバックします。自動検出できない環境では
+`CHROME_PATH=/path/to/chrome` を指定してください（macOS の標準的なインストール先は自動検出されます）。
+
 ## Web UI
 
 3 カラム構成: 左に全 Artifact Type を束ねた Explorer（折り畳み式）、中央にタブ付き
@@ -148,6 +154,7 @@ Web UI・REST API と同じ Document Core を使用する。
 | `GET /api/documents/:type/:id` | 文書詳細（本文・relations 込み） |
 | `GET /api/glossary` | 用語集 |
 | `GET /api/source?file=&symbol=\|lines=` | SourceRef 用ソース取得 |
+| `POST /api/export/pdf` | 描画済み HTML から PDF を生成 (headless Chrome が必要) |
 
 ## 技術スタック
 

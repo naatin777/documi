@@ -1,9 +1,25 @@
-import { exportDocumentHtml, printDocument } from '../export'
+import { exportDocumentHtml, exportDocumentPdf, printDocument } from '../export'
 
-/** 表示中の文書を PDF(印刷) / HTML として書き出すボタン群 */
+/** 表示中の文書を PDF / HTML として書き出すボタン群 */
 export default function ExportActions() {
+  const downloadPdf = async () => {
+    if (!(await exportDocumentPdf())) {
+      // Chrome が無い環境などでは HTML 書き出しにフォールバックする
+      exportDocumentHtml()
+    }
+  }
+
   return (
     <>
+      <button
+        type="button"
+        className="topbar-action"
+        onClick={() => void downloadPdf()}
+        title="PDF で書き出す (headless Chrome が必要)"
+        aria-label="PDF で書き出す"
+      >
+        <PdfIcon />
+      </button>
       <button
         type="button"
         className="topbar-action"
@@ -23,6 +39,18 @@ export default function ExportActions() {
         <PrinterIcon />
       </button>
     </>
+  )
+}
+
+function PdfIcon() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+      <path d="M3.5 1.5h6L12.5 4v10.5h-9v-13Z" stroke="currentColor" strokeWidth="1.2" strokeLinejoin="round" />
+      <path d="M9.5 1.5V4h3" stroke="currentColor" strokeWidth="1.2" strokeLinejoin="round" />
+      <text x="8" y="11.2" textAnchor="middle" fontSize="4.2" fill="currentColor">
+        PDF
+      </text>
+    </svg>
   )
 }
 

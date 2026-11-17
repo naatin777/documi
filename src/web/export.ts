@@ -51,17 +51,33 @@ function buildHtml(): string | null {
 export function exportDocumentHtml(): boolean {
   const html = buildHtml()
   if (!html) return false
-
-  const blob = new Blob([html], { type: 'text/html;charset=utf-8' })
-  const url = URL.createObjectURL(blob)
-  const link = document.createElement('a')
-  link.href = url
-  link.download = fileName()
-  document.body.appendChild(link)
-  link.click()
-  link.remove()
-  setTimeout(() => URL.revokeObjectURL(url), 1000)
+  downloadBlob(new Blob([html], { type: 'text/html;charset=utf-8' }), `${baseFileName()}.html`)
   return true
+}
+
+/**
+ * 描画済み HTML をサーバー (headless Chrome) に渡して PDF をダウンロードする。
+ * Chrome が無い等で失敗した場合は false を返すので、呼び出し側で HTML 出力へフォールバックする。
+ */
+export async function exportDocumentPdf(): Promise<boolean> {
+  const html = buildHtml()
+  if (!html) return false
+  try {
+    const res = await fetch('/api/export/pdf', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ html, filename: baseFileName() }),
+    })
+    if (!res.ok) {
+      const body = (await res.json().catch(() => ({}))) as { error?: string }
+      throw new Error(body.error ?? `${res.status} ${res.statusText}`)
+    }
+    downloadBlob(await res.blob(), `${baseFileName()}.pdf`)
+    return true
+  } catch (error) {
+    console.warn('PDF の書き出しに失敗しました', error)
+    return false
+  }
 }
 
 /** ブラウザの印刷ダイアログを開く (PDF 保存はここから行う) */
@@ -69,10 +85,21 @@ export function printDocument(): void {
   window.print()
 }
 
-function fileName(): string {
+function downloadBlob(blob: Blob, name: string): void {
+  const url = URL.createObjectURL(blob)
+  const link = document.createElement('a')
+  link.href = url
+  link.download = name
+  document.body.appendChild(link)
+  link.click()
+  link.remove()
+  setTimeout(() => URL.revokeObjectURL(url), 1000)
+}
+
+function baseFileName(): string {
   const title = document.querySelector('.doc-page h1')?.textContent?.trim() || 'documi'
   const safe = title.replace(/[\\/:*?"<>|\s]+/g, '-').slice(0, 80)
-  return `${safe || 'documi'}.html`
+  return safe || 'documi'
 }
 
 function escapeHtml(value: string): string {
