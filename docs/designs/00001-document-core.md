@@ -1,0 +1,53 @@
+---
+type: design
+title: Document Core の設計
+description: ファイルシステムからArtifactを読み込み共通データモデルへ変換する中核モジュールの設計
+status: accepted
+tags: [core]
+relations:
+  requirement:
+    - '00001'
+    - '00002'
+  architecture:
+    - '00001'
+---
+
+# Document Core の設計
+
+## 目的
+
+`docs/` 以下の Markdown / MDX ファイルを走査し、検証・Relations 解決を行った共通データモデル (`DocsIndex`) を構築する。
+
+## 処理フロー
+
+1. **走査**: 8 つの Artifact Type ディレクトリを読み、`NNNNN-kebab-case-slug.md(x)` に一致するファイルを収集する
+2. **解析**: YAML frontmatter を分離・パースし、必須フィールドを検証する
+3. **検証**: ファイル名・ID 重複・type とディレクトリの一致・relations の形式を検証する
+4. **解決**: `relations` の参照先を `type:id` で引き、存在しない参照を issues として記録する
+5. **逆参照**: 全文書の外向き参照から Incoming Relations を算出する
+6. **制約**: Design の Requirement 参照必須、Verification の対象参照必須を検査する
+
+## データモデル
+
+```text
+DocsIndex
+├── documents: Document[]        // type 順・ID 順にソート
+├── byRef: Map<"type:id", Document>
+├── glossary: Glossary | null
+└── issues: IndexIssue[]          // ファイル単位の問題
+
+Document
+├── meta (type/id/title/status/...) + body
+├── declaredRelations            // frontmatter の検証済み宣言
+├── relations                    // 解決済みの外向き参照
+├── incomingRelations            // 算出した逆参照
+└── issues                       // 文書単位の問題
+```
+
+## エラー処理
+
+不正な文書は index から除外し、`issues` にパスと理由を記録する。1 ファイルの不正が全体の読み込みを止めないことを重視する。
+
+## MDX の扱い
+
+MDX 文書は本文を Markdown としてレンダリングし、ESM import/export・JSX 要素・JS 式を検出した場合は文書の `issues` に `mdx-unsupported` として記録する。コードは一切実行しない。
