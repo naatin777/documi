@@ -44,3 +44,16 @@ Documi の仕様・設計・ソースコードで共有される共通語彙を�
 <TermDef id="Bundle" aliases="まとめ出力, バンドル" symbols="src/core/bundle.ts#resolveBundleDocuments, src/server/pdf.ts#renderPdfFromUrl">
   複数ドキュメント（全文書・ディレクトリ配下・Goal 関連一式・任意選択）を表紙・自動目次・ページ内アンカー・全タブ展開付きの 1 冊の HTML / PDF として出力する仕組み。
 </TermDef>
+
+## 混同しやすい言葉・使わない表現（Anti-Terms）
+
+AI や人間が語彙を混同して仕様・実装・レビューがブレるのを防ぐため、以下の使い分けを徹底する。
+
+| 避ける表現・混同 | 正しい用語・使い分け | 理由 |
+|---|---|---|
+| 単一の `status`（`draft` / `accepted` / `done` 等） | 人間承認は `ReviewStatus`（`unreviewed` / `approved` / `stale` + `suspect`）、実装進捗は <Term name="Realization" />（`unimplemented` 〜 `verified` / `drifted`） | 「承認されたこと」と「実装・テスト済みであること」を 1 軸に混ぜると未実装事故が起きるため |
+| `requirement`（Type 名として） | **`spec`** | Artifact Type は 9 種に固定し、別名や後方互換エイリアスを持たない |
+| `v1` / `v2` / `Phase X`（現行仕様内のラベル） | 現行の振る舞いとして直接記述（経緯は `decision` へ） | 未リリース期間中に世代ラベルを残すと、AI が古い挙動と現行挙動を取り違えるため |
+| `.mdx` からの相対パス（`<SourceRef>` 内） | <Term name="ProjectRoot" /> からの POSIX 相対パス | 文書ディレクトリを移動しても参照が壊れないようにするため |
+
+概念同士の関係・状態遷移・ドメイン不変条件は [ドメインモデル](./domain-model.mdx) を参照。

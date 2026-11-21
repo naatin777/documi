@@ -45,3 +45,15 @@ satisfies:
 | `GET /api/bundle` | 複数ドキュメントバンドル解決 (`?scope=all\|dir:...\|goal:...` または `?ids=...`) |
 | `POST /api/export/pdf` | 単一文書の描画済み HTML から PDF 生成 |
 | `POST /api/export/bundle-pdf` | ローカル `/bundle` URL を `Bun.WebView` で開いて複数文書 PDF 生成 |
+
+## 共通エラー規約と副作用の範囲
+
+- **エラーレスポンス形式**: エラー時は JSON `{ error: string }` を返し、用途別に以下の HTTP ステータスを用いる。
+  - `400`: クエリ・JSON ボディの Zod バリデーション違反、不正なパラメータ
+  - `403`: 許可されない Origin、または `projectRoot` 外参照・非ループバック URL などの境界違反
+  - `404`: 指定されたドキュメント・ブロック・フィードバック・ソースファイル／シンボルが存在しない
+  - `409`: 状態競合
+  - `500` / `501`: サーバー内部エラー、または実行環境で未対応の PDF 出力機能
+- **副作用の範囲**:
+  - すべての `GET` エンドポイントは読み取り専用（副作用なし）。
+  - 書き込み系エンドポイント（`POST /api/blocks/:id/approve`・`POST /api/blocks/:id/feedback`・`PATCH /api/blocks/:id/feedback/:feedbackId`・`PATCH /api/blocks/:id/stability`）の副作用は **`docs/.documi/reviews.json`（および `.documi/cache/`）の更新と SSE `reload` 配信に限定** され、MDX 本文は一切変更しない。

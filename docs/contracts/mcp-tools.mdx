@@ -1,7 +1,7 @@
 ---
 type: contract
 title: MCP ツールコントラクト
-description: AI エージェントが /mcp (Streamable HTTP) 経由で利用する 8 ツール仕様
+description: AI エージェントが Streamable HTTP (/mcp) および stdio (documi mcp) 経由で利用する 8 ツール仕様
 tags: [mcp, ai, contract]
 satisfies:
   - core.document-model
@@ -30,3 +30,9 @@ AI エージェント向けに **2 種類のトランスポート** で同じ 8 
 | `get_spec_context` | `id` | 指定 Spec の上流 Goal・未解決フィードバック・関連 Design/Contract・Decision `<Outcome>`・関連用語・`<SourceRef>` を一括集約 |
 | `search_documents` | `query`, `type?`, `limit?` | ドキュメントとセマンティックブロックを横断全文検索 |
 | `validate_docs` | なし | `orphan-spec`・参照切れ・循環・重複 ID・MDX 未対応構文・AST `<SourceRef>` / `<TermDef>` シンボル切れを一括検証 |
+
+## 事前・事後条件・副作用・エラー規約
+
+- **副作用なし（読み取り専用）**: 全 8 ツールは読み取り専用であり、MDX 本文・`docs/.documi/reviews.json`・ソースコードを一切書き換えない。
+- **入力検証（事前条件）**: すべてのツール引数は Zod スキーマで検証し、型・必須項目違反はエラーを返す。
+- **未存在 ID**: `get_document` / `get_relations` / `get_spec_context` に存在しないドキュメント ID またはブロック ID が渡された場合、推測で補完せず `isError: true` で明示エラーを返す。
