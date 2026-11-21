@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { useParams } from 'react-router-dom'
+import { useParams } from 'react-router'
 import type { Document } from '../../core/types'
 import { api, type TermEntry } from '../api'
 import { extractHeadings } from '../headings'

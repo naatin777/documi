@@ -1,5 +1,5 @@
 import { Fragment, type ReactNode } from 'react'
-import { Link } from 'react-router-dom'
+import { Link } from 'react-router'
 import katex from 'katex'
 import 'katex/dist/katex.min.css'
 import { unified } from 'unified'

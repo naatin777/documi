@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Link, useSearchParams } from 'react-router-dom'
+import { Link, useSearchParams } from 'react-router'
 import { api, type BundleResponse } from '../api'
 import { exportBundleHtmlFromDom, printDocument } from '../export'
 import { bundleDocAnchor } from '../mdast'

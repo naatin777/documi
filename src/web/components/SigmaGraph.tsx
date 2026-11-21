@@ -1,7 +1,7 @@
 import { Minus, Plus, RotateCcw, SlidersHorizontal, Sparkles } from 'lucide-react'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate } from 'react-router'
 import { MultiDirectedGraph } from 'graphology'
 import Sigma from 'sigma'
 import { sdfCircle } from 'sigma/rendering'

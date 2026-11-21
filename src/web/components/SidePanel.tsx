@@ -1,7 +1,7 @@
 import { Columns2, PanelRightClose } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { NavLink } from 'react-router-dom'
+import { NavLink } from 'react-router'
 import type { Document, ResolvedRelation } from '../../core/types'
 import { encodeDocId } from '../api'
 import type { Heading } from '../headings'

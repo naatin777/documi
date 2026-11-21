@@ -1,7 +1,7 @@
 import { lazy, Suspense, useEffect, useState, type CSSProperties } from 'react'
 import { ErrorBoundary, type FallbackProps } from 'react-error-boundary'
 import { useTranslation } from 'react-i18next'
-import { Route, Routes, useLocation } from 'react-router-dom'
+import { Route, Routes, useLocation } from 'react-router'
 import { api } from './api'
 import DocTabs from './components/DocTabs'
 import Explorer from './components/Explorer'

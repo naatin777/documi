@@ -1,7 +1,7 @@
 import { ArrowLeft, ExternalLink, X } from 'lucide-react'
 import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Link } from 'react-router-dom'
+import { Link } from 'react-router'
 import type { Document } from '../../core/types'
 import { api, encodeDocId, type TermEntry } from '../api'
 import { useDocsRevision } from '../live'

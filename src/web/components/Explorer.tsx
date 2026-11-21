@@ -1,7 +1,7 @@
 import { ChevronRight, Home, ListChecks, Network, Search, X } from 'lucide-react'
 import { useEffect, useMemo, useState, type ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
-import { NavLink } from 'react-router-dom'
+import { NavLink } from 'react-router'
 import { ARTIFACT_TYPES } from '../../core/types'
 import type { ArtifactType, DocTreeDir, DocTreeNode, DocumentSummary } from '../../core/types'
 import { api, encodeDocId } from '../api'

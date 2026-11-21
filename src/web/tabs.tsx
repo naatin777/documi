@@ -1,5 +1,5 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react'
-import { useLocation, useNavigate } from 'react-router-dom'
+import { useLocation, useNavigate } from 'react-router'
 import { isArtifactType } from '../core/types'
 import type { ArtifactType } from '../core/types'
 import { encodeDocId } from './api'

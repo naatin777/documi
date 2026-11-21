@@ -1,7 +1,7 @@
 import { Download, X } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { useLocation } from 'react-router-dom'
+import { useLocation } from 'react-router'
 import type { DocumentSummary } from '../../core/types'
 import { api } from '../api'
 import {
