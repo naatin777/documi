@@ -1,0 +1,75 @@
+{
+  "name": "documi",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Document management tool for specs, designs, decisions, and verification records",
+  "bin": {
+    "documi": "src/cli.ts"
+  },
+  "type": "module",
+  "scripts": {
+    "dev": "bun run --parallel dev:server web",
+    "dev:server": "bun --watch src/server/index.ts",
+    "web": "vite",
+    "build": "vite build",
+    "start": "bun src/server/index.ts",
+    "documi:check": "bun src/cli.ts check",
+    "documi:export": "bun src/cli.ts export",
+    "check": "bun check",
+    "lint": "oxlint --deny-warnings",
+    "format": "oxfmt",
+    "format:check": "oxfmt --check",
+    "knip": "knip",
+    "test": "bun test",
+    "test:coverage": "bun test --coverage"
+  },
+  "dependencies": {
+    "@ast-grep/lang-go": "^0.0.6",
+    "@ast-grep/lang-java": "^0.0.7",
+    "@ast-grep/lang-kotlin": "^0.0.7",
+    "@ast-grep/lang-python": "^0.0.6",
+    "@ast-grep/lang-rust": "^0.0.7",
+    "@ast-grep/lang-swift": "^0.0.8",
+    "@ast-grep/napi": "^0.51.3",
+    "@hono/bun": "^1.0.1",
+    "@modelcontextprotocol/sdk": "^1.20.0",
+    "graphology": "^0.26.0",
+    "hono": "^4.9.0",
+    "katex": "^0.19.1",
+    "mermaid": "^12.3.0",
+    "react": "^19.1.0",
+    "react-dom": "^19.1.0",
+    "react-error-boundary": "^6.1.6",
+    "react-router-dom": "^7.9.0",
+    "remark-gfm": "^4.0.1",
+    "remark-math": "^6.0.0",
+    "remark-mdx": "^3.1.1",
+    "remark-parse": "^11.0.0",
+    "shiki": "^4.6.0",
+    "sigma": "^4.0.6",
+    "unified": "^11.0.5",
+    "yaml": "^2.8.0",
+    "zod": "^4.6.6"
+  },
+  "devDependencies": {
+    "@types/bun": "^1.3.0",
+    "@types/mdast": "^4.0.4",
+    "@types/react": "^19.1.0",
+    "@types/react-dom": "^19.1.0",
+    "@vitejs/plugin-react": "^6.3.0",
+    "knip": "^6.45.1",
+    "mdast-util-mdx": "^3.0.0",
+    "oxc-transform-react": "^0.156.0",
+    "oxfmt": "^0.79.0",
+    "oxlint": "^1.94.0",
+    "typescript": "^7.0.2",
+    "vite": "^8.3.8"
+  },
+  "overrides": {
+    "katex": "^0.19.1"
+  },
+  "engines": {
+    "bun": ">=1.4.0"
+  },
+  "packageManager": "bun@1.4.3"
+}

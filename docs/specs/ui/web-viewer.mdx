@@ -1,0 +1,50 @@
+---
+type: spec
+title: Web UI ビューア・可視化・バンドル出力
+description: Overview・Tree/Types Explorer・人間レビュー UI・用語ホバー・Graph & Matrix・複数まとめ Export・Cmd+K 全文検索の仕様
+tags: [ui, frontend]
+derives:
+  - goals/living-specification
+---
+
+# Web UI ビューア・可視化・バンドル出力
+
+<Spec id="ui.web-viewer" stability="stable">
+  **When** ユーザーがルート `/` を開いたとき、
+  **the** Web UI **shall** プロジェクト全体の統計・人間レビュー進捗・Realization 内訳・要確認 (Stale/Suspect) ブロック・未解決フィードバック・Goals・Decision Outcomes・Orphan Specs をまとめた Overview ダッシュボードを表示する。
+</Spec>
+
+<Spec id="ui.explorer-modes" stability="stable">
+  **When** ユーザーが Explorer を操作するとき、
+  **the** Web UI **shall** ディレクトリ階層で閲覧する **Tree モード** と、9 種類の Artifact Type 別に閲覧する **Types モード** を切り替えられるようにする。
+</Spec>
+
+<Spec id="ui.live-reload" stability="stable">
+  **When** `docs/` 配下の Markdown / MDX、`reviews.json`、または `test-results.xml` が更新されたとき、
+  **the** サーバーと Web UI **shall** `fs.watch` と SSE (`/api/events`) を通じて再起動なしに最新内容へ自動更新する。
+</Spec>
+
+<Spec id="ui.human-review" stability="stable">
+  **When** 人間が Web UI でセマンティックブロックを閲覧するとき、
+  **the** Web UI **shall** `docs/.documi/reviews.json` と連動した承認ボタン・承認時点コミットからの Diff 表示・Stability 切替・AI 向けフィードバック投稿・Realization トレース詳細を提供し、MDX 本文自体は変更しない。
+</Spec>
+
+<Spec id="ui.glossary-autolink" stability="stable">
+  **When** 本文中に `<TermDef>` で登録された用語または別名が出現するとき、
+  **the** Web UI **shall** コード・見出し・既存リンク内を除いて自動で用語リンク化し、ホバー時に定義と紐づくコードシンボル定義をポップオーバー表示する。
+</Spec>
+
+<Spec id="ui.graph-matrix" stability="evolving">
+  **When** ユーザーが `/graph` を開いたとき、
+  **the** Web UI **shall** **Sigma.js (WebGL) + Graphology** によるフルビューポートのリアルタイム力学ネットワークグラフ（円形展開・ノードドラッグ時の弾性追従・Forces スライダー・パン/ズーム・ホバー近傍ハイライト・検索フォーカス・粒度切替 `Documents` / `Docs + Blocks`）と、全 `<Spec>` の追跡網羅率を一覧する **Traceability Matrix** を提供する。
+</Spec>
+
+<Spec id="ui.bundle-export" stability="evolving">
+  **When** ユーザーが Export モーダルまたは `/bundle` を操作するとき、
+  **the** Web UI **shall** 単一文書・全文書・Goal 関連一式・ディレクトリ配下・任意複数選択を対象に、表紙・自動目次・ページ内アンカー変換・見出し ID 名前空間化・全タブ展開を備えた HTML / PDF / 印刷出力を提供する。
+</Spec>
+
+<Spec id="ui.search-palette" stability="evolving">
+  **When** ユーザーが `Cmd+K` / `Ctrl+K` または検索ボタンを押したとき、
+  **the** Web UI **shall** ドキュメントとセマンティックブロックを横断検索できるクイック検索モーダルを開き、キーボード操作で該当文書・ブロックへ即座に遷移できるようにする。
+</Spec>

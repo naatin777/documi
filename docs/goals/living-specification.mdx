@@ -1,0 +1,56 @@
+---
+type: goal
+title: 人間にも AI にもやさしい Living Specification
+description: 人間が読んでソースコードまで理解でき、AI が同じ挙動を再現できるドキュメント中心の開発環境を実現する
+tags: [product, core, philosophy]
+---
+
+# 人間にも AI にもやさしい Living Specification
+
+Documi は、単なる Markdown ビューアでも、AI に使い捨ての作業メモを書かせるだけのツールでもない。
+**「人間がしっかり読んでシステムとソースコードを深く理解できること」** と **「AI エージェントがこのドキュメントを見れば同じ挙動の実装を再現できること」** を両立する、Living Specification プラットフォームを目指す。
+
+## プロダクト哲学
+
+### 1. SpecKit 等の既存 SDD ツールとの違い
+既存の Spec-Driven Development (SDD) ツールは `plan.md` や `tasks.md` のような AI 向けの一時的な作業手順書を大量生成しがちで、人間が継続的に読んでシステムを理解する体験が弱い。
+Documi は **人間が読む体験** を最優先に設計する：
+- 図（Mermaid）・数式（KaTeX）・インタラクティブ表現（MDX）・実コード埋め込み（`<SourceRef>`）・ネットワークグラフ（Sigma.js）により、厳格さと読みやすさを両立する
+- AI が一気に生成する長い文章を `<Spec>` / `<Constraint>` / `<Outcome>` / `<Note>` / `<TermDef>` の細切れタグで区切ることで、人間が「どこが確定仕様で、どこが未承認・変わりやすい案・将来メモなのか」を一目で把握できる
+
+### 2. AI 再現性の到達水準
+- **この `docs/` を見れば、ほとんどの AI が同じ挙動のソフトウェアを実装できる** 精度の仕様（EARS 構文による振る舞い・境界条件・異常系・外部契約・用語定義・不変制約）を保持する
+- 一方で、人間向けの長いトレードオフ議論（ADR 等）が実装 AI のコンテキストウィンドウを圧迫しないよう、`<Outcome>` による段階的開示（Progressive Disclosure）を行う
+
+### 3. 人間の手作業を極小化する（AI ファースト運用）
+人間の責務は次の 3 つに絞る：
+1. **方向性（Goal / Non-Goal）を決める**
+2. **Web UI で読んで、ワンクリック承認・安定度変更・一言フィードバックを残す**（承認時点からの diff で差分を確認する）
+3. **PR をマージする**
+
+それ以外（文書執筆、セマンティックタグでの細切れ構造化、リンク整備、コード＆テストへの紐づけ、整合性チェック、リファクタ追従）は、ほぼすべて AI エージェントと Documi の自動検証に任せる。
+
+### 4. 用語集を「ソースコード理解の地図」にする
+ドメインの用語集（Living Glossary）を見ればソースコードの型・クラス構造までスッと理解できるよう、用語定義と実コードシンボルを AST で直接結合し、本文中の用語からも即座に定義と型を参照できるようにする。
+
+### 5. 脱線と「実装してると思ってた」を構造で防ぐ
+- **Goal 起点の方向性（Rooted DAG）**: AI が良かれと思って勝手に仕様を生やすのを防ぐため、`normative` な仕様は必ず上流の `Goal` まで遡れることを必須にする（ただし未確定アイデア `idea` のメモは気楽に残せる）
+- **仕様状態と実装状態の分離**: 「承認済みか (`review`)」と「実際に実装・テスト通過しているか (`realization`)」を分け、実装状態は手書きさせずソースコード・テスト・JUnit 結果・PR から完全自動で算出する
+
+## 不変制約（Constraints & Non-Goals）
+
+<Constraint id="goal.no-arbitrary-js" scope="mdx" stability="stable">
+  MDX 内の任意 JavaScript (ESM import/export、JSX 式、未許可コンポーネント) は一切実行しない。許可リストのセマンティックタグのみを AST ベースで安全に処理する。
+</Constraint>
+
+<Constraint id="goal.fs-sot" scope="architecture" stability="stable">
+  ファイルシステム上の Markdown / MDX を Single Source of Truth とし、Web UI・REST API・MCP Server・CLI はすべて同じ Document Core を参照する。
+</Constraint>
+
+<Constraint id="goal.no-tasks-md" scope="workflow" stability="stable">
+  一時的な作業チェックリスト (`tasks.md` 等) は仕様リポジトリに蓄積せず、変更の実行単位と履歴は Git / PR に委ねる。
+</Constraint>
+
+<Constraint id="goal.web-readonly-mdx" scope="ui" stability="stable">
+  Web UI に高機能な MDX 本文エディタは作らない。Web UI からの書き込みは承認サイドカー (`docs/.documi/reviews.json`) に限定し、MDX 本文の編集は AI エージェントまたはローカルエディタが担う。
+</Constraint>

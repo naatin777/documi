@@ -1,0 +1,77 @@
+---
+type: spec
+title: ドキュメントモデル・レビュー・トレース・バンドル仕様
+description: 連番廃止・階層走査・9 Type 推論・MDX ブロック・Rooted DAG・承認サイドカー・実装状態自動算出・バンドル・全文検索の仕様
+tags: [core, spec]
+derives:
+  - goals/living-specification
+---
+
+# ドキュメントモデル・レビュー・トレース・バンドル仕様
+
+## ファイル構造と識別
+
+<Spec id="core.document-model" stability="stable">
+  **When** Documi が `docs/` ディレクトリを読み込むとき、
+  **the** Document Core **shall** 任意階層の `.mdx` / `.md` ファイルを連番なしで再帰走査し、拡張子を除いた POSIX 相対パスをドキュメント ID として割り当てるとともに、任意の `date`（`YYYY-MM-DD` / `YYYY-MM`）メタデータを解析して `decision` 文書を新しい決定日順に整列する。
+</Spec>
+
+<Spec id="core.type-inference" stability="stable">
+  **When** ドキュメントの frontmatter に `type` が省略されたとき、
+  **the** Document Core **shall** 最上位ディレクトリ名 → ファイル名の順に 9 種類の Artifact Type を自動推論し、判別できない場合は警告を記録しつつ `guide` として読み込む。
+</Spec>
+
+## セマンティックブロックと安全解析
+
+<Spec id="core.mdx-blocks" stability="stable">
+  **When** MDX 本文に `<Spec>` / `<Constraint>` / `<Outcome>` / `<Note>` / `<TermDef>` が記述されているとき、
+  **the** Document Core **shall** mdast からブロック構造と正規化 SHA-256 `contentHash` を抽出し、プロジェクト全体でのブロック ID 重複を検出する。
+</Spec>
+
+<Spec id="core.mdx-safety" stability="stable">
+  **If** MDX 本文に ESM import/export・JSX 式 `{...}`・スプレッド属性・未許可コンポーネントが含まれる場合、
+  **then the** Document Core **shall** コードを実行せず `mdx-unsupported` 問題として報告する。
+</Spec>
+
+## Rooted DAG と脱線防止
+
+<Spec id="core.rooted-dag" stability="stable">
+  **When** `intent="normative"` の `<Spec>`（または `<Spec>` を持たない `spec` 文書）が存在するとき、
+  **the** Document Core **shall** `derives` 辺を辿って 1 つ以上の `goal` に到達できることを検証し、到達できない場合は `orphan-spec` として報告する。`intent="idea"` のブロックは対象外とする。
+</Spec>
+
+<Spec id="core.auto-mentions" stability="stable">
+  **When** 本文中に他ドキュメントへの相対 Markdown リンクまたは `<Term>` 参照が存在するとき、
+  **the** Document Core **shall** `mentions` エッジを自動構築し、参照先と逆参照 (`incoming`) の双方に反映する。
+</Spec>
+
+## 人間レビュー・Diff・Suspect Links
+
+<Spec id="core.human-review" stability="stable">
+  **When** 人間がセマンティックブロックを承認したとき、
+  **the** Document Core **shall** MDX 本文ではなくサイドカー `docs/.documi/reviews.json` にコンテンツハッシュ・承認コミット SHA・上流ハッシュを保存し、本文変更で `stale`、上流変更で `suspect` を自動判定するとともに承認時点からの行 diff を算出する。
+</Spec>
+
+## コード・テスト・PR 連携と実装状態の自動算出
+
+<Spec id="core.realization" stability="stable">
+  **When** プロジェクトのソース/テスト・JUnit XML レポート・PR 情報を走査するとき、
+  **the** Document Core **shall** `@implements` / `@verifies` / `test("[id] ...")` / `<SourceRef>` / PR 参照を集約し、各 `normative` `<Spec>` の `realization` (`unimplemented` / `in-progress` / `implemented` / `verified` / `drifted`) を完全自動で算出する。
+</Spec>
+
+<Spec id="core.ast-check" stability="stable">
+  **When** `documi check` または MCP `validate_docs` が実行されたとき、
+  **the** Document Core **shall** 全 `<SourceRef>` および `<TermDef symbols="...">` を `@ast-grep/napi` で実在検証し、`--no-review-edit` 指定時は `reviews.json` の未許可変更もエラーとして検出する。
+</Spec>
+
+## 複数バンドル解決と全文検索
+
+<Spec id="core.bundle-export" stability="evolving">
+  **When** `all` / `dir:<path>` / `goal:<id>` / 明示 `ids` のいずれかでバンドルが要求されたとき、
+  **the** Document Core **shall** 対象ドキュメント一式（Goal 起点時はトレーサビリティ下流および関連用語集・Decision を自動同梱）を解決する。
+</Spec>
+
+<Spec id="core.full-text-search" stability="evolving">
+  **When** 検索クエリが与えられたとき、
+  **the** Document Core **shall** ドキュメントのタイトル・ID・タグ・本文および全セマンティックブロックを横断してスコアリング検索し、スニペット付きで返却する。
+</Spec>

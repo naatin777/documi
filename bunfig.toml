@@ -1,0 +1,7 @@
+# Bun 固有の設定 (package.json / tsconfig.json は Bun が既に読むため、ここは差分だけ)
+
+[test]
+# カバレッジはテキスト + lcov (CI / 外部ツールが読める形式)
+coverageReporter = ["text", "lcov"]
+coverageDir = "coverage"
+coverageSkipTestFiles = true

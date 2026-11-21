@@ -1,0 +1,38 @@
+---
+type: verification
+title: Core・Reviews・Trace・Bundle・API・MCP・MDX の検証方針
+description: 自動テストと JUnit XML 連携による全仕様・契約の継続的検証
+tags: [testing, verification]
+verifies:
+  - core.document-model
+  - core.mdx-blocks
+  - core.rooted-dag
+  - core.human-review
+  - core.realization
+  - core.ast-check
+  - core.bundle-export
+  - core.full-text-search
+  - contracts/rest-api
+  - contracts/mcp-tools
+  - contracts/cli
+---
+
+# Core・Reviews・Trace・Bundle・API・MCP・MDX の検証方針
+
+`bun test`（および JUnit XML 出力＋`bun run documi:check`）により以下の 8 スイートで継続的に検証する。
+
+```bash
+bun test --reporter=junit --reporter-outfile=docs/.documi/test-results.xml
+bun run documi:check
+```
+
+| テストスイート | 検証対象 |
+|---|---|
+| `tests/core.test.ts` | 再帰走査・Type 推論・MDX ブロック AST 抽出・ハッシュ算出・5 種エッジ・`orphan-spec`・循環検出・階層ツリー構築 |
+| `tests/reviews.test.ts` | サイドカー `reviews.json` 承認・`stale`・Suspect Links 波及・Git/キャッシュ行 diff・フィードバック・Stability 上書き |
+| `tests/trace.test.ts` | `@implements` / `@verifies` / `test("[id]")` 走査・JUnit XML 取り込み・PR 連携・AST 壊れ検知・`documi check` CLI (`--strict` / `--no-review-edit`) |
+| `tests/bundle.test.tsx` | バンドル解決 (`all`/`dir`/`goal`/`ids`)・全文検索・トレーサビリティマトリクス・バンドル描画（ページ内アンカー・見出し名前空間・全タブ展開）・関連 API/MCP |
+| `tests/api.test.ts` | Hono RPC + Zod REST API 全エンドポイント・`DocsStore.reload`・MCP ツール 8 種 |
+| `tests/ui.test.tsx` | Overview・Explorer (Tree/Types)・SSE ライブ更新・レビュー UI・用語自動リンク・Graph/Matrix API・Cmd+K 検索・`documi init` CLI |
+| `tests/mdx.test.tsx` | GFM・KaTeX・Shiki・Mermaid・セマンティックタグ 6 種・Living Glossary 自動リンク・相対パス内部リンク・危険構文無効化 |
+| `tests/source.test.ts` | 9 言語の AST シンボル解決・行範囲抽出・パストラバーサル／シンボリックリンク／バイナリ防御 |

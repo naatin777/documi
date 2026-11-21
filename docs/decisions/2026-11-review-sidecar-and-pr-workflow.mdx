@@ -1,0 +1,32 @@
+---
+type: decision
+title: 承認サイドカー分離・自動実装状態算出・PR 連携ワークフローの採用
+description: AI の直書き効率と人間承認の信頼性を両立し、「実装していると思ってた」事故と tasks.md 二重管理をなくす設計決定
+date: 2026-11-20
+tags: [adr, review, trace, pr, workflow]
+---
+
+# 承認サイドカー分離・自動実装状態算出・PR 連携ワークフローの採用
+
+<Outcome id="dec.review-and-pr" stability="stable">
+  人間の承認・フィードバック・安定度上書きは MDX 本文ではなく **`docs/.documi/reviews.json`** に分離保存し、承認時のハッシュと Git コミット SHA から `stale` / Suspect Links / 行 diff を自動算出する。仕様の実装状態 (`realization`) は手書きせず、コード (`@implements` / `<SourceRef>`)・テスト (`@verifies` / `test("[spec.id]")` / JUnit XML)・PR (`Implements:`) から完全自動算出し、`tasks.md` は作らない。
+</Outcome>
+
+## 背景と設計根拠
+
+### 1. なぜ承認データを MDX の外 (`reviews.json`) に分離したか
+- AI が MDX を直接編集する方が圧倒的に効率が良いが、MDX 属性に `review="approved" hash="..."` を混ぜると、AI が編集時に誤って承認フラグを書き換えたり偽造したりするリスクがあり、Git diff もハッシュで汚れる
+- 承認レコードを `docs/.documi/reviews.json` に物理分離し、**3 層の防御** を組むことで通常ブランチ運用のまま安全性を担保する：
+  1. Web UI（ワンクリック承認・フィードバック）および人間用 `documi approve` CLI のみが更新する
+  2. `documi check --no-review-edit` により、AI 作業時の `reviews.json` 改変をフック／CI で検知する
+  3. GitHub CODEOWNERS で `docs/.documi/reviews.json` の変更に人間承認を必須化できる
+- Doorstop / StrictDoc の **Content Hash & Suspect Links** の仕組みを取り入れ、承認後に本文が変われば `stale`（`git show <approvedCommit>` による行 diff 表示）、上流仕様が変われば下流に `suspect` が自動波及する
+
+### 2. なぜ 3 つの仕様軸 + 自動算出の `realization` に分けたか
+従来の単一 `status: draft | accepted | deprecated` では「承認したけど未実装」「AI が書いたけど未確認」「将来変わる可能性が高い」「実装するか未定のメモ」が混線し、**「ドキュメントに書いてあるから実装済みだと思っていた」** 事故が起きていた。
+- **仕様側（人間・AI の意思）**: `intent` (`normative` / `idea` / `rejected`) × `stability` (`stable` / `evolving` / `volatile`) × `review` (`unreviewed` / `approved` / `stale`)
+- **実装側（現実の証拠）**: `realization` (`unimplemented` / `in-progress` / `implemented` / `verified` / `drifted`) — 手書き禁止でコード・テスト・JUnit・PR から自動導出
+
+### 3. なぜ `test("[spec.id] ...")` と PR 連携を採用したか
+- テスト名に `[spec.id]` を含める規約は、既存の `bun test` / Vitest / Jest / Go / pytest の標準 JUnit XML 出力にそのまま載るため、専用テストランナープラグインなしで自動検証連携できる
+- 一時的な `tasks.md` を仕様リポジトリに増やす代わりに、Git / PR をそのまま変更の原子単位として `Implements: <spec.id>` で紐づけることで、二重管理をなくし PR 履歴をそのまま監査ログとして活用できる

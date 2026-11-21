@@ -1,0 +1,40 @@
+---
+type: design
+title: Document Core の設計
+description: 再帰走査・mdast ブロック抽出・Rooted DAG 検証・AST ソース参照の内部設計
+tags: [core, design]
+satisfies:
+  - core.document-model
+  - core.type-inference
+  - core.mdx-blocks
+  - core.rooted-dag
+---
+
+# Document Core の設計
+
+Document Core (`src/core`) は React・Hono・MCP に一切依存せず、ファイルシステム上の文書群を <Term name="DocsIndex" /> へ変換する。
+
+## 処理フロー
+
+<Steps>
+<Steps.Step title="再帰走査と優先解決">
+`docs/` 以下を再帰走査して `.mdx` / `.md` を収集し、拡張子なし相対パスをドキュメント ID とする。同名衝突時は `.mdx` を優先する。
+</Steps.Step>
+<Steps.Step title="Frontmatter 解析と Type 推論">
+YAML frontmatter を分離し、省略時はディレクトリ名・ファイル名から Type、H1 見出しからタイトルを推論する。
+</Steps.Step>
+<Steps.Step title="mdast ブロック＆リンク抽出">
+`remark-mdx` の AST から `<Spec>` / `<Constraint>` / `<Outcome>` / `<Note>` / `<TermDef>` / `<SourceRef>` / 本文リンクを抽出し、正規化 SHA-256 ハッシュを算出する。
+</Steps.Step>
+<Steps.Step title="グラフ構築と Rooted DAG 検証">
+5 種エッジを解決して双方向参照を構築し、循環参照および `normative` Spec の Goal 到達性 (`orphan-spec`) を検査する。
+</Steps.Step>
+</Steps>
+
+## コア実装参照
+
+<SourceRef file="src/core/loader.ts" symbol="loadDocuments" satisfies="core.document-model" />
+
+<SourceRef file="src/core/mdx.ts" symbol="extractMdxArtifacts" satisfies="core.mdx-blocks" />
+
+<SourceRef file="src/core/source.ts" symbol="resolveSourceSymbol" />

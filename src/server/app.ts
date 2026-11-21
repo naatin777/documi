@@ -1,0 +1,87 @@
+import { existsSync } from 'node:fs'
+import path from 'node:path'
+import { Hono } from 'hono'
+import { cors } from 'hono/cors'
+import { HTTPException } from 'hono/http-exception'
+import { serveStatic } from '@hono/bun'
+import type { DocsIndex } from '../core/types'
+import { handleMcpRequest } from './mcp'
+import { createBlocksRoutes } from './routes/blocks'
+import { createDocumentsRoutes } from './routes/documents'
+import { createGraphRoutes } from './routes/graph'
+import { createSystemRoutes } from './routes/system'
+import { DocsStore } from './store'
+import { isLocalOrigin, type ErrorStatusCode } from './validator'
+
+export interface AppOptions {
+  /** ビルド済みフロントエンド (dist) のパス。存在する場合のみ静的配信する */
+  clientDist?: string
+  /** SourceRef が参照できるプロジェクトルート。デフォルトは docs ディレクトリの親 */
+  projectRoot?: string
+}
+
+function createApiApp(store: DocsStore, projectRoot: string) {
+  return new Hono()
+    .basePath('/api')
+    .route('/', createSystemRoutes(store, projectRoot))
+    .route('/', createDocumentsRoutes(store))
+    .route('/', createGraphRoutes(store))
+    .route('/blocks', createBlocksRoutes(store))
+}
+
+/** Hono RPC (`hc<ApiRoutes>`) が参照する全 `/api/*` ルート型定義 */
+export type ApiRoutes = ReturnType<typeof createApiApp>
+
+export function createApp(source: DocsIndex | DocsStore, options: AppOptions = {}): Hono {
+  const app = new Hono()
+  const store = source instanceof DocsStore ? source : DocsStore.fromIndex(source)
+  const projectRoot = options.projectRoot ?? path.dirname(store.rootDir)
+
+  // /api はローカルツール前提。ブラウザからのクロスオリジン要求は Origin を検証する
+  app.use(
+    '/api/*',
+    cors({
+      origin: (origin) => (origin === '' || isLocalOrigin(origin) ? origin : null),
+    }),
+  )
+  app.use(
+    '/mcp',
+    cors({
+      origin: (origin) => (origin === '' || isLocalOrigin(origin) ? origin : null),
+      allowMethods: ['GET', 'POST', 'DELETE', 'OPTIONS'],
+      allowHeaders: ['Content-Type', 'mcp-session-id', 'Last-Event-ID', 'mcp-protocol-version'],
+      exposeHeaders: ['mcp-session-id', 'mcp-protocol-version'],
+    }),
+  )
+
+  // 不正な JSON ボディ等の HTTPException を /api/* では JSON 形式で返す
+  app.onError((err, c) => {
+    if (err instanceof HTTPException && c.req.path.startsWith('/api/')) {
+      return c.json({ error: err.message }, err.status as ErrorStatusCode)
+    }
+    if (err instanceof HTTPException) {
+      return err.getResponse()
+    }
+    console.error(err)
+    return c.json({ error: 'Internal Server Error' }, 500)
+  })
+
+  app.route('/', createApiApp(store, projectRoot))
+
+  // ブラウザ由来のクロスオリジン要求は拒否する (DNS rebinding / CSRF 対策)
+  app.all('/mcp', async (c) => {
+    const origin = c.req.header('origin')
+    if (origin && !isLocalOrigin(origin)) {
+      return c.json({ error: 'この Origin からの MCP アクセスは許可されていません' }, 403)
+    }
+    return handleMcpRequest(store.getIndex(), c.req.raw, projectRoot)
+  })
+
+  const dist = options.clientDist ? path.resolve(options.clientDist) : undefined
+  if (dist && existsSync(dist)) {
+    app.use('/*', serveStatic({ root: dist }))
+    app.get('*', serveStatic({ root: dist, path: 'index.html' }))
+  }
+
+  return app
+}

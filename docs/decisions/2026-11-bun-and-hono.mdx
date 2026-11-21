@@ -1,0 +1,24 @@
+---
+type: decision
+title: Bun + TypeScript + Hono + React の採用
+description: ランタイム・サーバー・フロントエンドの技術選定とトレードオフ
+date: 2026-11-17
+tags: [technology, adr]
+---
+
+# 技術選定: Bun + TypeScript + Hono + React
+
+<Outcome id="dec.runtime" stability="stable">
+  ランタイムおよびパッケージマネージャには **Bun**、HTTP サーバーには **Hono**、フロントエンドには **React + Vite** を採用する。Node.js 固有 API への過度な依存を避け、Web 標準 API と単一プロセス起動を優先する。
+</Outcome>
+
+## 背景と理由
+
+- Bun は TypeScript の直接実行・高速なテストランナー (`bun test`)・内蔵 headless ブラウザ (`Bun.WebView`) を追加依存なしで提供する
+- Hono は Web 標準 Request/Response 準拠で、`/api/*`・`/mcp`・SPA 静的配信を同一プロセスで簡潔に構成できる
+- React + Vite は React Compiler による自動最適化と快適な HMR 開発体験を提供する
+
+## 検討した代替案とトレードオフ
+
+- **Node.js + Express/Fastify**: 実績は豊富だが、TS 実行・テスト・PDF 生成のツールチェーン設定が増える
+- **SSR フルスタックフレームワーク (Next.js 等)**: ローカル開発ツールとしての起動速度と軽量さを重視し、SPA + Hono の分離構成を選択した
