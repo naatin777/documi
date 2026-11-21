@@ -1,9 +1,9 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Link } from 'react-router'
 import type { BlockDiffResult } from '../../core/types'
 import { api, encodeDocId, type ReviewBlocksResponse } from '../api'
-import { useDocsRevision } from '../live'
+import { toErrorMessage, useBlocksQuery, useInvalidateDocs } from '../queries'
 import DocPeekPane from './DocPeekPane'
 
 type ReviewFilter = 'attention' | 'feedback' | 'unreviewed' | 'approved' | 'all'
@@ -13,30 +13,15 @@ type ReviewBlockItem = ReviewBlocksResponse['blocks'][number]
 // @implements ui.human-review
 export default function ReviewLayout() {
   const { t } = useTranslation()
-  const revision = useDocsRevision()
-  const [data, setData] = useState<ReviewBlocksResponse | null>(null)
-  const [error, setError] = useState<string | null>(null)
+  const invalidateDocs = useInvalidateDocs()
+  const { data, error: queryError } = useBlocksQuery()
+  const [actionError, setActionError] = useState<string | null>(null)
   const [filter, setFilter] = useState<ReviewFilter>('attention')
   const [busyId, setBusyId] = useState<string | null>(null)
   const [diffs, setDiffs] = useState<Record<string, BlockDiffResult>>({})
   const [openDiffIds, setOpenDiffIds] = useState<ReadonlySet<string>>(new Set())
   const [peekTarget, setPeekTarget] = useState<{ docId: string; focusBlockId: string } | null>(null)
-
-  const load = useCallback(() => {
-    api
-      .blocks()
-      .then((res) => {
-        setData(res)
-        setError(null)
-      })
-      .catch((e: unknown) => {
-        setError(e instanceof Error ? e.message : String(e))
-      })
-  }, [])
-
-  useEffect(() => {
-    load()
-  }, [load, revision])
+  const error = actionError ?? toErrorMessage(queryError)
 
   const attentionCount = useMemo(
     () => (data ? data.blocks.filter((b) => b.review === 'stale' || b.suspect).length : 0),
@@ -61,11 +46,12 @@ export default function ReviewLayout() {
   // 要確認が 0 件で未承認がある場合は初回だけ分かりやすく案内する
   const handleApprove = async (blockId: string) => {
     setBusyId(blockId)
+    setActionError(null)
     try {
       await api.approveBlock(blockId)
-      load()
+      invalidateDocs()
     } catch (e) {
-      setError(e instanceof Error ? e.message : String(e))
+      setActionError(e instanceof Error ? e.message : String(e))
     } finally {
       setBusyId(null)
     }

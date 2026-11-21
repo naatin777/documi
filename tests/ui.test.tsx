@@ -232,20 +232,22 @@ describe('Web UI & Live Spec Dogfooding', () => {
   test('[ui.glossary-autolink] Markdown は登録済み用語・別名を本文中で自動リンクしコードや見出し内は除外する', () => {
     const html = renderToStaticMarkup(
       <MemoryRouter>
-        <Markdown
-          body={'# 仕様ブロックの見出し\n\n本文中の仕様ブロックと `仕様ブロック` の扱い。'}
-          format="mdx"
-          terms={[
-            {
-              id: 'SpecBlock',
-              docId: 'domain/glossary',
-              docTitle: '用語集',
-              aliases: ['仕様ブロック'],
-              symbols: ['src/core/types.ts#SemanticBlock'],
-              rawBody: '仕様の最小単位',
-            },
-          ]}
-        />
+        <LiveProvider>
+          <Markdown
+            body={'# 仕様ブロックの見出し\n\n本文中の仕様ブロックと `仕様ブロック` の扱い。'}
+            format="mdx"
+            terms={[
+              {
+                id: 'SpecBlock',
+                docId: 'domain/glossary',
+                docTitle: '用語集',
+                aliases: ['仕様ブロック'],
+                symbols: ['src/core/types.ts#SemanticBlock'],
+                rawBody: '仕様の最小単位',
+              },
+            ]}
+          />
+        </LiveProvider>
       </MemoryRouter>,
     )
 
@@ -290,7 +292,9 @@ describe('Web UI & Live Spec Dogfooding', () => {
 
     const html = renderToStaticMarkup(
       <MemoryRouter>
-        <SearchModal open onClose={() => {}} />
+        <LiveProvider>
+          <SearchModal open onClose={() => {}} />
+        </LiveProvider>
       </MemoryRouter>,
     )
     expect(html).toContain('role="dialog"')

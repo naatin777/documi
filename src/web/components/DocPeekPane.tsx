@@ -2,9 +2,8 @@ import { ArrowLeft, ExternalLink, X } from 'lucide-react'
 import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Link } from 'react-router'
-import type { Document } from '../../core/types'
-import { api, encodeDocId, type TermEntry } from '../api'
-import { useDocsRevision } from '../live'
+import { encodeDocId } from '../api'
+import { toErrorMessage, useDocumentQuery, useInvalidateDocs, useTermsQuery } from '../queries'
 import Markdown from './Markdown'
 import ResizeHandle, { useResizableWidth } from './ResizeHandle'
 import { DocReviewProvider } from './SemanticBlocks'
@@ -28,12 +27,7 @@ interface DocPeekPaneProps {
  */
 export default function DocPeekPane({ docId, focusBlockId, onBack, onClose, extraTab }: DocPeekPaneProps) {
   const { t } = useTranslation()
-  const revision = useDocsRevision()
-  const [doc, setDoc] = useState<Document | null>(null)
-  const [terms, setTerms] = useState<TermEntry[]>([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
-  const [localTick, setLocalTick] = useState(0)
+  const handleMutate = useInvalidateDocs()
   const [activeTab, setActiveTab] = useState<'preview' | 'extra'>('preview')
   const bodyRef = useRef<HTMLDivElement>(null)
   const {
@@ -47,38 +41,17 @@ export default function DocPeekPane({ docId, focusBlockId, onBack, onClose, extr
     maxWidth: 860,
   })
 
-  const handleMutate = useCallback(() => {
-    setLocalTick((t) => t + 1)
-  }, [])
+  const docQuery = useDocumentQuery(docId)
+  const termsQuery = useTermsQuery()
+  const doc = docQuery.data?.document ?? null
+  const terms = termsQuery.data?.terms ?? []
+  const loading = docQuery.isPending
+  const error = toErrorMessage(docQuery.error)
 
   // 別ドキュメントへ切り替えたら本文タブへ戻す
   useEffect(() => {
     setActiveTab('preview')
   }, [docId, focusBlockId])
-
-  useEffect(() => {
-    let cancelled = false
-    setLoading((prev) => prev || doc?.id !== docId)
-    setError(null)
-    Promise.all([api.document(docId), api.terms()])
-      .then(([res, termsRes]) => {
-        if (cancelled) return
-        setDoc(res.document)
-        setTerms(termsRes.terms)
-      })
-      .catch((e: unknown) => {
-        if (!cancelled) {
-          setDoc(null)
-          setError(e instanceof Error ? e.message : String(e))
-        }
-      })
-      .finally(() => {
-        if (!cancelled) setLoading(false)
-      })
-    return () => {
-      cancelled = true
-    }
-  }, [docId, revision, localTick])
 
   // ブロック指定がある場合はペイン内を該当ブロックへスクロール
   useEffect(() => {

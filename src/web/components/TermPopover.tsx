@@ -1,10 +1,9 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Link } from 'react-router'
-import { api, encodeDocId, type SourceResponse, type TermEntry } from '../api'
+import { encodeDocId, type TermEntry } from '../api'
+import { toErrorMessage, useSourceQuery } from '../queries'
 import { HighlightedCode } from './HighlightedCode'
-
-const symbolCache = new Map<string, SourceResponse | { error: string }>()
 
 interface TermInlineProps {
   name?: string
@@ -20,49 +19,23 @@ interface TermInlineProps {
 export function TermInline({ name, term, children }: TermInlineProps) {
   const { t } = useTranslation()
   const [open, setOpen] = useState(false)
-  const [preview, setPreview] = useState<SourceResponse | { error: string } | null>(null)
-  const [loading, setLoading] = useState(false)
   const closeTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   const primarySymbol = term?.symbols[0]
+  const [symbolFile, symbolName] = primarySymbol ? primarySymbol.split('#') : ['', '']
+  const hasValidSymbol = Boolean(symbolFile && symbolName)
   const label = children ?? name ?? term?.id ?? ''
+
+  const previewQuery = useSourceQuery({ file: symbolFile, symbol: symbolName }, open && hasValidSymbol)
+  const preview = previewQuery.data ?? null
+  const previewError = toErrorMessage(previewQuery.error)
+  const loading = open && hasValidSymbol && previewQuery.isPending
 
   useEffect(() => {
     return () => {
       if (closeTimer.current) clearTimeout(closeTimer.current)
     }
   }, [])
-
-  useEffect(() => {
-    if (!open || !primarySymbol) return
-    const cached = symbolCache.get(primarySymbol)
-    if (cached) {
-      setPreview(cached)
-      return
-    }
-    const [file, symbol] = primarySymbol.split('#')
-    if (!file || !symbol) return
-
-    let cancelled = false
-    setLoading(true)
-    api
-      .source({ file, symbol })
-      .then((res) => {
-        symbolCache.set(primarySymbol, res)
-        if (!cancelled) setPreview(res)
-      })
-      .catch((e: unknown) => {
-        const err = { error: e instanceof Error ? e.message : String(e) }
-        symbolCache.set(primarySymbol, err)
-        if (!cancelled) setPreview(err)
-      })
-      .finally(() => {
-        if (!cancelled) setLoading(false)
-      })
-    return () => {
-      cancelled = true
-    }
-  }, [open, primarySymbol])
 
   if (!term) {
     return <span className="sem-term-inline">{label}</span>
@@ -99,8 +72,8 @@ export function TermInline({ name, term, children }: TermInlineProps) {
             <span className="term-popover-code">
               <span className="term-popover-symbol mono">{primarySymbol}</span>
               {loading && <span className="muted">{t('term.loadingSymbol')}</span>}
-              {preview && 'error' in preview && <span className="error-text">{preview.error}</span>}
-              {preview && 'code' in preview && <HighlightedCode code={preview.code} lang={preview.language} />}
+              {previewError && <span className="error-text">{previewError}</span>}
+              {preview && <HighlightedCode code={preview.code} lang={preview.language} />}
             </span>
           )}
           <span className="term-popover-foot">

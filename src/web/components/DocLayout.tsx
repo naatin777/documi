@@ -1,10 +1,8 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useParams } from 'react-router'
-import type { Document } from '../../core/types'
-import { api, type TermEntry } from '../api'
 import { extractHeadings } from '../headings'
-import { useDocsRevision } from '../live'
+import { toErrorMessage, useDocumentQuery, useInvalidateDocs, useTermsQuery } from '../queries'
 import { useTabs } from '../tabs'
 import DocPeekPane from './DocPeekPane'
 import DocViewer from './DocViewer'
@@ -19,20 +17,18 @@ export default function DocLayout() {
   const { t } = useTranslation()
   const params = useParams()
   const docId = (params['*'] ?? '').replace(/^\/+/, '').replace(/\/+$/, '')
-  const revision = useDocsRevision()
   const { openTab } = useTabs()
-  const [doc, setDoc] = useState<Document | null>(null)
-  const [terms, setTerms] = useState<TermEntry[]>([])
-  const [error, setError] = useState<string | null>(null)
-  const [loading, setLoading] = useState(true)
-  const [localTick, setLocalTick] = useState(0)
+  const handleMutate = useInvalidateDocs()
   const [inspectorOpen, setInspectorOpen] = useState(true)
   const [peekTarget, setPeekTarget] = useState<PeekTarget | null>(null)
   const mainRef = useRef<HTMLElement>(null)
 
-  const handleMutate = useCallback(() => {
-    setLocalTick((t) => t + 1)
-  }, [])
+  const docQuery = useDocumentQuery(docId)
+  const termsQuery = useTermsQuery()
+  const doc = docQuery.data?.document ?? null
+  const terms = termsQuery.data?.terms ?? []
+  const error = toErrorMessage(docQuery.error)
+  const loading = docQuery.isPending
 
   // メイン画面がプレビュー中と同じ文書へ遷移したら重複表示を解消する
   useEffect(() => {
@@ -42,33 +38,13 @@ export default function DocLayout() {
   }, [docId, peekTarget])
 
   useEffect(() => {
-    let cancelled = false
-    setLoading((prev) => prev || doc?.id !== docId)
-    setError(null)
-    Promise.all([api.document(docId), api.terms()])
-      .then(([res, termsRes]) => {
-        if (cancelled) return
-        setDoc(res.document)
-        setTerms(termsRes.terms)
-        openTab({
-          id: res.document.id,
-          type: res.document.type,
-          title: res.document.title,
-        })
-      })
-      .catch((e: unknown) => {
-        if (!cancelled) {
-          setDoc(null)
-          setError(e instanceof Error ? e.message : String(e))
-        }
-      })
-      .finally(() => {
-        if (!cancelled) setLoading(false)
-      })
-    return () => {
-      cancelled = true
-    }
-  }, [docId, revision, localTick, openTab])
+    if (!doc) return
+    openTab({
+      id: doc.id,
+      type: doc.type,
+      title: doc.title,
+    })
+  }, [doc, openTab])
 
   useEffect(() => {
     const el = mainRef.current

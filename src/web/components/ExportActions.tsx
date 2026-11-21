@@ -2,8 +2,6 @@ import { Download, X } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useLocation } from 'react-router'
-import type { DocumentSummary } from '../../core/types'
-import { api } from '../api'
 import {
   buildBundleUrl,
   exportBundlePdf,
@@ -12,6 +10,7 @@ import {
   printDocument,
   type BundleExportParams,
 } from '../export'
+import { useDocumentsQuery } from '../queries'
 
 type ScopeMode = 'current' | 'all' | 'goal' | 'dir' | 'custom'
 
@@ -22,7 +21,6 @@ export default function ExportActions() {
   const isDocPage = pathname.startsWith('/docs/')
   const [open, setOpen] = useState(false)
   const [mode, setMode] = useState<ScopeMode>(isDocPage ? 'current' : 'all')
-  const [docs, setDocs] = useState<DocumentSummary[]>([])
   const [selectedGoal, setSelectedGoal] = useState('')
   const [selectedDir, setSelectedDir] = useState('')
   const [customIds, setCustomIds] = useState<Set<string>>(new Set())
@@ -30,21 +28,22 @@ export default function ExportActions() {
   const [busy, setBusy] = useState(false)
   const [message, setMessage] = useState<string | null>(null)
 
+  const docsQuery = useDocumentsQuery(open)
+  const docs = useMemo(() => docsQuery.data?.documents ?? [], [docsQuery.data])
+
   useEffect(() => {
     if (!open) return
     setMessage(null)
     setMode(isDocPage ? 'current' : 'all')
-    api
-      .documents()
-      .then((res) => {
-        setDocs(res.documents)
-        const firstGoal = res.documents.find((d) => d.type === 'goal')
-        if (firstGoal && !selectedGoal) setSelectedGoal(firstGoal.id)
-        const dirs = [...new Set(res.documents.map((d) => d.dir).filter(Boolean))].sort()
-        if (dirs[0] && !selectedDir) setSelectedDir(dirs[0])
-      })
-      .catch(() => {})
-  }, [open, isDocPage, selectedGoal, selectedDir])
+  }, [open, isDocPage])
+
+  useEffect(() => {
+    if (!open || docs.length === 0) return
+    const firstGoal = docs.find((d) => d.type === 'goal')
+    if (firstGoal && !selectedGoal) setSelectedGoal(firstGoal.id)
+    const dirList = [...new Set(docs.map((d) => d.dir).filter(Boolean))].sort()
+    if (dirList[0] && !selectedDir) setSelectedDir(dirList[0])
+  }, [open, docs, selectedGoal, selectedDir])
 
   useEffect(() => {
     if (!open) return

@@ -1,13 +1,12 @@
 import { ChevronRight, Home, ListChecks, Network, Search, X } from 'lucide-react'
-import { useEffect, useMemo, useState, type ReactNode } from 'react'
+import { useMemo, useState, type ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
 import { NavLink } from 'react-router'
 import { ARTIFACT_TYPES } from '../../core/types'
 import type { ArtifactType, DocTreeDir, DocTreeNode, DocumentSummary } from '../../core/types'
-import { api, encodeDocId } from '../api'
-import type { StatusResponse } from '../api'
+import { encodeDocId } from '../api'
 import { LanguageToggle } from '../i18n'
-import { useDocsRevision } from '../live'
+import { toErrorMessage, useStatusQuery, useTreeQuery } from '../queries'
 import { ThemeToggle } from '../theme'
 import { ArtifactTypeIcon, BrandMark } from './BrandMark'
 import ExportActions from './ExportActions'
@@ -40,32 +39,16 @@ interface ExplorerProps {
 // @implements ui.explorer-modes
 export default function Explorer({ reviewBadgeCount, onClose, onOpenSearch, resizeHandle }: ExplorerProps) {
   const { t } = useTranslation()
-  const revision = useDocsRevision()
   const [mode, setMode] = useState<DocListMode>('flow')
-  const [tree, setTree] = useState<DocTreeNode[]>([])
-  const [documents, setDocuments] = useState<DocumentSummary[]>([])
-  const [status, setStatus] = useState<StatusResponse | null>(null)
-  const [error, setError] = useState<string | null>(null)
   const [collapsedDirs, setCollapsedDirs] = useState<ReadonlySet<string>>(new Set())
   const [collapsedTypes, setCollapsedTypes] = useState<ReadonlySet<ArtifactType>>(new Set())
 
-  useEffect(() => {
-    let cancelled = false
-    Promise.all([api.tree(), api.status()])
-      .then(([treeRes, st]) => {
-        if (cancelled) return
-        setTree(treeRes.tree)
-        setDocuments(treeRes.documents)
-        setStatus(st)
-        setError(null)
-      })
-      .catch((e: unknown) => {
-        if (!cancelled) setError(e instanceof Error ? e.message : String(e))
-      })
-    return () => {
-      cancelled = true
-    }
-  }, [revision])
+  const treeQuery = useTreeQuery()
+  const statusQuery = useStatusQuery()
+  const tree = treeQuery.data?.tree ?? []
+  const documents = treeQuery.data?.documents ?? []
+  const status = statusQuery.data ?? null
+  const error = toErrorMessage(treeQuery.error ?? statusQuery.error)
 
   const grouped = useMemo(() => {
     const map = new Map<ArtifactType, DocumentSummary[]>()

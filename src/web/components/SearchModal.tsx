@@ -2,7 +2,8 @@ import { useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useNavigate } from 'react-router'
 import type { SearchHit } from '../../core/bundle'
-import { api, encodeDocId } from '../api'
+import { encodeDocId } from '../api'
+import { useSearchQuery } from '../queries'
 
 interface SearchModalProps {
   open: boolean
@@ -14,9 +15,8 @@ export default function SearchModal({ open, onClose }: SearchModalProps) {
   const { t } = useTranslation()
   const navigate = useNavigate()
   const [query, setQuery] = useState('')
-  const [results, setResults] = useState<SearchHit[]>([])
+  const [debouncedQuery, setDebouncedQuery] = useState('')
   const [activeIdx, setActiveIdx] = useState(0)
-  const [loading, setLoading] = useState(false)
   const inputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
@@ -29,30 +29,20 @@ export default function SearchModal({ open, onClose }: SearchModalProps) {
     if (!open) return
     const q = query.trim()
     if (!q) {
-      setResults([])
+      setDebouncedQuery('')
       return
     }
-    let cancelled = false
-    setLoading(true)
-    const timer = setTimeout(() => {
-      api
-        .search(q, undefined, 25)
-        .then((res) => {
-          if (!cancelled) {
-            setResults(res.results)
-            setActiveIdx(0)
-          }
-        })
-        .catch(() => {})
-        .finally(() => {
-          if (!cancelled) setLoading(false)
-        })
-    }, 120)
-    return () => {
-      cancelled = true
-      clearTimeout(timer)
-    }
+    const timer = setTimeout(() => setDebouncedQuery(q), 120)
+    return () => clearTimeout(timer)
   }, [open, query])
+
+  const searchQuery = useSearchQuery(debouncedQuery, open)
+  const results = debouncedQuery ? (searchQuery.data?.results ?? []) : []
+  const loading = Boolean(debouncedQuery) && searchQuery.isFetching
+
+  useEffect(() => {
+    setActiveIdx(0)
+  }, [results])
 
   if (!open) return null
 
