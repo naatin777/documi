@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { api } from '../api'
 import type { SourceResponse } from '../api'
 import { useCopyText } from '../hooks'
@@ -22,6 +23,7 @@ function splitCsv(value?: string): string[] {
 
 /** 実ファイルのコードを AST / 行範囲で取得して表示する */
 export default function SourceRef({ file, symbol, lines, satisfies, verifies }: SourceRefProps) {
+  const { t } = useTranslation()
   const [data, setData] = useState<SourceResponse | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
@@ -64,7 +66,7 @@ export default function SourceRef({ file, symbol, lines, satisfies, verifies }: 
   if (!valid) {
     return (
       <div className="source-ref source-ref-error">
-        <span className="error-text">SourceRef には file と symbol または lines のどちらか一方が必要です</span>
+        <span className="error-text">{t('sourceRef.invalidProps')}</span>
       </div>
     )
   }
@@ -87,7 +89,7 @@ export default function SourceRef({ file, symbol, lines, satisfies, verifies }: 
         {data && (
           <span className="source-ref-lines">
             L{data.startLine}–{data.endLine}
-            {data.truncated ? ' (途中まで)' : ''}
+            {data.truncated ? t('sourceRef.truncated') : ''}
           </span>
         )}
         {satisfiesList.map((id) => (
@@ -102,11 +104,11 @@ export default function SourceRef({ file, symbol, lines, satisfies, verifies }: 
         ))}
         {data && (
           <button type="button" className="codeblock-copy" onClick={() => data && copy(data.code)}>
-            {copied ? 'コピーしました' : 'コピー'}
+            {copied ? t('code.copied') : t('code.copy')}
           </button>
         )}
       </figcaption>
-      {loading && <p className="muted source-ref-status">ソースを読み込み中…</p>}
+      {loading && <p className="muted source-ref-status">{t('sourceRef.loading')}</p>}
       {error && <p className="error-text source-ref-status">{error}</p>}
       {data && <HighlightedCode code={data.code} lang={data.language} />}
     </figure>

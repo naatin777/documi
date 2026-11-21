@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next'
 import type { Document } from '../../core/types'
 import { ARTIFACT_TYPE_LABELS } from '../../core/types'
 import type { TermEntry } from '../api'
@@ -12,6 +13,7 @@ interface DocViewerProps {
 }
 
 export default function DocViewer({ doc, terms, onMutate }: DocViewerProps) {
+  const { t } = useTranslation()
   return (
     <article className="page doc-page">
       <PrintHeader label={ARTIFACT_TYPE_LABELS[doc.type]} title={doc.title} meta={doc.path} />
@@ -20,7 +22,9 @@ export default function DocViewer({ doc, terms, onMutate }: DocViewerProps) {
           <span className={`badge badge-type type-${doc.type}`}>{ARTIFACT_TYPE_LABELS[doc.type]}</span>
           {doc.typeInferred && <span className="badge badge-format">inferred</span>}
           {doc.format === 'mdx' && <span className="badge badge-format">MDX</span>}
-          {doc.blocks.length > 0 && <span className="badge badge-id">{doc.blocks.length} blocks</span>}
+          {doc.blocks.length > 0 && (
+            <span className="badge badge-id">{t('doc.blocksCount', { count: doc.blocks.length })}</span>
+          )}
         </div>
         <h1>{doc.title}</h1>
         {doc.description && <p className="doc-description">{doc.description}</p>}
@@ -33,7 +37,7 @@ export default function DocViewer({ doc, terms, onMutate }: DocViewerProps) {
 
       {doc.issues.length > 0 && (
         <section className="issues-panel">
-          <h2>この文書の問題 ({doc.issues.length})</h2>
+          <h2>{t('doc.docIssues', { count: doc.issues.length })}</h2>
           <ul>
             {doc.issues.map((issue, i) => (
               <li key={i}>

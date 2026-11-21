@@ -1,5 +1,6 @@
 import { ArrowLeft, ExternalLink, X } from 'lucide-react'
 import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
+import { useTranslation } from 'react-i18next'
 import { Link } from 'react-router-dom'
 import { ARTIFACT_TYPE_LABELS } from '../../core/types'
 import type { Document } from '../../core/types'
@@ -27,6 +28,7 @@ interface DocPeekPaneProps {
  * Graph のノード選択時や、文書閲覧中の関連文書比較、Review Queue からの文脈確認で共通利用する。
  */
 export default function DocPeekPane({ docId, focusBlockId, onBack, onClose, extraTab }: DocPeekPaneProps) {
+  const { t } = useTranslation()
   const revision = useDocsRevision()
   const [doc, setDoc] = useState<Document | null>(null)
   const [terms, setTerms] = useState<TermEntry[]>([])
@@ -113,31 +115,31 @@ export default function DocPeekPane({ docId, focusBlockId, onBack, onClose, extr
         maxWidth={maxPeekWidth}
         onChange={setPeekWidth}
         onReset={resetPeekWidth}
-        label="プレビューペイン幅を調整"
+        label={t('resize.peek')}
       />
       <aside
         className="side-panel side-panel-peek"
         style={{ flexBasis: `${peekWidth}px` }}
-        aria-label="ドキュメントプレビュー"
+        aria-label={t('peek.ariaLabel')}
       >
         <header className="peek-header">
           <div className="peek-header-top">
             <div className="peek-header-left">
               {onBack && (
-                <button type="button" className="peek-icon-btn" onClick={onBack} title="Outline / Links に戻る">
+                <button type="button" className="peek-icon-btn" onClick={onBack} title={t('peek.backToInspector')}>
                   <ArrowLeft size={13} strokeWidth={1.8} aria-hidden="true" />
-                  <span>戻る</span>
+                  <span>{t('common.back')}</span>
                 </button>
               )}
               {doc && <span className={`badge badge-type type-${doc.type}`}>{ARTIFACT_TYPE_LABELS[doc.type]}</span>}
               {doc?.date && <span className="peek-date mono">{doc.date}</span>}
             </div>
             <div className="peek-header-actions">
-              <Link to={openHref} className="peek-icon-btn peek-open-link" title="メイン画面で開く">
-                <span>開く</span>
+              <Link to={openHref} className="peek-icon-btn peek-open-link" title={t('peek.openInMain')}>
+                <span>{t('common.open')}</span>
                 <ExternalLink size={12} strokeWidth={1.8} aria-hidden="true" />
               </Link>
-              <button type="button" className="peek-icon-btn" onClick={onClose} aria-label="プレビューを閉じる">
+              <button type="button" className="peek-icon-btn" onClick={onClose} aria-label={t('peek.closePreview')}>
                 <X size={13} strokeWidth={1.8} aria-hidden="true" />
               </button>
             </div>
@@ -149,7 +151,7 @@ export default function DocPeekPane({ docId, focusBlockId, onBack, onClose, extr
           </div>
 
           {extraTab && (
-            <div className="rp-tabs" role="tablist" aria-label="プレビュー切替">
+            <div className="rp-tabs" role="tablist" aria-label={t('peek.switchAria')}>
               <button
                 type="button"
                 role="tab"
@@ -157,7 +159,7 @@ export default function DocPeekPane({ docId, focusBlockId, onBack, onClose, extr
                 className={`rp-tab${activeTab === 'preview' ? ' active' : ''}`}
                 onClick={() => setActiveTab('preview')}
               >
-                本文
+                {t('peek.bodyTab')}
               </button>
               <button
                 type="button"
@@ -177,7 +179,7 @@ export default function DocPeekPane({ docId, focusBlockId, onBack, onClose, extr
             extraTab.content
           ) : (
             <>
-              {loading && !doc && <p className="muted">読み込み中…</p>}
+              {loading && !doc && <p className="muted">{t('common.loading')}</p>}
               {error && <p className="error-text">{error}</p>}
               {doc && (
                 <div className="peek-doc-content">

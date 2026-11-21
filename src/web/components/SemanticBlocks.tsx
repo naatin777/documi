@@ -1,4 +1,5 @@
 import { createContext, useContext, useState, type FormEvent, type ReactNode } from 'react'
+import { useTranslation } from 'react-i18next'
 import { isNoteIntent, isSpecIntent, isStability, STABILITIES } from '../../core/types'
 import type { BlockDiffResult, SemanticBlock, Stability } from '../../core/types'
 import { api } from '../api'
@@ -40,6 +41,7 @@ function splitCsv(value: string | undefined): string[] {
 
 /** ブロック単位の承認・Diff・Stability 変更・AI 向けフィードバック操作 UI */
 function BlockReviewControls({ block, onMutate }: { block: SemanticBlock; onMutate: () => void }) {
+  const { t } = useTranslation()
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [showDiff, setShowDiff] = useState(false)
@@ -137,18 +139,25 @@ function BlockReviewControls({ block, onMutate }: { block: SemanticBlock; onMuta
           className={`sem-review-badge sem-review-${block.review}`}
           title={
             block.approvedAt
-              ? `承認: ${block.approvedBy ?? ''} (${block.approvedCommit ?? 'uncommitted'} / ${block.approvedAt})`
-              : '未承認'
+              ? t('blocks.approvedTooltip', {
+                  by: block.approvedBy ?? '',
+                  commit: block.approvedCommit ?? 'uncommitted',
+                  at: block.approvedAt,
+                })
+              : t('blocks.unreviewedTooltip')
           }
         >
-          {block.review === 'approved' && '✓ Approved'}
-          {block.review === 'unreviewed' && '○ Unreviewed'}
-          {block.review === 'stale' && '↻ Stale (承認後に変更)'}
+          {block.review === 'approved' && t('blocks.approved')}
+          {block.review === 'unreviewed' && t('blocks.unreviewed')}
+          {block.review === 'stale' && t('blocks.stale')}
         </span>
 
         {block.suspect && (
-          <span className="sem-review-badge sem-review-suspect" title={`上流変更: ${block.suspectSources.join(', ')}`}>
-            ⚠ Suspect
+          <span
+            className="sem-review-badge sem-review-suspect"
+            title={t('blocks.suspectTooltip', { sources: block.suspectSources.join(', ') })}
+          >
+            {t('blocks.suspect')}
           </span>
         )}
 
@@ -157,14 +166,18 @@ function BlockReviewControls({ block, onMutate }: { block: SemanticBlock; onMuta
             type="button"
             className={`sem-realization-badge sem-real-${realization.status}`}
             onClick={() => setShowTrace((v) => !v)}
-            title="クリックで実装・テスト・PR の紐づけ詳細を表示"
+            title={t('blocks.realizationTooltip')}
           >
             {realization.status === 'verified' &&
-              `● Verified (${realization.testResults.filter((t) => t.status === 'passed').length}/${realization.testResults.length})`}
-            {realization.status === 'implemented' && `● Implemented (${realization.implementations.length})`}
-            {realization.status === 'in-progress' && '◐ In Progress'}
-            {realization.status === 'unimplemented' && '○ Unimplemented'}
-            {realization.status === 'drifted' && '✕ Drifted'}
+              t('blocks.verified', {
+                passed: realization.testResults.filter((tr) => tr.status === 'passed').length,
+                total: realization.testResults.length,
+              })}
+            {realization.status === 'implemented' &&
+              t('blocks.implemented', { count: realization.implementations.length })}
+            {realization.status === 'in-progress' && t('blocks.inProgress')}
+            {realization.status === 'unimplemented' && t('blocks.unimplemented')}
+            {realization.status === 'drifted' && t('blocks.drifted')}
           </button>
         )}
 
@@ -173,7 +186,7 @@ function BlockReviewControls({ block, onMutate }: { block: SemanticBlock; onMuta
           className={`sem-action-btn sem-pill-${block.stability}`}
           disabled={busy}
           onClick={() => void handleCycleStability()}
-          title="クリックで安定度 (stable / evolving / volatile) を切替"
+          title={t('blocks.stabilityTooltip')}
         >
           {block.stability}
         </button>
@@ -185,7 +198,7 @@ function BlockReviewControls({ block, onMutate }: { block: SemanticBlock; onMuta
             disabled={busy}
             onClick={() => void handleToggleDiff()}
           >
-            Diff
+            {t('review.diff')}
           </button>
         )}
 
@@ -205,18 +218,18 @@ function BlockReviewControls({ block, onMutate }: { block: SemanticBlock; onMuta
             disabled={busy}
             onClick={() => void handleApprove()}
           >
-            承認
+            {t('review.approve')}
           </button>
         )}
       </div>
 
       {block.suspect && block.suspectSources.length > 0 && (
         <div className="sem-suspect-banner">
-          上流の変更が検知されました (
+          {t('blocks.suspectBannerPrefix')}
           {block.suspectSources.map((s) => (
             <code key={s}>{s}</code>
           ))}
-          )。内容を確認して再承認してください。
+          {t('blocks.suspectBannerSuffix')}
         </div>
       )}
 
@@ -236,7 +249,7 @@ function BlockReviewControls({ block, onMutate }: { block: SemanticBlock; onMuta
           <div className="sem-trace-group">
             <span className="sem-meta-label">Implementations ({realization.implementations.length})</span>
             {realization.implementations.length === 0 ? (
-              <span className="muted">なし</span>
+              <span className="muted">{t('common.none')}</span>
             ) : (
               <ul className="sem-trace-list">
                 {realization.implementations.map((a, i) => (
@@ -250,7 +263,7 @@ function BlockReviewControls({ block, onMutate }: { block: SemanticBlock; onMuta
           <div className="sem-trace-group">
             <span className="sem-meta-label">Tests ({realization.verifications.length})</span>
             {realization.verifications.length === 0 ? (
-              <span className="muted">なし</span>
+              <span className="muted">{t('common.none')}</span>
             ) : (
               <ul className="sem-trace-list">
                 {realization.verifications.map((a, i) => (
@@ -266,9 +279,9 @@ function BlockReviewControls({ block, onMutate }: { block: SemanticBlock; onMuta
             <div className="sem-trace-group">
               <span className="sem-meta-label">Test Results ({realization.testResults.length})</span>
               <ul className="sem-trace-list">
-                {realization.testResults.map((t, i) => (
-                  <li key={i} className={`sem-test-${t.status}`}>
-                    [{t.status}] {t.name}
+                {realization.testResults.map((tr, i) => (
+                  <li key={i} className={`sem-test-${tr.status}`}>
+                    [{tr.status}] {tr.name}
                   </li>
                 ))}
               </ul>
@@ -295,18 +308,18 @@ function BlockReviewControls({ block, onMutate }: { block: SemanticBlock; onMuta
         <div className="sem-diff-panel">
           <div className="sem-diff-header">
             <span>
-              承認時点からの差分
+              {t('blocks.diffTitle')}
               {diff.baseSource === 'git' && diff.baseCommit && ` (git ${diff.baseCommit})`}
-              {diff.baseSource === 'cache' && ' (ローカル承認キャッシュ)'}
+              {diff.baseSource === 'cache' && ` ${t('blocks.diffCache')}`}
             </span>
             <button type="button" className="sem-diff-close" onClick={() => setShowDiff(false)}>
-              閉じる
+              {t('common.close')}
             </button>
           </div>
           {!diff.hasBase ? (
-            <p className="muted sem-diff-empty">承認時点のベース本文を取得できませんでした。</p>
+            <p className="muted sem-diff-empty">{t('blocks.diffNoBase')}</p>
           ) : !diff.changed ? (
-            <p className="muted sem-diff-empty">差分はありません。</p>
+            <p className="muted sem-diff-empty">{t('blocks.diffNoChanges')}</p>
           ) : (
             <pre className="sem-diff-lines">
               {diff.lines.map((line, i) => (
@@ -335,7 +348,7 @@ function BlockReviewControls({ block, onMutate }: { block: SemanticBlock; onMuta
                       disabled={busy}
                       onClick={() => void handleResolveFeedback(fb.id, !fb.resolved)}
                     >
-                      {fb.resolved ? '未解決に戻す' : '解決済みにする'}
+                      {fb.resolved ? t('blocks.reopenFeedback') : t('blocks.resolveFeedback')}
                     </button>
                   </div>
                 </li>
@@ -348,11 +361,11 @@ function BlockReviewControls({ block, onMutate }: { block: SemanticBlock; onMuta
               className="sem-feedback-input"
               value={draft}
               onChange={(e) => setDraft(e.target.value)}
-              placeholder="AI 向けフィードバックを入力 (例: 5回ではなく3回にして)…"
+              placeholder={t('blocks.feedbackPlaceholder')}
               disabled={busy}
             />
             <button type="submit" className="sem-action-btn sem-approve-btn" disabled={busy || !draft.trim()}>
-              送信
+              {t('common.submit')}
             </button>
           </form>
         </div>
@@ -483,18 +496,19 @@ export interface NoteBlockProps {
   children?: ReactNode
 }
 
-const NOTE_LABELS: Record<string, string> = {
-  idea: 'IDEA / 未確定メモ',
-  informative: 'NOTE',
-  rejected: 'REJECTED / 不採用',
-}
-
 export function NoteBlock({ intent, title, children }: NoteBlockProps) {
+  const { t } = useTranslation()
   const safeIntent = isNoteIntent(intent) ? intent : 'informative'
+  const label =
+    safeIntent === 'idea'
+      ? t('blocks.noteIdea')
+      : safeIntent === 'rejected'
+        ? t('blocks.noteRejected')
+        : t('blocks.noteInformative')
   return (
     <aside className={`sem-block sem-note sem-note-${safeIntent}`}>
       <header className="sem-header">
-        <span className={`sem-kind sem-kind-note-${safeIntent}`}>{NOTE_LABELS[safeIntent]}</span>
+        <span className={`sem-kind sem-kind-note-${safeIntent}`}>{label}</span>
         {title && <span className="sem-title">{title}</span>}
       </header>
       <div className="sem-body">{children}</div>

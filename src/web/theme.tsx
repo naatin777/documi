@@ -1,5 +1,6 @@
 import { Monitor, Moon, Sun } from 'lucide-react'
 import { createContext, useContext, useEffect, useState, type ReactNode } from 'react'
+import { useTranslation } from 'react-i18next'
 
 export type ThemeMode = 'light' | 'dark' | 'system'
 type ResolvedTheme = 'light' | 'dark'
@@ -61,22 +62,19 @@ export function useTheme(): ThemeContextValue {
 }
 
 const MODE_ORDER: ThemeMode[] = ['light', 'dark', 'system']
-const MODE_LABELS: Record<ThemeMode, string> = {
-  light: 'ライト',
-  dark: 'ダーク',
-  system: 'システム',
-}
 
 export function ThemeToggle() {
+  const { t } = useTranslation()
   const { mode, setMode } = useTheme()
   const next = MODE_ORDER[(MODE_ORDER.indexOf(mode) + 1) % MODE_ORDER.length] ?? mode
+  const modeLabel = t(`theme.${mode}`)
 
   return (
     <button
       type="button"
       className="theme-toggle"
-      title={`テーマ: ${MODE_LABELS[mode]}`}
-      aria-label={`テーマを切り替える（現在: ${MODE_LABELS[mode]}）`}
+      title={t('theme.tooltip', { mode: modeLabel })}
+      aria-label={t('theme.ariaLabel', { mode: modeLabel })}
       onClick={() => setMode(next)}
     >
       {mode === 'light' && <Sun size={15} strokeWidth={1.75} aria-hidden="true" />}

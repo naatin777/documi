@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { Link, useSearchParams } from 'react-router-dom'
 import { ARTIFACT_TYPE_LABELS } from '../../core/types'
 import { api, type BundleResponse } from '../api'
@@ -14,6 +15,7 @@ declare global {
 }
 
 export default function BundleLayout() {
+  const { t, i18n } = useTranslation()
   const [searchParams] = useSearchParams()
   const scope = searchParams.get('scope') ?? undefined
   const rawIds = searchParams.get('ids')
@@ -89,10 +91,10 @@ export default function BundleLayout() {
     return (
       <div className="bundle-shell">
         <div className="bundle-error">
-          <h1>バンドルを生成できません</h1>
+          <h1>{t('bundle.errorTitle')}</h1>
           <p className="error-text">{error}</p>
           <Link to="/" className="button">
-            Overview に戻る
+            {t('bundle.backToOverview')}
           </Link>
         </div>
       </div>
@@ -102,7 +104,7 @@ export default function BundleLayout() {
   if (!bundle) {
     return (
       <div className="bundle-shell">
-        <p className="muted">バンドルを構築中…</p>
+        <p className="muted">{t('bundle.building')}</p>
       </div>
     )
   }
@@ -111,17 +113,17 @@ export default function BundleLayout() {
     <div className="bundle-shell">
       <div className="bundle-toolbar">
         <Link to="/" className="sem-action-btn">
-          ← Documi に戻る
+          {t('bundle.backToDocumi')}
         </Link>
         <span className="bundle-toolbar-meta">
-          {bundle.summary.documentCount} documents · {bundle.summary.blockCount} blocks
+          {t('bundle.meta', { docs: bundle.summary.documentCount, blocks: bundle.summary.blockCount })}
         </span>
         <div className="bundle-toolbar-actions">
           <button type="button" className="sem-action-btn" onClick={() => exportBundleHtmlFromDom(bundle.title)}>
-            HTML ダウンロード
+            {t('bundle.downloadHtml')}
           </button>
           <button type="button" className="sem-action-btn sem-approve-btn" onClick={printDocument}>
-            印刷 / PDF 保存
+            {t('bundle.printPdf')}
           </button>
         </div>
       </div>
@@ -150,12 +152,14 @@ export default function BundleLayout() {
               <dd>{bundle.summary.verifiedCount}</dd>
             </div>
           </dl>
-          <div className="bundle-cover-date">Generated: {new Date(bundle.generatedAt).toLocaleString('ja-JP')}</div>
+          <div className="bundle-cover-date">
+            {t('bundle.generated', { date: new Date(bundle.generatedAt).toLocaleString(i18n.language) })}
+          </div>
         </section>
 
         {/* 目次 (TOC) */}
-        <nav className="bundle-toc" aria-label="目次">
-          <h2>目次</h2>
+        <nav className="bundle-toc" aria-label={t('bundle.toc')}>
+          <h2>{t('bundle.toc')}</h2>
           <ol>
             {bundle.documents.map((doc, idx) => (
               <li key={doc.id}>

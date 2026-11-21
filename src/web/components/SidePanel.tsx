@@ -1,5 +1,6 @@
 import { Columns2, PanelRightClose } from 'lucide-react'
 import { useMemo, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { NavLink } from 'react-router-dom'
 import { ARTIFACT_TYPE_LABELS } from '../../core/types'
 import type { Document, ResolvedRelation } from '../../core/types'
@@ -19,6 +20,7 @@ type InspectorTab = 'outline' | 'links'
 const TRACE_KINDS = new Set(['derives', 'satisfies', 'verifies', 'supersedes'])
 
 export default function SidePanel({ doc, headings, onPeek, onCollapse }: SidePanelProps) {
+  const { t } = useTranslation()
   const [tab, setTab] = useState<InspectorTab>('outline')
   const {
     width: panelWidth,
@@ -77,11 +79,11 @@ export default function SidePanel({ doc, headings, onPeek, onCollapse }: SidePan
         maxWidth={480}
         onChange={setPanelWidth}
         onReset={resetPanelWidth}
-        label="右インスペクタ幅を調整"
+        label={t('resize.inspector')}
       />
-      <aside className="side-panel" style={{ flexBasis: `${panelWidth}px` }} aria-label="コンテキストインスペクタ">
+      <aside className="side-panel" style={{ flexBasis: `${panelWidth}px` }} aria-label={t('inspector.ariaLabel')}>
         <header className="rp-header">
-          <div className="rp-tabs" role="tablist" aria-label="インスペクタ切替">
+          <div className="rp-tabs" role="tablist" aria-label={t('inspector.switchAria')}>
             <button
               type="button"
               role="tab"
@@ -89,7 +91,7 @@ export default function SidePanel({ doc, headings, onPeek, onCollapse }: SidePan
               className={`rp-tab${tab === 'outline' ? ' active' : ''}`}
               onClick={() => setTab('outline')}
             >
-              Outline
+              {t('inspector.outline')}
             </button>
             <button
               type="button"
@@ -98,15 +100,15 @@ export default function SidePanel({ doc, headings, onPeek, onCollapse }: SidePan
               className={`rp-tab${tab === 'links' ? ' active' : ''}`}
               onClick={() => setTab('links')}
             >
-              Links <span className="rp-tab-count">{totalLinks}</span>
+              {t('inspector.links')} <span className="rp-tab-count">{totalLinks}</span>
             </button>
           </div>
           <button
             type="button"
             className="rp-collapse-btn"
             onClick={onCollapse}
-            title="右パネルを閉じる"
-            aria-label="右パネルを閉じる"
+            title={t('inspector.closePanel')}
+            aria-label={t('inspector.closePanel')}
           >
             <PanelRightClose size={15} strokeWidth={1.75} aria-hidden="true" />
           </button>
@@ -122,7 +124,9 @@ export default function SidePanel({ doc, headings, onPeek, onCollapse }: SidePan
                 Verified <strong>{reviewStats.verified}</strong>/{reviewStats.specTotal}
               </span>
             )}
-            {reviewStats.attention > 0 && <span className="rp-health-warn">要確認 {reviewStats.attention}</span>}
+            {reviewStats.attention > 0 && (
+              <span className="rp-health-warn">{t('inspector.attentionCount', { count: reviewStats.attention })}</span>
+            )}
           </div>
         )}
 
@@ -130,7 +134,7 @@ export default function SidePanel({ doc, headings, onPeek, onCollapse }: SidePan
           <div className="rp-body">
             {doc.blocks.length > 0 && (
               <section className="rp-section">
-                <h2 className="rp-title">Blocks ({doc.blocks.length})</h2>
+                <h2 className="rp-title">{t('inspector.blocks', { count: doc.blocks.length })}</h2>
                 <ul className="rp-blocks">
                   {doc.blocks.map((b) => {
                     const openFb = b.feedback.filter((f) => !f.resolved).length
@@ -157,7 +161,7 @@ export default function SidePanel({ doc, headings, onPeek, onCollapse }: SidePan
 
             {headings.length > 0 ? (
               <section className="rp-section">
-                <h2 className="rp-title">Headings</h2>
+                <h2 className="rp-title">{t('inspector.headings')}</h2>
                 <ul className="rp-outline">
                   {headings.map((h, i) => (
                     <li key={`${h.id}-${i}`} style={{ paddingLeft: `${(h.level - 1) * 12}px` }}>
@@ -169,24 +173,24 @@ export default function SidePanel({ doc, headings, onPeek, onCollapse }: SidePan
                 </ul>
               </section>
             ) : (
-              doc.blocks.length === 0 && <p className="rp-empty">見出し・ブロックはありません</p>
+              doc.blocks.length === 0 && <p className="rp-empty">{t('inspector.emptyOutline')}</p>
             )}
           </div>
         ) : (
           <div className="rp-body">
             <section className="rp-section">
-              <h2 className="rp-title">上流・前提 ({upstream.length})</h2>
-              <RelationList items={upstream} empty="上流の参照はありません" onPeek={onPeek} />
+              <h2 className="rp-title">{t('inspector.upstream', { count: upstream.length })}</h2>
+              <RelationList items={upstream} empty={t('inspector.emptyUpstream')} onPeek={onPeek} />
             </section>
 
             <section className="rp-section">
-              <h2 className="rp-title">下流・依存元 ({downstream.length})</h2>
-              <RelationList items={downstream} empty="下流の参照はありません" onPeek={onPeek} />
+              <h2 className="rp-title">{t('inspector.downstream', { count: downstream.length })}</h2>
+              <RelationList items={downstream} empty={t('inspector.emptyDownstream')} onPeek={onPeek} />
             </section>
 
             {doc.sourceRefs.length > 0 && (
               <section className="rp-section">
-                <h2 className="rp-title">関連コード ({doc.sourceRefs.length})</h2>
+                <h2 className="rp-title">{t('inspector.sourceRefs', { count: doc.sourceRefs.length })}</h2>
                 <ul className="rp-source-list">
                   {doc.sourceRefs.map((ref, i) => (
                     <li key={`${ref.file}:${ref.symbol ?? ref.lines ?? i}`} className="rp-source-item mono">
@@ -201,7 +205,7 @@ export default function SidePanel({ doc, headings, onPeek, onCollapse }: SidePan
 
             {mentions.length > 0 && (
               <section className="rp-section">
-                <h2 className="rp-title">言及 ({mentions.length})</h2>
+                <h2 className="rp-title">{t('inspector.mentions', { count: mentions.length })}</h2>
                 <RelationList items={mentions} empty="" onPeek={onPeek} />
               </section>
             )}
@@ -221,6 +225,7 @@ function RelationList({
   empty: string
   onPeek: (docId: string, focusBlockId?: string) => void
 }) {
+  const { t } = useTranslation()
   if (items.length === 0) return <p className="rp-empty">{empty}</p>
   return (
     <ul className="rp-relations">
@@ -238,7 +243,7 @@ function RelationList({
                   onPeek(rel.docId, focusBlockId)
                 }
               }}
-              title="クリックで開く / Shift+クリックで右に並べて見る"
+              title={t('inspector.linkHint')}
             >
               <span className="rp-relation-meta">
                 <span className={`rp-edge-kind rp-edge-${rel.kind}`}>{rel.kind}</span>
@@ -251,8 +256,8 @@ function RelationList({
               type="button"
               className="rp-peek-btn"
               onClick={() => onPeek(rel.docId, focusBlockId)}
-              title="右に並べて見る"
-              aria-label={`${rel.title} を右に並べて見る`}
+              title={t('inspector.peekButtonTitle')}
+              aria-label={t('inspector.peekButtonAria', { title: rel.title })}
             >
               <SplitIcon />
             </button>

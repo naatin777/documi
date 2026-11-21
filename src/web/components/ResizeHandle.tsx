@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 
 interface UseResizableWidthOptions {
   storageKey: string
@@ -74,6 +75,7 @@ export default function ResizeHandle({
   label,
   className,
 }: ResizeHandleProps) {
+  const { t } = useTranslation()
   const [dragging, setDragging] = useState(false)
 
   const resolveMax = useCallback(() => {
@@ -140,7 +142,7 @@ export default function ResizeHandle({
       aria-valuenow={width}
       aria-valuemin={minWidth}
       aria-valuemax={typeof maxWidth === 'number' ? maxWidth : undefined}
-      title={`${label}（ドラッグで伸縮 / ダブルクリックでリセット）`}
+      title={t('resize.hint', { label })}
       className={classes}
       onPointerDown={handlePointerDown}
       onDoubleClick={onReset}

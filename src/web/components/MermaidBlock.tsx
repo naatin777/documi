@@ -1,4 +1,5 @@
 import { useEffect, useId, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { useTheme } from '../theme'
 
 type MermaidModule = typeof import('mermaid').default
@@ -16,6 +17,7 @@ interface MermaidBlockProps {
 
 /** ```mermaid フェンスを図としてレンダリングする */
 export default function MermaidBlock({ code }: MermaidBlockProps) {
+  const { t } = useTranslation()
   const { resolved } = useTheme()
   const reactId = useId()
   const [svg, setSvg] = useState<string | null>(null)
@@ -58,25 +60,30 @@ export default function MermaidBlock({ code }: MermaidBlockProps) {
         {svg && (
           <>
             <button type="button" className="codeblock-copy" onClick={() => setShowSource((v) => !v)}>
-              {showSource ? '図を表示' : 'ソース'}
+              {showSource ? t('mermaid.showDiagram') : t('mermaid.showSource')}
             </button>
             <button type="button" className="codeblock-copy" onClick={() => setZoomed(true)}>
-              拡大
+              {t('mermaid.zoom')}
             </button>
           </>
         )}
       </div>
-      {loading && <p className="muted mermaid-status">図を描画中…</p>}
+      {loading && <p className="muted mermaid-status">{t('mermaid.rendering')}</p>}
       {error && (
         <div className="mermaid-error">
-          <p className="error-text">Mermaid の描画に失敗しました: {error}</p>
+          <p className="error-text">{t('mermaid.renderError', { error })}</p>
           <pre className="codeblock-plain">
             <code>{code}</code>
           </pre>
         </div>
       )}
       {svg && !showSource && (
-        <div className="mermaid-svg" role="img" aria-label="Mermaid 図" dangerouslySetInnerHTML={{ __html: svg }} />
+        <div
+          className="mermaid-svg"
+          role="img"
+          aria-label={t('mermaid.diagramAria')}
+          dangerouslySetInnerHTML={{ __html: svg }}
+        />
       )}
       {svg && showSource && (
         <pre className="codeblock-plain">
@@ -88,11 +95,16 @@ export default function MermaidBlock({ code }: MermaidBlockProps) {
           className="mermaid-zoom"
           role="dialog"
           aria-modal="true"
-          aria-label="Mermaid 図（拡大）"
+          aria-label={t('mermaid.zoomAria')}
           onClick={() => setZoomed(false)}
         >
           <div className="mermaid-zoom-inner" onClick={(e) => e.stopPropagation()}>
-            <button type="button" className="mermaid-zoom-close" aria-label="閉じる" onClick={() => setZoomed(false)}>
+            <button
+              type="button"
+              className="mermaid-zoom-close"
+              aria-label={t('common.close')}
+              onClick={() => setZoomed(false)}
+            >
               ×
             </button>
             <div dangerouslySetInnerHTML={{ __html: svg }} />

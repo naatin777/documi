@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { useParams } from 'react-router-dom'
 import type { Document } from '../../core/types'
 import { api, type TermEntry } from '../api'
@@ -15,6 +16,7 @@ interface PeekTarget {
 }
 
 export default function DocLayout() {
+  const { t } = useTranslation()
   const params = useParams()
   const docId = (params['*'] ?? '').replace(/^\/+/, '').replace(/\/+$/, '')
   const revision = useDocsRevision()
@@ -85,20 +87,20 @@ export default function DocLayout() {
             type="button"
             className="rp-reopen-btn"
             onClick={() => setInspectorOpen(true)}
-            title="Outline / Links を開く"
-            aria-label="右パネルを開く"
+            title={t('doc.openInspectorTitle')}
+            aria-label={t('doc.openInspectorAria')}
           >
-            Outline / Links
+            {t('doc.openInspector')}
           </button>
         )}
         {loading && !doc && (
           <div className="page">
-            <p className="muted">読み込み中…</p>
+            <p className="muted">{t('common.loading')}</p>
           </div>
         )}
         {error && (
           <div className="page">
-            <h1>ドキュメントを表示できません</h1>
+            <h1>{t('doc.loadErrorTitle')}</h1>
             <p className="error-text">{error}</p>
             <p className="muted mono">{docId}</p>
           </div>

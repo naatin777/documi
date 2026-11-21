@@ -17,6 +17,7 @@ import ReviewLayout from '../src/web/components/ReviewLayout'
 import SearchModal from '../src/web/components/SearchModal'
 import SidePanel from '../src/web/components/SidePanel'
 import { DocReviewProvider, SpecBlock } from '../src/web/components/SemanticBlocks'
+import { setAppLocale } from '../src/web/i18n'
 import { LiveProvider } from '../src/web/live'
 import { TabsProvider } from '../src/web/tabs'
 import { ThemeProvider } from '../src/web/theme'
@@ -24,6 +25,7 @@ import { ThemeProvider } from '../src/web/theme'
 let root: string
 
 beforeEach(async () => {
+  setAppLocale('ja')
   root = await mkdtemp(path.join(tmpdir(), 'documi-ui-test-'))
   const write = async (rel: string, fm: Record<string, unknown>, body: string) => {
     const file = path.join(root, rel)

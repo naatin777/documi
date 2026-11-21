@@ -12,6 +12,7 @@ import type { MdxJsxAttribute, MdxJsxFlowElement, MdxJsxTextElement } from 'mdas
 import type { DocFormat } from '../core/types'
 import { encodeDocId, type TermEntry } from './api'
 import { uniqueHeadingId } from './headingIds'
+import i18n from './i18n'
 import CodeBlock from './components/CodeBlock'
 import MermaidBlock from './components/MermaidBlock'
 import { CalloutBlock, StepsBlock, TabsBlock, type TabItem } from './components/MdxBlocks'
@@ -172,13 +173,13 @@ function renderBlock(node: AnyNode, ctx: Ctx): ReactNode {
     case 'mdxJsxFlowElement':
       return renderJsx(node, ctx, 'flow')
     case 'mdxFlowExpression':
-      return <MdxError message="式 { ... } は未対応です" source={node.value} />
+      return <MdxError message={i18n.t('mdx.expressionUnsupported')} source={node.value} />
     case 'mdxjsEsm':
-      return <MdxError message="import / export 文は未対応です" source={node.value} />
+      return <MdxError message={i18n.t('mdx.esmUnsupported')} source={node.value} />
     case 'definition':
       return null
     default:
-      return <MdxError message={`未対応の構文です: ${node.type}`} />
+      return <MdxError message={i18n.t('mdx.syntaxUnsupported', { type: node.type })} />
   }
 }
 
@@ -256,7 +257,11 @@ function renderInline(node: AnyNode, ctx: Ctx): ReactNode {
     case 'mdxJsxTextElement':
       return renderJsx(node, ctx, 'text')
     case 'mdxTextExpression':
-      return <code className="mdx-error-inline" title="式は未対応です">{`{${node.value}}`}</code>
+      return (
+        <code className="mdx-error-inline" title={i18n.t('mdx.inlineExpressionUnsupported')}>
+          {`{${node.value}}`}
+        </code>
+      )
     default:
       return null
   }
@@ -381,7 +386,7 @@ function renderFootnoteDefinition(node: Extract<AnyNode, { type: 'footnoteDefini
   return (
     <div className="footnote-def" id={`fn-${node.identifier}`}>
       {renderBlocks(node.children, ctx)}
-      <a className="footnote-backref" href={`#fnref-${node.identifier}`} aria-label="脚注に戻る">
+      <a className="footnote-backref" href={`#fnref-${node.identifier}`} aria-label={i18n.t('mdx.backToFootnote')}>
         ↩
       </a>
     </div>
@@ -399,7 +404,7 @@ function parseJsxProps(node: JsxNode): ParsedProps {
   const props: JsxProps = {}
   for (const attr of node.attributes) {
     if (attr.type === 'mdxJsxExpressionAttribute') {
-      return { ok: false, error: 'スプレッド属性 {...} は未対応です' }
+      return { ok: false, error: i18n.t('mdx.spreadUnsupported') }
     }
     const a = attr as MdxJsxAttribute
     if (a.value == null) {
@@ -407,7 +412,7 @@ function parseJsxProps(node: JsxNode): ParsedProps {
     } else if (typeof a.value === 'string') {
       props[a.name] = a.value
     } else {
-      return { ok: false, error: `属性 ${a.name} の式は未対応です` }
+      return { ok: false, error: i18n.t('mdx.attrExpressionUnsupported', { name: a.name }) }
     }
   }
   return { ok: true, props }
@@ -527,10 +532,10 @@ function renderJsx(node: JsxNode, ctx: Ctx, level: 'flow' | 'text'): ReactNode {
   }
 
   if (ITEM_COMPONENTS.has(name)) {
-    return <MdxError message={`<${name}> は対応する親コンポーネントの中でのみ使えます`} source={`<${name}>`} />
+    return <MdxError message={i18n.t('mdx.parentRequired', { name })} source={`<${name}>`} />
   }
 
-  return <MdxError message={`未対応のコンポーネントです: <${name}>`} source={`<${name} ...>`} />
+  return <MdxError message={i18n.t('mdx.componentUnsupported', { name })} source={`<${name} ...>`} />
 }
 
 function strProp(props: JsxProps, key: string): string | undefined {
@@ -587,14 +592,18 @@ function renderTabs(node: JsxNode, ctx: Ctx): ReactNode {
   const items = collectJsxItems(node, ITEM_COMPONENTS).map((tab, i) => {
     const parsed = parseJsxProps(tab)
     if (!parsed.ok) {
-      return { label: `エラー ${i + 1}`, content: <MdxError message={parsed.error} />, key: i }
+      return {
+        label: i18n.t('mdx.errorIndexed', { index: i + 1 }),
+        content: <MdxError message={parsed.error} />,
+        key: i,
+      }
     }
     const props = parsed.props
-    const label = strProp(props, 'label') ?? strProp(props, 'title') ?? `タブ ${i + 1}`
+    const label = strProp(props, 'label') ?? strProp(props, 'title') ?? i18n.t('mdx.tabIndexed', { index: i + 1 })
     return { label, content: renderJsxChildren(tab, ctx), key: i }
   })
   if (items.length === 0) {
-    return <MdxError message="<Tabs> には <Tabs.Tab> が必要です" source="<Tabs>" />
+    return <MdxError message={i18n.t('mdx.tabsRequireTab')} source="<Tabs>" />
   }
   const tabs: TabItem[] = items.map((it) => ({ label: it.label, content: it.content }))
   return <TabsBlock tabs={tabs} expandAll={ctx.expandAllTabs} />
@@ -604,14 +613,14 @@ function renderSteps(node: JsxNode, ctx: Ctx): ReactNode {
   const items = collectJsxItems(node, ITEM_COMPONENTS).map((step, i) => {
     const parsed = parseJsxProps(step)
     if (!parsed.ok) {
-      return { title: `エラー ${i + 1}`, content: <MdxError message={parsed.error} /> }
+      return { title: i18n.t('mdx.errorIndexed', { index: i + 1 }), content: <MdxError message={parsed.error} /> }
     }
     const props = parsed.props
-    const title = strProp(props, 'title') ?? strProp(props, 'label') ?? `ステップ ${i + 1}`
+    const title = strProp(props, 'title') ?? strProp(props, 'label') ?? i18n.t('mdx.stepIndexed', { index: i + 1 })
     return { title, content: renderJsxChildren(step, ctx) }
   })
   if (items.length === 0) {
-    return <MdxError message="<Steps> には <Steps.Step> が必要です" source="<Steps>" />
+    return <MdxError message={i18n.t('mdx.stepsRequireStep')} source="<Steps>" />
   }
   return <StepsBlock steps={items} />
 }

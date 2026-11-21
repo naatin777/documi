@@ -1,5 +1,6 @@
-import { Download } from 'lucide-react'
+import { Download, X } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { useLocation } from 'react-router-dom'
 import { ARTIFACT_TYPE_LABELS } from '../../core/types'
 import type { DocumentSummary } from '../../core/types'
@@ -17,6 +18,7 @@ type ScopeMode = 'current' | 'all' | 'goal' | 'dir' | 'custom'
 
 /** 単一文書および複数文書バンドルの Export モーダルを開くボタン */
 export default function ExportActions() {
+  const { t } = useTranslation()
   const { pathname } = useLocation()
   const isDocPage = pathname.startsWith('/docs/')
   const [open, setOpen] = useState(false)
@@ -72,7 +74,7 @@ export default function ExportActions() {
     try {
       if (mode === 'current') {
         if (!(await exportDocumentPdf())) {
-          setMessage('Chrome backend を利用できなかったため HTML にフォールバックしました')
+          setMessage(t('export.fallbackHtml'))
           exportDocumentHtml()
         } else {
           setOpen(false)
@@ -81,12 +83,12 @@ export default function ExportActions() {
       }
       const params = buildParams()
       if (!params) {
-        setMessage('出力対象を選択してください')
+        setMessage(t('export.selectTargetError'))
         return
       }
       const ok = await exportBundlePdf(params)
       if (!ok) {
-        setMessage('Chrome backend を利用できませんでした。印刷プレビュー画面を開きます。')
+        setMessage(t('export.fallbackPrint'))
         window.open(buildBundleUrl({ ...params, action: 'print' }), '_blank', 'noopener')
       } else {
         setOpen(false)
@@ -105,7 +107,7 @@ export default function ExportActions() {
     }
     const params = buildParams()
     if (!params) {
-      setMessage('出力対象を選択してください')
+      setMessage(t('export.selectTargetError'))
       return
     }
     window.open(buildBundleUrl({ ...params, action: 'download-html' }), '_blank', 'noopener')
@@ -121,7 +123,7 @@ export default function ExportActions() {
     }
     const params = buildParams()
     if (!params) {
-      setMessage('出力対象を選択してください')
+      setMessage(t('export.selectTargetError'))
       return
     }
     window.open(buildBundleUrl(params), '_blank', 'noopener')
@@ -143,7 +145,7 @@ export default function ExportActions() {
         type="button"
         className="topbar-action"
         onClick={() => setOpen(true)}
-        title="PDF / HTML 書き出し (単体・複数まとめ)"
+        title={t('export.buttonTitle')}
         aria-label="Export"
       >
         <ExportIcon />
@@ -158,15 +160,20 @@ export default function ExportActions() {
             onClick={(e) => e.stopPropagation()}
           >
             <header className="modal-header">
-              <h2>Export (PDF / HTML / 印刷)</h2>
-              <button type="button" className="modal-close" onClick={() => setOpen(false)} aria-label="閉じる">
-                ✕
+              <h2>{t('export.modalTitle')}</h2>
+              <button
+                type="button"
+                className="modal-close"
+                onClick={() => setOpen(false)}
+                aria-label={t('common.close')}
+              >
+                <X size={15} strokeWidth={1.85} aria-hidden="true" />
               </button>
             </header>
 
             <div className="modal-body">
               <div className="export-field">
-                <span className="export-label">出力対象</span>
+                <span className="export-label">{t('export.targetLabel')}</span>
                 <div className="export-modes">
                   {isDocPage && (
                     <button
@@ -174,7 +181,7 @@ export default function ExportActions() {
                       className={`export-mode-chip${mode === 'current' ? ' active' : ''}`}
                       onClick={() => setMode('current')}
                     >
-                      現在の文書
+                      {t('export.currentDoc')}
                     </button>
                   )}
                   <button
@@ -182,28 +189,28 @@ export default function ExportActions() {
                     className={`export-mode-chip${mode === 'all' ? ' active' : ''}`}
                     onClick={() => setMode('all')}
                   >
-                    すべて ({docs.length})
+                    {t('export.allDocs', { count: docs.length })}
                   </button>
                   <button
                     type="button"
                     className={`export-mode-chip${mode === 'goal' ? ' active' : ''}`}
                     onClick={() => setMode('goal')}
                   >
-                    Goal 関連一式
+                    {t('export.goalBundle')}
                   </button>
                   <button
                     type="button"
                     className={`export-mode-chip${mode === 'dir' ? ' active' : ''}`}
                     onClick={() => setMode('dir')}
                   >
-                    ディレクトリ配下
+                    {t('export.directory')}
                   </button>
                   <button
                     type="button"
                     className={`export-mode-chip${mode === 'custom' ? ' active' : ''}`}
                     onClick={() => setMode('custom')}
                   >
-                    複数選択 ({customIds.size})
+                    {t('export.customSelection', { count: customIds.size })}
                   </button>
                 </div>
               </div>
@@ -211,7 +218,7 @@ export default function ExportActions() {
               {mode === 'goal' && (
                 <div className="export-field">
                   <label className="export-label" htmlFor="export-goal-select">
-                    起点 Goal
+                    {t('export.rootGoal')}
                   </label>
                   <select
                     id="export-goal-select"
@@ -231,7 +238,7 @@ export default function ExportActions() {
               {mode === 'dir' && (
                 <div className="export-field">
                   <label className="export-label" htmlFor="export-dir-select">
-                    対象ディレクトリ
+                    {t('export.targetDir')}
                   </label>
                   <select
                     id="export-dir-select"
@@ -250,7 +257,7 @@ export default function ExportActions() {
 
               {mode === 'custom' && (
                 <div className="export-field">
-                  <span className="export-label">含める文書を選択</span>
+                  <span className="export-label">{t('export.selectDocs')}</span>
                   <ul className="export-doc-list">
                     {docs.map((d) => (
                       <li key={d.id}>
@@ -269,7 +276,7 @@ export default function ExportActions() {
               {mode !== 'current' && (
                 <div className="export-field">
                   <label className="export-label" htmlFor="export-title-input">
-                    表紙タイトル (任意)
+                    {t('export.coverTitle')}
                   </label>
                   <input
                     id="export-title-input"
@@ -277,7 +284,7 @@ export default function ExportActions() {
                     className="export-input"
                     value={customTitle}
                     onChange={(e) => setCustomTitle(e.target.value)}
-                    placeholder="省略時はスコープ名を使用"
+                    placeholder={t('export.coverTitlePlaceholder')}
                   />
                 </div>
               )}
@@ -287,10 +294,10 @@ export default function ExportActions() {
 
             <footer className="modal-footer">
               <button type="button" className="sem-action-btn" disabled={busy} onClick={handlePreviewPrint}>
-                {mode === 'current' ? '印刷ダイアログ' : 'バンドルプレビュー'}
+                {mode === 'current' ? t('export.printDialog') : t('export.bundlePreview')}
               </button>
               <button type="button" className="sem-action-btn" disabled={busy} onClick={handleHtml}>
-                HTML 保存
+                {t('export.saveHtml')}
               </button>
               <button
                 type="button"
@@ -298,7 +305,7 @@ export default function ExportActions() {
                 disabled={busy}
                 onClick={() => void handlePdf()}
               >
-                {busy ? '生成中…' : 'PDF ダウンロード'}
+                {busy ? t('export.generating') : t('export.downloadPdf')}
               </button>
             </footer>
           </div>
