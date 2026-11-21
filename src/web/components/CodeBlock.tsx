@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next'
 import { normalizeLang } from '../highlight'
 import { useCopyText, useHighlightedCode } from '../hooks'
 
@@ -8,6 +9,7 @@ interface CodeBlockProps {
 
 /** フェンスコードブロック。Shiki でハイライトし、行番号とコピーボタンを付ける。 */
 export default function CodeBlock({ code, lang }: CodeBlockProps) {
+  const { t } = useTranslation()
   const html = useHighlightedCode(code, lang)
   const { copied, copy } = useCopyText()
   const normalized = normalizeLang(lang)
@@ -17,7 +19,7 @@ export default function CodeBlock({ code, lang }: CodeBlockProps) {
       <div className="codeblock-toolbar">
         {normalized && <span className="codeblock-lang">{normalized}</span>}
         <button type="button" className="codeblock-copy" onClick={() => copy(code)}>
-          {copied ? 'コピーしました' : 'コピー'}
+          {copied ? t('code.copied') : t('code.copy')}
         </button>
       </div>
       {html ? (

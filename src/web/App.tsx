@@ -1,5 +1,6 @@
 import { lazy, Suspense, useEffect, useState, type CSSProperties } from 'react'
 import { ErrorBoundary, type FallbackProps } from 'react-error-boundary'
+import { useTranslation } from 'react-i18next'
 import { Route, Routes, useLocation } from 'react-router-dom'
 import { api } from './api'
 import DocTabs from './components/DocTabs'
@@ -45,6 +46,7 @@ function AppRouter() {
 }
 
 function AppShell() {
+  const { t } = useTranslation()
   const [navOpen, setNavOpen] = useState(false)
   const [searchOpen, setSearchOpen] = useState(false)
   const [sidebarOpen, setSidebarOpen] = useState(true)
@@ -119,7 +121,7 @@ function AppShell() {
             maxWidth={480}
             onChange={setExplorerWidth}
             onReset={resetExplorerWidth}
-            label="サイドバー幅を調整"
+            label={t('resize.sidebar')}
           />
         }
       />
@@ -150,23 +152,25 @@ function AppShell() {
 }
 
 function RouteLoading() {
+  const { t } = useTranslation()
   return (
     <main className="content">
       <div className="page">
-        <p className="muted">読み込み中…</p>
+        <p className="muted">{t('common.loading')}</p>
       </div>
     </main>
   )
 }
 
 function ErrorFallback({ error, resetErrorBoundary }: FallbackProps) {
+  const { t } = useTranslation()
   return (
     <main className="content">
       <div className="page">
-        <h1>表示中にエラーが発生しました</h1>
+        <h1>{t('common.errorTitle')}</h1>
         <p className="error-text">{error instanceof Error ? error.message : String(error)}</p>
         <button type="button" className="button" onClick={resetErrorBoundary}>
-          再表示
+          {t('common.retry')}
         </button>
       </div>
     </main>
@@ -174,11 +178,12 @@ function ErrorFallback({ error, resetErrorBoundary }: FallbackProps) {
 }
 
 function NotFoundLayout() {
+  const { t } = useTranslation()
   return (
     <main className="content">
       <div className="page">
-        <h1>ページが見つかりません</h1>
-        <p>指定されたページは存在しません。</p>
+        <h1>{t('common.notFoundTitle')}</h1>
+        <p>{t('common.notFoundBody')}</p>
       </div>
     </main>
   )

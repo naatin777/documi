@@ -1,10 +1,10 @@
 import { Minus, Plus, RotateCcw, SlidersHorizontal, Sparkles } from 'lucide-react'
 import { useEffect, useMemo, useRef, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { useNavigate } from 'react-router-dom'
 import { MultiDirectedGraph } from 'graphology'
 import Sigma from 'sigma'
 import { sdfCircle } from 'sigma/rendering'
-import { ARTIFACT_TYPE_LABELS } from '../../core/types'
 import type { ArtifactType } from '../../core/types'
 import { encodeDocId, type GraphEdgeItem, type GraphNodeItem, type GraphResponse } from '../api'
 import { useTheme } from '../theme'
@@ -207,6 +207,7 @@ function buildGraphAndSim(
  * - ホバー／選択時は他ノードを消さず、対象を全文タイトル＋太枠カード、隣接ノードを色枠カードで前面強調
  */
 export default function SigmaGraph({ data, selectedNodeId, onSelectNode }: SigmaGraphProps) {
+  const { t } = useTranslation()
   const containerRef = useRef<HTMLDivElement>(null)
   const sigmaRef = useRef<Sigma<SigmaNodeAttrs, SigmaEdgeAttrs> | null>(null)
   const hoveredRef = useRef<string | null>(null)
@@ -393,7 +394,7 @@ export default function SigmaGraph({ data, selectedNodeId, onSelectNode }: Sigma
       renderer.setCustomBBox({ x: [-worldRadius, worldRadius], y: [-worldRadius, worldRadius] })
       setWebglError(null)
     } catch (e) {
-      setWebglError(e instanceof Error ? e.message : 'WebGL グラフの初期化に失敗しました')
+      setWebglError(e instanceof Error ? e.message : t('graph.webglError'))
       return
     }
 
@@ -606,7 +607,7 @@ export default function SigmaGraph({ data, selectedNodeId, onSelectNode }: Sigma
             className="sigma-search-input"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder="ノード検索でフォーカス…"
+            placeholder={t('graph.searchNodePlaceholder')}
           />
           {matchingNodes.length > 0 && (
             <ul className="sigma-search-dropdown">
@@ -628,8 +629,8 @@ export default function SigmaGraph({ data, selectedNodeId, onSelectNode }: Sigma
             type="button"
             className="sigma-ctrl-btn"
             onClick={() => void sigmaRef.current?.getCamera().zoomIn({ duration: 220 })}
-            title="ズームイン"
-            aria-label="ズームイン"
+            title={t('graph.zoomIn')}
+            aria-label={t('graph.zoomIn')}
           >
             <Plus size={14} strokeWidth={1.85} aria-hidden="true" />
           </button>
@@ -637,8 +638,8 @@ export default function SigmaGraph({ data, selectedNodeId, onSelectNode }: Sigma
             type="button"
             className="sigma-ctrl-btn"
             onClick={() => void sigmaRef.current?.getCamera().zoomOut({ duration: 220 })}
-            title="ズームアウト"
-            aria-label="ズームアウト"
+            title={t('graph.zoomOut')}
+            aria-label={t('graph.zoomOut')}
           >
             <Minus size={14} strokeWidth={1.85} aria-hidden="true" />
           </button>
@@ -649,8 +650,8 @@ export default function SigmaGraph({ data, selectedNodeId, onSelectNode }: Sigma
               onSelectNode(null)
               void sigmaRef.current?.getCamera().reset({ duration: 280 })
             }}
-            title="全体表示へリセット"
-            aria-label="全体表示へリセット"
+            title={t('graph.resetView')}
+            aria-label={t('graph.resetView')}
           >
             <RotateCcw size={13} strokeWidth={1.85} aria-hidden="true" />
           </button>
@@ -658,8 +659,8 @@ export default function SigmaGraph({ data, selectedNodeId, onSelectNode }: Sigma
             type="button"
             className="sigma-ctrl-btn"
             onClick={() => shakeRef.current?.()}
-            title="揺らして再シミュレーション"
-            aria-label="揺らして再シミュレーション"
+            title={t('graph.resimulate')}
+            aria-label={t('graph.resimulate')}
           >
             <Sparkles size={13} strokeWidth={1.85} aria-hidden="true" />
           </button>
@@ -667,8 +668,8 @@ export default function SigmaGraph({ data, selectedNodeId, onSelectNode }: Sigma
             type="button"
             className={`sigma-ctrl-btn${showForces ? ' active' : ''}`}
             onClick={() => setShowForces((v) => !v)}
-            title="物理パラメータ調整 (Forces)"
-            aria-label="物理パラメータ調整"
+            title={t('graph.forcesSettings')}
+            aria-label={t('graph.forcesLabel')}
           >
             <SlidersHorizontal size={13} strokeWidth={1.85} aria-hidden="true" />
           </button>
@@ -687,7 +688,7 @@ export default function SigmaGraph({ data, selectedNodeId, onSelectNode }: Sigma
                 wakeRef.current?.(1.0)
               }}
             >
-              リセット
+              {t('common.reset')}
             </button>
           </div>
           <label className="sigma-slider">
@@ -747,16 +748,14 @@ export default function SigmaGraph({ data, selectedNodeId, onSelectNode }: Sigma
 
       <div className="sigma-legend">
         <div className="sigma-legend-group">
-          {(Object.keys(TYPE_COLORS) as ArtifactType[]).map((t) => (
-            <span key={t} className="sigma-legend-item">
-              <span className="sigma-dot" style={{ background: TYPE_COLORS[t] }} />
-              {ARTIFACT_TYPE_LABELS[t]}
+          {(Object.keys(TYPE_COLORS) as ArtifactType[]).map((type) => (
+            <span key={type} className="sigma-legend-item">
+              <span className="sigma-dot" style={{ background: TYPE_COLORS[type] }} />
+              {t(`types.singular.${type}`)}
             </span>
           ))}
         </div>
-        <div className="sigma-legend-hint">
-          ズームでカード/ドット自動切替 / ドラッグで引っ張る / クリックで右に表示 / ダブルクリックで開く
-        </div>
+        <div className="sigma-legend-hint">{t('graph.hint')}</div>
       </div>
     </div>
   )

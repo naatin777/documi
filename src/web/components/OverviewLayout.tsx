@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { Link } from 'react-router-dom'
-import { ARTIFACT_TYPE_LABELS, ARTIFACT_TYPES } from '../../core/types'
+import { ARTIFACT_TYPES } from '../../core/types'
 import { api, encodeDocId } from '../api'
 import type { OverviewResponse } from '../api'
 import { useDocsRevision } from '../live'
@@ -8,6 +9,7 @@ import { ArtifactTypeIcon } from './BrandMark'
 
 // @implements ui.web-viewer
 export default function OverviewLayout() {
+  const { t } = useTranslation()
   const revision = useDocsRevision()
   const [data, setData] = useState<OverviewResponse | null>(null)
   const [error, setError] = useState<string | null>(null)
@@ -38,50 +40,48 @@ export default function OverviewLayout() {
         <article className="page doc-page overview-page">
           <header className="doc-header">
             <div className="doc-badges">
-              <span className="badge badge-type">Overview</span>
-              {data && <span className="badge badge-format">Living Specification</span>}
+              <span className="badge badge-type">{t('overview.badge')}</span>
+              {data && <span className="badge badge-format">{t('overview.livingSpec')}</span>}
             </div>
-            <h1>Project Overview</h1>
-            <p className="doc-description">
-              Goal を起点とした仕様・契約・設計・決定・用語の整合性と、人間のレビュー状態を確認できます。
-            </p>
+            <h1>{t('overview.title')}</h1>
+            <p className="doc-description">{t('overview.description')}</p>
           </header>
 
           {error && <p className="error-text">{error}</p>}
-          {!data && !error && <p className="muted">読み込み中…</p>}
+          {!data && !error && <p className="muted">{t('common.loading')}</p>}
 
           {data && (
             <>
               <section className="ov-stats">
                 <div className="ov-stat">
                   <span className="ov-stat-value">{data.documentCount}</span>
-                  <span className="ov-stat-label">Documents</span>
+                  <span className="ov-stat-label">{t('overview.stats.documents')}</span>
                 </div>
                 <div className="ov-stat">
                   <span className="ov-stat-value">{data.reviews.approved}</span>
-                  <span className="ov-stat-label">Approved</span>
+                  <span className="ov-stat-label">{t('overview.stats.approved')}</span>
                 </div>
                 <div className="ov-stat">
                   <span className="ov-stat-value">{data.reviews.unreviewed}</span>
-                  <span className="ov-stat-label">Unreviewed</span>
+                  <span className="ov-stat-label">{t('overview.stats.unreviewed')}</span>
                 </div>
                 <div className={`ov-stat${data.reviews.stale + data.reviews.suspect > 0 ? ' ov-stat-warn' : ''}`}>
                   <span className="ov-stat-value">{data.reviews.stale + data.reviews.suspect}</span>
-                  <span className="ov-stat-label">Stale / Suspect</span>
+                  <span className="ov-stat-label">{t('overview.stats.staleSuspect')}</span>
                 </div>
                 <div className={`ov-stat${data.reviews.openFeedback > 0 ? ' ov-stat-warn' : ''}`}>
                   <span className="ov-stat-value">{data.reviews.openFeedback}</span>
-                  <span className="ov-stat-label">Open Feedback</span>
+                  <span className="ov-stat-label">{t('overview.stats.openFeedback')}</span>
                 </div>
                 <div className={`ov-stat${totalIssues > 0 ? ' ov-stat-warn' : ''}`}>
                   <span className="ov-stat-value">{totalIssues}</span>
-                  <span className="ov-stat-label">Issues</span>
+                  <span className="ov-stat-label">{t('overview.stats.issues')}</span>
                 </div>
               </section>
 
               {data.attentionBlocks.length > 0 && (
                 <section className="ov-section">
-                  <h2>要確認ブロック (Stale / Suspect)</h2>
+                  <h2>{t('overview.attentionBlocks')}</h2>
                   <div className="ov-card-list">
                     {data.attentionBlocks.map((b) => (
                       <Link
@@ -91,12 +91,18 @@ export default function OverviewLayout() {
                       >
                         <div className="ov-card-head">
                           <code className="sem-id">{b.id}</code>
-                          {b.review === 'stale' && <span className="sem-review-badge sem-review-stale">Stale</span>}
-                          {b.suspect && <span className="sem-review-badge sem-review-suspect">Suspect</span>}
+                          {b.review === 'stale' && (
+                            <span className="sem-review-badge sem-review-stale">{t('status.review.stale')}</span>
+                          )}
+                          {b.suspect && (
+                            <span className="sem-review-badge sem-review-suspect">{t('status.review.suspect')}</span>
+                          )}
                           <span className="ov-card-sub">{b.docTitle}</span>
                         </div>
                         {b.suspectSources.length > 0 && (
-                          <p className="ov-card-desc">上流変更: {b.suspectSources.join(', ')}</p>
+                          <p className="ov-card-desc">
+                            {t('overview.upstreamChanged', { sources: b.suspectSources.join(', ') })}
+                          </p>
                         )}
                       </Link>
                     ))}
@@ -106,7 +112,7 @@ export default function OverviewLayout() {
 
               {data.openFeedbackItems.length > 0 && (
                 <section className="ov-section">
-                  <h2>未解決フィードバック ({data.openFeedbackItems.length})</h2>
+                  <h2>{t('overview.openFeedbackTitle', { count: data.openFeedbackItems.length })}</h2>
                   <div className="ov-card-list">
                     {data.openFeedbackItems.map((fb) => (
                       <Link
@@ -128,12 +134,12 @@ export default function OverviewLayout() {
               )}
 
               <section className="ov-section">
-                <h2>Artifact Types</h2>
+                <h2>{t('overview.artifactTypes')}</h2>
                 <div className="ov-type-grid">
                   {ARTIFACT_TYPES.map((type) => (
                     <div key={type} className={`ov-type-card type-${type}`}>
                       <ArtifactTypeIcon type={type} size={14} className="ov-type-icon" />
-                      <span className="ov-type-name">{ARTIFACT_TYPE_LABELS[type]}</span>
+                      <span className="ov-type-name">{t(`types.singular.${type}`)}</span>
                       <span className="ov-type-count">{data.byType[type]}</span>
                     </div>
                   ))}
@@ -141,9 +147,9 @@ export default function OverviewLayout() {
               </section>
 
               <section className="ov-section">
-                <h2>Goals (Root)</h2>
+                <h2>{t('overview.goalsRoot')}</h2>
                 {data.goals.length === 0 ? (
-                  <p className="muted">Goal ドキュメントがまだありません。</p>
+                  <p className="muted">{t('overview.noGoals')}</p>
                 ) : (
                   <div className="ov-card-list">
                     {data.goals.map((g) => (
@@ -159,7 +165,7 @@ export default function OverviewLayout() {
 
               {data.outcomes.length > 0 && (
                 <section className="ov-section">
-                  <h2>Decision Outcomes (ADR 結論)</h2>
+                  <h2>{t('overview.decisionOutcomes')}</h2>
                   <div className="ov-card-list">
                     {data.outcomes.map((o) => (
                       <Link
@@ -181,7 +187,7 @@ export default function OverviewLayout() {
 
               {data.orphanSpecs.length > 0 && (
                 <section className="ov-section issues-panel">
-                  <h2>Orphan Specs ({data.orphanSpecs.length})</h2>
+                  <h2>{t('overview.orphanSpecs', { count: data.orphanSpecs.length })}</h2>
                   <ul>
                     {data.orphanSpecs.map((item, i) => (
                       <li key={i}>
@@ -194,7 +200,7 @@ export default function OverviewLayout() {
 
               {totalIssues > 0 && (
                 <section className="ov-section issues-panel">
-                  <h2>すべての問題 ({totalIssues})</h2>
+                  <h2>{t('overview.allIssues', { count: totalIssues })}</h2>
                   <ul>
                     {data.indexIssues.map((issue, i) => (
                       <li key={`idx-${i}`}>
@@ -211,63 +217,63 @@ export default function OverviewLayout() {
                 </section>
               )}
               <section className="ov-section">
-                <h2>Realization & Stability</h2>
+                <h2>{t('overview.realizationStability')}</h2>
                 <div className="ov-breakdown-grid">
                   <div className="ov-breakdown-card">
-                    <h3>Realization</h3>
+                    <h3>{t('overview.realization')}</h3>
                     <ul className="ov-kv">
                       <li>
-                        <span>verified</span>
+                        <span>{t('status.realization.verified')}</span>
                         <strong>{data.realizations.verified}</strong>
                       </li>
                       <li>
-                        <span>implemented</span>
+                        <span>{t('status.realization.implemented')}</span>
                         <strong>{data.realizations.implemented}</strong>
                       </li>
                       <li>
-                        <span>in-progress</span>
+                        <span>{t('status.realization.in-progress')}</span>
                         <strong>{data.realizations['in-progress']}</strong>
                       </li>
                       <li>
-                        <span>unimplemented</span>
+                        <span>{t('status.realization.unimplemented')}</span>
                         <strong>{data.realizations.unimplemented}</strong>
                       </li>
                       <li>
-                        <span>drifted</span>
+                        <span>{t('status.realization.drifted')}</span>
                         <strong>{data.realizations.drifted}</strong>
                       </li>
                     </ul>
                   </div>
                   <div className="ov-breakdown-card">
-                    <h3>Specs by Intent</h3>
+                    <h3>{t('overview.specsByIntent')}</h3>
                     <ul className="ov-kv">
                       <li>
-                        <span>normative</span>
+                        <span>{t('status.intent.normative')}</span>
                         <strong>{data.specsByIntent.normative}</strong>
                       </li>
                       <li>
-                        <span>idea</span>
+                        <span>{t('status.intent.idea')}</span>
                         <strong>{data.specsByIntent.idea}</strong>
                       </li>
                       <li>
-                        <span>rejected</span>
+                        <span>{t('status.intent.rejected')}</span>
                         <strong>{data.specsByIntent.rejected}</strong>
                       </li>
                     </ul>
                   </div>
                   <div className="ov-breakdown-card">
-                    <h3>Specs by Stability</h3>
+                    <h3>{t('overview.specsByStability')}</h3>
                     <ul className="ov-kv">
                       <li>
-                        <span>stable</span>
+                        <span>{t('status.stability.stable')}</span>
                         <strong>{data.specsByStability.stable}</strong>
                       </li>
                       <li>
-                        <span>evolving</span>
+                        <span>{t('status.stability.evolving')}</span>
                         <strong>{data.specsByStability.evolving}</strong>
                       </li>
                       <li>
-                        <span>volatile</span>
+                        <span>{t('status.stability.volatile')}</span>
                         <strong>{data.specsByStability.volatile}</strong>
                       </li>
                     </ul>

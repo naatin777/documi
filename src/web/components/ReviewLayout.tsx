@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { Link } from 'react-router-dom'
 import type { BlockDiffResult } from '../../core/types'
 import { api, encodeDocId, type ReviewBlocksResponse } from '../api'
@@ -11,6 +12,7 @@ type ReviewBlockItem = ReviewBlocksResponse['blocks'][number]
 
 // @implements ui.human-review
 export default function ReviewLayout() {
+  const { t } = useTranslation()
   const revision = useDocsRevision()
   const [data, setData] = useState<ReviewBlocksResponse | null>(null)
   const [error, setError] = useState<string | null>(null)
@@ -94,19 +96,17 @@ export default function ReviewLayout() {
         <article className="page review-page">
           <header className="doc-header">
             <div className="doc-badges">
-              <span className="badge badge-type">Review Inbox</span>
+              <span className="badge badge-type">{t('review.badge')}</span>
             </div>
-            <h1>Review Queue</h1>
-            <p className="doc-description">
-              AI が作成・変更した仕様・設計・ADR ブロックをまとめて確認し、差分チェックと承認を行う受信箱です。
-            </p>
+            <h1>{t('review.title')}</h1>
+            <p className="doc-description">{t('review.description')}</p>
           </header>
 
           {error && <p className="error-text">{error}</p>}
 
           {data && (
             <>
-              <div className="review-filter-tabs" role="tablist" aria-label="レビュー絞り込み">
+              <div className="review-filter-tabs" role="tablist" aria-label={t('review.filterAria')}>
                 <button
                   type="button"
                   role="tab"
@@ -114,7 +114,7 @@ export default function ReviewLayout() {
                   className={`review-filter-tab${filter === 'attention' ? ' active' : ''}`}
                   onClick={() => setFilter('attention')}
                 >
-                  要確認 (Stale / Suspect) <span className="review-tab-count">{attentionCount}</span>
+                  {t('review.filters.attention')} <span className="review-tab-count">{attentionCount}</span>
                 </button>
                 <button
                   type="button"
@@ -123,7 +123,7 @@ export default function ReviewLayout() {
                   className={`review-filter-tab${filter === 'feedback' ? ' active' : ''}`}
                   onClick={() => setFilter('feedback')}
                 >
-                  未解決フィードバック <span className="review-tab-count">{feedbackBlockCount}</span>
+                  {t('review.filters.feedback')} <span className="review-tab-count">{feedbackBlockCount}</span>
                 </button>
                 <button
                   type="button"
@@ -132,7 +132,7 @@ export default function ReviewLayout() {
                   className={`review-filter-tab${filter === 'unreviewed' ? ' active' : ''}`}
                   onClick={() => setFilter('unreviewed')}
                 >
-                  未承認 <span className="review-tab-count">{data.counts.unreviewed}</span>
+                  {t('review.filters.unreviewed')} <span className="review-tab-count">{data.counts.unreviewed}</span>
                 </button>
                 <button
                   type="button"
@@ -141,7 +141,7 @@ export default function ReviewLayout() {
                   className={`review-filter-tab${filter === 'approved' ? ' active' : ''}`}
                   onClick={() => setFilter('approved')}
                 >
-                  承認済み <span className="review-tab-count">{data.counts.approved}</span>
+                  {t('review.filters.approved')} <span className="review-tab-count">{data.counts.approved}</span>
                 </button>
                 <button
                   type="button"
@@ -150,7 +150,7 @@ export default function ReviewLayout() {
                   className={`review-filter-tab${filter === 'all' ? ' active' : ''}`}
                   onClick={() => setFilter('all')}
                 >
-                  すべて <span className="review-tab-count">{data.blocks.length}</span>
+                  {t('review.filters.all')} <span className="review-tab-count">{data.blocks.length}</span>
                 </button>
               </div>
 
@@ -158,15 +158,15 @@ export default function ReviewLayout() {
                 <div className="review-empty-state">
                   {filter === 'attention' ? (
                     <>
-                      <p>要確認（Stale / Suspect）のブロックはありません。</p>
+                      <p>{t('review.emptyAttention')}</p>
                       {data.counts.unreviewed > 0 && (
                         <button type="button" className="button" onClick={() => setFilter('unreviewed')}>
-                          未承認ブロック ({data.counts.unreviewed} 件) を確認する
+                          {t('review.checkUnreviewed', { count: data.counts.unreviewed })}
                         </button>
                       )}
                     </>
                   ) : (
-                    <p>該当するブロックはありません。</p>
+                    <p>{t('review.emptyFiltered')}</p>
                   )}
                 </div>
               ) : (
@@ -217,6 +217,7 @@ function ReviewInboxCard({
   onToggleDiff: () => void
   onPeek: () => void
 }) {
+  const { t } = useTranslation()
   const openFeedback = block.feedback.filter((f) => !f.resolved)
   const needsApprove = block.review !== 'approved' || block.suspect
 
@@ -229,31 +230,37 @@ function ReviewInboxCard({
           <span className={`sem-kind sem-kind-${block.kind}`}>{block.kind.toUpperCase()}</span>
           <code className="sem-id">{block.id}</code>
           <span className={`sem-review-badge sem-review-${block.review}`}>
-            {block.review === 'approved' ? '✓ Approved' : block.review === 'stale' ? '↻ Stale' : '○ Unreviewed'}
+            {block.review === 'approved'
+              ? t('blocks.approved')
+              : block.review === 'stale'
+                ? t('blocks.staleShort')
+                : t('blocks.unreviewed')}
           </span>
-          {block.suspect && <span className="sem-review-badge sem-review-suspect">⚠ Suspect</span>}
+          {block.suspect && <span className="sem-review-badge sem-review-suspect">{t('blocks.suspect')}</span>}
           {block.realization && (
-            <span className={`sem-realization-badge sem-real-${block.realization}`}>{block.realization}</span>
+            <span className={`sem-realization-badge sem-real-${block.realization}`}>
+              {t(`status.realization.${block.realization}`)}
+            </span>
           )}
         </div>
         <div className="review-card-actions">
           {block.review === 'stale' && (
             <button type="button" className="sem-action-btn" onClick={onToggleDiff}>
-              {diffOpen ? 'Diff を閉じる' : 'Diff'}
+              {diffOpen ? t('review.closeDiff') : t('review.diff')}
             </button>
           )}
           <button type="button" className="sem-action-btn" onClick={onPeek}>
-            並べて確認
+            {t('review.peekSideBySide')}
           </button>
           <Link
             to={`/docs/${encodeDocId(block.docId)}#block-${encodeURIComponent(block.id)}`}
             className="sem-action-btn review-card-open-link"
           >
-            開く ↗
+            {t('common.open')} ↗
           </Link>
           {needsApprove && (
             <button type="button" className="sem-action-btn sem-approve-btn" disabled={busy} onClick={onApprove}>
-              {busy ? '処理中…' : '承認'}
+              {busy ? t('common.processing') : t('review.approve')}
             </button>
           )}
         </div>
@@ -268,14 +275,14 @@ function ReviewInboxCard({
 
       {block.suspect && block.suspectSources.length > 0 && (
         <div className="sem-suspect-banner">
-          上流の変更が検知されました (<code>{block.suspectSources.join(', ')}</code>)。確認して再承認してください。
+          {t('review.suspectBanner', { sources: block.suspectSources.join(', ') })}
         </div>
       )}
 
       {diffOpen && diff && (
         <div className="sem-diff-box">
           {!diff.hasBase ? (
-            <p className="muted">承認時点のスナップショットが見つかりませんでした。</p>
+            <p className="muted">{t('review.noBaseSnapshot')}</p>
           ) : (
             <pre className="sem-diff-pre">
               {diff.lines.map((line, i) => (

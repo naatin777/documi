@@ -1,0 +1,355 @@
+{
+  "common": {
+    "loading": "読み込み中…",
+    "close": "閉じる",
+    "reset": "リセット",
+    "none": "なし",
+    "open": "開く",
+    "back": "戻る",
+    "submit": "送信",
+    "processing": "処理中…",
+    "errorTitle": "表示中にエラーが発生しました",
+    "retry": "再表示",
+    "notFoundTitle": "ページが見つかりません",
+    "notFoundBody": "指定されたページは存在しません。"
+  },
+  "types": {
+    "singular": {
+      "goal": "目標",
+      "decision": "意思決定",
+      "domain": "用語・モデル",
+      "spec": "仕様",
+      "contract": "契約・I/F",
+      "architecture": "構成",
+      "design": "設計",
+      "verification": "検証",
+      "guide": "ガイド"
+    },
+    "section": {
+      "goal": "目標",
+      "decision": "意思決定",
+      "domain": "用語・モデル",
+      "spec": "仕様",
+      "contract": "契約・I/F",
+      "architecture": "全体構成",
+      "design": "設計",
+      "verification": "検証",
+      "guide": "ガイド"
+    }
+  },
+  "status": {
+    "review": {
+      "approved": "承認済み",
+      "unreviewed": "未承認",
+      "stale": "要再確認",
+      "suspect": "上流変更"
+    },
+    "realization": {
+      "verified": "検証済み",
+      "implemented": "実装済み",
+      "in-progress": "実装中",
+      "unimplemented": "未実装",
+      "drifted": "乖離あり"
+    },
+    "intent": {
+      "normative": "正式仕様",
+      "idea": "構想・案",
+      "rejected": "不採用"
+    },
+    "stability": {
+      "stable": "安定",
+      "evolving": "進化中",
+      "volatile": "流動的"
+    }
+  },
+  "nav": {
+    "navigation": "ナビゲーション",
+    "primaryViews": "主要ビュー",
+    "home": "ホーム",
+    "reviewQueue": "レビュー",
+    "graphMatrix": "グラフ・関連表",
+    "documents": "ドキュメント",
+    "searchPlaceholder": "検索…",
+    "flow": "流れ順",
+    "flowTitle": "上流（目標・全体構成）から下流（設計・検証）の読み順で表示",
+    "files": "フォルダ順",
+    "filesTitle": "リポジトリのフォルダ階層そのままを表示",
+    "noDocs": "文書なし",
+    "loadIssues": "読み込み問題 ({{count}})",
+    "issueCountTitle": "問題 {{count}} 件",
+    "openMenu": "サイドバーを開く",
+    "closeMenu": "メニューを閉じる"
+  },
+  "tabs": {
+    "workspaceTabs": "ワークスペースタブ",
+    "openSidebar": "サイドバーを開く",
+    "closeSidebar": "サイドバーを閉じる",
+    "openSidebarTitle": "サイドバーを開く (⌘B)",
+    "closeSidebarTitle": "サイドバーを閉じる (⌘B)",
+    "scrollLeft": "左のタブへスクロール",
+    "scrollRight": "右のタブへスクロール",
+    "closeTab": "{{title}} を閉じる",
+    "openTabsList": "開いているタブ一覧 ({{count}} 件)",
+    "openTabsTitle": "開いているタブ一覧",
+    "closeAllTabs": "すべてのタブを閉じる"
+  },
+  "theme": {
+    "light": "ライト",
+    "dark": "ダーク",
+    "system": "システム",
+    "tooltip": "テーマ: {{mode}}",
+    "ariaLabel": "テーマを切り替える（現在: {{mode}}）"
+  },
+  "lang": {
+    "label": "言語",
+    "switchAria": "言語を切り替える（現在: {{language}}）"
+  },
+  "overview": {
+    "badge": "概要",
+    "livingSpec": "Living Specification",
+    "title": "プロジェクト概要",
+    "description": "目標を起点とした仕様・契約・設計・意思決定・用語の整合性と、人間のレビュー状態を確認できます。",
+    "stats": {
+      "documents": "ドキュメント",
+      "approved": "承認済み",
+      "unreviewed": "未承認",
+      "staleSuspect": "要再確認",
+      "openFeedback": "未解決コメント",
+      "issues": "問題"
+    },
+    "attentionBlocks": "要再確認ブロック",
+    "upstreamChanged": "上流変更: {{sources}}",
+    "openFeedbackTitle": "未解決コメント ({{count}})",
+    "artifactTypes": "ドキュメント種別",
+    "goalsRoot": "目標",
+    "noGoals": "目標ドキュメントがまだありません。",
+    "decisionOutcomes": "意思決定の結論（ADR）",
+    "orphanSpecs": "上位目標と未接続の仕様 ({{count}})",
+    "allIssues": "すべての問題 ({{count}})",
+    "realizationStability": "実装・検証と安定度",
+    "realization": "実装・検証状況",
+    "specsByIntent": "意図別の仕様数",
+    "specsByStability": "安定度別の仕様数"
+  },
+  "review": {
+    "badge": "レビュー受信箱",
+    "title": "レビュー",
+    "description": "AI が作成・変更した仕様・設計・意思決定ブロックをまとめて確認し、差分チェックと承認を行う受信箱です。",
+    "filterAria": "レビュー絞り込み",
+    "filters": {
+      "attention": "要再確認",
+      "feedback": "未解決コメント",
+      "unreviewed": "未承認",
+      "approved": "承認済み",
+      "all": "すべて"
+    },
+    "emptyAttention": "要再確認のブロックはありません。",
+    "checkUnreviewed": "未承認ブロック ({{count}} 件) を確認する",
+    "emptyFiltered": "該当するブロックはありません。",
+    "closeDiff": "差分を閉じる",
+    "diff": "差分",
+    "peekSideBySide": "並べて確認",
+    "approve": "承認",
+    "suspectBanner": "上流の変更が検知されました ({{sources}})。確認して再承認してください。",
+    "noBaseSnapshot": "承認時点のスナップショットが見つかりませんでした。"
+  },
+  "doc": {
+    "loadErrorTitle": "ドキュメントを表示できません",
+    "openInspector": "目次・関連リンク",
+    "openInspectorTitle": "目次・関連リンクを開く",
+    "openInspectorAria": "右パネルを開く",
+    "docIssues": "この文書の問題 ({{count}})",
+    "blocksCount": "{{count}} ブロック",
+    "inferred": "自動判定"
+  },
+  "inspector": {
+    "ariaLabel": "コンテキストインスペクタ",
+    "switchAria": "インスペクタ切替",
+    "outline": "目次",
+    "links": "関連リンク",
+    "closePanel": "右パネルを閉じる",
+    "attentionCount": "要確認 {{count}}",
+    "blocks": "ブロック ({{count}})",
+    "headings": "見出し",
+    "emptyOutline": "見出し・ブロックはありません",
+    "upstream": "上流・前提 ({{count}})",
+    "emptyUpstream": "上流の参照はありません",
+    "downstream": "下流・依存元 ({{count}})",
+    "emptyDownstream": "下流の参照はありません",
+    "sourceRefs": "関連コード ({{count}})",
+    "mentions": "言及 ({{count}})",
+    "linkHint": "クリックで開く / Shift+クリックで右に並べて見る",
+    "peekButtonTitle": "右に並べて見る",
+    "peekButtonAria": "{{title}} を右に並べて見る"
+  },
+  "peek": {
+    "ariaLabel": "ドキュメントプレビュー",
+    "backToInspector": "目次・関連リンクに戻る",
+    "openInMain": "メイン画面で開く",
+    "closePreview": "プレビューを閉じる",
+    "switchAria": "プレビュー切替",
+    "bodyTab": "本文",
+    "connectionsTab": "繋がり ({{count}})",
+    "outgoing": "参照先 ({{count}})",
+    "noOutgoing": "参照先はありません",
+    "incoming": "被参照 ({{count}})",
+    "noIncoming": "被参照はありません"
+  },
+  "graph": {
+    "graphViewTab": "グラフ ({{count}})",
+    "matrixTab": "トレーサビリティ表 ({{count}})",
+    "documents": "文書のみ",
+    "docsAndBlocks": "文書＋ブロック",
+    "allLinks": "全リンク",
+    "traceabilityOnly": "追跡リンクのみ",
+    "searchNodePlaceholder": "ノード検索でフォーカス…",
+    "zoomIn": "ズームイン",
+    "zoomOut": "ズームアウト",
+    "resetView": "全体表示へリセット",
+    "resimulate": "揺らして再シミュレーション",
+    "forcesSettings": "物理パラメータ調整",
+    "forcesLabel": "物理パラメータ調整",
+    "webglError": "WebGL グラフの初期化に失敗しました",
+    "hint": "ズームでカード/ドット自動切替 / ドラッグで引っ張る / クリックで右に表示 / ダブルクリックで開く"
+  },
+  "matrix": {
+    "empty": "該当する仕様がありません。",
+    "spec": "仕様",
+    "goals": "上位目標",
+    "designContract": "設計・契約",
+    "verification": "検証",
+    "review": "レビュー",
+    "realization": "実装・検証",
+    "orphan": "未接続",
+    "filters": {
+      "all": "すべて",
+      "verified": "検証済み",
+      "unimplemented": "未実装",
+      "drifted": "乖離あり",
+      "unreviewed": "未承認",
+      "orphan": "未接続"
+    }
+  },
+  "search": {
+    "dialogAria": "全文検索",
+    "placeholder": "ドキュメント・仕様 ID・用語・本文を検索… (Esc で閉じる)",
+    "prompt": "キーワードを入力してドキュメントやブロックを検索",
+    "searching": "検索中…",
+    "noResults": "一致する結果がありません"
+  },
+  "export": {
+    "buttonTitle": "PDF / HTML 書き出し (単体・複数まとめ)",
+    "modalTitle": "書き出し (PDF / HTML / 印刷)",
+    "targetLabel": "出力対象",
+    "currentDoc": "現在の文書",
+    "allDocs": "すべて ({{count}})",
+    "goalBundle": "目標から関連一式",
+    "directory": "ディレクトリ配下",
+    "customSelection": "複数選択 ({{count}})",
+    "rootGoal": "起点となる目標",
+    "targetDir": "対象ディレクトリ",
+    "selectDocs": "含める文書を選択",
+    "coverTitle": "表紙タイトル (任意)",
+    "coverTitlePlaceholder": "省略時はスコープ名を使用",
+    "printDialog": "印刷ダイアログ",
+    "bundlePreview": "バンドルプレビュー",
+    "saveHtml": "HTML 保存",
+    "downloadPdf": "PDF ダウンロード",
+    "generating": "生成中…",
+    "selectTargetError": "出力対象を選択してください",
+    "fallbackHtml": "Chrome バックエンドを利用できなかったため HTML にフォールバックしました",
+    "fallbackPrint": "Chrome バックエンドを利用できませんでした。印刷プレビュー画面を開きます。"
+  },
+  "bundle": {
+    "errorTitle": "バンドルを生成できません",
+    "backToOverview": "概要に戻る",
+    "building": "バンドルを構築中…",
+    "backToDocumi": "← Documi に戻る",
+    "meta": "{{docs}} 文書 · {{blocks}} ブロック",
+    "chapter": "第 {{index}} 章",
+    "downloadHtml": "HTML ダウンロード",
+    "printPdf": "印刷 / PDF 保存",
+    "toc": "目次",
+    "generated": "生成日時: {{date}}"
+  },
+  "blocks": {
+    "approvedTooltip": "承認: {{by}} ({{commit}} / {{at}})",
+    "unreviewedTooltip": "未承認",
+    "approved": "✓ 承認済み",
+    "unreviewed": "○ 未承認",
+    "stale": "↻ 要再確認（承認後に変更）",
+    "staleShort": "↻ 要再確認",
+    "suspectTooltip": "上流変更: {{sources}}",
+    "suspect": "⚠ 上流変更",
+    "realizationTooltip": "クリックで実装・テスト・PR の紐づけ詳細を表示",
+    "verified": "● 検証済み ({{passed}}/{{total}})",
+    "implemented": "● 実装済み ({{count}})",
+    "inProgress": "◐ 実装中",
+    "unimplemented": "○ 未実装",
+    "drifted": "✕ 乖離あり",
+    "implementations": "実装箇所 ({{count}})",
+    "tests": "テスト ({{count}})",
+    "testResults": "テスト結果 ({{count}})",
+    "pullRequests": "Pull Requests ({{count}})",
+    "stabilityTooltip": "クリックで安定度（安定 / 進化中 / 流動的）を切替",
+    "suspectBannerPrefix": "上流の変更が検知されました (",
+    "suspectBannerSuffix": ")。内容を確認して再承認してください。",
+    "diffTitle": "承認時点からの差分",
+    "diffCache": "(ローカル承認キャッシュ)",
+    "diffNoBase": "承認時点のベース本文を取得できませんでした。",
+    "diffNoChanges": "差分はありません。",
+    "reopenFeedback": "未解決に戻す",
+    "resolveFeedback": "解決済みにする",
+    "feedbackPlaceholder": "AI 向けコメントを入力 (例: 5回ではなく3回にして)…",
+    "noteIdea": "構想・未確定メモ",
+    "noteInformative": "メモ",
+    "noteRejected": "不採用"
+  },
+  "resize": {
+    "hint": "{{label}}（ドラッグで伸縮 / ダブルクリックでリセット）",
+    "sidebar": "サイドバー幅を調整",
+    "inspector": "右インスペクタ幅を調整",
+    "peek": "プレビューペイン幅を調整"
+  },
+  "code": {
+    "copy": "コピー",
+    "copied": "コピーしました"
+  },
+  "mermaid": {
+    "showDiagram": "図を表示",
+    "showSource": "ソース",
+    "zoom": "拡大",
+    "rendering": "図を描画中…",
+    "renderError": "Mermaid の描画に失敗しました: {{error}}",
+    "diagramAria": "Mermaid 図",
+    "zoomAria": "Mermaid 図（拡大）"
+  },
+  "sourceRef": {
+    "invalidProps": "SourceRef には file と symbol または lines のどちらか一方が必要です",
+    "truncated": " (途中まで)",
+    "loading": "ソースを読み込み中…"
+  },
+  "term": {
+    "loadingSymbol": "コード定義を読み込み中…",
+    "openDefinition": "定義ページを開く →"
+  },
+  "print": {
+    "printedOn": "印刷日: {{date}}"
+  },
+  "mdx": {
+    "expressionUnsupported": "式 { ... } は未対応です",
+    "esmUnsupported": "import / export 文は未対応です",
+    "syntaxUnsupported": "未対応の構文です: {{type}}",
+    "inlineExpressionUnsupported": "式は未対応です",
+    "backToFootnote": "脚注に戻る",
+    "spreadUnsupported": "スプレッド属性 {...} は未対応です",
+    "attrExpressionUnsupported": "属性 {{name}} の式は未対応です",
+    "parentRequired": "<{{name}}> は対応する親コンポーネントの中でのみ使えます",
+    "componentUnsupported": "未対応のコンポーネントです: <{{name}}>",
+    "errorIndexed": "エラー {{index}}",
+    "tabIndexed": "タブ {{index}}",
+    "tabsRequireTab": "<Tabs> には <Tabs.Tab> が必要です",
+    "stepIndexed": "ステップ {{index}}",
+    "stepsRequireStep": "<Steps> には <Steps.Step> が必要です"
+  }
+}

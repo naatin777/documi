@@ -1,10 +1,15 @@
-import { describe, expect, test } from 'bun:test'
+import { beforeEach, describe, expect, test } from 'bun:test'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { MemoryRouter } from 'react-router-dom'
 import type { TermEntry } from '../src/web/api'
 import Markdown from '../src/web/components/Markdown'
 import { extractHeadings } from '../src/web/headings'
 import { highlightCode, normalizeLang } from '../src/web/highlight'
+import { setAppLocale } from '../src/web/i18n'
+
+beforeEach(() => {
+  setAppLocale('ja')
+})
 
 const SAMPLE_TERMS: TermEntry[] = [
   {

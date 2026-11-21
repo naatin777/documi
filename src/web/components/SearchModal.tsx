@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { useNavigate } from 'react-router-dom'
 import type { SearchHit } from '../../core/bundle'
-import { ARTIFACT_TYPE_LABELS } from '../../core/types'
 import { api, encodeDocId } from '../api'
 
 interface SearchModalProps {
@@ -11,6 +11,7 @@ interface SearchModalProps {
 
 // @implements ui.search-palette
 export default function SearchModal({ open, onClose }: SearchModalProps) {
+  const { t } = useTranslation()
   const navigate = useNavigate()
   const [query, setQuery] = useState('')
   const [results, setResults] = useState<SearchHit[]>([])
@@ -79,7 +80,12 @@ export default function SearchModal({ open, onClose }: SearchModalProps) {
 
   return (
     <div className="modal-backdrop" onClick={onClose}>
-      <div className="modal-card search-modal" role="dialog" aria-label="全文検索" onClick={(e) => e.stopPropagation()}>
+      <div
+        className="modal-card search-modal"
+        role="dialog"
+        aria-label={t('search.dialogAria')}
+        onClick={(e) => e.stopPropagation()}
+      >
         <div className="search-input-row">
           <input
             ref={inputRef}
@@ -88,13 +94,13 @@ export default function SearchModal({ open, onClose }: SearchModalProps) {
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             onKeyDown={onKeyDown}
-            placeholder="ドキュメント・Spec ID・用語・本文を検索… (Esc で閉じる)"
+            placeholder={t('search.placeholder')}
           />
         </div>
         <div className="search-results">
-          {!query.trim() && <p className="search-empty">キーワードを入力してドキュメントやブロックを検索</p>}
-          {query.trim() && loading && results.length === 0 && <p className="search-empty">検索中…</p>}
-          {query.trim() && !loading && results.length === 0 && <p className="search-empty">一致する結果がありません</p>}
+          {!query.trim() && <p className="search-empty">{t('search.prompt')}</p>}
+          {query.trim() && loading && results.length === 0 && <p className="search-empty">{t('search.searching')}</p>}
+          {query.trim() && !loading && results.length === 0 && <p className="search-empty">{t('search.noResults')}</p>}
           {results.map((hit, i) => (
             <button
               key={`${hit.kind}:${hit.id}`}
@@ -104,7 +110,7 @@ export default function SearchModal({ open, onClose }: SearchModalProps) {
               onClick={() => openHit(hit)}
             >
               <div className="search-hit-head">
-                <span className={`badge badge-type type-${hit.type}`}>{ARTIFACT_TYPE_LABELS[hit.type]}</span>
+                <span className={`badge badge-type type-${hit.type}`}>{t(`types.singular.${hit.type}`)}</span>
                 {hit.blockKind && <span className="rp-block-kind">{hit.blockKind}</span>}
                 <strong className="search-hit-title">{hit.title}</strong>
                 <span className="search-hit-id mono">{hit.docId}</span>

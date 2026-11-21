@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react'
+import { useTranslation } from 'react-i18next'
 import { Link } from 'react-router-dom'
 import { api, encodeDocId, type SourceResponse, type TermEntry } from '../api'
 import { HighlightedCode } from './HighlightedCode'
@@ -17,6 +18,7 @@ interface TermInlineProps {
  * @implements ui.glossary-autolink
  */
 export function TermInline({ name, term, children }: TermInlineProps) {
+  const { t } = useTranslation()
   const [open, setOpen] = useState(false)
   const [preview, setPreview] = useState<SourceResponse | { error: string } | null>(null)
   const [loading, setLoading] = useState(false)
@@ -96,14 +98,14 @@ export function TermInline({ name, term, children }: TermInlineProps) {
           {primarySymbol && (
             <span className="term-popover-code">
               <span className="term-popover-symbol mono">{primarySymbol}</span>
-              {loading && <span className="muted">コード定義を読み込み中…</span>}
+              {loading && <span className="muted">{t('term.loadingSymbol')}</span>}
               {preview && 'error' in preview && <span className="error-text">{preview.error}</span>}
               {preview && 'code' in preview && <HighlightedCode code={preview.code} lang={preview.language} />}
             </span>
           )}
           <span className="term-popover-foot">
             <Link to={targetHref} className="term-popover-link">
-              定義ページを開く →
+              {t('term.openDefinition')}
             </Link>
           </span>
         </span>

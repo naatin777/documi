@@ -10,6 +10,7 @@ import {
   X,
 } from 'lucide-react'
 import { useCallback, useEffect, useRef, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { Link, useLocation } from 'react-router-dom'
 import { activeTabKeyFromPath, useTabs, type ViewTabId, type WorkspaceTab } from '../tabs'
 
@@ -19,6 +20,7 @@ interface DocTabsProps {
 }
 
 export default function DocTabs({ sidebarOpen, onToggleSidebar }: DocTabsProps) {
+  const { t } = useTranslation()
   const { tabs, closeTab, closeAllTabs } = useTabs()
   const { pathname } = useLocation()
   const stripRef = useRef<HTMLDivElement>(null)
@@ -113,16 +115,23 @@ export default function DocTabs({ sidebarOpen, onToggleSidebar }: DocTabsProps) 
 
   const isSoleHome = (tab: WorkspaceTab) => tabs.length === 1 && tab.kind === 'view' && tab.viewId === 'home'
 
+  const resolveTabTitle = (tab: WorkspaceTab) => {
+    if (tab.kind === 'doc') return tab.title
+    if (tab.viewId === 'home') return t('nav.home')
+    if (tab.viewId === 'review') return t('nav.reviewQueue')
+    return t('nav.graphMatrix')
+  }
+
   return (
-    <nav className="doc-tabs" aria-label="ワークスペースタブ">
+    <nav className="doc-tabs" aria-label={t('tabs.workspaceTabs')}>
       <div className="doc-tabs-sidebar-slot">
         <button
           type="button"
           className={`doc-tabs-sidebar-btn${sidebarOpen ? ' active' : ''}`}
           onClick={onToggleSidebar}
           aria-expanded={sidebarOpen}
-          aria-label={sidebarOpen ? 'サイドバーを閉じる' : 'サイドバーを開く'}
-          title={sidebarOpen ? 'サイドバーを閉じる (⌘B)' : 'サイドバーを開く (⌘B)'}
+          aria-label={sidebarOpen ? t('tabs.closeSidebar') : t('tabs.openSidebar')}
+          title={sidebarOpen ? t('tabs.closeSidebarTitle') : t('tabs.openSidebarTitle')}
         >
           {sidebarOpen ? (
             <PanelLeftClose size={15} strokeWidth={1.75} aria-hidden="true" />
@@ -138,8 +147,8 @@ export default function DocTabs({ sidebarOpen, onToggleSidebar }: DocTabsProps) 
             type="button"
             className="doc-tabs-scroll-btn doc-tabs-scroll-left"
             onClick={() => scrollByStep(-1)}
-            aria-label="左のタブへスクロール"
-            title="左へスクロール"
+            aria-label={t('tabs.scrollLeft')}
+            title={t('tabs.scrollLeft')}
           >
             <ChevronLeft size={13} strokeWidth={2} aria-hidden="true" />
           </button>
@@ -150,7 +159,8 @@ export default function DocTabs({ sidebarOpen, onToggleSidebar }: DocTabsProps) 
             const isActive = activeKey === tab.key
             const hideClose = isSoleHome(tab)
             const typeClass = tab.kind === 'doc' ? `type-${tab.type}` : 'doc-tab-view'
-            const tooltip = tab.kind === 'doc' ? `${tab.docId} — ${tab.title}` : tab.title
+            const title = resolveTabTitle(tab)
+            const tooltip = tab.kind === 'doc' ? `${tab.docId} — ${title}` : title
 
             return (
               <div key={tab.key} className={`doc-tab${isActive ? ' active' : ''} ${typeClass}`}>
@@ -174,13 +184,13 @@ export default function DocTabs({ sidebarOpen, onToggleSidebar }: DocTabsProps) 
                   ) : (
                     <ViewTabIcon viewId={tab.viewId} />
                   )}
-                  <span className="doc-tab-title">{tab.title}</span>
+                  <span className="doc-tab-title">{title}</span>
                 </Link>
                 {!hideClose && (
                   <button
                     type="button"
                     className="doc-tab-close"
-                    aria-label={`${tab.title} を閉じる`}
+                    aria-label={t('tabs.closeTab', { title })}
                     onClick={() => closeTab(tab)}
                   >
                     <X size={12} strokeWidth={1.85} aria-hidden="true" />
@@ -196,8 +206,8 @@ export default function DocTabs({ sidebarOpen, onToggleSidebar }: DocTabsProps) 
             type="button"
             className="doc-tabs-scroll-btn doc-tabs-scroll-right"
             onClick={() => scrollByStep(1)}
-            aria-label="右のタブへスクロール"
-            title="右へスクロール"
+            aria-label={t('tabs.scrollRight')}
+            title={t('tabs.scrollRight')}
           >
             <ChevronRight size={13} strokeWidth={2} aria-hidden="true" />
           </button>
@@ -211,20 +221,21 @@ export default function DocTabs({ sidebarOpen, onToggleSidebar }: DocTabsProps) 
           onClick={() => setMenuOpen((v) => !v)}
           aria-expanded={menuOpen}
           aria-haspopup="menu"
-          aria-label={`開いているタブ一覧 (${tabs.length} 件)`}
-          title="開いているタブ一覧"
+          aria-label={t('tabs.openTabsList', { count: tabs.length })}
+          title={t('tabs.openTabsTitle')}
         >
           <span className="doc-tabs-menu-count">{tabs.length}</span>
           <ChevronDown size={12} strokeWidth={1.85} aria-hidden="true" />
         </button>
 
         {menuOpen && (
-          <div className="doc-tabs-dropdown" role="menu" aria-label="開いているタブ">
+          <div className="doc-tabs-dropdown" role="menu" aria-label={t('tabs.openTabsTitle')}>
             <ul className="doc-tabs-dropdown-list">
               {tabs.map((tab) => {
                 const isActive = activeKey === tab.key
                 const hideClose = isSoleHome(tab)
                 const typeClass = tab.kind === 'doc' ? `type-${tab.type}` : 'doc-tab-view'
+                const title = resolveTabTitle(tab)
                 return (
                   <li key={tab.key} className={`doc-tabs-dropdown-row${isActive ? ' active' : ''} ${typeClass}`}>
                     <Link
@@ -239,7 +250,7 @@ export default function DocTabs({ sidebarOpen, onToggleSidebar }: DocTabsProps) 
                         <ViewTabIcon viewId={tab.viewId} />
                       )}
                       <span className="doc-tabs-dropdown-text">
-                        <span className="doc-tabs-dropdown-title">{tab.title}</span>
+                        <span className="doc-tabs-dropdown-title">{title}</span>
                         <span className="doc-tabs-dropdown-id mono">{tab.kind === 'doc' ? tab.docId : tab.path}</span>
                       </span>
                     </Link>
@@ -247,7 +258,7 @@ export default function DocTabs({ sidebarOpen, onToggleSidebar }: DocTabsProps) 
                       <button
                         type="button"
                         className="doc-tab-close"
-                        aria-label={`${tab.title} を閉じる`}
+                        aria-label={t('tabs.closeTab', { title })}
                         onClick={() => closeTab(tab)}
                       >
                         <X size={12} strokeWidth={1.85} aria-hidden="true" />
@@ -267,7 +278,7 @@ export default function DocTabs({ sidebarOpen, onToggleSidebar }: DocTabsProps) 
                     closeAllTabs()
                   }}
                 >
-                  すべてのタブを閉じる
+                  {t('tabs.closeAllTabs')}
                 </button>
               </div>
             )}

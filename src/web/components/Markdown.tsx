@@ -1,4 +1,5 @@
 import { useMemo } from 'react'
+import { useTranslation } from 'react-i18next'
 import type { DocFormat } from '../../core/types'
 import type { TermEntry } from '../api'
 import { parseMarkdown, renderMarkdown, type RenderOptions } from '../mdast'
@@ -22,6 +23,8 @@ export default function Markdown({
   headingPrefix,
   expandAllTabs,
 }: MarkdownProps) {
+  // Subscribe to locale changes so localized MDX messages re-render immediately
+  useTranslation()
   const tree = useMemo(() => parseMarkdown(body, format), [body, format])
   const options: RenderOptions = useMemo(
     () => ({ currentDir, terms, bundleDocIds, headingPrefix, expandAllTabs }),

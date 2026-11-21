@@ -26,31 +26,6 @@ export const ARTIFACT_TYPE_LAYERS: Record<ArtifactType, ArtifactLayer> = {
   guide: 'informative',
 }
 
-export const ARTIFACT_TYPE_LABELS: Record<ArtifactType, string> = {
-  goal: 'Goal',
-  decision: 'Decision',
-  domain: 'Domain',
-  spec: 'Spec',
-  contract: 'Contract',
-  architecture: 'Architecture',
-  design: 'Design',
-  verification: 'Verification',
-  guide: 'Guide',
-}
-
-/** Explorer の Type 別セクション見出し (複数形) */
-export const ARTIFACT_TYPE_SECTION_LABELS: Record<ArtifactType, string> = {
-  goal: 'Goals',
-  decision: 'Decisions',
-  domain: 'Domain & Glossary',
-  spec: 'Specs',
-  contract: 'Contracts',
-  architecture: 'Architecture',
-  design: 'Designs',
-  verification: 'Verification',
-  guide: 'Guides',
-}
-
 /** ディレクトリ名・ファイル名から ArtifactType を自動推論するための対応表 */
 export const ARTIFACT_TYPE_ALIASES: Record<string, ArtifactType> = {
   goal: 'goal',

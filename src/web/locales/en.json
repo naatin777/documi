@@ -1,0 +1,355 @@
+{
+  "common": {
+    "loading": "Loading…",
+    "close": "Close",
+    "reset": "Reset",
+    "none": "None",
+    "open": "Open",
+    "back": "Back",
+    "submit": "Send",
+    "processing": "Processing…",
+    "errorTitle": "Something went wrong",
+    "retry": "Retry",
+    "notFoundTitle": "Page not found",
+    "notFoundBody": "The requested page does not exist."
+  },
+  "types": {
+    "singular": {
+      "goal": "Goal",
+      "decision": "Decision",
+      "domain": "Domain",
+      "spec": "Spec",
+      "contract": "Contract",
+      "architecture": "Architecture",
+      "design": "Design",
+      "verification": "Verification",
+      "guide": "Guide"
+    },
+    "section": {
+      "goal": "Goals",
+      "decision": "Decisions",
+      "domain": "Domain & Glossary",
+      "spec": "Specs",
+      "contract": "Contracts",
+      "architecture": "Architecture",
+      "design": "Designs",
+      "verification": "Verification",
+      "guide": "Guides"
+    }
+  },
+  "status": {
+    "review": {
+      "approved": "Approved",
+      "unreviewed": "Unreviewed",
+      "stale": "Stale",
+      "suspect": "Suspect"
+    },
+    "realization": {
+      "verified": "Verified",
+      "implemented": "Implemented",
+      "in-progress": "In Progress",
+      "unimplemented": "Unimplemented",
+      "drifted": "Drifted"
+    },
+    "intent": {
+      "normative": "Normative",
+      "idea": "Idea",
+      "rejected": "Rejected"
+    },
+    "stability": {
+      "stable": "Stable",
+      "evolving": "Evolving",
+      "volatile": "Volatile"
+    }
+  },
+  "nav": {
+    "navigation": "Navigation",
+    "primaryViews": "Primary views",
+    "home": "Home",
+    "reviewQueue": "Review Queue",
+    "graphMatrix": "Graph & Matrix",
+    "documents": "Documents",
+    "searchPlaceholder": "Search…",
+    "flow": "Flow",
+    "flowTitle": "Order by reading lifecycle (Goals & Architecture → Specs → Designs → Verification)",
+    "files": "Files",
+    "filesTitle": "Order by repository directory hierarchy",
+    "noDocs": "No documents",
+    "loadIssues": "Load issues ({{count}})",
+    "issueCountTitle": "{{count}} issue(s)",
+    "openMenu": "Open Explorer",
+    "closeMenu": "Close menu"
+  },
+  "tabs": {
+    "workspaceTabs": "Workspace tabs",
+    "openSidebar": "Open sidebar",
+    "closeSidebar": "Close sidebar",
+    "openSidebarTitle": "Open sidebar (⌘B)",
+    "closeSidebarTitle": "Close sidebar (⌘B)",
+    "scrollLeft": "Scroll tabs left",
+    "scrollRight": "Scroll tabs right",
+    "closeTab": "Close {{title}}",
+    "openTabsList": "Open tabs ({{count}})",
+    "openTabsTitle": "Open tabs",
+    "closeAllTabs": "Close all tabs"
+  },
+  "theme": {
+    "light": "Light",
+    "dark": "Dark",
+    "system": "System",
+    "tooltip": "Theme: {{mode}}",
+    "ariaLabel": "Switch theme (current: {{mode}})"
+  },
+  "lang": {
+    "label": "Language",
+    "switchAria": "Switch language (current: {{language}})"
+  },
+  "overview": {
+    "badge": "Overview",
+    "livingSpec": "Living Specification",
+    "title": "Project Overview",
+    "description": "Inspect alignment across Goals, Specs, Contracts, Designs, Decisions, and Domain terms along with human review status.",
+    "stats": {
+      "documents": "Documents",
+      "approved": "Approved",
+      "unreviewed": "Unreviewed",
+      "staleSuspect": "Stale / Suspect",
+      "openFeedback": "Open Feedback",
+      "issues": "Issues"
+    },
+    "attentionBlocks": "Needs Attention (Stale / Suspect)",
+    "upstreamChanged": "Upstream changed: {{sources}}",
+    "openFeedbackTitle": "Open Feedback ({{count}})",
+    "artifactTypes": "Artifact Types",
+    "goalsRoot": "Goals",
+    "noGoals": "No Goal documents yet.",
+    "decisionOutcomes": "Decision Outcomes (ADR)",
+    "orphanSpecs": "Orphan Specs ({{count}})",
+    "allIssues": "All Issues ({{count}})",
+    "realizationStability": "Realization & Stability",
+    "realization": "Realization",
+    "specsByIntent": "Specs by Intent",
+    "specsByStability": "Specs by Stability"
+  },
+  "review": {
+    "badge": "Review Inbox",
+    "title": "Review Queue",
+    "description": "Review semantic blocks created or updated by AI, inspect line diffs from approval, and approve in one place.",
+    "filterAria": "Filter review queue",
+    "filters": {
+      "attention": "Needs Attention (Stale / Suspect)",
+      "feedback": "Open Feedback",
+      "unreviewed": "Unreviewed",
+      "approved": "Approved",
+      "all": "All"
+    },
+    "emptyAttention": "No stale or suspect blocks need attention.",
+    "checkUnreviewed": "Review unreviewed blocks ({{count}})",
+    "emptyFiltered": "No matching blocks.",
+    "closeDiff": "Hide Diff",
+    "diff": "Diff",
+    "peekSideBySide": "Side-by-Side",
+    "approve": "Approve",
+    "suspectBanner": "Upstream changes detected ({{sources}}). Review and re-approve.",
+    "noBaseSnapshot": "Could not find the approved baseline snapshot."
+  },
+  "doc": {
+    "loadErrorTitle": "Unable to display document",
+    "openInspector": "Outline / Links",
+    "openInspectorTitle": "Open Outline / Links",
+    "openInspectorAria": "Open right panel",
+    "docIssues": "Document Issues ({{count}})",
+    "blocksCount": "{{count}} blocks",
+    "inferred": "inferred"
+  },
+  "inspector": {
+    "ariaLabel": "Context Inspector",
+    "switchAria": "Switch inspector tab",
+    "outline": "Outline",
+    "links": "Links",
+    "closePanel": "Close right panel",
+    "attentionCount": "Attention {{count}}",
+    "blocks": "Blocks ({{count}})",
+    "headings": "Headings",
+    "emptyOutline": "No headings or semantic blocks",
+    "upstream": "Upstream ({{count}})",
+    "emptyUpstream": "No upstream references",
+    "downstream": "Downstream ({{count}})",
+    "emptyDownstream": "No downstream references",
+    "sourceRefs": "Source Refs ({{count}})",
+    "mentions": "Mentions ({{count}})",
+    "linkHint": "Click to open / Shift+Click to preview side-by-side",
+    "peekButtonTitle": "Preview side-by-side",
+    "peekButtonAria": "Preview {{title}} side-by-side"
+  },
+  "peek": {
+    "ariaLabel": "Document preview",
+    "backToInspector": "Back to Outline / Links",
+    "openInMain": "Open in main view",
+    "closePreview": "Close preview",
+    "switchAria": "Switch preview tab",
+    "bodyTab": "Document",
+    "connectionsTab": "Connections ({{count}})",
+    "outgoing": "Outgoing ({{count}})",
+    "noOutgoing": "No outgoing references",
+    "incoming": "Incoming ({{count}})",
+    "noIncoming": "No incoming references"
+  },
+  "graph": {
+    "graphViewTab": "Graph View ({{count}})",
+    "matrixTab": "Traceability Matrix ({{count}})",
+    "documents": "Documents",
+    "docsAndBlocks": "Docs + Blocks",
+    "allLinks": "All Links",
+    "traceabilityOnly": "Traceability Only",
+    "searchNodePlaceholder": "Search nodes to focus…",
+    "zoomIn": "Zoom in",
+    "zoomOut": "Zoom out",
+    "resetView": "Reset view",
+    "resimulate": "Shake & re-simulate",
+    "forcesSettings": "Adjust physics (Forces)",
+    "forcesLabel": "Physics parameters",
+    "webglError": "Failed to initialize WebGL graph",
+    "hint": "Zoom to switch cards/dots · Drag to pull · Click to preview · Double-click to open"
+  },
+  "matrix": {
+    "empty": "No matching Specs.",
+    "spec": "Spec",
+    "goals": "Goals (Upstream)",
+    "designContract": "Design / Contract",
+    "verification": "Verification",
+    "review": "Review",
+    "realization": "Realization",
+    "orphan": "Orphan",
+    "filters": {
+      "all": "All",
+      "verified": "Verified",
+      "unimplemented": "Unimplemented",
+      "drifted": "Drifted",
+      "unreviewed": "Unreviewed",
+      "orphan": "Orphan"
+    }
+  },
+  "search": {
+    "dialogAria": "Full-text search",
+    "placeholder": "Search documents, Spec IDs, terms, or body… (Esc to close)",
+    "prompt": "Type keywords to search documents and semantic blocks",
+    "searching": "Searching…",
+    "noResults": "No matching results"
+  },
+  "export": {
+    "buttonTitle": "Export PDF / HTML (single or bundle)",
+    "modalTitle": "Export (PDF / HTML / Print)",
+    "targetLabel": "Scope",
+    "currentDoc": "Current document",
+    "allDocs": "All ({{count}})",
+    "goalBundle": "Goal bundle",
+    "directory": "Directory",
+    "customSelection": "Custom ({{count}})",
+    "rootGoal": "Root Goal",
+    "targetDir": "Directory",
+    "selectDocs": "Select documents to include",
+    "coverTitle": "Cover title (optional)",
+    "coverTitlePlaceholder": "Defaults to scope label if empty",
+    "printDialog": "Print dialog",
+    "bundlePreview": "Bundle preview",
+    "saveHtml": "Save HTML",
+    "downloadPdf": "Download PDF",
+    "generating": "Generating…",
+    "selectTargetError": "Please select a valid export scope",
+    "fallbackHtml": "Chrome backend unavailable; fell back to HTML download.",
+    "fallbackPrint": "Chrome backend unavailable; opening print preview instead."
+  },
+  "bundle": {
+    "errorTitle": "Failed to build bundle",
+    "backToOverview": "Back to Overview",
+    "building": "Building bundle…",
+    "backToDocumi": "← Back to Documi",
+    "meta": "{{docs}} documents · {{blocks}} blocks",
+    "chapter": "Chapter {{index}}",
+    "downloadHtml": "Download HTML",
+    "printPdf": "Print / Save PDF",
+    "toc": "Table of Contents",
+    "generated": "Generated: {{date}}"
+  },
+  "blocks": {
+    "approvedTooltip": "Approved by {{by}} ({{commit}} / {{at}})",
+    "unreviewedTooltip": "Unreviewed",
+    "approved": "✓ Approved",
+    "unreviewed": "○ Unreviewed",
+    "stale": "↻ Stale (modified after approval)",
+    "staleShort": "↻ Stale",
+    "suspectTooltip": "Upstream changed: {{sources}}",
+    "suspect": "⚠ Suspect",
+    "realizationTooltip": "Click to view implementations, tests, and PR links",
+    "verified": "● Verified ({{passed}}/{{total}})",
+    "implemented": "● Implemented ({{count}})",
+    "inProgress": "◐ In Progress",
+    "unimplemented": "○ Unimplemented",
+    "drifted": "✕ Drifted",
+    "implementations": "Implementations ({{count}})",
+    "tests": "Tests ({{count}})",
+    "testResults": "Test Results ({{count}})",
+    "pullRequests": "Pull Requests ({{count}})",
+    "stabilityTooltip": "Click to cycle stability (stable / evolving / volatile)",
+    "suspectBannerPrefix": "Upstream changes detected (",
+    "suspectBannerSuffix": "). Review and re-approve.",
+    "diffTitle": "Diff since approval",
+    "diffCache": "(local approval cache)",
+    "diffNoBase": "Could not load the baseline content from approval time.",
+    "diffNoChanges": "No changes detected.",
+    "reopenFeedback": "Mark unresolved",
+    "resolveFeedback": "Mark resolved",
+    "feedbackPlaceholder": "Add feedback for AI (e.g. use 3 retries instead of 5)…",
+    "noteIdea": "IDEA / Draft Note",
+    "noteInformative": "NOTE",
+    "noteRejected": "REJECTED"
+  },
+  "resize": {
+    "hint": "{{label}} (drag to resize / double-click to reset)",
+    "sidebar": "Resize sidebar width",
+    "inspector": "Resize right inspector width",
+    "peek": "Resize preview pane width"
+  },
+  "code": {
+    "copy": "Copy",
+    "copied": "Copied"
+  },
+  "mermaid": {
+    "showDiagram": "Diagram",
+    "showSource": "Source",
+    "zoom": "Zoom",
+    "rendering": "Rendering diagram…",
+    "renderError": "Failed to render Mermaid diagram: {{error}}",
+    "diagramAria": "Mermaid diagram",
+    "zoomAria": "Mermaid diagram (enlarged)"
+  },
+  "sourceRef": {
+    "invalidProps": "SourceRef requires file along with either symbol or lines",
+    "truncated": " (truncated)",
+    "loading": "Loading source…"
+  },
+  "term": {
+    "loadingSymbol": "Loading code definition…",
+    "openDefinition": "Open definition →"
+  },
+  "print": {
+    "printedOn": "Printed: {{date}}"
+  },
+  "mdx": {
+    "expressionUnsupported": "Expressions { ... } are not supported",
+    "esmUnsupported": "import / export statements are not supported",
+    "syntaxUnsupported": "Unsupported syntax: {{type}}",
+    "inlineExpressionUnsupported": "Expressions are not supported",
+    "backToFootnote": "Back to footnote",
+    "spreadUnsupported": "Spread attributes {...} are not supported",
+    "attrExpressionUnsupported": "Expression in attribute {{name}} is not supported",
+    "parentRequired": "<{{name}}> can only be used inside its parent component",
+    "componentUnsupported": "Unsupported component: <{{name}}>",
+    "errorIndexed": "Error {{index}}",
+    "tabIndexed": "Tab {{index}}",
+    "tabsRequireTab": "<Tabs> requires at least one <Tabs.Tab>",
+    "stepIndexed": "Step {{index}}",
+    "stepsRequireStep": "<Steps> requires at least one <Steps.Step>"
+  }
+}

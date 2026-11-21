@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { Link } from 'react-router-dom'
 import type { TraceMatrixRow } from '../../core/bundle'
-import { ARTIFACT_TYPE_LABELS } from '../../core/types'
 import { api, encodeDocId, type GraphResponse } from '../api'
 import { useDocsRevision } from '../live'
 import DocPeekPane from './DocPeekPane'
@@ -11,6 +11,7 @@ type PageTab = 'graph' | 'matrix'
 type MatrixFilter = 'all' | 'verified' | 'unimplemented' | 'drifted' | 'unreviewed' | 'orphan'
 
 export default function GraphLayout() {
+  const { t } = useTranslation()
   const revision = useDocsRevision()
   const [tab, setTab] = useState<PageTab>('graph')
   const [matrixFilter, setMatrixFilter] = useState<MatrixFilter>('all')
@@ -98,7 +99,7 @@ export default function GraphLayout() {
               className={`graph-tab${tab === 'graph' ? ' active' : ''}`}
               onClick={() => setTab('graph')}
             >
-              Graph View ({graph?.nodes.length ?? 0})
+              {t('graph.graphViewTab', { count: graph?.nodes.length ?? 0 })}
             </button>
             <button
               type="button"
@@ -107,7 +108,7 @@ export default function GraphLayout() {
               className={`graph-tab${tab === 'matrix' ? ' active' : ''}`}
               onClick={() => setTab('matrix')}
             >
-              Traceability Matrix ({rows.length})
+              {t('graph.matrixTab', { count: rows.length })}
             </button>
           </div>
 
@@ -121,7 +122,7 @@ export default function GraphLayout() {
                   setGranularity('docs')
                 }}
               >
-                Documents
+                {t('graph.documents')}
               </button>
               <button
                 type="button"
@@ -131,7 +132,7 @@ export default function GraphLayout() {
                   setGranularity('blocks')
                 }}
               >
-                Docs + Blocks
+                {t('graph.docsAndBlocks')}
               </button>
               <span className="graph-sep" aria-hidden="true" />
               <button
@@ -139,14 +140,14 @@ export default function GraphLayout() {
                 className={`export-mode-chip${edgeLayer === 'all' ? ' active' : ''}`}
                 onClick={() => setEdgeLayer('all')}
               >
-                All Links
+                {t('graph.allLinks')}
               </button>
               <button
                 type="button"
                 className={`export-mode-chip${edgeLayer === 'trace' ? ' active' : ''}`}
                 onClick={() => setEdgeLayer('trace')}
               >
-                Traceability Only
+                {t('graph.traceabilityOnly')}
               </button>
             </div>
           )}
@@ -175,24 +176,24 @@ export default function GraphLayout() {
                     className={`export-mode-chip${matrixFilter === f ? ' active' : ''}`}
                     onClick={() => setMatrixFilter(f)}
                   >
-                    {f}
+                    {t(`matrix.filters.${f}`)}
                   </button>
                 ))}
               </div>
 
               {filteredRows.length === 0 ? (
-                <p className="muted">該当する Spec がありません。</p>
+                <p className="muted">{t('matrix.empty')}</p>
               ) : (
                 <div className="matrix-table-wrap">
                   <table className="matrix-table">
                     <thead>
                       <tr>
-                        <th>Spec</th>
-                        <th>Goals (上流)</th>
-                        <th>Design / Contract</th>
-                        <th>Verification</th>
-                        <th>Review</th>
-                        <th>Realization</th>
+                        <th>{t('matrix.spec')}</th>
+                        <th>{t('matrix.goals')}</th>
+                        <th>{t('matrix.designContract')}</th>
+                        <th>{t('matrix.verification')}</th>
+                        <th>{t('matrix.review')}</th>
+                        <th>{t('matrix.realization')}</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -209,7 +210,7 @@ export default function GraphLayout() {
                           </td>
                           <td>
                             {row.orphan ? (
-                              <span className="sem-review-badge sem-review-stale">orphan</span>
+                              <span className="sem-review-badge sem-review-stale">{t('matrix.orphan')}</span>
                             ) : (
                               row.goals.map((g) => (
                                 <Link key={g.id} to={`/docs/${encodeDocId(g.id)}`} className="matrix-chip type-goal">
@@ -250,13 +251,13 @@ export default function GraphLayout() {
                           </td>
                           <td>
                             <span className={`sem-review-badge sem-review-${row.suspect ? 'suspect' : row.review}`}>
-                              {row.suspect ? 'suspect' : row.review}
+                              {row.suspect ? t('status.review.suspect') : t(`status.review.${row.review}`)}
                             </span>
                           </td>
                           <td>
                             {row.realization ? (
                               <span className={`sem-realization-badge sem-real-${row.realization.status}`}>
-                                {row.realization.status}
+                                {t(`status.realization.${row.realization.status}`)}
                               </span>
                             ) : (
                               <span className="muted">—</span>
@@ -278,27 +279,29 @@ export default function GraphLayout() {
           focusBlockId={selectedNode.kind === 'block' ? selectedNode.id : undefined}
           onClose={() => setSelectedNodeId(null)}
           extraTab={{
-            label: `繋がり (${selectedEdges.out.length + selectedEdges.inc.length})`,
+            label: t('peek.connectionsTab', { count: selectedEdges.out.length + selectedEdges.inc.length }),
             content: (
               <div className="peek-connections">
                 <div className="doc-badges" style={{ marginBottom: 10 }}>
                   <span className={`badge badge-type type-${selectedNode.type}`}>
-                    {ARTIFACT_TYPE_LABELS[selectedNode.type]}
+                    {t(`types.singular.${selectedNode.type}`)}
                   </span>
                   {selectedNode.blockKind && <span className="badge badge-format">{selectedNode.blockKind}</span>}
                   {selectedNode.review && (
-                    <span className={`sem-review-badge sem-review-${selectedNode.review}`}>{selectedNode.review}</span>
+                    <span className={`sem-review-badge sem-review-${selectedNode.review}`}>
+                      {t(`status.review.${selectedNode.review}`)}
+                    </span>
                   )}
                   {selectedNode.realization && (
                     <span className={`sem-realization-badge sem-real-${selectedNode.realization}`}>
-                      {selectedNode.realization}
+                      {t(`status.realization.${selectedNode.realization}`)}
                     </span>
                   )}
                 </div>
 
-                <h3 className="rp-title">Outgoing ({selectedEdges.out.length})</h3>
+                <h3 className="rp-title">{t('peek.outgoing', { count: selectedEdges.out.length })}</h3>
                 {selectedEdges.out.length === 0 ? (
-                  <p className="rp-empty">外向き参照はありません</p>
+                  <p className="rp-empty">{t('peek.noOutgoing')}</p>
                 ) : (
                   <ul className="rp-relations">
                     {selectedEdges.out.map((e) => (
@@ -319,10 +322,10 @@ export default function GraphLayout() {
                 )}
 
                 <h3 className="rp-title" style={{ marginTop: 14 }}>
-                  Incoming ({selectedEdges.inc.length})
+                  {t('peek.incoming', { count: selectedEdges.inc.length })}
                 </h3>
                 {selectedEdges.inc.length === 0 ? (
-                  <p className="rp-empty">逆参照はありません</p>
+                  <p className="rp-empty">{t('peek.noIncoming')}</p>
                 ) : (
                   <ul className="rp-relations">
                     {selectedEdges.inc.map((e) => (

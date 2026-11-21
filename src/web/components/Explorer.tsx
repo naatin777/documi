@@ -1,10 +1,12 @@
 import { ChevronRight, Home, ListChecks, Network, Search, X } from 'lucide-react'
 import { useEffect, useMemo, useState, type ReactNode } from 'react'
+import { useTranslation } from 'react-i18next'
 import { NavLink } from 'react-router-dom'
-import { ARTIFACT_TYPE_SECTION_LABELS, ARTIFACT_TYPES } from '../../core/types'
+import { ARTIFACT_TYPES } from '../../core/types'
 import type { ArtifactType, DocTreeDir, DocTreeNode, DocumentSummary } from '../../core/types'
 import { api, encodeDocId } from '../api'
 import type { StatusResponse } from '../api'
+import { LanguageToggle } from '../i18n'
 import { useDocsRevision } from '../live'
 import { ThemeToggle } from '../theme'
 import { ArtifactTypeIcon, BrandMark } from './BrandMark'
@@ -37,6 +39,7 @@ interface ExplorerProps {
 
 // @implements ui.explorer-modes
 export default function Explorer({ reviewBadgeCount, onClose, onOpenSearch, resizeHandle }: ExplorerProps) {
+  const { t } = useTranslation()
   const revision = useDocsRevision()
   const [mode, setMode] = useState<DocListMode>('flow')
   const [tree, setTree] = useState<DocTreeNode[]>([])
@@ -92,7 +95,7 @@ export default function Explorer({ reviewBadgeCount, onClose, onOpenSearch, resi
   }
 
   return (
-    <aside className="explorer" aria-label="ナビゲーション">
+    <aside className="explorer" aria-label={t('nav.navigation')}>
       <div className="explorer-header">
         <NavLink to="/" className="brand brand-link" onClick={onClose}>
           <BrandMark size={20} />
@@ -100,8 +103,9 @@ export default function Explorer({ reviewBadgeCount, onClose, onOpenSearch, resi
         </NavLink>
         <div className="explorer-actions">
           <ExportActions />
+          <LanguageToggle />
           <ThemeToggle />
-          <button type="button" className="explorer-close" onClick={onClose} aria-label="メニューを閉じる">
+          <button type="button" className="explorer-close" onClick={onClose} aria-label={t('nav.closeMenu')}>
             <X size={16} strokeWidth={1.75} aria-hidden="true" />
           </button>
         </div>
@@ -111,13 +115,13 @@ export default function Explorer({ reviewBadgeCount, onClose, onOpenSearch, resi
         <button type="button" className="explorer-search-btn" onClick={onOpenSearch}>
           <span className="explorer-search-label">
             <Search size={13} strokeWidth={1.8} aria-hidden="true" />
-            <span>検索…</span>
+            <span>{t('nav.searchPlaceholder')}</span>
           </span>
           <kbd className="explorer-kbd">⌘K</kbd>
         </button>
       </div>
 
-      <div className="explorer-primary-nav" role="navigation" aria-label="主要ビュー">
+      <div className="explorer-primary-nav" role="navigation" aria-label={t('nav.primaryViews')}>
         <NavLink
           to="/"
           end
@@ -125,7 +129,7 @@ export default function Explorer({ reviewBadgeCount, onClose, onOpenSearch, resi
           onClick={onClose}
         >
           <HomeIcon />
-          <span>Home</span>
+          <span>{t('nav.home')}</span>
         </NavLink>
         <NavLink
           to="/review"
@@ -133,7 +137,7 @@ export default function Explorer({ reviewBadgeCount, onClose, onOpenSearch, resi
           onClick={onClose}
         >
           <ReviewIcon />
-          <span>Review Queue</span>
+          <span>{t('nav.reviewQueue')}</span>
           {reviewBadgeCount > 0 && <span className="nav-badge warn">{reviewBadgeCount}</span>}
         </NavLink>
         <NavLink
@@ -142,22 +146,22 @@ export default function Explorer({ reviewBadgeCount, onClose, onOpenSearch, resi
           onClick={onClose}
         >
           <GraphIcon />
-          <span>Graph & Matrix</span>
+          <span>{t('nav.graphMatrix')}</span>
         </NavLink>
       </div>
 
       <div className="explorer-docs-bar">
-        <span className="explorer-docs-label">Documents</span>
-        <div className="explorer-mode-inline" role="tablist" aria-label="ドキュメント一覧の表示切替">
+        <span className="explorer-docs-label">{t('nav.documents')}</span>
+        <div className="explorer-mode-inline" role="tablist" aria-label={t('nav.documents')}>
           <button
             type="button"
             role="tab"
             aria-selected={mode === 'flow'}
             className={`explorer-mode-pill${mode === 'flow' ? ' active' : ''}`}
             onClick={() => setMode('flow')}
-            title="上流（Goals・Architecture）から下流（設計・検証）の読み順で表示"
+            title={t('nav.flowTitle')}
           >
-            Flow
+            {t('nav.flow')}
           </button>
           <button
             type="button"
@@ -165,14 +169,14 @@ export default function Explorer({ reviewBadgeCount, onClose, onOpenSearch, resi
             aria-selected={mode === 'files'}
             className={`explorer-mode-pill${mode === 'files' ? ' active' : ''}`}
             onClick={() => setMode('files')}
-            title="docs/ のフォルダ階層そのままを表示"
+            title={t('nav.filesTitle')}
           >
-            Files
+            {t('nav.files')}
           </button>
         </div>
       </div>
 
-      <nav className="explorer-nav" aria-label="ドキュメント一覧">
+      <nav className="explorer-nav" aria-label={t('nav.documents')}>
         {mode === 'flow' ? (
           READING_FLOW_ORDER.map((type) => {
             const docs = grouped.get(type) ?? []
@@ -187,12 +191,12 @@ export default function Explorer({ reviewBadgeCount, onClose, onOpenSearch, resi
                 >
                   <Chevron collapsed={isCollapsed} />
                   <ArtifactTypeIcon type={type} size={13} className="nav-type-icon" />
-                  <span className="nav-section-label">{ARTIFACT_TYPE_SECTION_LABELS[type]}</span>
+                  <span className="nav-section-label">{t(`types.section.${type}`)}</span>
                   <span className="nav-count">{docs.length}</span>
                 </button>
                 {!isCollapsed && (
                   <ul>
-                    {docs.length === 0 && <li className="nav-empty">文書なし</li>}
+                    {docs.length === 0 && <li className="nav-empty">{t('nav.noDocs')}</li>}
                     {docs.map((doc) => (
                       <li key={doc.id}>
                         <NavLink
@@ -203,7 +207,9 @@ export default function Explorer({ reviewBadgeCount, onClose, onOpenSearch, resi
                         >
                           <span className="nav-title">{doc.title}</span>
                           {doc.date && <span className="nav-date mono">{doc.date}</span>}
-                          {doc.issueCount > 0 && <span className="issue-dot" title={`問題 ${doc.issueCount} 件`} />}
+                          {doc.issueCount > 0 && (
+                            <span className="issue-dot" title={t('nav.issueCountTitle', { count: doc.issueCount })} />
+                          )}
                         </NavLink>
                       </li>
                     ))}
@@ -214,7 +220,7 @@ export default function Explorer({ reviewBadgeCount, onClose, onOpenSearch, resi
           })
         ) : (
           <div className="nav-tree">
-            {tree.length === 0 && <div className="nav-empty">文書なし</div>}
+            {tree.length === 0 && <div className="nav-empty">{t('nav.noDocs')}</div>}
             {tree.map((node) => (
               <TreeBranch
                 key={node.kind === 'dir' ? `dir:${node.path}` : `doc:${node.doc.id}`}
@@ -231,7 +237,7 @@ export default function Explorer({ reviewBadgeCount, onClose, onOpenSearch, resi
 
       {status && status.issues.length > 0 && (
         <details className="explorer-issues">
-          <summary>読み込み問題 ({status.issues.length})</summary>
+          <summary>{t('nav.loadIssues', { count: status.issues.length })}</summary>
           <ul>
             {status.issues.map((issue, i) => (
               <li key={i}>
@@ -295,6 +301,7 @@ function TreeBranch({
     )
   }
 
+  const { t } = useTranslation()
   const { doc } = node
   return (
     <NavLink
@@ -306,7 +313,7 @@ function TreeBranch({
     >
       <span className="nav-type-dot" aria-hidden="true" />
       <span className="nav-title">{doc.title}</span>
-      {doc.issueCount > 0 && <span className="issue-dot" title={`問題 ${doc.issueCount} 件`} />}
+      {doc.issueCount > 0 && <span className="issue-dot" title={t('nav.issueCountTitle', { count: doc.issueCount })} />}
     </NavLink>
   )
 }

@@ -1,3 +1,5 @@
+import { useTranslation } from 'react-i18next'
+
 interface PrintHeaderProps {
   label: string
   title: string
@@ -17,7 +19,8 @@ export function PrintHeader({ label, title, meta }: PrintHeaderProps) {
 
 /** 印刷時と HTML 書き出し時にだけ表示するフッター */
 export function PrintFooter({ meta }: { meta?: string }) {
-  const date = new Date().toLocaleDateString('ja-JP', {
+  const { t, i18n } = useTranslation()
+  const date = new Date().toLocaleDateString(i18n.language, {
     year: 'numeric',
     month: 'long',
     day: 'numeric',
@@ -25,7 +28,7 @@ export function PrintFooter({ meta }: { meta?: string }) {
   return (
     <div className="print-only print-footer" aria-hidden="true">
       <span>Documi</span>
-      <span>印刷日: {date}</span>
+      <span>{t('print.printedOn', { date })}</span>
       {meta && <span className="mono">{meta}</span>}
     </div>
   )
