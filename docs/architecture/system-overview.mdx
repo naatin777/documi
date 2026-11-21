@@ -11,22 +11,23 @@ Documi は単一の TypeScript プロジェクトとして 3 層で構成し、W
 
 ```mermaid
 flowchart TB
-    subgraph Client["React SPA (Vite)"]
-        UI["Overview / Sigma.js Graph & Matrix / Explorer / DocViewer / Cmd+K"]
+    subgraph Client["React SPA (Vite + React.lazy Code Splitting)"]
+        UI["1本サイドバー (Flow/Files) / Home / Review Inbox / Graph & Matrix / DocViewer + Side-by-Side Peek / Cmd+K"]
+        RPC["Hono RPC Client (hc<ApiRoutes>)"]
         BundleUI["/bundle (表紙・目次・複数章・全タブ展開)"]
         SSE["Live Reload (EventSource /api/events)"]
     end
 
     subgraph Entry["Server & CLI"]
-        API["Hono RPC + Zod API (/api/*)"]
-        MCP["MCP Server (/mcp Streamable HTTP)"]
+        API["Hono RPC + Zod API (/api/* サブルータ分割)"]
+        MCP["MCP Server (HTTP /mcp & stdio documi mcp)"]
         PDF["Bun.WebView PDF/HTML Renderer"]
-        CLI["Documi CLI (check / approve / export)"]
+        CLI["Documi CLI (init / serve / mcp / check / approve / export)"]
         Store["DocsStore (fs.watch + auto reload)"]
     end
 
     subgraph Core["Document Core (src/core — フレームワーク非依存)"]
-        Loader["Recursive Loader & Type Inference"]
+        Loader["Recursive Loader & Type/Date Inference"]
         Mdx["mdast Block / Link Extractor"]
         Reviews["Reviews Sidecar / Suspect / Git Diff"]
         Trace["Code/Test/JUnit/PR Trace & Realization"]
@@ -34,13 +35,16 @@ flowchart TB
         Source["AST Source Resolver (@ast-grep/napi)"]
     end
 
-    FS["docs/ + docs/.documi/reviews.json + src/ + tests/"]
+    FS["projectRoot (docs/ + docs/.documi/reviews.json + src/ + tests/)"]
 
-    UI --> API
-    BundleUI --> API
+    UI --> RPC
+    BundleUI --> RPC
+    RPC --> API
     SSE --> API
     PDF --> BundleUI
     CLI --> Core
+    CLI --> API
+    CLI --> MCP
     CLI --> PDF
     API --> Store
     API --> PDF
@@ -55,6 +59,12 @@ flowchart TB
     Trace --> FS
     Source --> FS
 ```
+
+## パス解決と境界 (`projectRoot`)
+
+- `<SourceRef file="src/..." />`・`<TermDef symbols="src/...#Symbol">`・`@implements` / `@verifies` の走査はすべて **`projectRoot` からの POSIX 相対パス** で解決する（`.mdx` ファイルからの相対パスではない）。
+- `projectRoot` の既定値は `docs/` の親ディレクトリであり、モノレポ等で階層が異なる場合は `--project <dir>` または環境変数 `DOCUMI_PROJECT_ROOT` で全コマンド（`serve` / `mcp` / `check` / `export`）横断で上書きできる。
+- 絶対パス・`..` によるパストラバーサル・`projectRoot` 外を指すシンボリックリンクは `src/core/source.ts` で拒否する。
 
 ## 4 層 Artifact Type と AI コンテキスト方針
 

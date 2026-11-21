@@ -20,14 +20,14 @@ Document Core (`src/core`) は React・Hono・MCP に一切依存せず、ファ
 <Steps.Step title="再帰走査と優先解決">
 `docs/` 以下を再帰走査して `.mdx` / `.md` を収集し、拡張子なし相対パスをドキュメント ID とする。同名衝突時は `.mdx` を優先する。
 </Steps.Step>
-<Steps.Step title="Frontmatter 解析と Type 推論">
-YAML frontmatter を分離し、省略時はディレクトリ名・ファイル名から Type、H1 見出しからタイトルを推論する。
+<Steps.Step title="Frontmatter 解析と Type・Date 推論">
+YAML frontmatter を分離し、省略時はディレクトリ名・ファイル名から Type、H1 見出しからタイトルを推論する。任意の `date`（ISO 8601 の `YYYY-MM-DD` / `YYYY-MM`、MADR 4.0 準拠）を検証し、`decision` 文書は新しい決定日順に降順ソートする。
 </Steps.Step>
 <Steps.Step title="mdast ブロック＆リンク抽出">
 `remark-mdx` の AST から `<Spec>` / `<Constraint>` / `<Outcome>` / `<Note>` / `<TermDef>` / `<SourceRef>` / 本文リンクを抽出し、正規化 SHA-256 ハッシュを算出する。
 </Steps.Step>
 <Steps.Step title="グラフ構築と Rooted DAG 検証">
-5 種エッジを解決して双方向参照を構築し、循環参照および `normative` Spec の Goal 到達性 (`orphan-spec`) を検査する。
+5 種エッジを解決して双方向参照を構築し、循環参照および `normative` Spec の Goal 到達性 (`orphan-spec`) を検査する。`<SourceRef>` / `<TermDef symbols>` はすべて <Term name="ProjectRoot" /> からの相対パスとして安全検証する。
 </Steps.Step>
 </Steps>
 

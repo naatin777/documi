@@ -1,0 +1,50 @@
+---
+type: design
+title: Web UI アーキテクチャと Side-by-Side 閲覧設計
+description: 1 本サイドバー・専用 Review Inbox・Context Inspector & DocPeekPane・ルート単位 Code Splitting・Hono RPC クライアントの設計
+tags: [design, ui, frontend, rpc]
+satisfies:
+  - ui.web-viewer
+  - ui.explorer-modes
+  - ui.live-reload
+  - ui.human-review
+  - ui.glossary-autolink
+  - ui.search-palette
+---
+
+# Web UI アーキテクチャと Side-by-Side 閲覧設計
+
+## 1. レイアウト構造と遅延ロード（Code Splitting）
+
+- 画面全体は左サイドバー（`Explorer`・280px、`⌘B` で開閉）と右側ワークスペース（`.doccols`・Flex 横並び）の 2 領域で構成する。
+- `.doccols` 内に `<main className="content">` と条件付きの `<aside className="side-panel">` を並べることで、右ペインが不要な画面（Home / Review 未選択 / Matrix / Graph 未選択）では中央が自動的に全幅へ広がる。
+- `OverviewLayout` / `ReviewLayout` / `DocLayout` / `GraphLayout` / `BundleLayout` / `SearchModal` は `React.lazy()` + `Suspense` でルート単位に Code Splitting し、Sigma.js や Markdown/KaTeX パーサーを該当画面でのみ読み込むことで初期メインバンドルを約 80% 削減している。
+
+<SourceRef file="src/web/App.tsx" symbol="App" satisfies="ui.web-viewer" />
+
+## 2. 1 本サイドバー（Flow / Files）と専用 Review Inbox (`/review`)
+
+- `Explorer` の上部に 3 大ビュー（`Home` / `Review Queue`（要確認件数バッジ付き）/ `Graph & Matrix`）を固定配置し、下部にドキュメント一覧の **Flow（上流→下流の読み順）** と **Files（フォルダ階層）** 切替を置く。
+- `ReviewLayout` (`/review`) は `GET /api/blocks` から全レビュー対象ブロックを取得し、`要確認 (Stale / Suspect)`・`未解決フィードバック`・`未承認`・`承認済み`・`すべて` のタブで絞り込みながら、インライン Diff 表示・ワンクリック承認・右側「並べて確認」を提供する。
+
+<SourceRef file="src/web/components/Explorer.tsx" symbol="Explorer" satisfies="ui.explorer-modes" />
+
+<SourceRef file="src/web/components/ReviewLayout.tsx" symbol="ReviewLayout" satisfies="ui.human-review" />
+
+## 3. Context Inspector と共通 Side-by-Side プレビュー (`DocPeekPane`)
+
+- `/docs/*` の右ペイン (`SidePanel`) は `Outline`（承認/検証サマリバー・Blocks・見出し目次）と `Links`（上流・前提 / 下流・依存元 / 関連コード `SourceRefs` / 言及）の 2 タブで構成する。
+- `Links` の分割ボタン（または `Shift+クリック`）、`/graph` でのノードクリック、`/review` の「並べて確認」はいずれも共通の `DocPeekPane` を右ペイン（幅 `clamp(380px, 44%, 640px)`）に開き、見出し ID 衝突を避けるため `headingPrefix="peek"` 付きで MDX 本文・用語ポップオーバー・承認 UI をそのまま描画する。
+
+<SourceRef file="src/web/components/SidePanel.tsx" symbol="SidePanel" />
+
+<SourceRef file="src/web/components/DocPeekPane.tsx" symbol="DocPeekPane" />
+
+## 4. Hono RPC クライアントと SSE ライブ更新
+
+- `src/web/api.ts` は `hc<ApiRoutes>('/')` と `InferResponseType` によりサーバー側ルート定義（`src/server/app.ts`）からレスポンス型を直接推論し、フロント側の手書き型二重管理を排除している。
+- `LiveProvider` が `/api/events` の SSE を購読し、ファイル変更・承認・テスト結果更新時の `reload` イベントで全画面のリビジョンを更新する。
+
+<SourceRef file="src/web/api.ts" symbol="encodeDocId" />
+
+<SourceRef file="src/web/live.tsx" symbol="LiveProvider" satisfies="ui.live-reload" />

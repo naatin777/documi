@@ -4,6 +4,7 @@ import type { TraceMatrixRow } from '../../core/bundle'
 import { ARTIFACT_TYPE_LABELS } from '../../core/types'
 import { api, encodeDocId, type GraphResponse } from '../api'
 import { useDocsRevision } from '../live'
+import DocPeekPane from './DocPeekPane'
 import DocTabs from './DocTabs'
 import SigmaGraph from './SigmaGraph'
 
@@ -274,84 +275,80 @@ export default function GraphLayout() {
           </article>
         )}
       </main>
-      <aside className="side-panel">
-        {selectedNode ? (
-          <section className="rp-section">
-            <h2 className="rp-title">Selected Node</h2>
-            <div className="doc-badges" style={{ marginBottom: 8 }}>
-              <span className={`badge badge-type type-${selectedNode.type}`}>
-                {ARTIFACT_TYPE_LABELS[selectedNode.type]}
-              </span>
-              {selectedNode.blockKind && <span className="badge badge-format">{selectedNode.blockKind}</span>}
-              {selectedNode.review && (
-                <span className={`sem-review-badge sem-review-${selectedNode.review}`}>{selectedNode.review}</span>
-              )}
-              {selectedNode.realization && (
-                <span className={`sem-realization-badge sem-real-${selectedNode.realization}`}>
-                  {selectedNode.realization}
-                </span>
-              )}
-            </div>
-            <p>
-              <strong>{selectedNode.title}</strong>
-            </p>
-            <p className="muted mono">{selectedNode.id}</p>
-            <p>
-              <Link
-                to={`/docs/${encodeDocId(selectedNode.docId)}${selectedNode.kind === 'block' ? `#block-${encodeURIComponent(selectedNode.id)}` : ''}`}
-                className="sem-action-btn"
-              >
-                ドキュメントを開く →
-              </Link>
-            </p>
+      {tab === 'graph' && selectedNode && (
+        <DocPeekPane
+          docId={selectedNode.docId}
+          focusBlockId={selectedNode.kind === 'block' ? selectedNode.id : undefined}
+          onClose={() => setSelectedNodeId(null)}
+          extraTab={{
+            label: `繋がり (${selectedEdges.out.length + selectedEdges.inc.length})`,
+            content: (
+              <div className="peek-connections">
+                <div className="doc-badges" style={{ marginBottom: 10 }}>
+                  <span className={`badge badge-type type-${selectedNode.type}`}>
+                    {ARTIFACT_TYPE_LABELS[selectedNode.type]}
+                  </span>
+                  {selectedNode.blockKind && <span className="badge badge-format">{selectedNode.blockKind}</span>}
+                  {selectedNode.review && (
+                    <span className={`sem-review-badge sem-review-${selectedNode.review}`}>{selectedNode.review}</span>
+                  )}
+                  {selectedNode.realization && (
+                    <span className={`sem-realization-badge sem-real-${selectedNode.realization}`}>
+                      {selectedNode.realization}
+                    </span>
+                  )}
+                </div>
 
-            <h3 className="rp-title">Outgoing ({selectedEdges.out.length})</h3>
-            {selectedEdges.out.length === 0 ? (
-              <p className="rp-empty">外向き参照はありません</p>
-            ) : (
-              <ul className="rp-relations">
-                {selectedEdges.out.map((e) => (
-                  <li key={`${e.kind}:${e.target}`}>
-                    <Link
-                      to={`/docs/${encodeDocId(e.docId)}${e.isBlock ? `#block-${encodeURIComponent(e.target)}` : ''}`}
-                      className="rp-relation"
-                    >
-                      <span className={`rp-edge-kind rp-edge-${e.kind}`}>{e.kind}</span>
-                      <span className="rp-relation-id mono">{e.target}</span>
-                    </Link>
-                  </li>
-                ))}
-              </ul>
-            )}
+                <h3 className="rp-title">Outgoing ({selectedEdges.out.length})</h3>
+                {selectedEdges.out.length === 0 ? (
+                  <p className="rp-empty">外向き参照はありません</p>
+                ) : (
+                  <ul className="rp-relations">
+                    {selectedEdges.out.map((e) => (
+                      <li key={`${e.kind}:${e.target}`}>
+                        <button
+                          type="button"
+                          className="rp-relation rp-relation-btn"
+                          onClick={() =>
+                            setSelectedNodeId(graph?.nodes.some((n) => n.id === e.target) ? e.target : e.docId)
+                          }
+                        >
+                          <span className={`rp-edge-kind rp-edge-${e.kind}`}>{e.kind}</span>
+                          <span className="rp-relation-id mono">{e.target}</span>
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                )}
 
-            <h3 className="rp-title">Incoming ({selectedEdges.inc.length})</h3>
-            {selectedEdges.inc.length === 0 ? (
-              <p className="rp-empty">逆参照はありません</p>
-            ) : (
-              <ul className="rp-relations">
-                {selectedEdges.inc.map((e) => (
-                  <li key={`${e.kind}:${e.source}`}>
-                    <Link
-                      to={`/docs/${encodeDocId(e.docId)}${e.isBlock ? `#block-${encodeURIComponent(e.source)}` : ''}`}
-                      className="rp-relation"
-                    >
-                      <span className={`rp-edge-kind rp-edge-${e.kind}`}>{e.kind}</span>
-                      <span className="rp-relation-id mono">{e.source}</span>
-                    </Link>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </section>
-        ) : (
-          <section className="rp-section">
-            <h2 className="rp-title">Graph Controls</h2>
-            <p className="rp-empty">
-              ノードをドラッグすると繋がっているノードがばねのように追従して動きます。ホバーで近傍ハイライト、クリックで詳細表示、ダブルクリックでドキュメントへ遷移します。
-            </p>
-          </section>
-        )}
-      </aside>
+                <h3 className="rp-title" style={{ marginTop: 14 }}>
+                  Incoming ({selectedEdges.inc.length})
+                </h3>
+                {selectedEdges.inc.length === 0 ? (
+                  <p className="rp-empty">逆参照はありません</p>
+                ) : (
+                  <ul className="rp-relations">
+                    {selectedEdges.inc.map((e) => (
+                      <li key={`${e.kind}:${e.source}`}>
+                        <button
+                          type="button"
+                          className="rp-relation rp-relation-btn"
+                          onClick={() =>
+                            setSelectedNodeId(graph?.nodes.some((n) => n.id === e.source) ? e.source : e.docId)
+                          }
+                        >
+                          <span className={`rp-edge-kind rp-edge-${e.kind}`}>{e.kind}</span>
+                          <span className="rp-relation-id mono">{e.source}</span>
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+            ),
+          }}
+        />
+      )}
     </>
   )
 }

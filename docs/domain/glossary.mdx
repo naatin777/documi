@@ -22,7 +22,11 @@ Documi の仕様・設計・ソースコードで共有される共通語彙を�
 </TermDef>
 
 <TermDef id="SourceRef" aliases="ソース参照" symbols="src/core/source.ts#resolveSourceSymbol, src/core/types.ts#SourceRefDecl">
-  ドキュメント内に実ソースコードの定義や行範囲を埋め込む仕組み。`@ast-grep/napi` (tree-sitter) でシンボルを動的に解決するため、コードを複製せず常に最新を反映する。
+  ドキュメント内に実ソースコードの定義や行範囲を埋め込む仕組み。<Term name="ProjectRoot" /> からの相対パスを指定し、`@ast-grep/napi` (tree-sitter) でシンボルを動的に解決するため、コードを複製せず常に最新を反映する。
+</TermDef>
+
+<TermDef id="ProjectRoot" aliases="プロジェクトルート" symbols="src/server/store.ts#DocsStore">
+  ソースコード参照（`<SourceRef>`・`<TermDef symbols>`）および `@implements` / `@verifies` 走査の基準ディレクトリ。既定は `docs/` の親ディレクトリで、`--project` または `DOCUMI_PROJECT_ROOT` で上書きできる。ルート外参照やシンボリックリンク脱出は拒否される。
 </TermDef>
 
 <TermDef id="DocsIndex" aliases="インデックス" symbols="src/core/types.ts#DocsIndex, src/core/loader.ts#loadDocuments">

@@ -211,96 +211,74 @@ export default function OverviewLayout() {
                   </ul>
                 </section>
               )}
+              <section className="ov-section">
+                <h2>Realization & Stability</h2>
+                <div className="ov-breakdown-grid">
+                  <div className="ov-breakdown-card">
+                    <h3>Realization</h3>
+                    <ul className="ov-kv">
+                      <li>
+                        <span>verified</span>
+                        <strong>{data.realizations.verified}</strong>
+                      </li>
+                      <li>
+                        <span>implemented</span>
+                        <strong>{data.realizations.implemented}</strong>
+                      </li>
+                      <li>
+                        <span>in-progress</span>
+                        <strong>{data.realizations['in-progress']}</strong>
+                      </li>
+                      <li>
+                        <span>unimplemented</span>
+                        <strong>{data.realizations.unimplemented}</strong>
+                      </li>
+                      <li>
+                        <span>drifted</span>
+                        <strong>{data.realizations.drifted}</strong>
+                      </li>
+                    </ul>
+                  </div>
+                  <div className="ov-breakdown-card">
+                    <h3>Specs by Intent</h3>
+                    <ul className="ov-kv">
+                      <li>
+                        <span>normative</span>
+                        <strong>{data.specsByIntent.normative}</strong>
+                      </li>
+                      <li>
+                        <span>idea</span>
+                        <strong>{data.specsByIntent.idea}</strong>
+                      </li>
+                      <li>
+                        <span>rejected</span>
+                        <strong>{data.specsByIntent.rejected}</strong>
+                      </li>
+                    </ul>
+                  </div>
+                  <div className="ov-breakdown-card">
+                    <h3>Specs by Stability</h3>
+                    <ul className="ov-kv">
+                      <li>
+                        <span>stable</span>
+                        <strong>{data.specsByStability.stable}</strong>
+                      </li>
+                      <li>
+                        <span>evolving</span>
+                        <strong>{data.specsByStability.evolving}</strong>
+                      </li>
+                      <li>
+                        <span>volatile</span>
+                        <strong>{data.specsByStability.volatile}</strong>
+                      </li>
+                    </ul>
+                  </div>
+                </div>
+              </section>
             </>
           )}
         </article>
       </main>
-      <aside className="side-panel">
-        {data && (
-          <>
-            <section className="rp-section">
-              <h2 className="rp-title">Human Review</h2>
-              <ul className="ov-kv">
-                <li>
-                  <span>approved</span>
-                  <strong>{data.reviews.approved}</strong>
-                </li>
-                <li>
-                  <span>unreviewed</span>
-                  <strong>{data.reviews.unreviewed}</strong>
-                </li>
-                <li>
-                  <span>stale</span>
-                  <strong>{data.reviews.stale}</strong>
-                </li>
-                <li>
-                  <span>suspect</span>
-                  <strong>{data.reviews.suspect}</strong>
-                </li>
-              </ul>
-            </section>
-            <section className="rp-section">
-              <h2 className="rp-title">Realization</h2>
-              <ul className="ov-kv">
-                <li>
-                  <span>verified</span>
-                  <strong>{data.realizations.verified}</strong>
-                </li>
-                <li>
-                  <span>implemented</span>
-                  <strong>{data.realizations.implemented}</strong>
-                </li>
-                <li>
-                  <span>in-progress</span>
-                  <strong>{data.realizations['in-progress']}</strong>
-                </li>
-                <li>
-                  <span>unimplemented</span>
-                  <strong>{data.realizations.unimplemented}</strong>
-                </li>
-                <li>
-                  <span>drifted</span>
-                  <strong>{data.realizations.drifted}</strong>
-                </li>
-              </ul>
-            </section>
-            <section className="rp-section">
-              <h2 className="rp-title">Specs by Intent</h2>
-              <ul className="ov-kv">
-                <li>
-                  <span>normative</span>
-                  <strong>{data.specsByIntent.normative}</strong>
-                </li>
-                <li>
-                  <span>idea</span>
-                  <strong>{data.specsByIntent.idea}</strong>
-                </li>
-                <li>
-                  <span>rejected</span>
-                  <strong>{data.specsByIntent.rejected}</strong>
-                </li>
-              </ul>
-            </section>
-            <section className="rp-section">
-              <h2 className="rp-title">Specs by Stability</h2>
-              <ul className="ov-kv">
-                <li>
-                  <span>stable</span>
-                  <strong>{data.specsByStability.stable}</strong>
-                </li>
-                <li>
-                  <span>evolving</span>
-                  <strong>{data.specsByStability.evolving}</strong>
-                </li>
-                <li>
-                  <span>volatile</span>
-                  <strong>{data.specsByStability.volatile}</strong>
-                </li>
-              </ul>
-            </section>
-          </>
-        )}
-      </aside>
     </>
   )
 }

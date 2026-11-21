@@ -1,0 +1,44 @@
+---
+type: decision
+title: リーディング＆レビュー中心の 1 本サイドバーと右ペイン Side-by-Side プレビューの採用
+description: AI 時代の人間の体験を「IDE（書く道具）」ではなく「要件〜設計〜テストを読みレビューする道具」として最適化するための UI 構造決定
+date: 2026-11-21
+tags: [adr, ui, ux, layout, review, graph]
+---
+
+# リーディング＆レビュー中心の 1 本サイドバーと右ペイン Side-by-Side プレビューの採用
+
+<Outcome id="dec.reading-first-ui" stability="stable">
+  Web UI は VS Code 式の左 2 列（Activity Bar＋サイドバー）を採用せず、**「左＝1 本の開閉式サイドバー（`⌘B`）・中央＝広いメイン画面・右＝必要時のみ開く Context Inspector 兼 Side-by-Side プレビュー」** の 3 領域に役割を統一する。左の操作はすべてメイン画面遷移（Home / `/review` Review Queue / `/graph` / 文書）に揃え、ドキュメント一覧は **上流→下流の読み順（Flow）** を既定とする。右ペインは不要な画面では非表示にし、Graph のノードクリック・関連リンクの並べて見る・Review Queue からの文脈確認では共通の `DocPeekPane` で本文をそのまま並べて表示する。
+</Outcome>
+
+## 背景：AI 時代における Documi の位置づけ
+
+AI エージェントがコードを書く割合が増えるほど、人間にとって Documi は「コードを編集する IDE」ではなく、**「要件定義（Goal / Spec）からアーキテクチャ・意思決定（ADR）・詳細設計・テスト（Verification）までを通して読み、理解し、承認するリーディング＆レビュー環境」** になる。
+
+## 検討した代替案と棄却理由
+
+### 1. 左端の VS Code 式 Activity Bar（アイコンバー＋パネル）
+- **9 種類の Artifact Type を直接アイコン化する案**: 9 種＋Overview / Graph / Search で 12 個以上のアイコンが並び、ホバーなしでは判別できない。また `Goals` や `Architecture` のように 1〜2 ファイルしかない Type に専用パネルを割り当てるとスカスカになる。
+- **役割ベース 5〜6 アイコンの Activity Bar 案**: `Home` / `Graph`（メイン画面の URL 遷移）と `Files` / `Types` / `Review`（左サイドバーのパネル切替）の 2 種類の挙動が 1 本のバーに混在し、同時に 2 箇所がアクティブになるなどメンタルモデルが分裂する。
+
+### 2. 全画面に常設された 300px 右バー
+- `Home (/)` や `Review (/review)`、`Matrix` テーブルにまで 300px の右バーを常設すると、中央の閲覧領域を圧迫する割に情報が重複・空白になりやすい。
+- `/docs/*` でも Blocks・Outline・References・Referenced by を 1 列に縦積みすると視認性が落ちる。
+
+## 採用したレイアウトと役割分担
+
+| 領域 | 役割 | 振る舞い |
+|---|---|---|
+| **左（1 本の開閉式サイドバー）** | プロジェクト全体から「何を開くか」を選ぶ | すべての項目がメイン画面を開く統一挙動。上部に 3 大ビュー（`Home` / `Review Queue` / `Graph & Matrix`）、下部に **Flow（上流→下流の読み順）** と **Files（フォルダ階層）** を切替。`⌘B` で開閉可能。 |
+| **中央（メイン画面）** | 今開いている対象を読む・レビューする | Home ダッシュボード・専用 `/review` 受信箱・`/graph`（Graph / Matrix）・`/docs/*` 文書本文。不要な画面では右ペインを出さず全幅で広く使う。 |
+| **右（Context Inspector ＆ `DocPeekPane`）** | 今見ている対象の周辺文脈・並べて比較 | `/docs/*` では `Outline` / `Links` の 2 タブ（開閉可）。`Links` の「並べて見る」（または `Shift+クリック`）・Graph のノードクリック・Review Queue の「並べて確認」では自動で約 44% 幅の **Side-by-Side プレビュー (`DocPeekPane`)** へ切り替わり、元の画面を離れずに対象文書・ブロックをそのまま閲覧・承認できる。 |
+
+## 読み順（Flow）の設計
+
+従来の単なる Type 定義順ではなく、初見の人間が上から下に読むだけでシステムを理解できるライフサイクル順を既定とした：
+
+1. **目的・全体像・用語**: `Goals` → `Architecture` → `Domain & Glossary`
+2. **要件・仕様・契約**: `Specs` → `Contracts`
+3. **詳細設計・判断ログ**: `Designs` → `Decisions (ADR)`（新しい `date` 降順）
+4. **検証・運用**: `Verification` → `Guides`

@@ -14,8 +14,10 @@ Documi は、単なる Markdown ビューアでも、AI に使い捨ての作業
 
 ### 1. SpecKit 等の既存 SDD ツールとの違い
 既存の Spec-Driven Development (SDD) ツールは `plan.md` や `tasks.md` のような AI 向けの一時的な作業手順書を大量生成しがちで、人間が継続的に読んでシステムを理解する体験が弱い。
-Documi は **人間が読む体験** を最優先に設計する：
+AI がコードを書く時代、人間が向き合う時間は「ソースコードの編集」よりも「**要件定義からアーキテクチャ・意思決定・詳細設計・テストまでを通して読み、確認・承認する時間**」が中心になる。
+そのため Documi は IDE の文法ではなく **人間が読む・レビューする体験** を最優先に設計する：
 - 図（Mermaid）・数式（KaTeX）・インタラクティブ表現（MDX）・実コード埋め込み（`<SourceRef>`）・ネットワークグラフ（Sigma.js）により、厳格さと読みやすさを両立する
+- 上流→下流の読み順（`Goals → Architecture → Domain → Specs → Contracts → Designs → Decisions → Verification → Guides`）と **並べて読む（Side-by-Side プレビュー）**・**専用 Review Inbox (`/review`)** により、仕様と設計・ADR・テストを行き来しながら直感的に理解・承認できる
 - AI が一気に生成する長い文章を `<Spec>` / `<Constraint>` / `<Outcome>` / `<Note>` / `<TermDef>` の細切れタグで区切ることで、人間が「どこが確定仕様で、どこが未承認・変わりやすい案・将来メモなのか」を一目で把握できる
 
 ### 2. AI 再現性の到達水準

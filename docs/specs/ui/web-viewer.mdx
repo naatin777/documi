@@ -10,13 +10,13 @@ derives:
 # Web UI ビューア・可視化・バンドル出力
 
 <Spec id="ui.web-viewer" stability="stable">
-  **When** ユーザーがルート `/` を開いたとき、
-  **the** Web UI **shall** プロジェクト全体の統計・人間レビュー進捗・Realization 内訳・要確認 (Stale/Suspect) ブロック・未解決フィードバック・Goals・Decision Outcomes・Orphan Specs をまとめた Overview ダッシュボードを表示する。
+  **When** ユーザーがルート `/` または `/docs/*` を開いたとき、
+  **the** Web UI **shall** `/` では全幅の Overview ダッシュボード（プロジェクト統計・レビュー＆Realization 内訳・要確認ブロック・未解決フィードバック・Goals・Decision Outcomes・Orphan Specs）を表示し、`/docs/*` では右側に開閉可能な 2 タブ Context Inspector（`Outline` / `Links`）と関連文書を並べて読む Side-by-Side プレビュー (`DocPeekPane`) を提供する。
 </Spec>
 
 <Spec id="ui.explorer-modes" stability="stable">
-  **When** ユーザーが Explorer を操作するとき、
-  **the** Web UI **shall** ディレクトリ階層で閲覧する **Tree モード** と、9 種類の Artifact Type 別に閲覧する **Types モード** を切り替えられるようにする。
+  **When** ユーザーが左サイドバーを操作するとき、
+  **the** Web UI **shall** 読む・レビューする体験に統一した 1 本の開閉式サイドバー（`Cmd+B` / `Ctrl+B` 開閉）を提供し、上部に 3 大ビュー（Home / Review Queue（要確認バッジ付き）/ Graph & Matrix）、下部にドキュメント一覧（上流→下流の読み順で並ぶ **Flow** とフォルダ階層そのままの **Files** 切替）を配置する。
 </Spec>
 
 <Spec id="ui.live-reload" stability="stable">
@@ -25,7 +25,7 @@ derives:
 </Spec>
 
 <Spec id="ui.human-review" stability="stable">
-  **When** 人間が Web UI でセマンティックブロックを閲覧するとき、
+  **When** 人間が Web UI でセマンティックブロックまたは専用 `/review` 受信箱を閲覧するとき、
   **the** Web UI **shall** `docs/.documi/reviews.json` と連動した承認ボタン・承認時点コミットからの Diff 表示・Stability 切替・AI 向けフィードバック投稿・Realization トレース詳細を提供し、MDX 本文自体は変更しない。
 </Spec>
 
@@ -36,7 +36,7 @@ derives:
 
 <Spec id="ui.graph-matrix" stability="evolving">
   **When** ユーザーが `/graph` を開いたとき、
-  **the** Web UI **shall** **Sigma.js (WebGL) + Graphology** によるフルビューポートのリアルタイム力学ネットワークグラフ（円形展開・ノードドラッグ時の弾性追従・Forces スライダー・パン/ズーム・ホバー近傍ハイライト・検索フォーカス・粒度切替 `Documents` / `Docs + Blocks`）と、全 `<Spec>` の追跡網羅率を一覧する **Traceability Matrix** を提供する。
+  **the** Web UI **shall** **Sigma.js (WebGL) + Graphology** によるフルビューポートのリアルタイム力学ネットワークグラフ（円形展開・ノードドラッグ時の弾性追従・Forces スライダー・パン/ズーム・ホバー枠ハイライト・クリック時の右側ドキュメント即時プレビュー＆繋がりタブ・検索フォーカス・粒度切替 `Documents` / `Docs + Blocks`）と、全幅表示の **Traceability Matrix** を提供する。
 </Spec>
 
 <Spec id="ui.bundle-export" stability="evolving">

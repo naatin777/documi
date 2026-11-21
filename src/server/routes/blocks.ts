@@ -9,8 +9,28 @@ import {
   setFeedbackResolved,
 } from '../../core/reviews'
 import { STABILITIES } from '../../core/types'
+import type { BlockKind, RealizationStatus, ReviewFeedback, ReviewStatus, Stability } from '../../core/types'
 import type { DocsStore } from '../store'
 import { zValidator, type ErrorStatusCode } from '../validator'
+
+interface ReviewBlockSummary {
+  id: string
+  kind: BlockKind
+  docId: string
+  docTitle: string
+  docPath: string
+  title?: string
+  rawBody: string
+  stability: Stability
+  review: ReviewStatus
+  suspect: boolean
+  suspectSources: string[]
+  approvedAt?: string
+  approvedBy?: string
+  realization?: RealizationStatus
+  openFeedbackCount: number
+  feedback: ReviewFeedback[]
+}
 
 const approveBodySchema = z
   .object({
@@ -36,6 +56,42 @@ const stabilityPatchBodySchema = z.object({
 
 export function createBlocksRoutes(store: DocsStore) {
   return new Hono()
+    .get('/', (c) => {
+      const index = store.getIndex()
+      const blocks: ReviewBlockSummary[] = []
+      const counts = { approved: 0, unreviewed: 0, stale: 0, suspect: 0, openFeedback: 0 }
+
+      for (const doc of index.documents) {
+        for (const b of doc.blocks) {
+          if (b.kind === 'note') continue
+          const openFeedbackCount = b.feedback.filter((f) => !f.resolved).length
+          counts[b.review]++
+          if (b.suspect) counts.suspect++
+          counts.openFeedback += openFeedbackCount
+
+          blocks.push({
+            id: b.id,
+            kind: b.kind,
+            docId: doc.id,
+            docTitle: doc.title,
+            docPath: doc.path,
+            ...(b.title ? { title: b.title } : {}),
+            rawBody: b.rawBody,
+            stability: b.stability,
+            review: b.review,
+            suspect: b.suspect,
+            suspectSources: b.suspectSources,
+            ...(b.approvedAt ? { approvedAt: b.approvedAt } : {}),
+            ...(b.approvedBy ? { approvedBy: b.approvedBy } : {}),
+            ...(b.realization ? { realization: b.realization.status } : {}),
+            openFeedbackCount,
+            feedback: b.feedback,
+          })
+        }
+      }
+
+      return c.json({ blocks, counts }, 200)
+    })
     .get('/:id/diff', async (c) => {
       const blockId = decodeURIComponent(c.req.param('id'))
       try {

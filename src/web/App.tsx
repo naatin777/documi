@@ -1,14 +1,16 @@
 import { lazy, Suspense, useEffect, useState } from 'react'
 import { ErrorBoundary, type FallbackProps } from 'react-error-boundary'
 import { Route, Routes, useLocation } from 'react-router-dom'
+import { api } from './api'
 import DocTabs from './components/DocTabs'
 import Explorer from './components/Explorer'
 import TopBar from './components/TopBar'
-import { LiveProvider } from './live'
+import { LiveProvider, useDocsRevision } from './live'
 import { TabsProvider } from './tabs'
 import { ThemeProvider } from './theme'
 
 const OverviewLayout = lazy(() => import('./components/OverviewLayout'))
+const ReviewLayout = lazy(() => import('./components/ReviewLayout'))
 const DocLayout = lazy(() => import('./components/DocLayout'))
 const GraphLayout = lazy(() => import('./components/GraphLayout'))
 const BundleLayout = lazy(() => import('./components/BundleLayout'))
@@ -44,6 +46,9 @@ function AppRouter() {
 function AppShell() {
   const [navOpen, setNavOpen] = useState(false)
   const [searchOpen, setSearchOpen] = useState(false)
+  const [sidebarOpen, setSidebarOpen] = useState(true)
+  const [reviewBadgeCount, setReviewBadgeCount] = useState(0)
+  const revision = useDocsRevision()
   const location = useLocation()
 
   // ルート遷移時にモバイルの Explorer ドロワーを閉じる
@@ -51,12 +56,33 @@ function AppShell() {
     setNavOpen(false)
   }, [location.pathname])
 
-  // Cmd+K / Ctrl+K で全文検索モーダルを開く
+  // Review Queue の要確認バッジ件数を購読
+  useEffect(() => {
+    let cancelled = false
+    api
+      .overview()
+      .then((res) => {
+        if (!cancelled) {
+          setReviewBadgeCount(res.attentionBlocks.length + res.openFeedbackItems.length)
+        }
+      })
+      .catch(() => {})
+    return () => {
+      cancelled = true
+    }
+  }, [revision])
+
+  // Cmd+K / Ctrl+K (全文検索) および Cmd+B / Ctrl+B (サイドバー開閉)
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
-      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
+      if (!(e.metaKey || e.ctrlKey)) return
+      const key = e.key.toLowerCase()
+      if (key === 'k') {
         e.preventDefault()
         setSearchOpen((v) => !v)
+      } else if (key === 'b') {
+        e.preventDefault()
+        setSidebarOpen((v) => !v)
       }
     }
     window.addEventListener('keydown', onKeyDown)
@@ -64,15 +90,40 @@ function AppShell() {
   }, [])
 
   return (
-    <div className={`app${navOpen ? ' nav-open' : ''}`}>
+    <div className={`app${navOpen ? ' nav-open' : ''}${!sidebarOpen ? ' sidebar-collapsed' : ''}`}>
       <TopBar onMenu={() => setNavOpen(true)} />
-      <Explorer onClose={() => setNavOpen(false)} onOpenSearch={() => setSearchOpen(true)} />
+      {!sidebarOpen && (
+        <button
+          type="button"
+          className="sidebar-reopen-btn"
+          onClick={() => setSidebarOpen(true)}
+          title="サイドバーを開く (⌘B)"
+          aria-label="サイドバーを開く"
+        >
+          <svg width="14" height="14" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+            <path
+              d="M5.5 3.5L10 8L5.5 12.5"
+              stroke="currentColor"
+              strokeWidth="1.5"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+          </svg>
+        </button>
+      )}
+      <Explorer
+        reviewBadgeCount={reviewBadgeCount}
+        onCollapse={() => setSidebarOpen(false)}
+        onClose={() => setNavOpen(false)}
+        onOpenSearch={() => setSearchOpen(true)}
+      />
       {navOpen && <div className="nav-overlay" onClick={() => setNavOpen(false)} aria-hidden="true" />}
       <div className="doccols">
         <ErrorBoundary FallbackComponent={ErrorFallback} resetKeys={[location.pathname]}>
           <Suspense fallback={<RouteLoading />}>
             <Routes>
               <Route path="/" element={<OverviewLayout />} />
+              <Route path="/review" element={<ReviewLayout />} />
               <Route path="/graph" element={<GraphLayout />} />
               <Route path="/docs/*" element={<DocLayout />} />
               <Route path="*" element={<NotFoundLayout />} />
@@ -115,15 +166,12 @@ function ErrorFallback({ error, resetErrorBoundary }: FallbackProps) {
 
 function NotFoundLayout() {
   return (
-    <>
-      <main className="content">
-        <DocTabs />
-        <div className="page">
-          <h1>ページが見つかりません</h1>
-          <p>指定されたページは存在しません。</p>
-        </div>
-      </main>
-      <aside className="side-panel" />
-    </>
+    <main className="content">
+      <DocTabs />
+      <div className="page">
+        <h1>ページが見つかりません</h1>
+        <p>指定されたページは存在しません。</p>
+      </div>
+    </main>
   )
 }
