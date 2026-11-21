@@ -6,7 +6,6 @@ import { extractHeadings } from '../headings'
 import { useDocsRevision } from '../live'
 import { useTabs } from '../tabs'
 import DocPeekPane from './DocPeekPane'
-import DocTabs from './DocTabs'
 import DocViewer from './DocViewer'
 import SidePanel from './SidePanel'
 
@@ -81,7 +80,6 @@ export default function DocLayout() {
   return (
     <>
       <main ref={mainRef} className="content">
-        <DocTabs />
         {!inspectorOpen && !peekTarget && doc && (
           <button
             type="button"

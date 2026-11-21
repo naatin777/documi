@@ -4,7 +4,6 @@ import type { BlockDiffResult } from '../../core/types'
 import { api, encodeDocId, type ReviewBlocksResponse } from '../api'
 import { useDocsRevision } from '../live'
 import DocPeekPane from './DocPeekPane'
-import DocTabs from './DocTabs'
 
 type ReviewFilter = 'attention' | 'feedback' | 'unreviewed' | 'approved' | 'all'
 
@@ -92,7 +91,6 @@ export default function ReviewLayout() {
   return (
     <>
       <main className="content">
-        <DocTabs />
         <article className="page review-page">
           <header className="doc-header">
             <div className="doc-badges">

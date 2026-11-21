@@ -1,4 +1,5 @@
-import { useEffect, useMemo, useState } from 'react'
+import { ChevronRight, Home, ListChecks, Network, Search, X } from 'lucide-react'
+import { useEffect, useMemo, useState, type ReactNode } from 'react'
 import { NavLink } from 'react-router-dom'
 import { ARTIFACT_TYPE_SECTION_LABELS, ARTIFACT_TYPES } from '../../core/types'
 import type { ArtifactType, DocTreeDir, DocTreeNode, DocumentSummary } from '../../core/types'
@@ -6,6 +7,7 @@ import { api, encodeDocId } from '../api'
 import type { StatusResponse } from '../api'
 import { useDocsRevision } from '../live'
 import { ThemeToggle } from '../theme'
+import { ArtifactTypeIcon, BrandMark } from './BrandMark'
 import ExportActions from './ExportActions'
 
 type DocListMode = 'flow' | 'files'
@@ -28,13 +30,13 @@ const READING_FLOW_ORDER: readonly ArtifactType[] = [
 
 interface ExplorerProps {
   reviewBadgeCount: number
-  onCollapse: () => void
   onClose: () => void
   onOpenSearch: () => void
+  resizeHandle?: ReactNode
 }
 
 // @implements ui.explorer-modes
-export default function Explorer({ reviewBadgeCount, onCollapse, onClose, onOpenSearch }: ExplorerProps) {
+export default function Explorer({ reviewBadgeCount, onClose, onOpenSearch, resizeHandle }: ExplorerProps) {
   const revision = useDocsRevision()
   const [mode, setMode] = useState<DocListMode>('flow')
   const [tree, setTree] = useState<DocTreeNode[]>([])
@@ -93,39 +95,24 @@ export default function Explorer({ reviewBadgeCount, onCollapse, onClose, onOpen
     <aside className="explorer" aria-label="ナビゲーション">
       <div className="explorer-header">
         <NavLink to="/" className="brand brand-link" onClick={onClose}>
-          Documi
+          <BrandMark size={20} />
+          <span>Documi</span>
         </NavLink>
         <div className="explorer-actions">
           <ExportActions />
           <ThemeToggle />
-          <button
-            type="button"
-            className="explorer-collapse-btn"
-            onClick={onCollapse}
-            title="サイドバーを畳む (⌘B)"
-            aria-label="サイドバーを畳む"
-          >
-            <svg width="14" height="14" viewBox="0 0 16 16" fill="none" aria-hidden="true">
-              <path
-                d="M10.5 3.5L6 8L10.5 12.5"
-                stroke="currentColor"
-                strokeWidth="1.5"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              />
-            </svg>
-          </button>
           <button type="button" className="explorer-close" onClick={onClose} aria-label="メニューを閉じる">
-            <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
-              <path d="M3 3l10 10M13 3L3 13" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-            </svg>
+            <X size={16} strokeWidth={1.75} aria-hidden="true" />
           </button>
         </div>
       </div>
 
       <div className="explorer-search-wrap">
         <button type="button" className="explorer-search-btn" onClick={onOpenSearch}>
-          <span>検索…</span>
+          <span className="explorer-search-label">
+            <Search size={13} strokeWidth={1.8} aria-hidden="true" />
+            <span>検索…</span>
+          </span>
           <kbd className="explorer-kbd">⌘K</kbd>
         </button>
       </div>
@@ -199,7 +186,7 @@ export default function Explorer({ reviewBadgeCount, onCollapse, onClose, onOpen
                   onClick={() => toggleType(type)}
                 >
                   <Chevron collapsed={isCollapsed} />
-                  <span className="nav-type-dot" aria-hidden="true" />
+                  <ArtifactTypeIcon type={type} size={13} className="nav-type-icon" />
                   <span className="nav-section-label">{ARTIFACT_TYPE_SECTION_LABELS[type]}</span>
                   <span className="nav-count">{docs.length}</span>
                 </button>
@@ -257,6 +244,7 @@ export default function Explorer({ reviewBadgeCount, onCollapse, onClose, onOpen
       )}
       {error && <div className="explorer-error">{error}</div>}
       {status && <div className="explorer-footer">docs: {status.rootDir}</div>}
+      {resizeHandle}
     </aside>
   )
 }
@@ -325,54 +313,23 @@ function TreeBranch({
 
 function Chevron({ collapsed }: { collapsed: boolean }) {
   return (
-    <svg
+    <ChevronRight
+      size={12}
+      strokeWidth={2}
       className={`nav-chevron${collapsed ? ' collapsed' : ''}`}
-      width="10"
-      height="10"
-      viewBox="0 0 10 10"
-      fill="none"
       aria-hidden="true"
-    >
-      <path d="M3 1.5L7 5L3 8.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-    </svg>
+    />
   )
 }
 
 function HomeIcon() {
-  return (
-    <svg width="15" height="15" viewBox="0 0 20 20" fill="none" aria-hidden="true">
-      <path
-        d="M3 9.5L10 3.5L17 9.5V16.5C17 17.05 16.55 17.5 16 17.5H12.5V12.5H7.5V17.5H4C3.45 17.5 3 17.05 3 16.5V9.5Z"
-        stroke="currentColor"
-        strokeWidth="1.6"
-        strokeLinejoin="round"
-      />
-    </svg>
-  )
+  return <Home size={15} strokeWidth={1.75} aria-hidden="true" />
 }
 
 function ReviewIcon() {
-  return (
-    <svg width="15" height="15" viewBox="0 0 20 20" fill="none" aria-hidden="true">
-      <rect x="3" y="3" width="14" height="14" rx="2.5" stroke="currentColor" strokeWidth="1.6" />
-      <path
-        d="M6.8 10.2L9 12.4L13.4 7.8"
-        stroke="currentColor"
-        strokeWidth="1.7"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-    </svg>
-  )
+  return <ListChecks size={15} strokeWidth={1.75} aria-hidden="true" />
 }
 
 function GraphIcon() {
-  return (
-    <svg width="15" height="15" viewBox="0 0 20 20" fill="none" aria-hidden="true">
-      <circle cx="5" cy="5.5" r="2.2" stroke="currentColor" strokeWidth="1.6" />
-      <circle cx="15" cy="5.5" r="2.2" stroke="currentColor" strokeWidth="1.6" />
-      <circle cx="10" cy="15" r="2.2" stroke="currentColor" strokeWidth="1.6" />
-      <path d="M7.2 5.5H12.8M6.1 7.4L8.9 13.1M13.9 7.4L11.1 13.1" stroke="currentColor" strokeWidth="1.5" />
-    </svg>
-  )
+  return <Network size={15} strokeWidth={1.75} aria-hidden="true" />
 }

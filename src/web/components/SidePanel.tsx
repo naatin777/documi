@@ -1,9 +1,11 @@
+import { Columns2, PanelRightClose } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import { NavLink } from 'react-router-dom'
 import { ARTIFACT_TYPE_LABELS } from '../../core/types'
 import type { Document, ResolvedRelation } from '../../core/types'
 import { encodeDocId } from '../api'
 import type { Heading } from '../headings'
+import ResizeHandle, { useResizableWidth } from './ResizeHandle'
 
 interface SidePanelProps {
   doc: Document
@@ -18,6 +20,16 @@ const TRACE_KINDS = new Set(['derives', 'satisfies', 'verifies', 'supersedes'])
 
 export default function SidePanel({ doc, headings, onPeek, onCollapse }: SidePanelProps) {
   const [tab, setTab] = useState<InspectorTab>('outline')
+  const {
+    width: panelWidth,
+    setWidth: setPanelWidth,
+    resetWidth: resetPanelWidth,
+  } = useResizableWidth({
+    storageKey: 'documi:inspector-width',
+    defaultWidth: 300,
+    minWidth: 220,
+    maxWidth: 480,
+  })
 
   const reviewStats = useMemo(() => {
     let total = 0
@@ -57,143 +69,146 @@ export default function SidePanel({ doc, headings, onPeek, onCollapse }: SidePan
   const totalLinks = upstream.length + downstream.length + doc.sourceRefs.length + mentions.length
 
   return (
-    <aside className="side-panel" aria-label="コンテキストインスペクタ">
-      <header className="rp-header">
-        <div className="rp-tabs" role="tablist" aria-label="インスペクタ切替">
+    <>
+      <ResizeHandle
+        side="left"
+        width={panelWidth}
+        minWidth={220}
+        maxWidth={480}
+        onChange={setPanelWidth}
+        onReset={resetPanelWidth}
+        label="右インスペクタ幅を調整"
+      />
+      <aside className="side-panel" style={{ flexBasis: `${panelWidth}px` }} aria-label="コンテキストインスペクタ">
+        <header className="rp-header">
+          <div className="rp-tabs" role="tablist" aria-label="インスペクタ切替">
+            <button
+              type="button"
+              role="tab"
+              aria-selected={tab === 'outline'}
+              className={`rp-tab${tab === 'outline' ? ' active' : ''}`}
+              onClick={() => setTab('outline')}
+            >
+              Outline
+            </button>
+            <button
+              type="button"
+              role="tab"
+              aria-selected={tab === 'links'}
+              className={`rp-tab${tab === 'links' ? ' active' : ''}`}
+              onClick={() => setTab('links')}
+            >
+              Links <span className="rp-tab-count">{totalLinks}</span>
+            </button>
+          </div>
           <button
             type="button"
-            role="tab"
-            aria-selected={tab === 'outline'}
-            className={`rp-tab${tab === 'outline' ? ' active' : ''}`}
-            onClick={() => setTab('outline')}
+            className="rp-collapse-btn"
+            onClick={onCollapse}
+            title="右パネルを閉じる"
+            aria-label="右パネルを閉じる"
           >
-            Outline
+            <PanelRightClose size={15} strokeWidth={1.75} aria-hidden="true" />
           </button>
-          <button
-            type="button"
-            role="tab"
-            aria-selected={tab === 'links'}
-            className={`rp-tab${tab === 'links' ? ' active' : ''}`}
-            onClick={() => setTab('links')}
-          >
-            Links <span className="rp-tab-count">{totalLinks}</span>
-          </button>
-        </div>
-        <button
-          type="button"
-          className="rp-collapse-btn"
-          onClick={onCollapse}
-          title="右パネルを閉じる"
-          aria-label="右パネルを閉じる"
-        >
-          <svg width="14" height="14" viewBox="0 0 16 16" fill="none" aria-hidden="true">
-            <path
-              d="M5.5 3.5L10 8L5.5 12.5"
-              stroke="currentColor"
-              strokeWidth="1.5"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            />
-          </svg>
-        </button>
-      </header>
+        </header>
 
-      {reviewStats.total > 0 && (
-        <div className="rp-health-bar">
-          <span>
-            Approved <strong>{reviewStats.approved}</strong>/{reviewStats.total}
-          </span>
-          {reviewStats.specTotal > 0 && (
+        {reviewStats.total > 0 && (
+          <div className="rp-health-bar">
             <span>
-              Verified <strong>{reviewStats.verified}</strong>/{reviewStats.specTotal}
+              Approved <strong>{reviewStats.approved}</strong>/{reviewStats.total}
             </span>
-          )}
-          {reviewStats.attention > 0 && <span className="rp-health-warn">要確認 {reviewStats.attention}</span>}
-        </div>
-      )}
+            {reviewStats.specTotal > 0 && (
+              <span>
+                Verified <strong>{reviewStats.verified}</strong>/{reviewStats.specTotal}
+              </span>
+            )}
+            {reviewStats.attention > 0 && <span className="rp-health-warn">要確認 {reviewStats.attention}</span>}
+          </div>
+        )}
 
-      {tab === 'outline' ? (
-        <div className="rp-body">
-          {doc.blocks.length > 0 && (
-            <section className="rp-section">
-              <h2 className="rp-title">Blocks ({doc.blocks.length})</h2>
-              <ul className="rp-blocks">
-                {doc.blocks.map((b) => {
-                  const openFb = b.feedback.filter((f) => !f.resolved).length
-                  const dotClass = b.suspect ? 'suspect' : b.review
-                  return (
-                    <li key={b.id}>
-                      <button
-                        type="button"
-                        className="rp-block-link"
-                        onClick={() => scrollToElement(`block-${b.id}`)}
-                        title={`${b.id} (${b.suspect ? 'suspect' : b.review})`}
-                      >
-                        {b.kind !== 'note' && <span className={`rp-review-dot rp-review-${dotClass}`} />}
-                        <span className={`rp-block-kind rp-block-kind-${b.kind}`}>{b.kind}</span>
-                        <span className="rp-block-id mono">{b.id}</span>
-                        {openFb > 0 && <span className="rp-fb-count">{openFb}</span>}
+        {tab === 'outline' ? (
+          <div className="rp-body">
+            {doc.blocks.length > 0 && (
+              <section className="rp-section">
+                <h2 className="rp-title">Blocks ({doc.blocks.length})</h2>
+                <ul className="rp-blocks">
+                  {doc.blocks.map((b) => {
+                    const openFb = b.feedback.filter((f) => !f.resolved).length
+                    const dotClass = b.suspect ? 'suspect' : b.review
+                    return (
+                      <li key={b.id}>
+                        <button
+                          type="button"
+                          className="rp-block-link"
+                          onClick={() => scrollToElement(`block-${b.id}`)}
+                          title={`${b.id} (${b.suspect ? 'suspect' : b.review})`}
+                        >
+                          {b.kind !== 'note' && <span className={`rp-review-dot rp-review-${dotClass}`} />}
+                          <span className={`rp-block-kind rp-block-kind-${b.kind}`}>{b.kind}</span>
+                          <span className="rp-block-id mono">{b.id}</span>
+                          {openFb > 0 && <span className="rp-fb-count">{openFb}</span>}
+                        </button>
+                      </li>
+                    )
+                  })}
+                </ul>
+              </section>
+            )}
+
+            {headings.length > 0 ? (
+              <section className="rp-section">
+                <h2 className="rp-title">Headings</h2>
+                <ul className="rp-outline">
+                  {headings.map((h, i) => (
+                    <li key={`${h.id}-${i}`} style={{ paddingLeft: `${(h.level - 1) * 12}px` }}>
+                      <button type="button" className="rp-outline-link" onClick={() => scrollToElement(h.id)}>
+                        {h.text}
                       </button>
                     </li>
-                  )
-                })}
-              </ul>
-            </section>
-          )}
-
-          {headings.length > 0 ? (
+                  ))}
+                </ul>
+              </section>
+            ) : (
+              doc.blocks.length === 0 && <p className="rp-empty">見出し・ブロックはありません</p>
+            )}
+          </div>
+        ) : (
+          <div className="rp-body">
             <section className="rp-section">
-              <h2 className="rp-title">Headings</h2>
-              <ul className="rp-outline">
-                {headings.map((h, i) => (
-                  <li key={`${h.id}-${i}`} style={{ paddingLeft: `${(h.level - 1) * 12}px` }}>
-                    <button type="button" className="rp-outline-link" onClick={() => scrollToElement(h.id)}>
-                      {h.text}
-                    </button>
-                  </li>
-                ))}
-              </ul>
+              <h2 className="rp-title">上流・前提 ({upstream.length})</h2>
+              <RelationList items={upstream} empty="上流の参照はありません" onPeek={onPeek} />
             </section>
-          ) : (
-            doc.blocks.length === 0 && <p className="rp-empty">見出し・ブロックはありません</p>
-          )}
-        </div>
-      ) : (
-        <div className="rp-body">
-          <section className="rp-section">
-            <h2 className="rp-title">上流・前提 ({upstream.length})</h2>
-            <RelationList items={upstream} empty="上流の参照はありません" onPeek={onPeek} />
-          </section>
 
-          <section className="rp-section">
-            <h2 className="rp-title">下流・依存元 ({downstream.length})</h2>
-            <RelationList items={downstream} empty="下流の参照はありません" onPeek={onPeek} />
-          </section>
-
-          {doc.sourceRefs.length > 0 && (
             <section className="rp-section">
-              <h2 className="rp-title">関連コード ({doc.sourceRefs.length})</h2>
-              <ul className="rp-source-list">
-                {doc.sourceRefs.map((ref, i) => (
-                  <li key={`${ref.file}:${ref.symbol ?? ref.lines ?? i}`} className="rp-source-item mono">
-                    <span className="rp-source-file">{ref.file}</span>
-                    {ref.symbol && <span className="rp-source-sym">#{ref.symbol}</span>}
-                    {ref.lines && <span className="rp-source-sym">:L{ref.lines}</span>}
-                  </li>
-                ))}
-              </ul>
+              <h2 className="rp-title">下流・依存元 ({downstream.length})</h2>
+              <RelationList items={downstream} empty="下流の参照はありません" onPeek={onPeek} />
             </section>
-          )}
 
-          {mentions.length > 0 && (
-            <section className="rp-section">
-              <h2 className="rp-title">言及 ({mentions.length})</h2>
-              <RelationList items={mentions} empty="" onPeek={onPeek} />
-            </section>
-          )}
-        </div>
-      )}
-    </aside>
+            {doc.sourceRefs.length > 0 && (
+              <section className="rp-section">
+                <h2 className="rp-title">関連コード ({doc.sourceRefs.length})</h2>
+                <ul className="rp-source-list">
+                  {doc.sourceRefs.map((ref, i) => (
+                    <li key={`${ref.file}:${ref.symbol ?? ref.lines ?? i}`} className="rp-source-item mono">
+                      <span className="rp-source-file">{ref.file}</span>
+                      {ref.symbol && <span className="rp-source-sym">#{ref.symbol}</span>}
+                      {ref.lines && <span className="rp-source-sym">:L{ref.lines}</span>}
+                    </li>
+                  ))}
+                </ul>
+              </section>
+            )}
+
+            {mentions.length > 0 && (
+              <section className="rp-section">
+                <h2 className="rp-title">言及 ({mentions.length})</h2>
+                <RelationList items={mentions} empty="" onPeek={onPeek} />
+              </section>
+            )}
+          </div>
+        )}
+      </aside>
+    </>
   )
 }
 
@@ -249,12 +264,7 @@ function RelationList({
 }
 
 function SplitIcon() {
-  return (
-    <svg width="14" height="14" viewBox="0 0 16 16" fill="none" aria-hidden="true">
-      <rect x="2" y="2.5" width="12" height="11" rx="1.5" stroke="currentColor" strokeWidth="1.4" />
-      <path d="M8.5 2.5V13.5" stroke="currentColor" strokeWidth="1.4" />
-    </svg>
-  )
+  return <Columns2 size={14} strokeWidth={1.75} aria-hidden="true" />
 }
 
 function scrollToElement(id: string) {

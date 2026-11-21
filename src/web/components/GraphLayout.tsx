@@ -5,7 +5,6 @@ import { ARTIFACT_TYPE_LABELS } from '../../core/types'
 import { api, encodeDocId, type GraphResponse } from '../api'
 import { useDocsRevision } from '../live'
 import DocPeekPane from './DocPeekPane'
-import DocTabs from './DocTabs'
 import SigmaGraph from './SigmaGraph'
 
 type PageTab = 'graph' | 'matrix'
@@ -90,8 +89,6 @@ export default function GraphLayout() {
   return (
     <>
       <main className={`content${tab === 'graph' ? ' content-graph-full' : ''}`}>
-        <DocTabs />
-
         <div className="graph-topbar">
           <div className="graph-tabs" role="tablist">
             <button

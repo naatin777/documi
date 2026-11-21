@@ -4,7 +4,7 @@ import { ARTIFACT_TYPE_LABELS, ARTIFACT_TYPES } from '../../core/types'
 import { api, encodeDocId } from '../api'
 import type { OverviewResponse } from '../api'
 import { useDocsRevision } from '../live'
-import DocTabs from './DocTabs'
+import { ArtifactTypeIcon } from './BrandMark'
 
 // @implements ui.web-viewer
 export default function OverviewLayout() {
@@ -35,7 +35,6 @@ export default function OverviewLayout() {
   return (
     <>
       <main className="content">
-        <DocTabs />
         <article className="page doc-page overview-page">
           <header className="doc-header">
             <div className="doc-badges">
@@ -133,7 +132,7 @@ export default function OverviewLayout() {
                 <div className="ov-type-grid">
                   {ARTIFACT_TYPES.map((type) => (
                     <div key={type} className={`ov-type-card type-${type}`}>
-                      <span className="ov-type-dot" />
+                      <ArtifactTypeIcon type={type} size={14} className="ov-type-icon" />
                       <span className="ov-type-name">{ARTIFACT_TYPE_LABELS[type]}</span>
                       <span className="ov-type-count">{data.byType[type]}</span>
                     </div>
