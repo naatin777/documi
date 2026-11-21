@@ -1,8 +1,9 @@
+import { Minus, Plus, RotateCcw, SlidersHorizontal, Sparkles } from 'lucide-react'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { MultiDirectedGraph } from 'graphology'
 import Sigma from 'sigma'
-import { sdfCircle, sdfRectangle } from 'sigma/rendering'
+import { sdfCircle } from 'sigma/rendering'
 import { ARTIFACT_TYPE_LABELS } from '../../core/types'
 import type { ArtifactType } from '../../core/types'
 import { encodeDocId, type GraphEdgeItem, type GraphNodeItem, type GraphResponse } from '../api'
@@ -12,12 +13,21 @@ interface SigmaNodeAttrs {
   x: number
   y: number
   size: number
-  shape: 'rectangle' | 'circle'
   label: string
+  fullLabel: string
+  shortLabel: string
   color: string
   nodeKind: 'doc' | 'block'
   artifactType: ArtifactType
   docId: string
+}
+
+type LodMode = 'dot' | 'doc-card' | 'all-card'
+
+function truncateLabel(text: string, maxChars: number): string {
+  const chars = Array.from(text)
+  if (chars.length <= maxChars) return text
+  return `${chars.slice(0, maxChars - 1).join('')}…`
 }
 
 interface SigmaEdgeAttrs {
@@ -35,10 +45,10 @@ interface ForceParams {
 }
 
 const DEFAULT_FORCES: ForceParams = {
-  centerForce: 0.055,
-  repelForce: 155,
-  linkForce: 0.07,
-  linkDistance: 34,
+  centerForce: 0.05,
+  repelForce: 210,
+  linkForce: 0.065,
+  linkDistance: 46,
 }
 
 const TYPE_COLORS: Record<ArtifactType, string> = {
@@ -126,8 +136,9 @@ function buildGraphAndSim(
     const x = Math.cos(theta) * r
     const y = Math.sin(theta) * r
     const deg = degree.get(n.id) ?? 0
-    // コンパクトで見やすいサイズに抑える (doc: 角丸長方形, block: 小ぶりな丸)
-    const size = n.kind === 'doc' ? 5.2 + Math.min(deg * 0.45, 3.6) : 3.2 + Math.min(deg * 0.3, 2.0)
+    // ドット本体はコンパクトに保ち、通常〜ズームイン時は GPU バックドロップでタイトル入り角丸カードへ包む
+    const size = n.kind === 'doc' ? 4.4 + Math.min(deg * 0.35, 2.2) : 3.0 + Math.min(deg * 0.25, 1.5)
+    const shortLabel = truncateLabel(n.title, n.kind === 'doc' ? 16 : 22)
 
     idxById.set(n.id, simNodes.length)
     simNodes.push({
@@ -143,8 +154,9 @@ function buildGraphAndSim(
       x,
       y,
       size,
-      shape: n.kind === 'doc' ? 'rectangle' : 'circle',
-      label: n.title,
+      label: shortLabel,
+      fullLabel: n.title,
+      shortLabel,
       color: TYPE_COLORS[n.type],
       nodeKind: n.kind,
       artifactType: n.type,
@@ -189,9 +201,10 @@ function buildGraphAndSim(
 }
 
 /**
- * Obsidian Graph View ライクなリアルタイム力学シミュレーション付き Sigma.js (WebGL) グラフ。
- * - 文書ノードはコンパクトな角丸長方形 (sdfRectangle)、ブロックノードは小ぶりな円形
- * - ホバー／選択時は他を消さず、対象と隣接ノードを枠 (backdrop border) で囲んで強調
+ * セマンティックズーム (LOD) 付き Sigma.js (WebGL) リアルタイム力学グラフ。
+ * - 通常〜ズームイン時: 左に Type 色ドット＋右にタイトルを 1 枚のコンパクト角丸長方形カード (GPU backdrop) で描画
+ * - ズームアウト / 大規模俯瞰時: 自動で小さい色付きドットへ縮退し、重なりを抑えて全体構造を俯瞰
+ * - ホバー／選択時は他ノードを消さず、対象を全文タイトル＋太枠カード、隣接ノードを色枠カードで前面強調
  */
 export default function SigmaGraph({ data, selectedNodeId, onSelectNode }: SigmaGraphProps) {
   const containerRef = useRef<HTMLDivElement>(null)
@@ -233,16 +246,28 @@ export default function SigmaGraph({ data, selectedNodeId, onSelectNode }: Sigma
     const simById = new Map(simNodes.map((n) => [n.id, n]))
 
     const labelColor = isDark ? '#e2e8f0' : '#1e293b'
-    const focusBg = isDark ? 'rgba(24, 27, 34, 0.92)' : 'rgba(255, 255, 255, 0.94)'
-    const neighborBg = isDark ? 'rgba(24, 27, 34, 0.78)' : 'rgba(255, 255, 255, 0.84)'
-    const shadowColor = isDark ? 'rgba(0, 0, 0, 0.45)' : 'rgba(15, 23, 42, 0.14)'
+    const cardBg = isDark ? 'rgba(24, 27, 34, 0.92)' : 'rgba(255, 255, 255, 0.94)'
+    const cardBorder = isDark ? 'rgba(148, 163, 184, 0.28)' : 'rgba(148, 163, 184, 0.45)'
+    const focusBg = isDark ? 'rgba(28, 32, 41, 0.97)' : 'rgba(255, 255, 255, 0.98)'
+    const neighborBg = isDark ? 'rgba(24, 27, 34, 0.94)' : 'rgba(255, 255, 255, 0.96)'
+    const shadowColor = isDark ? 'rgba(0, 0, 0, 0.48)' : 'rgba(15, 23, 42, 0.14)'
+
+    // ノード総数に応じてセマンティックズーム (LOD) の切替しきい値を調整
+    const docCardThreshold = data.nodes.length <= 60 ? 1.35 : data.nodes.length <= 180 ? 0.92 : 0.65
+    const blockCardThreshold = 0.65
+    const computeLod = (ratio: number): LodMode => {
+      if (ratio <= blockCardThreshold) return 'all-card'
+      if (ratio <= docCardThreshold) return 'doc-card'
+      return 'dot'
+    }
+    let currentLod: LodMode = computeLod(1.0)
 
     let renderer: Sigma<SigmaNodeAttrs, SigmaEdgeAttrs>
     try {
       renderer = new Sigma<SigmaNodeAttrs, SigmaEdgeAttrs>(graph, container, {
         primitives: {
           nodes: {
-            shapes: [sdfRectangle({ aspectRatio: 1.9, cornerRadius: 0.24 }), sdfCircle()],
+            shapes: [sdfCircle()],
           },
         },
         settings: {
@@ -251,22 +276,44 @@ export default function SigmaGraph({ data, selectedNodeId, onSelectNode }: Sigma
           enableNodeDrag: true,
           allowInvalidContainer: true,
           autoRescale: 'once',
-          stagePadding: 48,
+          stagePadding: 56,
           labelRenderedSizeThreshold: 2,
-          labelDensity: 0.45,
+          labelDensity: 0.55,
           minCameraRatio: 0.12,
           maxCameraRatio: 5,
         },
         nodeReducer: (node, displayData, attrs) => {
           const focus = hoveredRef.current ?? selectedRef.current
-          const base = {
-            ...displayData,
-            shape: attrs.shape,
-            labelColor,
-            labelSize: attrs.nodeKind === 'doc' ? 12 : 10.5,
-            labelPosition: 'below' as const,
-            backdropVisibility: 'hidden' as const,
-          }
+          const showAsCard = currentLod === 'all-card' || (currentLod === 'doc-card' && attrs.nodeKind === 'doc')
+
+          const base = showAsCard
+            ? {
+                ...displayData,
+                label: attrs.shortLabel,
+                labelColor,
+                labelFont: "'IBM Plex Sans', 'IBM Plex Sans JP', sans-serif",
+                labelSize: attrs.nodeKind === 'doc' ? 11.5 : 10,
+                labelPosition: 'right' as const,
+                backdropVisibility: 'visible' as const,
+                backdropArea: 'both' as const,
+                backdropColor: cardBg,
+                backdropBorderColor: cardBorder,
+                backdropBorderWidth: 1,
+                backdropCornerRadius: 6,
+                backdropPadding: 4,
+                backdropLabelPadding: 5,
+                backdropShadowColor: shadowColor,
+                backdropShadowBlur: 3,
+              }
+            : {
+                ...displayData,
+                label: attrs.shortLabel,
+                labelColor,
+                labelFont: "'IBM Plex Sans', 'IBM Plex Sans JP', sans-serif",
+                labelSize: attrs.nodeKind === 'doc' ? 11 : 10,
+                labelPosition: 'below' as const,
+                backdropVisibility: 'hidden' as const,
+              }
 
           if (!focus || !graph.hasNode(focus)) {
             return base
@@ -275,7 +322,9 @@ export default function SigmaGraph({ data, selectedNodeId, onSelectNode }: Sigma
           if (node === focus) {
             return {
               ...base,
-              size: displayData.size * 1.12,
+              label: attrs.fullLabel,
+              size: displayData.size * 1.15,
+              labelPosition: 'right' as const,
               labelVisibility: 'visible' as const,
               backdropVisibility: 'visible' as const,
               backdropArea: 'both' as const,
@@ -284,6 +333,7 @@ export default function SigmaGraph({ data, selectedNodeId, onSelectNode }: Sigma
               backdropBorderWidth: 2,
               backdropCornerRadius: 6,
               backdropPadding: 5,
+              backdropLabelPadding: 6,
               backdropShadowColor: shadowColor,
               backdropShadowBlur: 10,
               zIndex: 3,
@@ -293,16 +343,19 @@ export default function SigmaGraph({ data, selectedNodeId, onSelectNode }: Sigma
           if (graph.areNeighbors(focus, node)) {
             return {
               ...base,
+              label: attrs.shortLabel,
+              labelPosition: 'right' as const,
               labelVisibility: 'visible' as const,
               backdropVisibility: 'visible' as const,
               backdropArea: 'both' as const,
               backdropColor: neighborBg,
               backdropBorderColor: displayData.color,
-              backdropBorderWidth: 1,
-              backdropCornerRadius: 5,
-              backdropPadding: 3,
+              backdropBorderWidth: 1.25,
+              backdropCornerRadius: 6,
+              backdropPadding: 4,
+              backdropLabelPadding: 5,
               backdropShadowColor: shadowColor,
-              backdropShadowBlur: 4,
+              backdropShadowBlur: 5,
               zIndex: 2,
             }
           }
@@ -345,6 +398,17 @@ export default function SigmaGraph({ data, selectedNodeId, onSelectNode }: Sigma
     }
 
     sigmaRef.current = renderer
+
+    // ズーム倍率に応じたセマンティックズーム (LOD) 切替（状態が変わったときのみ再描画）
+    const camera = renderer.getCamera()
+    const onCameraUpdated = () => {
+      const nextLod = computeLod(camera.getState().ratio)
+      if (nextLod !== currentLod) {
+        currentLod = nextLod
+        renderer.refresh()
+      }
+    }
+    camera.on('updated', onCameraUpdated)
 
     // リアルタイム Force-Directed 物理エンジン (Obsidian Graph View スタイル)
     let draggedNodeId: string | null = null
@@ -509,6 +573,7 @@ export default function SigmaGraph({ data, selectedNodeId, onSelectNode }: Sigma
 
     return () => {
       killed = true
+      camera.off('updated', onCameraUpdated)
       if (rafId !== null) cancelAnimationFrame(rafId)
       wakeRef.current = null
       shakeRef.current = null
@@ -564,16 +629,18 @@ export default function SigmaGraph({ data, selectedNodeId, onSelectNode }: Sigma
             className="sigma-ctrl-btn"
             onClick={() => void sigmaRef.current?.getCamera().zoomIn({ duration: 220 })}
             title="ズームイン"
+            aria-label="ズームイン"
           >
-            +
+            <Plus size={14} strokeWidth={1.85} aria-hidden="true" />
           </button>
           <button
             type="button"
             className="sigma-ctrl-btn"
             onClick={() => void sigmaRef.current?.getCamera().zoomOut({ duration: 220 })}
             title="ズームアウト"
+            aria-label="ズームアウト"
           >
-            −
+            <Minus size={14} strokeWidth={1.85} aria-hidden="true" />
           </button>
           <button
             type="button"
@@ -583,24 +650,27 @@ export default function SigmaGraph({ data, selectedNodeId, onSelectNode }: Sigma
               void sigmaRef.current?.getCamera().reset({ duration: 280 })
             }}
             title="全体表示へリセット"
+            aria-label="全体表示へリセット"
           >
-            ⟲
+            <RotateCcw size={13} strokeWidth={1.85} aria-hidden="true" />
           </button>
           <button
             type="button"
             className="sigma-ctrl-btn"
             onClick={() => shakeRef.current?.()}
             title="揺らして再シミュレーション"
+            aria-label="揺らして再シミュレーション"
           >
-            ⚡
+            <Sparkles size={13} strokeWidth={1.85} aria-hidden="true" />
           </button>
           <button
             type="button"
             className={`sigma-ctrl-btn${showForces ? ' active' : ''}`}
             onClick={() => setShowForces((v) => !v)}
             title="物理パラメータ調整 (Forces)"
+            aria-label="物理パラメータ調整"
           >
-            ⚙
+            <SlidersHorizontal size={13} strokeWidth={1.85} aria-hidden="true" />
           </button>
         </div>
       </div>
@@ -684,7 +754,9 @@ export default function SigmaGraph({ data, selectedNodeId, onSelectNode }: Sigma
             </span>
           ))}
         </div>
-        <div className="sigma-legend-hint">ノードをドラッグして引っ張る / ホイールでズーム / ダブルクリックで開く</div>
+        <div className="sigma-legend-hint">
+          ズームでカード/ドット自動切替 / ドラッグで引っ張る / クリックで右に表示 / ダブルクリックで開く
+        </div>
       </div>
     </div>
   )

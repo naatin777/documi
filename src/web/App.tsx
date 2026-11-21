@@ -1,9 +1,10 @@
-import { lazy, Suspense, useEffect, useState } from 'react'
+import { lazy, Suspense, useEffect, useState, type CSSProperties } from 'react'
 import { ErrorBoundary, type FallbackProps } from 'react-error-boundary'
 import { Route, Routes, useLocation } from 'react-router-dom'
 import { api } from './api'
 import DocTabs from './components/DocTabs'
 import Explorer from './components/Explorer'
+import ResizeHandle, { useResizableWidth } from './components/ResizeHandle'
 import TopBar from './components/TopBar'
 import { LiveProvider, useDocsRevision } from './live'
 import { TabsProvider } from './tabs'
@@ -48,6 +49,16 @@ function AppShell() {
   const [searchOpen, setSearchOpen] = useState(false)
   const [sidebarOpen, setSidebarOpen] = useState(true)
   const [reviewBadgeCount, setReviewBadgeCount] = useState(0)
+  const {
+    width: explorerWidth,
+    setWidth: setExplorerWidth,
+    resetWidth: resetExplorerWidth,
+  } = useResizableWidth({
+    storageKey: 'documi:explorer-width',
+    defaultWidth: 280,
+    minWidth: 200,
+    maxWidth: 480,
+  })
   const revision = useDocsRevision()
   const location = useLocation()
 
@@ -90,46 +101,44 @@ function AppShell() {
   }, [])
 
   return (
-    <div className={`app${navOpen ? ' nav-open' : ''}${!sidebarOpen ? ' sidebar-collapsed' : ''}`}>
+    <div
+      className={`app${navOpen ? ' nav-open' : ''}${!sidebarOpen ? ' sidebar-collapsed' : ''}`}
+      style={{ '--explorer-width': `${explorerWidth}px` } as CSSProperties}
+    >
       <TopBar onMenu={() => setNavOpen(true)} />
-      {!sidebarOpen && (
-        <button
-          type="button"
-          className="sidebar-reopen-btn"
-          onClick={() => setSidebarOpen(true)}
-          title="サイドバーを開く (⌘B)"
-          aria-label="サイドバーを開く"
-        >
-          <svg width="14" height="14" viewBox="0 0 16 16" fill="none" aria-hidden="true">
-            <path
-              d="M5.5 3.5L10 8L5.5 12.5"
-              stroke="currentColor"
-              strokeWidth="1.5"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            />
-          </svg>
-        </button>
-      )}
       <Explorer
         reviewBadgeCount={reviewBadgeCount}
-        onCollapse={() => setSidebarOpen(false)}
         onClose={() => setNavOpen(false)}
         onOpenSearch={() => setSearchOpen(true)}
+        resizeHandle={
+          <ResizeHandle
+            side="right"
+            className="resize-handle-edge-right"
+            width={explorerWidth}
+            minWidth={200}
+            maxWidth={480}
+            onChange={setExplorerWidth}
+            onReset={resetExplorerWidth}
+            label="サイドバー幅を調整"
+          />
+        }
       />
       {navOpen && <div className="nav-overlay" onClick={() => setNavOpen(false)} aria-hidden="true" />}
-      <div className="doccols">
-        <ErrorBoundary FallbackComponent={ErrorFallback} resetKeys={[location.pathname]}>
-          <Suspense fallback={<RouteLoading />}>
-            <Routes>
-              <Route path="/" element={<OverviewLayout />} />
-              <Route path="/review" element={<ReviewLayout />} />
-              <Route path="/graph" element={<GraphLayout />} />
-              <Route path="/docs/*" element={<DocLayout />} />
-              <Route path="*" element={<NotFoundLayout />} />
-            </Routes>
-          </Suspense>
-        </ErrorBoundary>
+      <div className="workspace">
+        <DocTabs sidebarOpen={sidebarOpen} onToggleSidebar={() => setSidebarOpen((v) => !v)} />
+        <div className="doccols">
+          <ErrorBoundary FallbackComponent={ErrorFallback} resetKeys={[location.pathname]}>
+            <Suspense fallback={<RouteLoading />}>
+              <Routes>
+                <Route path="/" element={<OverviewLayout />} />
+                <Route path="/review" element={<ReviewLayout />} />
+                <Route path="/graph" element={<GraphLayout />} />
+                <Route path="/docs/*" element={<DocLayout />} />
+                <Route path="*" element={<NotFoundLayout />} />
+              </Routes>
+            </Suspense>
+          </ErrorBoundary>
+        </div>
       </div>
       {searchOpen && (
         <Suspense fallback={null}>
@@ -167,7 +176,6 @@ function ErrorFallback({ error, resetErrorBoundary }: FallbackProps) {
 function NotFoundLayout() {
   return (
     <main className="content">
-      <DocTabs />
       <div className="page">
         <h1>ページが見つかりません</h1>
         <p>指定されたページは存在しません。</p>

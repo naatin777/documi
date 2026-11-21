@@ -1,3 +1,4 @@
+import { Monitor, Moon, Sun } from 'lucide-react'
 import { createContext, useContext, useEffect, useState, type ReactNode } from 'react'
 
 export type ThemeMode = 'light' | 'dark' | 'system'
@@ -78,45 +79,9 @@ export function ThemeToggle() {
       aria-label={`テーマを切り替える（現在: ${MODE_LABELS[mode]}）`}
       onClick={() => setMode(next)}
     >
-      {mode === 'light' && <SunIcon />}
-      {mode === 'dark' && <MoonIcon />}
-      {mode === 'system' && <MonitorIcon />}
+      {mode === 'light' && <Sun size={15} strokeWidth={1.75} aria-hidden="true" />}
+      {mode === 'dark' && <Moon size={15} strokeWidth={1.75} aria-hidden="true" />}
+      {mode === 'system' && <Monitor size={15} strokeWidth={1.75} aria-hidden="true" />}
     </button>
-  )
-}
-
-function SunIcon() {
-  return (
-    <svg width="15" height="15" viewBox="0 0 16 16" fill="none" aria-hidden="true">
-      <circle cx="8" cy="8" r="3" stroke="currentColor" strokeWidth="1.4" />
-      <path
-        d="M8 1.5v1.5M8 13v1.5M1.5 8H3M13 8h1.5M3.4 3.4l1 1M11.6 11.6l1 1M12.6 3.4l-1 1M4.4 11.6l-1 1"
-        stroke="currentColor"
-        strokeWidth="1.4"
-        strokeLinecap="round"
-      />
-    </svg>
-  )
-}
-
-function MoonIcon() {
-  return (
-    <svg width="15" height="15" viewBox="0 0 16 16" fill="none" aria-hidden="true">
-      <path
-        d="M13.5 9.5A5.5 5.5 0 016.5 2.5a5.5 5.5 0 107 7z"
-        stroke="currentColor"
-        strokeWidth="1.4"
-        strokeLinejoin="round"
-      />
-    </svg>
-  )
-}
-
-function MonitorIcon() {
-  return (
-    <svg width="15" height="15" viewBox="0 0 16 16" fill="none" aria-hidden="true">
-      <rect x="2" y="2.5" width="12" height="8" rx="1.5" stroke="currentColor" strokeWidth="1.4" />
-      <path d="M6 13.5h4M8 10.5v3" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
-    </svg>
   )
 }

@@ -1,3 +1,4 @@
+import { ArrowLeft, ExternalLink, X } from 'lucide-react'
 import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
 import { Link } from 'react-router-dom'
 import { ARTIFACT_TYPE_LABELS } from '../../core/types'
@@ -5,6 +6,7 @@ import type { Document } from '../../core/types'
 import { api, encodeDocId, type TermEntry } from '../api'
 import { useDocsRevision } from '../live'
 import Markdown from './Markdown'
+import ResizeHandle, { useResizableWidth } from './ResizeHandle'
 import { DocReviewProvider } from './SemanticBlocks'
 
 interface DocPeekPaneProps {
@@ -33,6 +35,16 @@ export default function DocPeekPane({ docId, focusBlockId, onBack, onClose, extr
   const [localTick, setLocalTick] = useState(0)
   const [activeTab, setActiveTab] = useState<'preview' | 'extra'>('preview')
   const bodyRef = useRef<HTMLDivElement>(null)
+  const {
+    width: peekWidth,
+    setWidth: setPeekWidth,
+    resetWidth: resetPeekWidth,
+  } = useResizableWidth({
+    storageKey: 'documi:peek-width',
+    defaultWidth: 520,
+    minWidth: 320,
+    maxWidth: 860,
+  })
 
   const handleMutate = useCallback(() => {
     setLocalTick((t) => t + 1)
@@ -87,82 +99,104 @@ export default function DocPeekPane({ docId, focusBlockId, onBack, onClose, extr
 
   const openHref = `/docs/${encodeDocId(docId)}${focusBlockId ? `#block-${encodeURIComponent(focusBlockId)}` : ''}`
 
+  const maxPeekWidth = useCallback(() => {
+    if (typeof window === 'undefined') return 860
+    return Math.max(360, Math.min(860, Math.round(window.innerWidth * 0.65)))
+  }, [])
+
   return (
-    <aside className="side-panel side-panel-peek" aria-label="ドキュメントプレビュー">
-      <header className="peek-header">
-        <div className="peek-header-top">
-          <div className="peek-header-left">
-            {onBack && (
-              <button type="button" className="peek-icon-btn" onClick={onBack} title="Outline / Links に戻る">
-                ← 戻る
+    <>
+      <ResizeHandle
+        side="left"
+        width={peekWidth}
+        minWidth={320}
+        maxWidth={maxPeekWidth}
+        onChange={setPeekWidth}
+        onReset={resetPeekWidth}
+        label="プレビューペイン幅を調整"
+      />
+      <aside
+        className="side-panel side-panel-peek"
+        style={{ flexBasis: `${peekWidth}px` }}
+        aria-label="ドキュメントプレビュー"
+      >
+        <header className="peek-header">
+          <div className="peek-header-top">
+            <div className="peek-header-left">
+              {onBack && (
+                <button type="button" className="peek-icon-btn" onClick={onBack} title="Outline / Links に戻る">
+                  <ArrowLeft size={13} strokeWidth={1.8} aria-hidden="true" />
+                  <span>戻る</span>
+                </button>
+              )}
+              {doc && <span className={`badge badge-type type-${doc.type}`}>{ARTIFACT_TYPE_LABELS[doc.type]}</span>}
+              {doc?.date && <span className="peek-date mono">{doc.date}</span>}
+            </div>
+            <div className="peek-header-actions">
+              <Link to={openHref} className="peek-icon-btn peek-open-link" title="メイン画面で開く">
+                <span>開く</span>
+                <ExternalLink size={12} strokeWidth={1.8} aria-hidden="true" />
+              </Link>
+              <button type="button" className="peek-icon-btn" onClick={onClose} aria-label="プレビューを閉じる">
+                <X size={13} strokeWidth={1.8} aria-hidden="true" />
               </button>
-            )}
-            {doc && <span className={`badge badge-type type-${doc.type}`}>{ARTIFACT_TYPE_LABELS[doc.type]}</span>}
-            {doc?.date && <span className="peek-date mono">{doc.date}</span>}
+            </div>
           </div>
-          <div className="peek-header-actions">
-            <Link to={openHref} className="peek-icon-btn peek-open-link" title="メイン画面で開く">
-              開く ↗
-            </Link>
-            <button type="button" className="peek-icon-btn" onClick={onClose} aria-label="プレビューを閉じる">
-              ✕
-            </button>
+
+          <div className="peek-title-row">
+            <strong className="peek-title">{doc?.title ?? docId}</strong>
+            <span className="peek-path mono">{focusBlockId ? `${docId} #${focusBlockId}` : docId}</span>
           </div>
+
+          {extraTab && (
+            <div className="rp-tabs" role="tablist" aria-label="プレビュー切替">
+              <button
+                type="button"
+                role="tab"
+                aria-selected={activeTab === 'preview'}
+                className={`rp-tab${activeTab === 'preview' ? ' active' : ''}`}
+                onClick={() => setActiveTab('preview')}
+              >
+                本文
+              </button>
+              <button
+                type="button"
+                role="tab"
+                aria-selected={activeTab === 'extra'}
+                className={`rp-tab${activeTab === 'extra' ? ' active' : ''}`}
+                onClick={() => setActiveTab('extra')}
+              >
+                {extraTab.label}
+              </button>
+            </div>
+          )}
+        </header>
+
+        <div ref={bodyRef} className="peek-body">
+          {activeTab === 'extra' && extraTab ? (
+            extraTab.content
+          ) : (
+            <>
+              {loading && !doc && <p className="muted">読み込み中…</p>}
+              {error && <p className="error-text">{error}</p>}
+              {doc && (
+                <div className="peek-doc-content">
+                  {doc.description && <p className="peek-description">{doc.description}</p>}
+                  <DocReviewProvider blocks={doc.blocks} onMutate={handleMutate}>
+                    <Markdown
+                      body={doc.body}
+                      format={doc.format}
+                      currentDir={doc.dir}
+                      terms={terms}
+                      headingPrefix="peek"
+                    />
+                  </DocReviewProvider>
+                </div>
+              )}
+            </>
+          )}
         </div>
-
-        <div className="peek-title-row">
-          <strong className="peek-title">{doc?.title ?? docId}</strong>
-          <span className="peek-path mono">{focusBlockId ? `${docId} #${focusBlockId}` : docId}</span>
-        </div>
-
-        {extraTab && (
-          <div className="rp-tabs" role="tablist" aria-label="プレビュー切替">
-            <button
-              type="button"
-              role="tab"
-              aria-selected={activeTab === 'preview'}
-              className={`rp-tab${activeTab === 'preview' ? ' active' : ''}`}
-              onClick={() => setActiveTab('preview')}
-            >
-              本文
-            </button>
-            <button
-              type="button"
-              role="tab"
-              aria-selected={activeTab === 'extra'}
-              className={`rp-tab${activeTab === 'extra' ? ' active' : ''}`}
-              onClick={() => setActiveTab('extra')}
-            >
-              {extraTab.label}
-            </button>
-          </div>
-        )}
-      </header>
-
-      <div ref={bodyRef} className="peek-body">
-        {activeTab === 'extra' && extraTab ? (
-          extraTab.content
-        ) : (
-          <>
-            {loading && !doc && <p className="muted">読み込み中…</p>}
-            {error && <p className="error-text">{error}</p>}
-            {doc && (
-              <div className="peek-doc-content">
-                {doc.description && <p className="peek-description">{doc.description}</p>}
-                <DocReviewProvider blocks={doc.blocks} onMutate={handleMutate}>
-                  <Markdown
-                    body={doc.body}
-                    format={doc.format}
-                    currentDir={doc.dir}
-                    terms={terms}
-                    headingPrefix="peek"
-                  />
-                </DocReviewProvider>
-              </div>
-            )}
-          </>
-        )}
-      </div>
-    </aside>
+      </aside>
+    </>
   )
 }

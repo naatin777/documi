@@ -1,3 +1,4 @@
+import { Download } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
 import { useLocation } from 'react-router-dom'
 import { ARTIFACT_TYPE_LABELS } from '../../core/types'
@@ -308,15 +309,5 @@ export default function ExportActions() {
 }
 
 function ExportIcon() {
-  return (
-    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
-      <path
-        d="M8 2v8m0 0 3-3m-3 3L5 7M3 12.5h10"
-        stroke="currentColor"
-        strokeWidth="1.35"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-    </svg>
-  )
+  return <Download size={15} strokeWidth={1.75} aria-hidden="true" />
 }

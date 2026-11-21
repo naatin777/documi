@@ -9,6 +9,7 @@ import { hc } from 'hono/client'
 import type { SemanticBlock } from '../src/core/types'
 import { createApp, type ApiRoutes } from '../src/server/app'
 import { DocsStore } from '../src/server/store'
+import DocTabs from '../src/web/components/DocTabs'
 import Explorer from '../src/web/components/Explorer'
 import Markdown from '../src/web/components/Markdown'
 import OverviewLayout from '../src/web/components/OverviewLayout'
@@ -92,7 +93,7 @@ describe('Web UI & Live Spec Dogfooding', () => {
       <MemoryRouter>
         <ThemeProvider>
           <LiveProvider>
-            <Explorer reviewBadgeCount={3} onCollapse={() => {}} onClose={() => {}} onOpenSearch={() => {}} />
+            <Explorer reviewBadgeCount={3} onClose={() => {}} onOpenSearch={() => {}} />
           </LiveProvider>
         </ThemeProvider>
       </MemoryRouter>,
@@ -125,6 +126,16 @@ describe('Web UI & Live Spec Dogfooding', () => {
     expect(sideHtml).toContain('Outline')
     expect(sideHtml).toContain('Links')
     expect(sideHtml).toContain('sample.rule')
+
+    const tabsHtml = renderToStaticMarkup(
+      <MemoryRouter initialEntries={['/graph']}>
+        <TabsProvider>
+          <DocTabs sidebarOpen onToggleSidebar={() => {}} />
+        </TabsProvider>
+      </MemoryRouter>,
+    )
+    expect(tabsHtml).toContain('Graph &amp; Matrix')
+    expect(tabsHtml).toContain('サイドバーを閉じる')
   })
 
   test('[ui.live-reload] SSE /api/events は接続イベントと store.reload 後の reload イベントを配信する', async () => {
