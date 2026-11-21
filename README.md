@@ -1,174 +1,59 @@
 # Documi
 
-ソフトウェア開発における仕様書・設計書・意思決定・検証記録を構造的に管理するドキュメント管理ツール。
-文書間の関係を管理し、要件から設計・実装・検証までを追跡できることを目指す。
+人間が読んでコードまで理解でき、AI エージェントが同じ挙動を再現できる **Living Specification プラットフォーム**。
 
-単なる Markdown ビューアではなく、Artifact と呼ばれる文書単位と、その間の Relations を管理する。
 ファイルシステム上の Markdown / MDX + YAML Frontmatter を Single Source of Truth とし、
-Web UI と MCP Server の両方から同じ Document Core 経由で参照できる。
+Web UI・REST API・MCP Server・CLI のすべてが同じ Document Core (`src/core`) を共有する。
 
-## ドキュメント形式
+## 主な特徴
 
-`docs/` ディレクトリ以下に、8 種類の Artifact Type ごとのディレクトリを持つ。
+- **連番廃止 & 自由な階層構造**: `docs/` 配下を再帰走査し、拡張子なし POSIX 相対パスをドキュメント ID とする
+- **4 層・9 種類の Artifact Type**: `goal` / `decision` / `domain` / `spec` / `contract` / `architecture` / `design` / `verification` / `guide`（ディレクトリ名・ファイル名から自動推論）
+- **Goal を根にした Rooted DAG**: `normative` な `<Spec>` が `derives` 経由で `goal` に繋がっていない場合は `orphan-spec` として検知
+- **MDX セマンティックタグ（任意 JS 実行禁止）**: `<Spec>`, `<Constraint>`, `<Outcome>`, `<Note>`, `<TermDef>`, `<Term>`, `<SourceRef>` + `<Callout>`, `<Tabs>`, `<Steps>`, Mermaid, KaTeX, Shiki
+- **人間レビュー & Git Diff (`docs/.documi/reviews.json`)**: MDX 本文と物理分離された承認サイドカー。本文変更で自動 `stale` ＋承認時点コミットとの行 Diff 表示、上流変更で **Suspect Links** 検知、Web UI からワンクリック承認・Stability 切替・AI 向けフィードバック投稿
+- **Living Glossary**: 登録済み `<TermDef>` 用語・別名を本文中で自動リンクし、ホバー時に定義＋AST 抽出した実コード型定義をポップオーバー表示
+- **コード・テスト・PR からの `realization` 自動算出**: `@implements` / `@verifies` / `test("[spec.id] ...")` / `<SourceRef>` / JUnit XML / `gh` PR 連携から `unimplemented` / `in-progress` / `implemented` / `verified` / `drifted` を自動判定
+- **Sigma.js (WebGL) ライブ力学ネットワークグラフ & Traceability Matrix (`/graph`)**: Obsidian Graph View ライクなフルビューポート・円形展開・ノードドラッグ弾性追従・Forces スライダー・パン/ズーム・ホバー近傍ハイライト・`Documents` / `Docs + Blocks` 粒度切替・検索フォーカス
+- **全文検索 (`Cmd+K`)** & MCP `search_documents`
+- **複数ドキュメントまとめ HTML / PDF Export (`/bundle` + `documi export`)**: 全文書・ディレクトリ配下・Goal 関連一式・任意複数選択を、表紙・自動目次・ページ内アンカー・全タブ展開付きで 1 冊に書き出し（`Bun.WebView` Chrome backend 使用・追加 npm 依存なし）
 
-| Type | Directory | 役割 |
-|---|---|---|
-| `goal` | `goals/` | プロダクトが目指す状態 |
-| `requirement` | `requirements/` | 満たすべき要求 |
-| `architecture` | `architecture/` | システム全体の構造・境界 |
-| `design` | `designs/` | Requirement を実現する設計 |
-| `decision` | `decisions/` | 選択と判断理由 |
-| `contract` | `contracts/` | API・Protocol・Data Format 等の契約 |
-| `verification` | `verification/` | 適合性の検証方法 |
-| `guide` | `guides/` | 利用・開発・運用手順 |
-
-各 Artifact は `NNNNN-kebab-case-slug.mdx` というファイル名で（`.md` も読み込み可能）、
-5 桁の ID と YAML Frontmatter を持つ。識別子は `type:id` の形式（例: `requirement:00001`）。
-ID はファイル名から導出され、Slug の変更では変わらない。Type が異なれば同じ ID を使える。
-
-```yaml
----
-type: design
-title: Plugin登録の設計
-description: Pluginの登録と識別方法を定義する
-status: draft
-relations:
-  requirement:
-    - '00001'
----
-```
-
-- 必須フィールド: `type`, `title`, `description`, `status`
-- `status`: `draft` / `accepted` / `deprecated`（実装・検証の状態とは独立）
-- 任意フィールド: `tags`, `sources`, `subtype`, `relations`, `perspective`
-- `relations`: 他 Artifact への外向き参照。逆参照は読み込み時に自動算出される
-- `docs/glossary.mdx` は Artifact Type を持たない特別な用語集（`glossary.md` も可）
-- Design は少なくとも 1 つの Requirement、Verification は Requirement / Design /
-  Architecture / Contract のいずれかを参照する必要がある（違反は issues として報告）
-
-## セットアップと起動
+## セットアップとコマンド
 
 ```bash
 bun install
-bun run dev      # 開発: Vite (5173) + Hono (3000) を同時起動
-bun run build    # フロントエンドを dist/ にビルド
-bun run start    # ビルド済みアプリを port 3000 で起動
-bun run test     # テスト実行
+bun run dev           # 開発: Vite (5173) + Hono (3000, docs 自動監視・SSE ホットリロード)
+bun run build         # フロントエンドを dist/ にビルド
+bun run start         # ビルド済みアプリを port 3000 で起動
+bun run test          # テスト実行
+bun run documi:check  # ドキュメント・DAG・AST シンボル・テスト結果を一括検証
+bun run documi:export -- --scope all --format pdf --out spec.pdf
 ```
 
-開発時は http://localhost:5173 にアクセスする（`/api` と `/mcp` は 3000 番へプロキシ）。
-本番起動時は http://localhost:3000 が React アプリと API / MCP を同一オリジンで配信する。
-
-サーバーはデフォルトで `127.0.0.1` にのみバインドする。外部公開する場合は `HOST=0.0.0.0` を明示すること。
-
-### ドキュメントディレクトリの変更
+### CLI サブコマンド (`documi` / `bun src/cli.ts`)
 
 ```bash
-bun run start -- --docs /path/to/docs
-# または環境変数
-DOCUMI_DOCS_DIR=/path/to/docs bun run start
+bun src/cli.ts init --docs ./docs                          # 新規プロジェクト向け docs/ 雛形生成
+bun src/cli.ts serve --docs ./docs --project . --port 3000 # Web UI + REST API + HTTP MCP 起動
+bun src/cli.ts mcp --docs ./docs --project .               # stdio MCP サーバー起動 (AI エディタ連携)
+bun src/cli.ts check --strict --no-review-edit             # 厳格チェック & reviews.json 改ざん検知
+bun src/cli.ts approve core.document-model                 # ブロック承認
+bun src/cli.ts export --scope all --format pdf --out spec.pdf
 ```
 
-### PDF 書き出し
+> ソース参照（`<SourceRef file="src/..." />` / `<TermDef symbols="src/...#Sym">`）はすべて `projectRoot`（既定: `docs/` の親ディレクトリ、`--project` または `DOCUMI_PROJECT_ROOT` で変更可）からの相対パスで解決されます。
 
-Web UI の PDF ボタンは、描画済みの HTML をサーバーへ送り **Bun.WebView**（Bun 1.3.12+ の内蔵
-headless ブラウザ）の Chrome backend で PDF を生成します。Chrome / Chromium が見つからない場合は
-HTML 書き出しにフォールバックします。自動検出できない環境では `BUN_CHROME_PATH=/path/to/chrome`
-を指定してください（macOS の標準的なインストール先は自動検出されます）。追加の npm 依存はありません。
+## MCP Server (`/mcp`)
 
-## Web UI
-
-3 カラム構成: 左に全 Artifact Type を束ねた Explorer（折り畳み式）、中央にタブ付き
-Document Viewer、右に Outline / Relations パネル。
-
-- Explorer: 8 Type + Glossary を単一ツリーで表示。文書クリックでタブを開く
-- タブ: 複数文書の切り替え・クローズ・sessionStorage による復元
-- Outline: 本文見出しから生成、クリックでスクロール
-- Relations: 外向き参照 (References) と逆参照 (Referenced by) を相互に辿れる
-- テーマ: light / dark / system を切替可能。Artifact Type ごとにアクセントカラーを持つ
-- レスポンシブ: モバイルでは Explorer はドロワー表示
-
-## リッチ表現 (Markdown / MDX)
-
-通常の Markdown + GFM に加え、制限付き MDX をサポートする。
-**任意の JavaScript は実行されない**（import/export・JSX 式・イベントハンドラは拒否）。
-許可された構文以外はエラーとして明示表示される。
-
-| 表現 | 書き方 |
-|---|---|
-| シンタックスハイライト | ` ```ts ` 等のフェンス (Shiki、light/dark・行番号・コピー対応) |
-| 図 | ` ```mermaid ` フェンス (Flowchart / Sequence / State 等) |
-| 数式 | `$...$` インライン、`$$...$$` ブロック (KaTeX) |
-| Callout | `<Callout type="warning" title="注意">...</Callout>` |
-| Tabs | `<Tabs><Tabs.Tab label="A">...</Tabs.Tab></Tabs>` |
-| Steps | `<Steps><Steps.Step title="...">...</Steps.Step></Steps>` |
-| SourceRef | `<SourceRef file="..." symbol="..." />` (後述) |
-
-## SourceRef — ソースコード参照
-
-MDX 内で実際のソースファイルのコードを参照・表示できる。
-コードを文書へコピーせず、元ファイルから都度読み込むため常に最新が反映される。
-
-```mdx
-<SourceRef file="src/core/loader.ts" lines="35-45" />
-<SourceRef file="src/core/source.ts" symbol="resolveSourceSymbol" />
-<SourceRef file="core/registry.go" symbol="Registry.Register" />
-```
-
-- `file`: プロジェクトルート（docs ディレクトリの親）相対パス
-- `lines`: 1 始まりの行範囲 (`"10-40"` または `"10"`)
-- `symbol`: AST で解決する定義名。`Class.method` のような修飾名に対応
-- `symbol` と `lines` はどちらか一方のみ指定可能
-
-シンボルは `@ast-grep/napi` (tree-sitter) で解析する。関数・クラス・メソッド・
-型・インターフェース等の定義を抽出し、同名で一意に解決できない場合は
-候補一覧つきで曖昧エラーを返す。
-
-対応言語: TypeScript / TSX / JavaScript / Go / Rust / Python / Java / Kotlin / Swift
-（`@ast-grep/lang-*` の動的パーサーを使用）。
-それ以外の拡張子では `lines` のみ利用できる。
-
-セキュリティ: プロジェクトルート外へのパストラバーサル・絶対パス・
-シンボリックリンク経由の参照は拒否される。バイナリ・巨大ファイルも拒否。
-ソースは実行されない。
-
-## MCP Server
-
-`/mcp` で Streamable HTTP 方式の MCP Server を提供する（読み取り専用）。
-Web UI・REST API と同じ Document Core を使用する。
-ブラウザからのクロスオリジンアクセスは localhost 系 Origin のみ許可される。
+Streamable HTTP 方式で AI エージェント向けの 8 ツールを提供する。
 
 | Tool | 説明 |
 |---|---|
-| `list_documents` | Artifact 一覧（type 絞り込み可） |
-| `get_document` | Type + ID で本文とメタデータを取得 |
-| `get_relations` | 外向き・逆参照の解決済み関係を取得 |
-| `get_glossary` | 用語集を取得 |
-
-## REST API
-
-| Endpoint | 説明 |
-|---|---|
-| `GET /api/health` | ヘルスチェック |
-| `GET /api/status` | ルート・文書数・issues |
-| `GET /api/documents` | 文書サマリ一覧（`?type=` で絞り込み） |
-| `GET /api/documents/:type/:id` | 文書詳細（本文・relations 込み） |
-| `GET /api/glossary` | 用語集 |
-| `GET /api/source?file=&symbol=\|lines=` | SourceRef 用ソース取得 |
-| `POST /api/export/pdf` | 描画済み HTML から PDF を生成 (headless Chrome が必要) |
-
-## 技術スタック
-
-- Runtime / PM: Bun / TypeScript
-- Backend: Hono（`/`, `/api/*`, `/mcp` を同一サーバーで提供）
-- Frontend: React + Vite
-- Markdown: remark (parse/gfm/math/mdx) → 独自 mdast → React レンダラー
-- Highlighting: Shiki / Diagrams: Mermaid / Math: KaTeX
-- AST: `@ast-grep/napi` + `@ast-grep/lang-*`
-- MCP: `@modelcontextprotocol/sdk` (Streamable HTTP)
-- Document Core (`src/core`) はフレームワーク非依存
-
-## 今後の拡張（未実装）
-
-文書の編集、実装進捗の自動追跡、SSG・外部公開、全文検索、認証、
-SourceRef の名前付き登録 (`ref="..."`)、LSP による意味解析、Relation Graph 可視化など。
+| `get_project_map` | Goal・Architecture・Decision `<Outcome>`・Domain 用語集・Review & Realization サマリを一括取得 |
+| `list_documents` | ドキュメント一覧 (`type` 絞り込み可) |
+| `get_document` | パス ID から本文・ブロック・関係・問題を取得 |
+| `get_relations` | ドキュメント ID またはブロック ID の外向き/逆参照を取得 |
+| `query_specs` | セマンティックブロックを `kind` / `intent` / `stability` / `review` / `realization` / `suspect` / `hasFeedback` / キーワードで検索 |
+| `get_spec_context` | 指定 Spec の上流 Goal・未解決フィードバック・関連文書・Decision Outcome・用語・SourceRef を一括集約 |
+| `search_documents` | ドキュメントとセマンティックブロックを横断全文検索 |
+| `validate_docs` | `orphan-spec`・参照切れ・循環・重複 ID・MDX 未対応構文・AST `<SourceRef>` / `<TermDef>` シンボル切れを一括検証 |

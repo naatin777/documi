@@ -1,0 +1,32 @@
+---
+type: design
+title: Sigma.js グラフ可視化の設計
+description: Sigma.js (WebGL) + Graphology とリアルタイム力学シミュレーションによる Obsidian Graph View ライクな探索 UI 設計
+tags: [design, graph, sigmajs, frontend]
+satisfies:
+  - ui.graph-matrix
+---
+
+# Sigma.js グラフ可視化の設計
+
+## 設計方針
+
+数百ノード規模の仕様・設計・用語・ADR を有機的かつ直感的に探索できるよう、WebGL レンダラの **Sigma.js (v4)** と **Graphology** の上に、Obsidian Graph View と同じ **リアルタイム力学シミュレーション（Force-Directed Physics）** を実装する。
+
+- **フルビューポート・円形展開**:
+  - 初期配置を黄金角スパイラルで円形・星雲状に並べ、開いた瞬間に `requestAnimationFrame` ループで中心引力・ノード間反発力 (Coulomb)・エッジばね引力 (Hooke)・速度減衰を計算しながらリアルタイムに展開・収束させる
+  - 固定ワールド境界 (`setCustomBBox`) + `autoRescale: 'once'` により、物理シミュレーション中もカメラがブレずにノードだけが滑らかに動く
+- **弾性ドラッグとライブ物理調整**:
+  - ノードをドラッグして引っ張ると、接続されているエッジがゴム紐のように作用して周囲のノードもリアルタイムに追従し、離した後は余韻を残して安定位置へ収束する（静止後は自動スリープして CPU 負荷ゼロ）
+  - 右上の `⚙ Forces` パネルから Center force / Repel force / Link force / Link distance をリアルタイム調整でき、`⚡` ボタンで再シミュレーションできる
+- **コンパクトな角丸長方形ノード & 枠ハイライト**:
+  - Sigma v4 の `sdfRectangle` プリミティブで文書ノードをコンパクトな角丸長方形、セマンティックブロックを小ぶりな円形で描画し、過密による視認性低下を防ぐ
+  - ホバー・選択時は他ノードを消したり隠したりせず、対象ノードと隣接ノードを Type カラーの枠 (`backdropBorderColor`) で囲んで接続エッジだけを強調する
+- **2 種類の粒度とエッジ切替**:
+  - `Documents`: 文書同士の関係を俯瞰（ノードサイズ＝接続次数に比例）
+  - `Docs + Blocks`: 文書ノードの周りに `<Spec>` / `<Constraint>` / `<Outcome>` / `<TermDef>` が衛星のように展開
+  - `All Links` / `Traceability Only` の切替、ホバー近傍ハイライト、クリック選択詳細、ダブルクリックでのドキュメント遷移、検索ボックスからのカメラフォーカス
+
+## コア実装参照
+
+<SourceRef file="src/web/components/SigmaGraph.tsx" symbol="SigmaGraph" satisfies="ui.graph-matrix" />

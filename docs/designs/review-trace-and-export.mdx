@@ -1,0 +1,43 @@
+---
+type: design
+title: レビュー・トレース・複数まとめ Export の設計
+description: サイドカー reviews.json と Git diff、コード/テスト/PR トレース、/bundle × Bun.WebView PDF 生成の内部設計
+tags: [design, review, trace, export]
+satisfies:
+  - core.human-review
+  - core.realization
+  - core.ast-check
+  - core.bundle-export
+  - ui.bundle-export
+---
+
+# レビュー・トレース・複数まとめ Export の設計
+
+## 1. サイドカー承認と Git Diff
+
+- 人間の承認状態は MDX 本文ではなく `docs/.documi/reviews.json` にキー昇順 JSON で保存し、AI による MDX 直書きと物理分離する
+- 承認時に `contentHash`・`approvedCommit`・`upstreamHashes` を記録し、同時に `.documi/cache/approved-bodies.json`（`.gitignore` 対象）へ本文キャッシュを保存する
+- `stale` 発生時は `git show <approvedCommit>:<path>` から承認時点のブロック本文を取り出し、未コミット承認時はローカルキャッシュへフォールバックして LCS 行 diff を算出する
+
+<SourceRef file="src/core/reviews.ts" symbol="approveBlock" satisfies="core.human-review" />
+
+<SourceRef file="src/core/reviews.ts" symbol="getBlockDiff" satisfies="core.human-review" />
+
+## 2. コード・テスト・PR からの Realization 自動算出
+
+- ソース/テストファイルから `@implements` / `@verifies`（コメント部のみ）および行頭の `test("[<spec.id>] ...")` を抽出し、`<SourceRef>` の `satisfies` / `verifies` と統合する
+- JUnit XML (`docs/.documi/test-results.xml`) の `<testcase name="[spec.id] ...">` と突合し、さらに任意で `gh pr list` の PR 情報を重ねて `verified` / `implemented` / `in-progress` / `unimplemented` / `drifted` を決定論的に算出する
+
+<SourceRef file="src/core/trace.ts" symbol="enrichWithRealization" satisfies="core.realization" />
+
+<SourceRef file="src/core/checker.ts" symbol="runDocsCheck" satisfies="core.ast-check" />
+
+## 3. `/bundle` × `Bun.WebView.navigate()` による複数まとめ Export
+
+- 単一文書用の DOM クローン POST 方式は 5MB 上限や非表示文書・`<Tabs>` 欠落の制約があるため、複数文書は React 側の専用ルート `/bundle` を使用する
+- `/bundle` は表紙・自動目次・章区切り・ページ内アンカー変換・見出し ID 名前空間化・`<Tabs>` 全展開を行い、Mermaid / Shiki / `<SourceRef>` の描画完了時に `window.__DOCUMI_BUNDLE_READY__ = true` を立てる
+- サーバー (`/api/export/bundle-pdf`) および CLI (`documi export`) は `Bun.WebView({ backend: 'chrome' })` でローカルループバックの `/bundle?...` を直接開き、CDP `Page.printToPDF` で PDF を生成する（ループバック `/bundle` 以外の URL は SSRF 防止のため拒否）
+
+<SourceRef file="src/core/bundle.ts" symbol="resolveBundleDocuments" satisfies="core.bundle-export" />
+
+<SourceRef file="src/server/pdf.ts" symbol="renderPdfFromUrl" satisfies="ui.bundle-export" />

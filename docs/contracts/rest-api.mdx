@@ -1,0 +1,46 @@
+---
+type: contract
+title: REST API コントラクト
+description: Web UI およびローカルクライアントが利用する /api/* エンドポイント仕様
+tags: [api, contract]
+satisfies:
+  - core.document-model
+  - core.human-review
+  - core.realization
+  - core.bundle-export
+  - core.full-text-search
+  - ui.web-viewer
+  - ui.live-reload
+  - ui.graph-matrix
+  - ui.bundle-export
+  - ui.search-palette
+---
+
+# REST API コントラクト
+
+ローカルツール前提で同一オリジンおよび localhost 系 Origin からのみ許可される。
+全エンドポイントは機能別 Hono サブルータ（`src/server/routes/`）と Zod バリデーション（`zValidator`）で構成され、Web UI クライアントは **Hono RPC (`hc<ApiRoutes>`)** 経由でサーバー定義から型を直接推論する（詳細は [Hono RPC + Zod 採用 ADR](../decisions/2026-11-hono-rpc-and-zod-api.mdx)）。
+
+| Endpoint | 役割 |
+|---|---|
+| `GET /api/health` | ヘルスチェック (`{ ok: true }`) |
+| `GET /api/overview` | 全体統計・Type 別件数・Review & Realization 内訳・要確認ブロック・未解決フィードバック・Goals・Outcomes・Orphan Specs |
+| `GET /api/status` | `rootDir`, `loadedAt`, `documentCount`, `blockCount`, `issues` |
+| `GET /api/tree` | 階層ツリー (`DocTreeNode[]`) と全ドキュメントサマリ |
+| `GET /api/documents` | サマリ一覧 (`?type=` 絞り込み対応) |
+| `GET /api/documents/*path` | 任意階層パス ID による単一ドキュメント詳細 (ブロック・エッジ・Realization・問題込み) |
+| `GET /api/graph` | グラフノード＆エッジ一覧 (`?layers=trace\|all&granularity=docs\|blocks`) |
+| `GET /api/matrix` | 全 `<Spec>` のトレーサビリティマトリクス |
+| `GET /api/search` | ドキュメント＆セマンティックブロック横断検索 (`?q=&type=&limit=`) |
+| `GET /api/terms` | 全 `<TermDef>` 用語定義一覧 |
+| `GET /api/check` | AST シンボル検証を含む一括整合性チェック (`?strict=true`) |
+| `GET /api/blocks/:id/diff` | 承認時点コミット (またはローカルキャッシュ) と現在本文の行 diff |
+| `POST /api/blocks/:id/approve` | ブロックを承認し `docs/.documi/reviews.json` を更新 |
+| `POST /api/blocks/:id/feedback` | AI 向けフィードバックコメントを追加 |
+| `PATCH /api/blocks/:id/feedback/:feedbackId` | フィードバックの解決状態を切替 |
+| `PATCH /api/blocks/:id/stability` | Stability 上書き設定 (`stable` / `evolving` / `volatile` / `null`) |
+| `GET /api/events` | SSE ライブ更新ストリーム (`connected` / `reload` イベント) |
+| `GET /api/source` | `<SourceRef>` 用の AST シンボル / 行範囲コード取得 |
+| `GET /api/bundle` | 複数ドキュメントバンドル解決 (`?scope=all\|dir:...\|goal:...` または `?ids=...`) |
+| `POST /api/export/pdf` | 単一文書の描画済み HTML から PDF 生成 |
+| `POST /api/export/bundle-pdf` | ローカル `/bundle` URL を `Bun.WebView` で開いて複数文書 PDF 生成 |

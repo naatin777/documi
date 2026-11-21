@@ -1,0 +1,32 @@
+---
+type: contract
+title: MCP ツールコントラクト
+description: AI エージェントが /mcp (Streamable HTTP) 経由で利用する 8 ツール仕様
+tags: [mcp, ai, contract]
+satisfies:
+  - core.document-model
+  - core.mdx-blocks
+  - core.rooted-dag
+  - core.human-review
+  - core.realization
+  - core.ast-check
+  - core.full-text-search
+---
+
+# MCP ツールコントラクト
+
+AI エージェント向けに **2 種類のトランスポート** で同じ 8 ツールを提供する。
+
+- **Streamable HTTP (`POST /mcp`)**: `documi serve` 起動時に Stateless（`enableJsonResponse: true`）で提供
+- **stdio (`documi mcp`)**: サーバー常駐なしで Claude Code / Cursor / Antigravity 等から直接起動し、`fs.watch` で最新 `docs/` を自動反映
+
+| Tool | 入力 | 役割 |
+|---|---|---|
+| `get_project_map` | なし | Goal 全文・Architecture 全文・Decision `<Outcome>` 一覧・Domain 用語集・Review & Realization サマリを一括取得 |
+| `list_documents` | `type?` | ドキュメントサマリ一覧を取得 |
+| `get_document` | `id` | パス ID から本文・セマンティックブロック・関係・問題一覧を取得 |
+| `get_relations` | `id` | ドキュメント ID またはブロック ID の外向き/逆参照を取得 |
+| `query_specs` | `kind?`, `intent?`, `stability?`, `review?`, `realization?`, `suspect?`, `hasFeedback?`, `query?` | セマンティックブロックを多軸フィルタ検索 |
+| `get_spec_context` | `id` | 指定 Spec の上流 Goal・未解決フィードバック・関連 Design/Contract・Decision `<Outcome>`・関連用語・`<SourceRef>` を一括集約 |
+| `search_documents` | `query`, `type?`, `limit?` | ドキュメントとセマンティックブロックを横断全文検索 |
+| `validate_docs` | なし | `orphan-spec`・参照切れ・循環・重複 ID・MDX 未対応構文・AST `<SourceRef>` / `<TermDef>` シンボル切れを一括検証 |

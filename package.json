@@ -3,6 +3,9 @@
   "version": "0.1.0",
   "private": true,
   "description": "Document management tool for specs, designs, decisions, and verification records",
+  "bin": {
+    "documi": "src/cli.ts"
+  },
   "type": "module",
   "scripts": {
     "dev": "bun run --parallel dev:server web",
@@ -10,6 +13,8 @@
     "web": "vite",
     "build": "vite build",
     "start": "bun src/server/index.ts",
+    "documi:check": "bun src/cli.ts check",
+    "documi:export": "bun src/cli.ts export",
     "check": "bun check",
     "lint": "oxlint --deny-warnings",
     "format": "oxfmt",
@@ -28,6 +33,7 @@
     "@ast-grep/napi": "^0.51.3",
     "@hono/bun": "^1.0.1",
     "@modelcontextprotocol/sdk": "^1.20.0",
+    "graphology": "^0.26.0",
     "hono": "^4.9.0",
     "katex": "^0.19.1",
     "mermaid": "^12.3.0",
@@ -40,6 +46,7 @@
     "remark-mdx": "^3.1.1",
     "remark-parse": "^11.0.0",
     "shiki": "^4.6.0",
+    "sigma": "^4.0.6",
     "unified": "^11.0.5",
     "yaml": "^2.8.0",
     "zod": "^4.6.6"

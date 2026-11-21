@@ -1,127 +1,358 @@
 export const ARTIFACT_TYPES = [
   'goal',
-  'requirement',
+  'decision',
+  'domain',
+  'spec',
+  'contract',
   'architecture',
   'design',
-  'decision',
-  'contract',
   'verification',
   'guide',
 ] as const
 
 export type ArtifactType = (typeof ARTIFACT_TYPES)[number]
 
-/** ドキュメント本文の形式 */
-export type DocFormat = 'markdown' | 'mdx'
+export type ArtifactLayer = 'boundary' | 'domain' | 'normative' | 'realization' | 'informative'
 
-export const ARTIFACT_TYPE_DIRECTORIES: Record<ArtifactType, string> = {
-  goal: 'goals',
-  requirement: 'requirements',
-  architecture: 'architecture',
-  design: 'designs',
-  decision: 'decisions',
-  contract: 'contracts',
-  verification: 'verification',
-  guide: 'guides',
+export const ARTIFACT_TYPE_LAYERS: Record<ArtifactType, ArtifactLayer> = {
+  goal: 'boundary',
+  decision: 'boundary',
+  domain: 'domain',
+  spec: 'normative',
+  contract: 'normative',
+  architecture: 'realization',
+  design: 'realization',
+  verification: 'realization',
+  guide: 'informative',
 }
 
 export const ARTIFACT_TYPE_LABELS: Record<ArtifactType, string> = {
   goal: 'Goal',
-  requirement: 'Requirement',
+  decision: 'Decision',
+  domain: 'Domain',
+  spec: 'Spec',
+  contract: 'Contract',
   architecture: 'Architecture',
   design: 'Design',
-  decision: 'Decision',
-  contract: 'Contract',
   verification: 'Verification',
   guide: 'Guide',
 }
 
-/** Explorer のセクション見出し (複数形) */
+/** Explorer の Type 別セクション見出し (複数形) */
 export const ARTIFACT_TYPE_SECTION_LABELS: Record<ArtifactType, string> = {
   goal: 'Goals',
-  requirement: 'Requirements',
+  decision: 'Decisions',
+  domain: 'Domain & Glossary',
+  spec: 'Specs',
+  contract: 'Contracts',
   architecture: 'Architecture',
   design: 'Designs',
-  decision: 'Decisions',
-  contract: 'Contracts',
   verification: 'Verification',
   guide: 'Guides',
 }
 
-export const DOC_STATUSES = ['draft', 'accepted', 'deprecated'] as const
-export type DocStatus = (typeof DOC_STATUSES)[number]
+/** ディレクトリ名・ファイル名から ArtifactType を自動推論するための対応表 */
+export const ARTIFACT_TYPE_ALIASES: Record<string, ArtifactType> = {
+  goal: 'goal',
+  goals: 'goal',
+  decision: 'decision',
+  decisions: 'decision',
+  adr: 'decision',
+  adrs: 'decision',
+  domain: 'domain',
+  domains: 'domain',
+  glossary: 'domain',
+  spec: 'spec',
+  specs: 'spec',
+  contract: 'contract',
+  contracts: 'contract',
+  architecture: 'architecture',
+  arch: 'architecture',
+  design: 'design',
+  designs: 'design',
+  verification: 'verification',
+  verifications: 'verification',
+  guide: 'guide',
+  guides: 'guide',
+}
 
-export const ID_PATTERN = /^\d{5}$/
-export const FILENAME_PATTERN = /^(\d{5})-([a-z0-9]+(?:-[a-z0-9]+)*)\.(md|mdx)$/
+/** ドキュメント本文の形式 */
+export type DocFormat = 'markdown' | 'mdx'
+
+export const SPEC_INTENTS = ['normative', 'idea', 'rejected'] as const
+export type SpecIntent = (typeof SPEC_INTENTS)[number]
+
+export const NOTE_INTENTS = ['idea', 'informative', 'rejected'] as const
+export type NoteIntent = (typeof NOTE_INTENTS)[number]
+
+export const STABILITIES = ['stable', 'evolving', 'volatile'] as const
+export type Stability = (typeof STABILITIES)[number]
+
+export const REVIEW_STATUSES = ['unreviewed', 'approved', 'stale'] as const
+export type ReviewStatus = (typeof REVIEW_STATUSES)[number]
+
+export const REALIZATION_STATUSES = ['unimplemented', 'in-progress', 'implemented', 'verified', 'drifted'] as const
+export type RealizationStatus = (typeof REALIZATION_STATUSES)[number]
+
+export const BLOCK_KINDS = ['spec', 'constraint', 'outcome', 'note', 'term'] as const
+export type BlockKind = (typeof BLOCK_KINDS)[number]
+
+export const EDGE_KINDS = ['derives', 'satisfies', 'verifies', 'supersedes', 'mentions'] as const
+export type EdgeKind = (typeof EDGE_KINDS)[number]
+
+/** トレーサビリティの背骨となる意味付きエッジ種別 */
+export const TRACE_EDGE_KINDS = ['derives', 'satisfies', 'verifies', 'supersedes'] as const
+export type TraceEdgeKind = (typeof TRACE_EDGE_KINDS)[number]
+
+export const BLOCK_ID_PATTERN = /^[a-zA-Z][a-zA-Z0-9._-]*$/
 
 export function isArtifactType(value: unknown): value is ArtifactType {
   return typeof value === 'string' && (ARTIFACT_TYPES as readonly string[]).includes(value)
 }
 
-export function documentRef(type: ArtifactType, id: string): string {
-  return `${type}:${id}`
+export function isSpecIntent(value: unknown): value is SpecIntent {
+  return typeof value === 'string' && (SPEC_INTENTS as readonly string[]).includes(value)
+}
+
+export function isNoteIntent(value: unknown): value is NoteIntent {
+  return typeof value === 'string' && (NOTE_INTENTS as readonly string[]).includes(value)
+}
+
+export function isStability(value: unknown): value is Stability {
+  return typeof value === 'string' && (STABILITIES as readonly string[]).includes(value)
+}
+
+export function isReviewStatus(value: unknown): value is ReviewStatus {
+  return typeof value === 'string' && (REVIEW_STATUSES as readonly string[]).includes(value)
+}
+
+export interface ReviewFeedback {
+  id: string
+  body: string
+  author: string
+  createdAt: string
+  resolved: boolean
+}
+
+export interface BlockReviewRecord {
+  docPath: string
+  hash: string
+  approvedCommit?: string
+  approvedAt?: string
+  approvedBy?: string
+  upstreamHashes?: Record<string, string>
+  stabilityOverride?: Stability
+  feedback: ReviewFeedback[]
+}
+
+export interface ReviewsFile {
+  version: 1
+  blocks: Record<string, BlockReviewRecord>
+}
+
+export interface DiffLine {
+  type: 'context' | 'add' | 'del'
+  text: string
+}
+
+export interface BlockDiffResult {
+  blockId: string
+  hasBase: boolean
+  baseSource: 'git' | 'cache' | 'none'
+  baseCommit?: string
+  changed: boolean
+  lines: DiffLine[]
+}
+
+export interface CodeAnchor {
+  kind: 'implements' | 'verifies'
+  specId: string
+  file: string
+  line: number
+  testName?: string
+  fromDoc?: boolean
+}
+
+export interface TestCaseResult {
+  specId: string
+  name: string
+  file?: string
+  status: 'passed' | 'failed' | 'skipped'
+  message?: string
+}
+
+export interface PullRequestLink {
+  number: number
+  title: string
+  state: 'OPEN' | 'MERGED' | 'CLOSED'
+  url: string
+  relation: 'implements' | 'verifies' | 'mentions'
+}
+
+export interface RealizationSummary {
+  status: RealizationStatus
+  implementations: CodeAnchor[]
+  verifications: CodeAnchor[]
+  testResults: TestCaseResult[]
+  pullRequests: PullRequestLink[]
+  reasons: string[]
 }
 
 export interface DocIssue {
   code: string
   message: string
+  /** 問題が特定ブロックに紐づく場合のブロック ID */
+  blockId?: string
 }
 
 export interface IndexIssue extends DocIssue {
   path?: string
 }
 
-export interface RelationTarget {
-  ref: string
-  type: ArtifactType
+export interface SemanticBlock {
   id: string
+  kind: BlockKind
+  docId: string
+  startLine: number
+  endLine: number
+  /** 正規化済み本文の SHA-256 ハッシュ (sha256:...) */
+  contentHash: string
+  rawBody: string
+  title?: string
+  intent: SpecIntent | NoteIntent
+  stability: Stability
+  stabilitySource?: 'mdx' | 'override'
+  /** 人間レビュー状態 (reviews.json と contentHash から自動算出) */
+  review: ReviewStatus
+  approvedAt?: string
+  approvedBy?: string
+  approvedCommit?: string
+  /** 上流の変更により要再確認になっているか (Suspect Link) */
+  suspect: boolean
+  suspectSources: string[]
+  /** 人間から AI 向けのフィードバックコメント */
+  feedback: ReviewFeedback[]
+  /** コード・テスト・PR から自動算出された実装/検証状態 */
+  realization?: RealizationSummary
+  /** 明示的な上流参照 (derives) */
+  derives: string[]
+  /** 置き換え対象 (supersedes) */
+  supersedes: string[]
+  /** Constraint 用の適用範囲 */
+  scope?: string
+  /** TermDef 用の別名一覧 */
+  aliases?: string[]
+  /** TermDef 用のコードシンボル参照一覧 (例: src/core/types.ts#Document) */
+  symbols?: string[]
+}
+
+export interface SourceRefDecl {
+  file: string
+  symbol?: string
+  lines?: string
+  satisfies: string[]
+  verifies: string[]
+  startLine: number
+}
+
+export interface GraphEdge {
+  /** 参照元 (docId または blockId) */
+  from: string
+  /** 参照元の所属ドキュメント ID */
+  fromDocId: string
+  /** 参照先 (docId または blockId) */
+  to: string
+  /** 参照先の所属ドキュメント ID */
+  toDocId: string
+  toKind: 'doc' | 'block'
+  kind: EdgeKind
+}
+
+export interface ResolvedRelation {
+  /** 参照先/参照元の識別子 (docId または blockId) */
+  ref: string
+  targetKind: 'doc' | 'block'
+  docId: string
+  type: ArtifactType
   title: string
-  status: DocStatus
+  kind: EdgeKind
   path: string
 }
 
 export interface DocumentMeta {
-  ref: string
-  type: ArtifactType
+  /** docs/ からの拡張子なし POSIX 相対パス (例: goals/core, auth/lockout) */
   id: string
-  slug: string
+  type: ArtifactType
+  /** frontmatter ではなくパス/ファイル名から推論された場合 true */
+  typeInferred: boolean
   title: string
   description: string
-  status: DocStatus
+  /** 作成日・決定日 (任意、ISO 8601 の YYYY-MM-DD または YYYY-MM。ADR 等で時系列管理に利用) */
+  date?: string
   tags: string[]
-  sources: string[]
-  subtype?: string
-  perspective?: string
   format: DocFormat
-  /** rootDir からの相対パス (posix 区切り) */
+  /** rootDir からの相対パス (posix 区切り、拡張子あり) */
   path: string
+  /** 親ディレクトリ (posix 区切り、ルート直下は '') */
+  dir: string
   /** frontmatter を除いた本文 */
   body: string
 }
 
 export interface Document extends DocumentMeta {
-  /** 検証済みの外向き参照 (type -> id 配列) */
-  declaredRelations: Partial<Record<ArtifactType, string[]>>
+  /** 文書内の構造化セマンティックブロック */
+  blocks: SemanticBlock[]
+  /** 文書内の SourceRef 宣言 */
+  sourceRefs: SourceRefDecl[]
+  /** Frontmatter で宣言された意味付き参照 */
+  declaredEdges: Partial<Record<TraceEdgeKind, string[]>>
   /** 解決済みの外向き参照 */
-  relations: RelationTarget[]
+  outgoing: ResolvedRelation[]
   /** 解決済みの逆参照 */
-  incomingRelations: RelationTarget[]
-  /** この文書に紐づく問題 (未解決 relation, 制約違反, MDX未対応構文など) */
+  incoming: ResolvedRelation[]
+  /** この文書に紐づく問題 (未解決リンク, orphan-spec, 循環, MDX未対応構文など) */
   issues: DocIssue[]
 }
 
-export interface Glossary {
+export interface DocumentSummary {
+  id: string
+  type: ArtifactType
   title: string
   description: string
+  /** 作成日・決定日 (任意、ISO 8601 の YYYY-MM-DD または YYYY-MM。ADR 等で時系列管理に利用) */
+  date?: string
+  tags: string[]
   path: string
+  dir: string
   format: DocFormat
-  body: string
+  blockCount: number
+  specCount: number
+  issueCount: number
 }
+
+export interface DocTreeDir {
+  kind: 'dir'
+  name: string
+  path: string
+  children: DocTreeNode[]
+}
+
+export interface DocTreeFile {
+  kind: 'doc'
+  name: string
+  doc: DocumentSummary
+}
+
+export type DocTreeNode = DocTreeDir | DocTreeFile
 
 export interface DocsIndex {
   rootDir: string
+  loadedAt: string
   documents: Document[]
-  byRef: Map<string, Document>
-  glossary: Glossary | null
+  byId: Map<string, Document>
+  blocksById: Map<string, SemanticBlock>
+  /** 用語名および別名 (小文字正規化) -> TermDef ブロック */
+  termsByName: Map<string, SemanticBlock>
+  edges: GraphEdge[]
   issues: IndexIssue[]
 }

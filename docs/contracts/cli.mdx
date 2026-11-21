@@ -1,0 +1,68 @@
+---
+type: contract
+title: CLI コントラクト
+description: 初期化・サーバー起動・stdio MCP・CI チェック・承認・複数まとめ出力に使う documi CLI コマンド仕様
+tags: [cli, contract]
+satisfies:
+  - core.ast-check
+  - core.human-review
+  - core.bundle-export
+---
+
+# CLI コントラクト
+
+`bun src/cli.ts <command>`（または `package.json` の `bin: documi` / `bun run documi:check` / `bun run documi:export`）で実行する。
+
+## パス解決の基準 (`--docs` / `--project`)
+
+- `--docs <dir>`（既定: `./docs` または環境変数 `DOCUMI_DOCS_DIR`）: ドキュメントのルートディレクトリ
+- `--project <dir>`（既定: `docs` の親ディレクトリまたは環境変数 `DOCUMI_PROJECT_ROOT`）: **ソースコード参照の基準ディレクトリ**。`<SourceRef file="src/..." />`・`<TermDef symbols="src/...#Symbol">`・`@implements` / `@verifies` の走査はすべてこの `projectRoot` からの相対パスで解決され、ルート外参照（絶対パス・`..`・外部シンボリックリンク）は拒否される。
+
+## `documi init`
+
+新規プロジェクトに Living Specification 向けの最小 `docs/` 雛形（`goals/project-goal.mdx`, `domain/glossary.mdx`, `decisions/first-decision.mdx`, `specs/example.mdx`）を生成する。既存ファイルは上書きしない。
+
+## `documi serve`
+
+Web UI・Hono RPC REST API・SSE・Streamable HTTP MCP (`/mcp`) を起動し、`docs/` 配下を自動監視する。
+
+| Option | 説明 |
+|---|---|
+| `--docs <dir>` | 対象 docs ディレクトリ |
+| `--project <dir>` | ソースコード参照のプロジェクトルート |
+| `--port <number>` | 待ち受けポート（既定: `3000` または `PORT`） |
+| `--host <addr>` | バインドアドレス（既定: `127.0.0.1` または `HOST`） |
+
+## `documi mcp`
+
+AI エディタ・CLI エージェント向けに **stdio トランスポート** で MCP サーバーを起動する。HTTP サーバーを常駐させずに 8 ツールを利用でき、`fs.watch` により起動中の `docs/` 編集もリアルタイムに反映される。
+
+## `documi check`
+
+ドキュメント構造・Rooted DAG・MDX 安全性・AST シンボル・テスト結果・レビュー改ざんを一括検証し、エラーがあれば終了コード `1` を返す。
+
+| Option | 説明 |
+|---|---|
+| `--docs <dir>` | 対象 docs ディレクトリ（既定: `./docs` または `DOCUMI_DOCS_DIR`） |
+| `--project <dir>` | ソース・テスト走査のプロジェクトルート（既定: docs の親または `DOCUMI_PROJECT_ROOT`） |
+| `--test-report <xml>` | JUnit XML テストレポートのパス（既定: `docs/.documi/test-results.xml`） |
+| `--strict` | 未承認 (`unreviewed` / `stale` / `suspect`) および `drifted` もエラー扱い |
+| `--no-review-edit` | Git 作業ツリー上で `docs/.documi/reviews.json` が変更されていたらエラー（AI 改ざん防止） |
+| `--prs` | `gh` CLI から PR 情報も取得して紐づけ |
+| `--json` | 検証レポートを JSON 形式で出力 |
+
+## `documi approve <block-id...>`
+
+指定した 1 つ以上のセマンティックブロックを承認し、`docs/.documi/reviews.json`（ハッシュ・`approvedCommit`・上流ハッシュ）とローカルキャッシュを更新する。
+
+## `documi export`
+
+複数ドキュメントを `/bundle` × `Bun.WebView` 経由で 1 冊の PDF または単一 HTML にまとめて出力する（事前に `bun run build` が必要）。
+
+| Option | 説明 |
+|---|---|
+| `--format <pdf\|html>` | 出力形式（既定: `pdf`） |
+| `--scope <scope>` | `all` / `dir:<path>` / `goal:<id>`（既定: `all`） |
+| `--ids <a,b,c>` | 含めるドキュメント ID をカンマ区切りで明示指定 |
+| `--title <text>` | 表紙タイトル |
+| `--out <file>` | 出力先ファイルパス（既定: `documi-bundle.pdf` / `.html`） |

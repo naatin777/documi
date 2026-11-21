@@ -1,39 +1,50 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useParams } from 'react-router-dom'
 import type { Document } from '../../core/types'
-import { api } from '../api'
+import { api, type TermEntry } from '../api'
 import { extractHeadings } from '../headings'
+import { useDocsRevision } from '../live'
 import { useTabs } from '../tabs'
 import DocTabs from './DocTabs'
 import DocViewer from './DocViewer'
 import SidePanel from './SidePanel'
 
 export default function DocLayout() {
-  const { type = '', id = '' } = useParams()
+  const params = useParams()
+  const docId = (params['*'] ?? '').replace(/^\/+/, '').replace(/\/+$/, '')
+  const revision = useDocsRevision()
   const { openTab } = useTabs()
   const [doc, setDoc] = useState<Document | null>(null)
+  const [terms, setTerms] = useState<TermEntry[]>([])
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
+  const [localTick, setLocalTick] = useState(0)
   const mainRef = useRef<HTMLElement>(null)
+
+  const handleMutate = useCallback(() => {
+    setLocalTick((t) => t + 1)
+  }, [])
 
   useEffect(() => {
     let cancelled = false
-    setLoading(true)
-    setDoc(null)
+    setLoading((prev) => prev || doc?.id !== docId)
     setError(null)
-    api
-      .document(type, id)
-      .then((res) => {
+    Promise.all([api.document(docId), api.terms()])
+      .then(([res, termsRes]) => {
         if (cancelled) return
         setDoc(res.document)
+        setTerms(termsRes.terms)
         openTab({
-          type: res.document.type,
           id: res.document.id,
+          type: res.document.type,
           title: res.document.title,
         })
       })
       .catch((e: unknown) => {
-        if (!cancelled) setError(e instanceof Error ? e.message : String(e))
+        if (!cancelled) {
+          setDoc(null)
+          setError(e instanceof Error ? e.message : String(e))
+        }
       })
       .finally(() => {
         if (!cancelled) setLoading(false)
@@ -41,15 +52,14 @@ export default function DocLayout() {
     return () => {
       cancelled = true
     }
-  }, [type, id, openTab])
+  }, [docId, revision, localTick, openTab])
 
-  // 文書切り替え時にスクロール位置を先頭へ戻す
   useEffect(() => {
     const el = mainRef.current
     if (!el) return
     el.scrollTop = 0
     el.scrollIntoView({ block: 'start' })
-  }, [type, id])
+  }, [docId])
 
   const headings = useMemo(() => (doc ? extractHeadings(doc.body, doc.format) : []), [doc])
 
@@ -57,7 +67,7 @@ export default function DocLayout() {
     <>
       <main ref={mainRef} className="content">
         <DocTabs />
-        {loading && (
+        {loading && !doc && (
           <div className="page">
             <p className="muted">読み込み中…</p>
           </div>
@@ -66,14 +76,17 @@ export default function DocLayout() {
           <div className="page">
             <h1>ドキュメントを表示できません</h1>
             <p className="error-text">{error}</p>
-            <p className="muted">
-              type: {type} / id: {id}
-            </p>
+            <p className="muted mono">{docId}</p>
           </div>
         )}
-        {doc && <DocViewer doc={doc} />}
+        {doc && <DocViewer doc={doc} terms={terms} onMutate={handleMutate} />}
       </main>
-      <SidePanel headings={headings} outgoing={doc?.relations ?? []} incoming={doc?.incomingRelations ?? []} />
+      <SidePanel
+        headings={headings}
+        blocks={doc?.blocks ?? []}
+        outgoing={doc?.outgoing ?? []}
+        incoming={doc?.incoming ?? []}
+      />
     </>
   )
 }

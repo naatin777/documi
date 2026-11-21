@@ -10,11 +10,14 @@ import remarkMdx from 'remark-mdx'
 import type { BlockContent, DefinitionContent, List, ListItem, PhrasingContent, Root, RootContent, Table } from 'mdast'
 import type { MdxJsxAttribute, MdxJsxFlowElement, MdxJsxTextElement } from 'mdast-util-mdx'
 import type { DocFormat } from '../core/types'
+import { encodeDocId, type TermEntry } from './api'
 import { uniqueHeadingId } from './headingIds'
 import CodeBlock from './components/CodeBlock'
 import MermaidBlock from './components/MermaidBlock'
 import { CalloutBlock, StepsBlock, TabsBlock, type TabItem } from './components/MdxBlocks'
+import { ConstraintBlock, NoteBlock, OutcomeBlock, SpecBlock, TermDefBlock } from './components/SemanticBlocks'
 import SourceRef from './components/SourceRef'
+import { TermInline } from './components/TermPopover'
 
 export type { DocFormat } from '../core/types'
 
@@ -24,24 +27,99 @@ const processors = {
 } as const
 
 export function parseMarkdown(body: string, format: DocFormat): Root {
-  return processors[format].parse(body) as Root
+  if (format === 'mdx') {
+    try {
+      return processors.mdx.parse(body) as Root
+    } catch {
+      return processors.markdown.parse(body) as Root
+    }
+  }
+  return processors.markdown.parse(body) as Root
+}
+
+export interface RenderOptions {
+  /** 現在表示中ドキュメントの親ディレクトリ (相対リンク解決用) */
+  currentDir?: string
+  /** Living Glossary の登録済み用語一覧 (自動リンク & ホバーポップオーバー用) */
+  terms?: readonly TermEntry[]
+  /** バンドル出力時に同梱されているドキュメント ID 集合 (ページ内アンカー変換用) */
+  bundleDocIds?: ReadonlySet<string>
+  /** バンドル出力時に見出し ID 衝突を防ぐためのプレフィックス */
+  headingPrefix?: string
+  /** true のとき <Tabs> を全タブ縦展開する (印刷・PDF バンドル用) */
+  expandAllTabs?: boolean
+}
+
+export function bundleDocAnchor(docId: string): string {
+  return `doc-${docId.replace(/[^a-zA-Z0-9_-]+/g, '-')}`
+}
+
+interface TermMatcher {
+  byKey: Map<string, TermEntry>
+  regex: RegExp
+}
+
+function escapeRegExp(s: string): string {
+  return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+}
+
+function buildTermMatcher(terms?: readonly TermEntry[]): TermMatcher | undefined {
+  if (!terms || terms.length === 0) return undefined
+  const byKey = new Map<string, TermEntry>()
+  const names: string[] = []
+  for (const term of terms) {
+    for (const candidate of [term.id, ...term.aliases]) {
+      const trimmed = candidate.trim()
+      if (trimmed.length < 2) continue
+      const key = trimmed.toLowerCase()
+      if (!byKey.has(key)) {
+        byKey.set(key, term)
+        names.push(trimmed)
+      }
+    }
+  }
+  if (names.length === 0) return undefined
+  // 長い語を優先マッチさせる
+  names.sort((a, b) => b.length - a.length)
+  const parts = names.map((n) => {
+    const escaped = escapeRegExp(n)
+    // ASCII のみの用語は単語境界で部分一致の誤爆を防ぐ
+    return /^[A-Za-z0-9._-]+$/.test(n) ? `(?<![A-Za-z0-9_])${escaped}(?![A-Za-z0-9_])` : escaped
+  })
+  return { byKey, regex: new RegExp(`(${parts.join('|')})`, 'g') }
 }
 
 interface Ctx {
   definitions: Map<string, { url: string; title?: string | null }>
   /** 同じ id を持つ見出しが複数出ないようにする (Outline 側と同じ採番) */
   headingIds: Set<string>
+  currentDir: string
+  termMatcher?: TermMatcher
+  /** 見出し・リンク・TermDef 内部など自動リンクを抑制する領域 */
+  suppressAutoLink: boolean
+  bundleDocIds?: ReadonlySet<string>
+  headingPrefix?: string
+  expandAllTabs: boolean
 }
 
 /** Markdown / MDX 本文を React ノードへ変換する。JSX は許可リストのみ描画する。 */
-export function renderMarkdown(root: Root): ReactNode {
+export function renderMarkdown(root: Root, options: RenderOptions = {}): ReactNode {
   const definitions = new Map<string, { url: string; title?: string | null }>()
   for (const child of root.children) {
     if (child.type === 'definition') {
       definitions.set(child.identifier, { url: child.url, title: child.title })
     }
   }
-  const ctx: Ctx = { definitions, headingIds: new Set() }
+  const ctx: Ctx = {
+    definitions,
+    headingIds: new Set(),
+    currentDir: options.currentDir ?? '',
+    termMatcher: buildTermMatcher(options.terms),
+    suppressAutoLink: false,
+    bundleDocIds: options.bundleDocIds,
+    headingPrefix: options.headingPrefix,
+    expandAllTabs: options.expandAllTabs === true,
+  }
   return renderBlocks(root.children, ctx)
 }
 
@@ -67,8 +145,9 @@ function renderBlock(node: AnyNode, ctx: Ctx): ReactNode {
       return <p>{renderInlines(node.children, ctx)}</p>
     case 'heading': {
       const Tag = `h${node.depth}` as 'h1' | 'h2' | 'h3' | 'h4' | 'h5' | 'h6'
-      const id = uniqueHeadingId(textOfMdast(node.children), ctx.headingIds)
-      return <Tag id={id}>{renderInlines(node.children, ctx)}</Tag>
+      const rawId = uniqueHeadingId(textOfMdast(node.children), ctx.headingIds)
+      const id = ctx.headingPrefix ? `${ctx.headingPrefix}-${rawId}` : rawId
+      return <Tag id={id}>{renderInlines(node.children, { ...ctx, suppressAutoLink: true })}</Tag>
     }
     case 'blockquote':
       return <blockquote>{renderBlocks(node.children, ctx)}</blockquote>
@@ -103,9 +182,40 @@ function renderBlock(node: AnyNode, ctx: Ctx): ReactNode {
   }
 }
 
+function renderAutoLinkedText(text: string, matcher: TermMatcher): ReactNode {
+  matcher.regex.lastIndex = 0
+  const out: ReactNode[] = []
+  let lastIdx = 0
+  let match: RegExpExecArray | null
+  let key = 0
+
+  while ((match = matcher.regex.exec(text)) !== null) {
+    const matched = match[0]
+    const idx = match.index
+    if (idx > lastIdx) out.push(text.slice(lastIdx, idx))
+    const term = matcher.byKey.get(matched.toLowerCase())
+    if (term) {
+      out.push(
+        <TermInline key={key++} name={term.id} term={term}>
+          {matched}
+        </TermInline>,
+      )
+    } else {
+      out.push(matched)
+    }
+    lastIdx = idx + matched.length
+  }
+  if (lastIdx === 0) return text
+  if (lastIdx < text.length) out.push(text.slice(lastIdx))
+  return out
+}
+
 function renderInline(node: AnyNode, ctx: Ctx): ReactNode {
   switch (node.type) {
     case 'text':
+      if (!ctx.suppressAutoLink && ctx.termMatcher) {
+        return renderAutoLinkedText(node.value, ctx.termMatcher)
+      }
       return node.value
     case 'emphasis':
       return <em>{renderInlines(node.children, ctx)}</em>
@@ -153,10 +263,28 @@ function renderInline(node: AnyNode, ctx: Ctx): ReactNode {
 }
 
 function renderLink(url: string, title: string | null | undefined, children: readonly AnyNode[], ctx: Ctx): ReactNode {
-  const inner = renderInlines(children, ctx)
-  const to = resolveInternalHref(url)
-  if (to) return <Link to={to}>{inner}</Link>
+  const inner = renderInlines(children, { ...ctx, suppressAutoLink: true })
+  const resolved = resolveInternalTarget(url, ctx.currentDir)
+  if (resolved) {
+    if (ctx.bundleDocIds?.has(resolved.docId)) {
+      const anchor = resolved.hash ? `#${resolved.hash}` : `#${bundleDocAnchor(resolved.docId)}`
+      return (
+        <a href={anchor} title={title ?? undefined}>
+          {inner}
+        </a>
+      )
+    }
+    const suffix = resolved.hash ? `#${resolved.hash}` : ''
+    return <Link to={`/docs/${encodeDocId(resolved.docId)}${suffix}`}>{inner}</Link>
+  }
   if (!isSafeHref(url)) return <span className="md-broken-ref">{inner}</span>
+  if (url.trim().startsWith('#')) {
+    return (
+      <a href={url} title={title ?? undefined}>
+        {inner}
+      </a>
+    )
+  }
   return (
     <a href={url} title={title ?? undefined} target="_blank" rel="noreferrer">
       {inner}
@@ -171,11 +299,35 @@ function isSafeHref(href: string): boolean {
   return ['http', 'https', 'mailto', 'tel'].includes(scheme.toLowerCase())
 }
 
-function resolveInternalHref(href: string): string | null {
-  const page = /^\/pages\/([a-z]+)\/(\d{5})(?:[/?#]|$)/.exec(href)
-  if (page) return `/pages/${page[1]}/${page[2]}`
-  const ref = /^([a-z]+):(\d{5})$/.exec(href)
-  if (ref) return `/pages/${ref[1]}/${ref[2]}`
+function normalizePosix(dir: string, rel: string): string {
+  const baseParts = dir ? dir.split('/').filter(Boolean) : []
+  const relParts = rel.split('/')
+  const out = [...baseParts]
+  for (const part of relParts) {
+    if (!part || part === '.') continue
+    if (part === '..') out.pop()
+    else out.push(part)
+  }
+  return out.join('/')
+}
+
+function resolveInternalTarget(href: string, currentDir: string): { docId: string; hash?: string } | null {
+  const trimmed = href.trim()
+  if (!trimmed || trimmed.startsWith('#') || /^[a-z][a-z0-9+.-]*:/i.test(trimmed)) return null
+
+  const [rawPath, hash] = trimmed.split('#')
+  if (!rawPath) return null
+
+  if (rawPath.startsWith('/docs/')) {
+    const docId = rawPath.slice('/docs/'.length).replace(/\.(mdx|md)$/i, '')
+    return docId ? { docId, hash } : null
+  }
+
+  if (rawPath.startsWith('./') || rawPath.startsWith('../') || /\.(mdx|md)$/i.test(rawPath)) {
+    const docId = normalizePosix(currentDir, rawPath).replace(/\.(mdx|md)$/i, '')
+    return docId ? { docId, hash } : null
+  }
+
   return null
 }
 
@@ -261,13 +413,23 @@ function parseJsxProps(node: JsxNode): ParsedProps {
   return { ok: true, props }
 }
 
-const FLOW_COMPONENTS = new Set(['Callout', 'Tabs', 'Steps', 'SourceRef'])
+const FLOW_COMPONENTS = new Set([
+  'Callout',
+  'Tabs',
+  'Steps',
+  'SourceRef',
+  'Spec',
+  'Constraint',
+  'Outcome',
+  'Note',
+  'TermDef',
+  'Term',
+])
 const ITEM_COMPONENTS = new Set(['Tabs.Tab', 'Tab', 'Steps.Step', 'Step'])
 
 function renderJsx(node: JsxNode, ctx: Ctx, level: 'flow' | 'text'): ReactNode {
   const name = node.name
   if (name === null) {
-    // フラグメントは子要素をそのまま描画する
     return level === 'flow'
       ? renderBlocks(node.children as AnyNode[], ctx)
       : renderInlines(node.children as AnyNode[], ctx)
@@ -293,8 +455,74 @@ function renderJsx(node: JsxNode, ctx: Ctx, level: 'flow' | 'text'): ReactNode {
         return renderSteps(node, ctx)
       case 'SourceRef':
         return (
-          <SourceRef file={strProp(props, 'file')} symbol={strProp(props, 'symbol')} lines={strProp(props, 'lines')} />
+          <SourceRef
+            file={strProp(props, 'file')}
+            symbol={strProp(props, 'symbol')}
+            lines={strProp(props, 'lines')}
+            satisfies={strProp(props, 'satisfies')}
+            verifies={strProp(props, 'verifies')}
+          />
         )
+      case 'Spec':
+        return (
+          <SpecBlock
+            id={strProp(props, 'id')}
+            intent={strProp(props, 'intent')}
+            stability={strProp(props, 'stability')}
+            derives={strProp(props, 'derives')}
+            title={strProp(props, 'title')}
+          >
+            {renderJsxChildren(node, ctx)}
+          </SpecBlock>
+        )
+      case 'Constraint':
+        return (
+          <ConstraintBlock
+            id={strProp(props, 'id')}
+            scope={strProp(props, 'scope')}
+            stability={strProp(props, 'stability')}
+            title={strProp(props, 'title')}
+          >
+            {renderJsxChildren(node, ctx)}
+          </ConstraintBlock>
+        )
+      case 'Outcome':
+        return (
+          <OutcomeBlock
+            id={strProp(props, 'id')}
+            supersedes={strProp(props, 'supersedes')}
+            stability={strProp(props, 'stability')}
+            title={strProp(props, 'title')}
+          >
+            {renderJsxChildren(node, ctx)}
+          </OutcomeBlock>
+        )
+      case 'Note':
+        return (
+          <NoteBlock intent={strProp(props, 'intent')} title={strProp(props, 'title')}>
+            {renderJsxChildren(node, ctx)}
+          </NoteBlock>
+        )
+      case 'TermDef':
+        return (
+          <TermDefBlock
+            id={strProp(props, 'id')}
+            aliases={strProp(props, 'aliases')}
+            symbols={strProp(props, 'symbols')}
+          >
+            {renderJsxChildren(node, { ...ctx, suppressAutoLink: true })}
+          </TermDefBlock>
+        )
+      case 'Term': {
+        const termName = strProp(props, 'name')
+        const term = termName ? ctx.termMatcher?.byKey.get(termName.toLowerCase()) : undefined
+        const hasChildren = node.children.length > 0
+        return (
+          <TermInline name={termName} term={term}>
+            {hasChildren ? renderJsxChildren(node, { ...ctx, suppressAutoLink: true }) : undefined}
+          </TermInline>
+        )
+      }
     }
   }
 
@@ -369,7 +597,7 @@ function renderTabs(node: JsxNode, ctx: Ctx): ReactNode {
     return <MdxError message="<Tabs> には <Tabs.Tab> が必要です" source="<Tabs>" />
   }
   const tabs: TabItem[] = items.map((it) => ({ label: it.label, content: it.content }))
-  return <TabsBlock tabs={tabs} />
+  return <TabsBlock tabs={tabs} expandAll={ctx.expandAllTabs} />
 }
 
 function renderSteps(node: JsxNode, ctx: Ctx): ReactNode {

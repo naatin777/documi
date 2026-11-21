@@ -1,0 +1,67 @@
+---
+type: architecture
+title: システム全体構成
+description: Document Core・Reviews/Trace・Hono サーバー・React SPA・MCP・CLI・Bundle Export の責務境界
+tags: [architecture]
+---
+
+# システム全体構成
+
+Documi は単一の TypeScript プロジェクトとして 3 層で構成し、Web UI・REST API・MCP Server・CLI がすべて同じ <Term name="DocsIndex" /> を共有する。
+
+```mermaid
+flowchart TB
+    subgraph Client["React SPA (Vite)"]
+        UI["Overview / Sigma.js Graph & Matrix / Explorer / DocViewer / Cmd+K"]
+        BundleUI["/bundle (表紙・目次・複数章・全タブ展開)"]
+        SSE["Live Reload (EventSource /api/events)"]
+    end
+
+    subgraph Entry["Server & CLI"]
+        API["Hono RPC + Zod API (/api/*)"]
+        MCP["MCP Server (/mcp Streamable HTTP)"]
+        PDF["Bun.WebView PDF/HTML Renderer"]
+        CLI["Documi CLI (check / approve / export)"]
+        Store["DocsStore (fs.watch + auto reload)"]
+    end
+
+    subgraph Core["Document Core (src/core — フレームワーク非依存)"]
+        Loader["Recursive Loader & Type Inference"]
+        Mdx["mdast Block / Link Extractor"]
+        Reviews["Reviews Sidecar / Suspect / Git Diff"]
+        Trace["Code/Test/JUnit/PR Trace & Realization"]
+        BundleCore["Bundle Resolver / Search / Matrix"]
+        Source["AST Source Resolver (@ast-grep/napi)"]
+    end
+
+    FS["docs/ + docs/.documi/reviews.json + src/ + tests/"]
+
+    UI --> API
+    BundleUI --> API
+    SSE --> API
+    PDF --> BundleUI
+    CLI --> Core
+    CLI --> PDF
+    API --> Store
+    API --> PDF
+    MCP --> Store
+    Store --> Loader
+    Loader --> Mdx
+    Loader --> Reviews
+    Store --> Trace
+    API --> BundleCore
+    API --> Source
+    Loader --> FS
+    Trace --> FS
+    Source --> FS
+```
+
+## 4 層 Artifact Type と AI コンテキスト方針
+
+| 層 | Type | AI コンテキストでの扱い |
+|---|---|---|
+| **Boundary** | `goal`, `decision` | `goal` 全文と `decision` の `<Outcome>` を常時投入 |
+| **Domain** | `domain` | 用語とコードシンボル対応を常時投入 |
+| **Normative** | `spec`, `contract` | 実装・検証対象の機能について必須投入 |
+| **Realization** | `architecture`, `design`, `verification` | `architecture` は常時、`design` / `verification` は対象機能のみ |
+| **Informative** | `guide` | 手順確認など必要時のみ参照 |

@@ -1,14 +1,14 @@
 import { useEffect, useRef } from 'react'
 import { Link, useLocation } from 'react-router-dom'
-import { pageRef, useTabs } from '../tabs'
+import { encodeDocId } from '../api'
+import { docIdFromPath, useTabs } from '../tabs'
 
 export default function DocTabs() {
   const { tabs, closeTab } = useTabs()
   const { pathname } = useLocation()
   const stripRef = useRef<HTMLElement>(null)
-  const active = pageRef(pathname)
+  const activeId = docIdFromPath(pathname)
 
-  // アクティブなタブが見えるようにタブバーを横スクロールする
   useEffect(() => {
     const strip = stripRef.current
     if (!strip) return
@@ -26,13 +26,13 @@ export default function DocTabs() {
   return (
     <nav className="doc-tabs" aria-label="開いている文書" ref={stripRef}>
       {tabs.map((tab) => {
-        const isActive = active?.type === tab.type && active?.id === tab.id
+        const isActive = activeId === tab.id
         return (
-          <div key={`${tab.type}:${tab.id}`} className={`doc-tab${isActive ? ' active' : ''} type-${tab.type}`}>
+          <div key={tab.id} className={`doc-tab${isActive ? ' active' : ''} type-${tab.type}`}>
             <Link
-              to={`/pages/${tab.type}/${tab.id}`}
+              to={`/docs/${encodeDocId(tab.id)}`}
               className="doc-tab-link"
-              title={`${tab.type}:${tab.id} — ${tab.title}`}
+              title={`${tab.id} — ${tab.title}`}
               aria-current={isActive ? 'page' : undefined}
               onAuxClick={(e) => {
                 if (e.button === 1) {
@@ -44,7 +44,7 @@ export default function DocTabs() {
                 if (e.button === 1) e.preventDefault()
               }}
             >
-              <span className="doc-tab-id">{tab.id}</span>
+              <span className="doc-tab-dot" aria-hidden="true" />
               <span className="doc-tab-title">{tab.title}</span>
             </Link>
             <button

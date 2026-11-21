@@ -8,10 +8,20 @@ interface SourceRefProps {
   file?: string
   symbol?: string
   lines?: string
+  satisfies?: string
+  verifies?: string
+}
+
+function splitCsv(value?: string): string[] {
+  if (!value) return []
+  return value
+    .split(',')
+    .map((s) => s.trim())
+    .filter(Boolean)
 }
 
 /** 実ファイルのコードを AST / 行範囲で取得して表示する */
-export default function SourceRef({ file, symbol, lines }: SourceRefProps) {
+export default function SourceRef({ file, symbol, lines, satisfies, verifies }: SourceRefProps) {
   const [data, setData] = useState<SourceResponse | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
@@ -59,6 +69,9 @@ export default function SourceRef({ file, symbol, lines }: SourceRefProps) {
     )
   }
 
+  const satisfiesList = splitCsv(satisfies)
+  const verifiesList = splitCsv(verifies)
+
   return (
     <figure className="source-ref">
       <figcaption className="source-ref-header">
@@ -77,6 +90,16 @@ export default function SourceRef({ file, symbol, lines }: SourceRefProps) {
             {data.truncated ? ' (途中まで)' : ''}
           </span>
         )}
+        {satisfiesList.map((id) => (
+          <span key={`sat-${id}`} className="source-ref-trace">
+            satisfies {id}
+          </span>
+        ))}
+        {verifiesList.map((id) => (
+          <span key={`ver-${id}`} className="source-ref-trace source-ref-trace-verify">
+            verifies {id}
+          </span>
+        ))}
         {data && (
           <button type="button" className="codeblock-copy" onClick={() => data && copy(data.code)}>
             {copied ? 'コピーしました' : 'コピー'}

@@ -1,0 +1,31 @@
+---
+type: decision
+title: Hono RPC + Zod による型安全な API 層と将来のコードファースト OpenAPI 方針
+description: 素の REST の型二重管理を解消しつつ、tRPC やスキーマ先行 OpenAPI Generator を避けて Hono RPC + Zod を長期基盤とする判断
+date: 2026-11-21
+tags: [adr, api, hono, rpc, zod, openapi]
+---
+
+# Hono RPC + Zod による型安全な API 層と将来のコードファースト OpenAPI 方針
+
+<Outcome id="dec.hono-rpc-zod" stability="stable">
+  Documi の `/api/*` は **Hono の機能別サブルータ + Zod 入力バリデーション + Hono RPC (`hc<ApiRoutes>`)** で構成する。Web UI のレスポンス型は `InferResponseType` でサーバー実装から直接推論し、手書きの型二重管理を廃止する。tRPC と YAML 先行 OpenAPI Generator は採用せず、将来外部・多言語クライアント連携が必要になった段階で同じ Zod スキーマからコードファーストで OpenAPI (`/api/openapi.json`) を自動生成する。
+</Outcome>
+
+## 背景と課題
+
+素の REST (`c.json(...)` + フロント側 `fetch(... ) as Promise<HandwrittenType>`) では、サーバー側のレスポンス項目変更とフロント側の型定義が静かにドリフトしやすい。特に AI エージェントがサーバー側だけ・フロント側だけを更新した際に、型チェックをすり抜けて実行時バグになりやすい。
+
+## 比較検討
+
+| 選択肢 | 長期的メリット | Documi に合わない点 |
+|---|---|---|
+| **Hono RPC + Zod（採用）** | 既存の Hono + Zod 構成をそのまま活かし、コード生成なしでエンドツーエンド型安全を実現。SSE (`/api/events`)・バイナリ PDF (`/api/export/*`)・`curl` 等の素の REST とも自然に共存 | ルートを単一ファイルに詰め込むと型推論が重くなりやすいため、ドメイン別サブルータ (`src/server/routes/*`) へ分割する |
+| **OpenAPI + Generator（スキーマ先行）** | 外部公開 API や多言語クライアントに強い | 単一リポジトリのローカルツールでは YAML 編集 → codegen → 実装の摩擦が大きく、生成ファイルの差分が Git diff の可読性を損なう |
+| **tRPC** | TS 同士の RPC 体験が非常に滑らか | 既存 Hono との二重フレームワーク化を招くうえ、AI 向け窓口はすでに MCP が担い、SSE・PDF 出力とも相性が悪い |
+
+## 将来拡張の道筋
+
+1. **入力スキーマの単一情報源化**: 各エンドポイントの query / json バリデーションを Zod v4 スキーマ (`src/server/validator.ts`) に統一する。
+2. **コードファースト OpenAPI 出力**: VS Code 拡張や外部 CI 連携で言語非依存のコントラクトが必要になった時点で、同じ Zod スキーマから `/api/openapi.json` を自動生成する。
+3. **Living Contract 検証**: 将来的には自動生成された OpenAPI 定義と `docs/contracts/rest-api.mdx` の乖離を `documi check` で検知できるようにする。

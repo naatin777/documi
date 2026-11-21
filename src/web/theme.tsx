@@ -26,7 +26,11 @@ function loadMode(): ThemeMode {
 
 export function ThemeProvider({ children }: { children: ReactNode }) {
   const [mode, setMode] = useState<ThemeMode>(loadMode)
-  const [systemDark, setSystemDark] = useState(() => window.matchMedia(MEDIA_QUERY).matches)
+  const [systemDark, setSystemDark] = useState(() =>
+    typeof window !== 'undefined' && typeof window.matchMedia === 'function'
+      ? window.matchMedia(MEDIA_QUERY).matches
+      : false,
+  )
 
   useEffect(() => {
     const mq = window.matchMedia(MEDIA_QUERY)

@@ -1,48 +1,53 @@
-import type { DocStatus, Document } from '../../core/types'
+import type { Document } from '../../core/types'
 import { ARTIFACT_TYPE_LABELS } from '../../core/types'
+import type { TermEntry } from '../api'
 import Markdown from './Markdown'
 import { PrintFooter, PrintHeader } from './PrintChrome'
+import { DocReviewProvider } from './SemanticBlocks'
 
-export default function DocViewer({ doc }: { doc: Document }) {
+interface DocViewerProps {
+  doc: Document
+  terms?: readonly TermEntry[]
+  onMutate: () => void
+}
+
+export default function DocViewer({ doc, terms, onMutate }: DocViewerProps) {
   return (
     <article className="page doc-page">
-      <PrintHeader label={`${ARTIFACT_TYPE_LABELS[doc.type]} · ${doc.id}`} title={doc.title} meta={doc.path} />
+      <PrintHeader label={ARTIFACT_TYPE_LABELS[doc.type]} title={doc.title} meta={doc.path} />
       <header className="doc-header">
         <div className="doc-badges">
           <span className={`badge badge-type type-${doc.type}`}>{ARTIFACT_TYPE_LABELS[doc.type]}</span>
-          <span className="badge badge-id">{doc.id}</span>
-          <StatusBadge status={doc.status} />
+          {doc.typeInferred && <span className="badge badge-format">inferred</span>}
           {doc.format === 'mdx' && <span className="badge badge-format">MDX</span>}
+          {doc.blocks.length > 0 && <span className="badge badge-id">{doc.blocks.length} blocks</span>}
         </div>
         <h1>{doc.title}</h1>
-        <p className="doc-description">{doc.description}</p>
+        {doc.description && <p className="doc-description">{doc.description}</p>}
         <div className="doc-meta">
+          {doc.date && <span className="meta-item mono">{doc.date}</span>}
           {doc.tags.length > 0 && <span className="meta-item">tags: {doc.tags.join(', ')}</span>}
-          {doc.subtype && <span className="meta-item">subtype: {doc.subtype}</span>}
-          {doc.perspective && <span className="meta-item">perspective: {doc.perspective}</span>}
           <span className="meta-item mono">{doc.path}</span>
         </div>
       </header>
 
       {doc.issues.length > 0 && (
         <section className="issues-panel">
-          <h2>この文書の問題</h2>
+          <h2>この文書の問題 ({doc.issues.length})</h2>
           <ul>
             {doc.issues.map((issue, i) => (
               <li key={i}>
-                <code>{issue.code}</code> {issue.message}
+                <code>{issue.code}</code> {issue.blockId && <code>{issue.blockId}</code>} {issue.message}
               </li>
             ))}
           </ul>
         </section>
       )}
 
-      <Markdown body={doc.body} format={doc.format} />
-      <PrintFooter meta={doc.ref} />
+      <DocReviewProvider blocks={doc.blocks} onMutate={onMutate}>
+        <Markdown body={doc.body} format={doc.format} currentDir={doc.dir} terms={terms} />
+      </DocReviewProvider>
+      <PrintFooter meta={doc.id} />
     </article>
   )
-}
-
-function StatusBadge({ status }: { status: DocStatus }) {
-  return <span className={`badge badge-status badge-status-${status}`}>{status}</span>
 }

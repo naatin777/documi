@@ -23,8 +23,20 @@ export interface TabItem {
   content: ReactNode
 }
 
-export function TabsBlock({ tabs }: { tabs: TabItem[] }) {
+export function TabsBlock({ tabs, expandAll = false }: { tabs: TabItem[]; expandAll?: boolean }) {
   const [active, setActive] = useState(0)
+  if (expandAll) {
+    return (
+      <div className="mdx-tabs mdx-tabs-expanded">
+        {tabs.map((tab, i) => (
+          <div key={i} className="mdx-tab-expanded-item">
+            <div className="mdx-tab-expanded-label">{tab.label}</div>
+            <div className="mdx-tabs-panel">{tab.content}</div>
+          </div>
+        ))}
+      </div>
+    )
+  }
   const selected = Math.min(active, tabs.length - 1)
   const current = tabs[selected]
   return (

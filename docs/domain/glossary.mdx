@@ -1,0 +1,42 @@
+---
+type: domain
+title: ドメイン用語集 (Living Glossary)
+description: Documi 全体で使われるユビキタス言語とソースコード上の型・シンボルの対応
+tags: [domain, glossary]
+---
+
+# ドメイン用語集 (Living Glossary)
+
+Documi の仕様・設計・ソースコードで共有される共通語彙を定義する。
+
+<TermDef id="Artifact" aliases="ドキュメント, 文書" symbols="src/core/types.ts#Document, src/core/types.ts#ArtifactType">
+  Documi が管理する Markdown / MDX ファイル単位。拡張子を除いた POSIX 相対パスが ID となり、`goal` / `decision` / `domain` / `spec` / `contract` / `architecture` / `design` / `verification` / `guide` の 9 種類の Type を持つ。
+</TermDef>
+
+<TermDef id="SemanticBlock" aliases="セマンティックブロック, ブロック" symbols="src/core/types.ts#SemanticBlock, src/core/types.ts#BlockKind">
+  MDX 内の `<Spec>` / `<Constraint>` / `<Outcome>` / `<Note>` / `<TermDef>` で囲まれた意味単位。プロジェクト全体で一意なドット区切り ID と正規化 SHA-256 の `contentHash` を持つ。
+</TermDef>
+
+<TermDef id="GraphEdge" aliases="エッジ, 関係" symbols="src/core/types.ts#GraphEdge, src/core/types.ts#EdgeKind">
+  ドキュメントまたはブロック間の有向辺。トレーサビリティの背骨 (`derives` / `satisfies` / `verifies` / `supersedes`) と、本文リンク・用語参照から自動抽出される `mentions` の 5 種で構成される。
+</TermDef>
+
+<TermDef id="SourceRef" aliases="ソース参照" symbols="src/core/source.ts#resolveSourceSymbol, src/core/types.ts#SourceRefDecl">
+  ドキュメント内に実ソースコードの定義や行範囲を埋め込む仕組み。`@ast-grep/napi` (tree-sitter) でシンボルを動的に解決するため、コードを複製せず常に最新を反映する。
+</TermDef>
+
+<TermDef id="DocsIndex" aliases="インデックス" symbols="src/core/types.ts#DocsIndex, src/core/loader.ts#loadDocuments">
+  `docs/` ディレクトリ全体を再帰走査して構築される共通データモデル。文書・ブロック・用語・グラフエッジ・問題一覧を一元管理する。
+</TermDef>
+
+<TermDef id="ReviewRecord" aliases="承認記録, レビュー記録" symbols="src/core/types.ts#BlockReviewRecord, src/core/reviews.ts#approveBlock">
+  `docs/.documi/reviews.json` に保存されるブロック単位の人間承認レコード。承認時の SHA-256 ハッシュ・Git コミット SHA・上流ハッシュ・AI 向けフィードバックを保持し、MDX 本文とは物理分離される。
+</TermDef>
+
+<TermDef id="Realization" aliases="実装状態" symbols="src/core/types.ts#RealizationSummary, src/core/trace.ts#enrichWithRealization">
+  コードアンカー (`@implements` / `<SourceRef>`)・テスト (`@verifies` / `test("[id]")`)・JUnit 実行結果・PR 情報から完全自動で算出される仕様の実現状態 (`unimplemented` / `in-progress` / `implemented` / `verified` / `drifted`)。
+</TermDef>
+
+<TermDef id="Bundle" aliases="まとめ出力, バンドル" symbols="src/core/bundle.ts#resolveBundleDocuments, src/server/pdf.ts#renderPdfFromUrl">
+  複数ドキュメント（全文書・ディレクトリ配下・Goal 関連一式・任意選択）を表紙・自動目次・ページ内アンカー・全タブ展開付きの 1 冊の HTML / PDF として出力する仕組み。
+</TermDef>

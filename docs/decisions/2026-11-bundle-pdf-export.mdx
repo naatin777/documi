@@ -1,0 +1,24 @@
+---
+type: decision
+title: 複数まとめ Export における /bundle × Bun.WebView.navigate() 方式の採用
+description: 単体 DOM クローン POST 方式の限界を超え、Web UI と CLI で同一品質の複数文書 HTML / PDF を出力する設計決定
+date: 2026-11-21
+tags: [adr, export, pdf]
+---
+
+# 複数まとめ Export における /bundle × Bun.WebView.navigate() 方式の採用
+
+<Outcome id="dec.bundle-export" stability="stable">
+  複数ドキュメントのまとめ出力は、React 側の専用ルート `/bundle` で表紙・自動目次・章区切り・ページ内アンカー変換・見出し ID 名前空間化・`<Tabs>` 全展開を描画し、`Bun.WebView` (Chrome backend) がローカルループバックの `/bundle` URL を直接 `navigate()` して `Page.printToPDF` / 単一 HTML 抽出を行う方式を採用する。
+</Outcome>
+
+## 検討した代替案とトレードオフ
+
+- **案 A: 従来の DOM クローン → HTML POST 方式の拡張**
+  - 表示していない複数ページを描画できず、Shiki + Mermaid SVG + CSS を JSON で送ると 5MB 上限にすぐ達する。CLI からも利用できないため棄却した。
+- **案 B: サーバー側だけで Markdown → HTML 変換して PDF 化**
+  - フロントエンドと同じ Mermaid / Shiki / KaTeX / MDX セマンティックブロック描画をサーバー側で二重実装することになり、見た目が乖離するため棄却した。
+- **案 C: `/bundle` ルート × `Bun.WebView.navigate()`（採用）**
+  - 追加の npm 依存ゼロのまま、Web UI と CLI (`documi export`) が 100% 同じレンダリングパイプラインを共有できる。
+  - セキュリティ対策として、`renderPdfFromUrl` はローカルループバック (`127.0.0.1` / `localhost` / `::1`) の `/bundle` パスのみを許可して SSRF を防ぐ。
+  - Chrome が無い環境でも、ブラウザで `/bundle` を開いて標準印刷または HTML ダウンロードにフォールバックできる。

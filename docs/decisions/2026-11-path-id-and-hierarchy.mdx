@@ -1,0 +1,28 @@
+---
+type: decision
+title: 5 桁連番の廃止と自由な階層構造・パス ID の採用
+description: Git 採番衝突・人間の認知負荷・ディレクトリと type の二重宣言を解消するための識別モデル変更
+date: 2026-11-20
+tags: [adr, filesystem, hierarchy]
+---
+
+# 5 桁連番の廃止と自由な階層構造・パス ID の採用
+
+<Outcome id="dec.path-id" stability="stable">
+  `NNNNN-slug.mdx` の 5 桁連番強制と Type 別 1 階層フラット構成を廃止し、`docs/` 配下の自由な階層ディレクトリを再帰走査して **拡張子なし POSIX 相対パスをドキュメント ID** とする。`type` は frontmatter を優先しつつ、ディレクトリ名・ファイル名からの自動推論により二重宣言を不要にする。
+</Outcome>
+
+## 検討した背景と課題
+
+初期プロトタイプでは `docs/{type}/NNNNN-kebab-case-slug.mdx` を検討していたが、実運用・AI 並列開発において次の問題が顕著になった：
+
+1. **並行開発・並列 AI エージェントでの採番衝突**: 複数ブランチや複数エージェントが同時に文書を追加すると同じ `00003-...` を採番して Git マージ時に `duplicate-id` になる
+2. **人間の認知負荷**: `requirement:00001` のような数字 ID は、PR 差分やエディタで生ファイルを見たときに何の仕様か一切分からない
+3. **フラット構成の限界**: 文書数が 30〜50 本を超えると、「認証機能の仕様・設計・契約・検証」が 4 つの Type フォルダに分断されて追えなくなる
+4. **二重宣言の煩雑さ**: `docs/designs/` に置いたファイルに必ず `type: design` と書かないとエラーになるのは DRY に反する
+
+## トレードオフと代替案
+
+- **連番の唯一の利点（リネーム耐性）への対処**: パス ID はファイル移動時にリンク更新が必要になるが、Documi Core が `missing-relation` を自動検知し `documi check` / MCP `validate_docs` で即座に AI が追従修正できるため、連番のデメリットを上回らないと判断した。
+- **時系列ログ (`decision` / ADR) の扱い**: 決定日の管理には frontmatter の任意フィールド `date`（ISO 8601 の `YYYY-MM-DD` / `YYYY-MM`、MADR 4.0 準拠）をサポートし、UI や一覧では新しい決定日順に自動ソートする。ファイル名への日付プレフィックス（`YYYY-MM-DD-slug.mdx` や `YYYY-MM-slug.mdx`）は強制せず推奨とし、並列作成時の衝突回避や履歴の可読性を保ちつつ柔軟に運用できるようにする。
+- **ビューの分離**: ファイル配置は機能単位（`docs/auth/spec.mdx`）でも Type 単位（`docs/specs/auth.mdx`）でも自由にし、Web UI の Explorer で **Tree モード** と **Types モード** を切り替えて両方から見られるようにした。
