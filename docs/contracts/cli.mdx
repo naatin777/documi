@@ -66,3 +66,12 @@ AI エディタ・CLI エージェント向けに **stdio トランスポート*
 | `--ids <a,b,c>` | 含めるドキュメント ID をカンマ区切りで明示指定 |
 | `--title <text>` | 表紙タイトル |
 | `--out <file>` | 出力先ファイルパス（既定: `documi-bundle.pdf` / `.html`） |
+
+## 終了コードと副作用の規約
+
+- **終了コード**: 正常終了は `0`、引数不正・検証エラー（`documi check` 失敗含む）・対象未存在・I/O エラー時は `1` を返す。
+- **副作用の範囲**:
+  - `documi check` / `documi mcp`: 読み取り専用（ファイル書き換えなし）。
+  - `documi init`: 不足している雛形ファイルのみを作成し、既存ファイルは一切上書きしない（冪等）。
+  - `documi approve`: `docs/.documi/reviews.json` と `.documi/cache/` のみ更新し、MDX 本文は変更しない。
+  - `documi export`: `--out` で指定された出力ファイルのみを書き出す。

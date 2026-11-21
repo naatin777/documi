@@ -1,12 +1,12 @@
 ---
 type: decision
-title: 4 層・9 種類の Artifact Type と ADR 結論分離の採用
+title: 5 層・9 種類の Artifact Type と ADR 結論分離の採用
 description: ソフトウェア工学標準と AI コンテキスト効率の双方から導いたドキュメント分類体系と設計根拠
 date: 2026-11-20
 tags: [adr, taxonomy, ai-context]
 ---
 
-# 4 層・9 種類の Artifact Type と ADR 結論分離の採用
+# 5 層・9 種類の Artifact Type と ADR 結論分離の採用
 
 <Outcome id="dec.artifact-taxonomy" stability="stable">
   ドキュメントを **Boundary (`goal`, `decision`) / Domain (`domain`) / Normative (`spec`, `contract`) / Realization (`architecture`, `design`, `verification`) / Informative (`guide`)** の 9 種類に分類する。`architecture`（常時投入する全体地図）と `design`（対象機能のみ投入する詳細設計）は AI コンテキスト投入頻度で明確に分離し、`decision` は `<Outcome>` で結論だけを抽出して実装 AI のコンテキスト圧迫を防ぐ。
@@ -21,9 +21,9 @@ tags: [adr, taxonomy, ai-context]
 |---|---|---|
 | **ISO/IEC/IEEE 29148** (要件工学標準) | BRS → StRS/SRS → I/F → Verification の上流・下流トレーサビリティ | `goal` → `spec` → `contract` / `design` → `verification` |
 | **arc42 + C4 Model** | システム全体の鳥瞰図 (L1-L2) とコンポーネント内部設計 (L3) | `architecture` (全体) と `design` (個別機能) |
-| **DDD / Living Documentation** (Cyrille Martraire) | ユビキタス言語とコードの 1 対 1 結合 | `glossary.mdx` を **`domain`** Type へ昇格し `<TermDef symbols="...">` でコード直結 |
+| **DDD / Living Documentation** | ユビキタス言語とコードの 1 対 1 結合 | `glossary.mdx` を **`domain`** Type へ昇格し `<TermDef symbols="...">` でコード直結 |
 | **IETF RFC / W3C 仕様** | **Normative** (準拠必須の規範) vs **Informative** (解説・メモ) | `spec`/`contract` と `guide`/`<Note intent="idea">` の明確な分離 |
-| **ADR (Nygard / MADR)** | 時系列の意思決定と棄却理由の保存 | `decision` ＋ 結論だけを抜き出す **`<Outcome>`** タグ |
+| **ADR (MADR)** | 時系列の意思決定と棄却理由の保存 | `decision` ＋ 結論だけを抜き出す **`<Outcome>`** タグ |
 | **EARS** (Rolls-Royce / Kiro 等) | 曖昧さを排除する振る舞い記述構文 (`When / While / If ... shall ...`) | `requirement` を **`spec`** へ明確化し `<Spec>` ブロックで記述 |
 | **SDD (Spec Kit 等)** | プロジェクト不変ルール (Constitution) による脱線防止 | `goal` 内の **`<Constraint>`** ブロック |
 

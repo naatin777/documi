@@ -1,38 +1,72 @@
 ---
 type: verification
-title: Core・Reviews・Trace・Bundle・API・MCP・MDX の検証方針
-description: 自動テストと JUnit XML 連携による全仕様・契約の継続的検証
+title: Core・Reviews・Trace・Bundle・API・MCP・UI の検証方針
+description: 証拠主義のテスト戦略・JUnit XML 連携・品質ゲート・意図的対象外（Out of Scope）と 8 スイート一覧
 tags: [testing, verification]
 verifies:
   - core.document-model
+  - core.type-inference
   - core.mdx-blocks
+  - core.mdx-safety
   - core.rooted-dag
+  - core.auto-mentions
   - core.human-review
   - core.realization
   - core.ast-check
   - core.bundle-export
   - core.full-text-search
+  - ui.web-viewer
+  - ui.explorer-modes
+  - ui.live-reload
+  - ui.human-review
+  - ui.glossary-autolink
+  - ui.graph-matrix
+  - ui.bundle-export
+  - ui.search-palette
   - contracts/rest-api
   - contracts/mcp-tools
   - contracts/cli
 ---
 
-# Core・Reviews・Trace・Bundle・API・MCP・MDX の検証方針
+# Core・Reviews・Trace・Bundle・API・MCP・UI の検証方針
 
-`bun test`（および JUnit XML 出力＋`bun run documi:check`）により以下の 8 スイートで継続的に検証する。
+## 1. テスト戦略と証拠主義（Prove It Works）
+
+- **ビルド通過や自己申告を完了とみなさない**: 仕様・契約・修正の完了は、実際の自動テスト実行結果（JUnit XML）および静的・構造チェックの通過という客観的証拠で証明する。
+- **形骸テストと過剰モックの禁止**: 定数を写しただけの落ちないテストや、内部実装を過剰モックしたテストは避け、実際のファイルシステム（一時ディレクトリ）・Hono アプリ・mdast / `@ast-grep/napi`・MCP ツールを通して振る舞いを検証する。
+- **バグ修正は Red → Green で確認**: 不具合修正時は、修正前の状態で失敗する再現テストを先に確認してから修正を通す。
+- **重要領域の強化検証**: MDX 安全性（任意 JS・未許可構文拒否）、`projectRoot` パストラバーサル・シンボリックリンク防御、Rooted DAG 循環・孤立検出、サイドカー承認と `stale`/`suspect` 遷移は境界値・異常系を必須で検証する。
+
+## 2. 品質ゲート（マージ前必須コマンド）
+
+PR および変更完了時は、以下をすべてエラー・警告 0 件で通過させる。
 
 ```bash
 bun test --reporter=junit --reporter-outfile=docs/.documi/test-results.xml
+bun run check
+bun run lint
+bun run format:check
+bun run knip
+bun run build
 bun run documi:check
 ```
 
+## 3. テストスイート一覧（8 スイート）
+
 | テストスイート | 検証対象 |
 |---|---|
-| `tests/core.test.ts` | 再帰走査・Type 推論・MDX ブロック AST 抽出・ハッシュ算出・5 種エッジ・`orphan-spec`・循環検出・階層ツリー構築 |
+| `tests/core.test.ts` | 再帰走査・Type/Date 推論・MDX ブロック AST 抽出・ハッシュ算出・5 種エッジ・`orphan-spec`・循環検出・階層ツリー構築 |
 | `tests/reviews.test.ts` | サイドカー `reviews.json` 承認・`stale`・Suspect Links 波及・Git/キャッシュ行 diff・フィードバック・Stability 上書き |
 | `tests/trace.test.ts` | `@implements` / `@verifies` / `test("[id]")` 走査・JUnit XML 取り込み・PR 連携・AST 壊れ検知・`documi check` CLI (`--strict` / `--no-review-edit`) |
 | `tests/bundle.test.tsx` | バンドル解決 (`all`/`dir`/`goal`/`ids`)・全文検索・トレーサビリティマトリクス・バンドル描画（ページ内アンカー・見出し名前空間・全タブ展開）・関連 API/MCP |
 | `tests/api.test.ts` | Hono RPC + Zod REST API 全エンドポイント・`DocsStore.reload`・MCP ツール 8 種 |
-| `tests/ui.test.tsx` | Overview・Explorer (Tree/Types)・SSE ライブ更新・レビュー UI・用語自動リンク・Graph/Matrix API・Cmd+K 検索・`documi init` CLI |
+| `tests/ui.test.tsx` | Overview・1 本サイドバー (`Flow` / `Files`)・Review Queue・Side-by-Side プレビュー・SSE ライブ更新・用語自動リンク・Graph/Matrix API・Cmd+K 検索・`documi init` CLI |
 | `tests/mdx.test.tsx` | GFM・KaTeX・Shiki・Mermaid・セマンティックタグ 6 種・Living Glossary 自動リンク・相対パス内部リンク・危険構文無効化 |
 | `tests/source.test.ts` | 9 言語の AST シンボル解決・行範囲抽出・パストラバーサル／シンボリックリンク／バイナリ防御 |
+
+## 4. 意図的な対象外（Out of Scope）
+
+以下は CI 自動テストの既定対象外とし、過剰なテスト維持コストや環境依存フレーキーを避ける：
+
+- ヘッドレスブラウザによるピクセル単位のビジュアル回帰テスト（WebGL グラフ描画・PDF レイアウトの目視確認はローカルスモーク検証で行う）
+- 外部 GitHub API (`gh pr list`) への実ネットワーク通信を伴う結合テスト（パーサー・紐づけロジックのみ単体検証する）
