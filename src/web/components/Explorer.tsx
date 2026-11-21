@@ -8,17 +8,35 @@ import { useDocsRevision } from '../live'
 import { ThemeToggle } from '../theme'
 import ExportActions from './ExportActions'
 
-type ViewMode = 'tree' | 'types'
+type DocListMode = 'flow' | 'files'
+
+/**
+ * 読む順番（上流→下流のライフサイクル順）でドキュメントを並べる順序。
+ * 目的・全体像・用語 → 要件・契約 → 設計・判断 → 検証・ガイド
+ */
+const READING_FLOW_ORDER: readonly ArtifactType[] = [
+  'goal',
+  'architecture',
+  'domain',
+  'spec',
+  'contract',
+  'design',
+  'decision',
+  'verification',
+  'guide',
+]
 
 interface ExplorerProps {
+  reviewBadgeCount: number
+  onCollapse: () => void
   onClose: () => void
   onOpenSearch: () => void
 }
 
 // @implements ui.explorer-modes
-export default function Explorer({ onClose, onOpenSearch }: ExplorerProps) {
+export default function Explorer({ reviewBadgeCount, onCollapse, onClose, onOpenSearch }: ExplorerProps) {
   const revision = useDocsRevision()
-  const [view, setView] = useState<ViewMode>('tree')
+  const [mode, setMode] = useState<DocListMode>('flow')
   const [tree, setTree] = useState<DocTreeNode[]>([])
   const [documents, setDocuments] = useState<DocumentSummary[]>([])
   const [status, setStatus] = useState<StatusResponse | null>(null)
@@ -72,7 +90,7 @@ export default function Explorer({ onClose, onOpenSearch }: ExplorerProps) {
   }
 
   return (
-    <aside className="explorer" aria-label="Explorer">
+    <aside className="explorer" aria-label="ナビゲーション">
       <div className="explorer-header">
         <NavLink to="/" className="brand brand-link" onClick={onClose}>
           Documi
@@ -80,7 +98,24 @@ export default function Explorer({ onClose, onOpenSearch }: ExplorerProps) {
         <div className="explorer-actions">
           <ExportActions />
           <ThemeToggle />
-          <button type="button" className="explorer-close" onClick={onClose} aria-label="Explorerを閉じる">
+          <button
+            type="button"
+            className="explorer-collapse-btn"
+            onClick={onCollapse}
+            title="サイドバーを畳む (⌘B)"
+            aria-label="サイドバーを畳む"
+          >
+            <svg width="14" height="14" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+              <path
+                d="M10.5 3.5L6 8L10.5 12.5"
+                stroke="currentColor"
+                strokeWidth="1.5"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+            </svg>
+          </button>
+          <button type="button" className="explorer-close" onClick={onClose} aria-label="メニューを閉じる">
             <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
               <path d="M3 3l10 10M13 3L3 13" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
             </svg>
@@ -95,60 +130,64 @@ export default function Explorer({ onClose, onOpenSearch }: ExplorerProps) {
         </button>
       </div>
 
-      <div className="explorer-mode" role="tablist" aria-label="表示切替">
-        <button
-          type="button"
-          role="tab"
-          aria-selected={view === 'tree'}
-          className={`explorer-mode-btn${view === 'tree' ? ' active' : ''}`}
-          onClick={() => setView('tree')}
-        >
-          Tree
-        </button>
-        <button
-          type="button"
-          role="tab"
-          aria-selected={view === 'types'}
-          className={`explorer-mode-btn${view === 'types' ? ' active' : ''}`}
-          onClick={() => setView('types')}
-        >
-          Types
-        </button>
-      </div>
-
-      <nav className="explorer-nav">
+      <div className="explorer-primary-nav" role="navigation" aria-label="主要ビュー">
         <NavLink
           to="/"
           end
-          className={({ isActive }) => `nav-item nav-overview${isActive ? ' active' : ''}`}
+          className={({ isActive }) => `nav-primary-item${isActive ? ' active' : ''}`}
           onClick={onClose}
         >
-          Overview
+          <HomeIcon />
+          <span>Home</span>
+        </NavLink>
+        <NavLink
+          to="/review"
+          className={({ isActive }) => `nav-primary-item${isActive ? ' active' : ''}`}
+          onClick={onClose}
+        >
+          <ReviewIcon />
+          <span>Review Queue</span>
+          {reviewBadgeCount > 0 && <span className="nav-badge warn">{reviewBadgeCount}</span>}
         </NavLink>
         <NavLink
           to="/graph"
-          className={({ isActive }) => `nav-item nav-overview${isActive ? ' active' : ''}`}
+          className={({ isActive }) => `nav-primary-item${isActive ? ' active' : ''}`}
           onClick={onClose}
         >
-          Graph & Matrix
+          <GraphIcon />
+          <span>Graph & Matrix</span>
         </NavLink>
+      </div>
 
-        {view === 'tree' ? (
-          <div className="nav-tree">
-            {tree.length === 0 && <div className="nav-empty">文書なし</div>}
-            {tree.map((node) => (
-              <TreeBranch
-                key={node.kind === 'dir' ? `dir:${node.path}` : `doc:${node.doc.id}`}
-                node={node}
-                depth={0}
-                collapsedDirs={collapsedDirs}
-                onToggleDir={toggleDir}
-                onClose={onClose}
-              />
-            ))}
-          </div>
-        ) : (
-          ARTIFACT_TYPES.map((type) => {
+      <div className="explorer-docs-bar">
+        <span className="explorer-docs-label">Documents</span>
+        <div className="explorer-mode-inline" role="tablist" aria-label="ドキュメント一覧の表示切替">
+          <button
+            type="button"
+            role="tab"
+            aria-selected={mode === 'flow'}
+            className={`explorer-mode-pill${mode === 'flow' ? ' active' : ''}`}
+            onClick={() => setMode('flow')}
+            title="上流（Goals・Architecture）から下流（設計・検証）の読み順で表示"
+          >
+            Flow
+          </button>
+          <button
+            type="button"
+            role="tab"
+            aria-selected={mode === 'files'}
+            className={`explorer-mode-pill${mode === 'files' ? ' active' : ''}`}
+            onClick={() => setMode('files')}
+            title="docs/ のフォルダ階層そのままを表示"
+          >
+            Files
+          </button>
+        </div>
+      </div>
+
+      <nav className="explorer-nav" aria-label="ドキュメント一覧">
+        {mode === 'flow' ? (
+          READING_FLOW_ORDER.map((type) => {
             const docs = grouped.get(type) ?? []
             const isCollapsed = collapsedTypes.has(type)
             return (
@@ -160,6 +199,7 @@ export default function Explorer({ onClose, onOpenSearch }: ExplorerProps) {
                   onClick={() => toggleType(type)}
                 >
                   <Chevron collapsed={isCollapsed} />
+                  <span className="nav-type-dot" aria-hidden="true" />
                   <span className="nav-section-label">{ARTIFACT_TYPE_SECTION_LABELS[type]}</span>
                   <span className="nav-count">{docs.length}</span>
                 </button>
@@ -185,6 +225,20 @@ export default function Explorer({ onClose, onOpenSearch }: ExplorerProps) {
               </section>
             )
           })
+        ) : (
+          <div className="nav-tree">
+            {tree.length === 0 && <div className="nav-empty">文書なし</div>}
+            {tree.map((node) => (
+              <TreeBranch
+                key={node.kind === 'dir' ? `dir:${node.path}` : `doc:${node.doc.id}`}
+                node={node}
+                depth={0}
+                collapsedDirs={collapsedDirs}
+                onToggleDir={toggleDir}
+                onClose={onClose}
+              />
+            ))}
+          </div>
         )}
       </nav>
 
@@ -280,6 +334,45 @@ function Chevron({ collapsed }: { collapsed: boolean }) {
       aria-hidden="true"
     >
       <path d="M3 1.5L7 5L3 8.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  )
+}
+
+function HomeIcon() {
+  return (
+    <svg width="15" height="15" viewBox="0 0 20 20" fill="none" aria-hidden="true">
+      <path
+        d="M3 9.5L10 3.5L17 9.5V16.5C17 17.05 16.55 17.5 16 17.5H12.5V12.5H7.5V17.5H4C3.45 17.5 3 17.05 3 16.5V9.5Z"
+        stroke="currentColor"
+        strokeWidth="1.6"
+        strokeLinejoin="round"
+      />
+    </svg>
+  )
+}
+
+function ReviewIcon() {
+  return (
+    <svg width="15" height="15" viewBox="0 0 20 20" fill="none" aria-hidden="true">
+      <rect x="3" y="3" width="14" height="14" rx="2.5" stroke="currentColor" strokeWidth="1.6" />
+      <path
+        d="M6.8 10.2L9 12.4L13.4 7.8"
+        stroke="currentColor"
+        strokeWidth="1.7"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  )
+}
+
+function GraphIcon() {
+  return (
+    <svg width="15" height="15" viewBox="0 0 20 20" fill="none" aria-hidden="true">
+      <circle cx="5" cy="5.5" r="2.2" stroke="currentColor" strokeWidth="1.6" />
+      <circle cx="15" cy="5.5" r="2.2" stroke="currentColor" strokeWidth="1.6" />
+      <circle cx="10" cy="15" r="2.2" stroke="currentColor" strokeWidth="1.6" />
+      <path d="M7.2 5.5H12.8M6.1 7.4L8.9 13.1M13.9 7.4L11.1 13.1" stroke="currentColor" strokeWidth="1.5" />
     </svg>
   )
 }

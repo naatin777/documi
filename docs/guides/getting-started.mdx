@@ -1,7 +1,7 @@
 ---
 type: guide
 title: Getting Started & 運用ガイド
-description: 起動・CLI チェック・テスト結果連携・複数まとめ Export・Cmd+K 検索・MDX コンポーネントの使い方
+description: 初期化・起動・stdio/HTTP MCP・Review Inbox・並べて読む UI・ADR の書き方・CI チェック・まとめ Export の使い方
 tags: [guide, mdx]
 ---
 
@@ -16,7 +16,34 @@ bun run build    # フロントエンドを dist/ にビルド
 bun run start    # 本番サーバー起動 (http://localhost:3000)
 ```
 
-## テスト結果の反映と整合性チェック (CLI)
+他プロジェクトへ導入する場合は CLI からそのまま初期化・起動・MCP 接続できます。
+
+```bash
+documi init --docs ./docs                          # docs/ 雛形を生成
+documi serve --docs ./docs --project . --port 3000 # Web UI + API + HTTP MCP 起動
+documi mcp --docs ./docs --project .               # stdio MCP サーバー起動 (AI エディタ連携)
+```
+
+> ソースコード参照（`<SourceRef file="src/..." />` / `<TermDef symbols="src/...#Sym">`）はすべて <Term name="ProjectRoot" />（既定: `docs/` の親ディレクトリ、`--project` または `DOCUMI_PROJECT_ROOT` で変更可）からの POSIX 相対パスで記述します。
+
+## Web UI の読み方・レビューの進め方
+
+- **1 本サイドバー (`Flow` / `Files`)**: 既定の `Flow` モードでは `Goals → Architecture → Domain → Specs → Contracts → Designs → Decisions → Verification → Guides` の読み順で並びます。フォルダ構造で見たいときは `Files` へ切り替えます。
+- **Review Queue (`/review`)**: AI が新規作成・変更したブロックを `要確認 (Stale/Suspect)`・`未解決フィードバック`・`未承認` で絞り込み、行 Diff 確認やワンクリック承認、元文書の「並べて確認」が行えます。
+- **並べて読む（Side-by-Side プレビュー）**:
+  - ドキュメント閲覧中、右パネルの `Links` タブにある分割ボタン（またはリンクを **`Shift+クリック`**）で関連文書を右側に並べて比較できます。
+  - `/graph` でノードをクリックすると、グラフを離れずに右側にその文書・ブロック本文が即時表示されます。
+- **キーボードショートカット**:
+  - `Cmd+K` / `Ctrl+K`: ドキュメント・Spec ID・用語・本文の全文検索モーダルを開く
+  - `Cmd+B` / `Ctrl+B`: 左サイドバーを開閉して読書・グラフ領域を広げる
+
+## ADR (`decision`) の書き方
+
+- frontmatter に任意で ISO 8601 の **`date: YYYY-MM-DD`**（または `YYYY-MM`、MADR 4.0 準拠）を付けると、一覧や Overview で新しい決定日順に並びます。
+- ファイル名の日付プレフィックス（例: `decisions/2026-11-hono-rpc-and-zod-api.mdx`）は強制ではありませんが、並列作成時の衝突回避と履歴の可読性のため推奨します。
+- 決定の結論は 2〜3 行で `<Outcome id="dec.xxx">` に囲むと、AI への常時コンテキストとして優先投入されます。
+
+## テスト結果の反映・CI・`CODEOWNERS`
 
 テスト名に `[spec.id]` を含めて JUnit レポートを出力すると、Web UI と CLI の両方で `Verified` 状態が自動反映されます。
 
@@ -34,19 +61,18 @@ bun src/cli.ts check --no-review-edit
 bun src/cli.ts approve core.document-model
 ```
 
+- `.github/workflows/ci.yml` で PR ごとにテスト・型・lint・ビルド・`documi:check` を自動検証します。
+- `.github/CODEOWNERS` で `docs/.documi/reviews.json` の変更にメンテナレビューを紐づけられます。
+
 ## 複数ドキュメントまとめ Export (HTML / PDF)
 
-Web UI 右上の Export ボタン（または CLI）から、全ドキュメント・特定ディレクトリ・Goal 関連一式・任意複数選択を 1 冊の仕様書として出力できます。
+Web UI 上部の Export ボタン（または CLI）から、全ドキュメント・特定ディレクトリ・Goal 関連一式・任意複数選択を 1 冊の仕様書として出力できます。
 
 ```bash
 bun run build
 bun run documi:export -- --scope goal:goals/living-specification --format pdf --out spec.pdf
 bun run documi:export -- --scope all --format html --out spec.html
 ```
-
-## キーボードショートカット
-
-- `Cmd+K` / `Ctrl+K`: ドキュメント・Spec ID・用語・本文の全文検索モーダルを開く
 
 ## リッチ表現コンポーネント
 

@@ -7,15 +7,17 @@ Web UI・REST API・MCP Server・CLI のすべてが同じ Document Core (`src/c
 
 ## 主な特徴
 
-- **連番廃止 & 自由な階層構造**: `docs/` 配下を再帰走査し、拡張子なし POSIX 相対パスをドキュメント ID とする
+- **連番廃止 & 自由な階層構造**: `docs/` 配下を再帰走査し、拡張子なし POSIX 相対パスをドキュメント ID とする（任意 `date` メタデータ対応・ADR 降順ソート）
 - **4 層・9 種類の Artifact Type**: `goal` / `decision` / `domain` / `spec` / `contract` / `architecture` / `design` / `verification` / `guide`（ディレクトリ名・ファイル名から自動推論）
 - **Goal を根にした Rooted DAG**: `normative` な `<Spec>` が `derives` 経由で `goal` に繋がっていない場合は `orphan-spec` として検知
 - **MDX セマンティックタグ（任意 JS 実行禁止）**: `<Spec>`, `<Constraint>`, `<Outcome>`, `<Note>`, `<TermDef>`, `<Term>`, `<SourceRef>` + `<Callout>`, `<Tabs>`, `<Steps>`, Mermaid, KaTeX, Shiki
+- **読む・レビューする中心の UI**: 1 本の開閉式サイドバー（`⌘B`・上流→下流の `Flow` / `Files` 切替）、専用 **Review Inbox (`/review`)**、右ペイン **Context Inspector (`Outline` / `Links`) ＋ Side-by-Side プレビュー（並べて読む・`Shift+クリック`）**
 - **人間レビュー & Git Diff (`docs/.documi/reviews.json`)**: MDX 本文と物理分離された承認サイドカー。本文変更で自動 `stale` ＋承認時点コミットとの行 Diff 表示、上流変更で **Suspect Links** 検知、Web UI からワンクリック承認・Stability 切替・AI 向けフィードバック投稿
 - **Living Glossary**: 登録済み `<TermDef>` 用語・別名を本文中で自動リンクし、ホバー時に定義＋AST 抽出した実コード型定義をポップオーバー表示
 - **コード・テスト・PR からの `realization` 自動算出**: `@implements` / `@verifies` / `test("[spec.id] ...")` / `<SourceRef>` / JUnit XML / `gh` PR 連携から `unimplemented` / `in-progress` / `implemented` / `verified` / `drifted` を自動判定
-- **Sigma.js (WebGL) ライブ力学ネットワークグラフ & Traceability Matrix (`/graph`)**: Obsidian Graph View ライクなフルビューポート・円形展開・ノードドラッグ弾性追従・Forces スライダー・パン/ズーム・ホバー近傍ハイライト・`Documents` / `Docs + Blocks` 粒度切替・検索フォーカス
-- **全文検索 (`Cmd+K`)** & MCP `search_documents`
+- **Sigma.js (WebGL) ライブ力学ネットワークグラフ & Traceability Matrix (`/graph`)**: Obsidian Graph View ライクなフルビューポート・角丸長方形ノード・弾性ドラッグ・Forces スライダー・枠ハイライト・**ノードクリックで右側に本文を即時プレビュー**
+- **Hono RPC + Zod 型安全 API**: サブルータ分割 + `zValidator` + `hc<ApiRoutes>` によりサーバーとクライアント間の型ドリフトをコンパイル時に防止
+- **全文検索 (`Cmd+K`)** & MCP 8 ツール（HTTP `/mcp` および stdio `documi mcp`）
 - **複数ドキュメントまとめ HTML / PDF Export (`/bundle` + `documi export`)**: 全文書・ディレクトリ配下・Goal 関連一式・任意複数選択を、表紙・自動目次・ページ内アンカー・全タブ展開付きで 1 冊に書き出し（`Bun.WebView` Chrome backend 使用・追加 npm 依存なし）
 
 ## セットアップとコマンド

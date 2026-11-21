@@ -19,6 +19,7 @@ export type GraphEdgeItem = GraphResponse['edges'][number]
 export type TermEntry = InferResponseType<typeof rpc.api.terms.$get, 200>['terms'][number]
 export type BundleResponse = InferResponseType<typeof rpc.api.bundle.$get, 200>
 export type SourceResponse = InferResponseType<typeof rpc.api.source.$get, 200>
+export type ReviewBlocksResponse = InferResponseType<typeof rpc.api.blocks.$get, 200>
 
 type SuccessJson<R> = R extends ClientResponse<infer T, infer S, 'json'> ? (S extends 200 | 201 ? T : never) : never
 
@@ -76,6 +77,7 @@ export const api = {
         },
       }),
     ),
+  blocks: () => unwrap(rpc.api.blocks.$get()),
   blockDiff: (blockId: string) =>
     unwrap(rpc.api.blocks[':id'].diff.$get({ param: { id: encodeURIComponent(blockId) } })),
   approveBlock: (blockId: string, author?: string) =>

@@ -12,7 +12,9 @@ import { DocsStore } from '../src/server/store'
 import Explorer from '../src/web/components/Explorer'
 import Markdown from '../src/web/components/Markdown'
 import OverviewLayout from '../src/web/components/OverviewLayout'
+import ReviewLayout from '../src/web/components/ReviewLayout'
 import SearchModal from '../src/web/components/SearchModal'
+import SidePanel from '../src/web/components/SidePanel'
 import { DocReviewProvider, SpecBlock } from '../src/web/components/SemanticBlocks'
 import { LiveProvider } from '../src/web/live'
 import { TabsProvider } from '../src/web/tabs'
@@ -72,7 +74,7 @@ describe('Web UI & Live Spec Dogfooding', () => {
     expect(html).toContain('Overview')
   })
 
-  test('[ui.explorer-modes] Explorer は Tree / Types 切替 UI と /api/tree 階層を提供する', async () => {
+  test('[ui.explorer-modes] 1 本サイドバーが Home / Review Queue / Graph と Flow・Files 切替を提供する', async () => {
     const store = await DocsStore.open(root, { enrichTrace: false })
     const app = createApp(store)
     const treeRes = await app.fetch(new Request('http://localhost/api/tree'))
@@ -80,17 +82,49 @@ describe('Web UI & Live Spec Dogfooding', () => {
     const treeBody = (await treeRes.json()) as { tree: { kind: string; name: string }[] }
     expect(treeBody.tree.some((n) => n.kind === 'dir' && n.name === 'specs')).toBe(true)
 
+    const blocksRes = await app.fetch(new Request('http://localhost/api/blocks'))
+    expect(blocksRes.status).toBe(200)
+    const blocksBody = (await blocksRes.json()) as { blocks: { id: string }[]; counts: { unreviewed: number } }
+    expect(blocksBody.blocks.some((b) => b.id === 'sample.rule')).toBe(true)
+    expect(blocksBody.counts.unreviewed).toBeGreaterThan(0)
+
     const html = renderToStaticMarkup(
       <MemoryRouter>
         <ThemeProvider>
           <LiveProvider>
-            <Explorer onClose={() => {}} onOpenSearch={() => {}} />
+            <Explorer reviewBadgeCount={3} onCollapse={() => {}} onClose={() => {}} onOpenSearch={() => {}} />
           </LiveProvider>
         </ThemeProvider>
       </MemoryRouter>,
     )
-    expect(html).toContain('Tree')
-    expect(html).toContain('Types')
+    expect(html).toContain('Home')
+    expect(html).toContain('Review Queue')
+    expect(html).toContain('>3<')
+    expect(html).toContain('Graph &amp; Matrix')
+    expect(html).toContain('Flow')
+    expect(html).toContain('Files')
+    expect(html).toContain('Goals')
+
+    const reviewHtml = renderToStaticMarkup(
+      <MemoryRouter>
+        <LiveProvider>
+          <TabsProvider>
+            <ReviewLayout />
+          </TabsProvider>
+        </LiveProvider>
+      </MemoryRouter>,
+    )
+    expect(reviewHtml).toContain('Review Queue')
+
+    const sampleDoc = store.getIndex().byId.get('specs/sample')!
+    const sideHtml = renderToStaticMarkup(
+      <MemoryRouter>
+        <SidePanel doc={sampleDoc} headings={[]} onPeek={() => {}} onCollapse={() => {}} />
+      </MemoryRouter>,
+    )
+    expect(sideHtml).toContain('Outline')
+    expect(sideHtml).toContain('Links')
+    expect(sideHtml).toContain('sample.rule')
   })
 
   test('[ui.live-reload] SSE /api/events は接続イベントと store.reload 後の reload イベントを配信する', async () => {

@@ -5,9 +5,15 @@ import { api, type TermEntry } from '../api'
 import { extractHeadings } from '../headings'
 import { useDocsRevision } from '../live'
 import { useTabs } from '../tabs'
+import DocPeekPane from './DocPeekPane'
 import DocTabs from './DocTabs'
 import DocViewer from './DocViewer'
 import SidePanel from './SidePanel'
+
+interface PeekTarget {
+  docId: string
+  focusBlockId?: string
+}
 
 export default function DocLayout() {
   const params = useParams()
@@ -19,11 +25,20 @@ export default function DocLayout() {
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
   const [localTick, setLocalTick] = useState(0)
+  const [inspectorOpen, setInspectorOpen] = useState(true)
+  const [peekTarget, setPeekTarget] = useState<PeekTarget | null>(null)
   const mainRef = useRef<HTMLElement>(null)
 
   const handleMutate = useCallback(() => {
     setLocalTick((t) => t + 1)
   }, [])
+
+  // メイン画面がプレビュー中と同じ文書へ遷移したら重複表示を解消する
+  useEffect(() => {
+    if (peekTarget && peekTarget.docId === docId) {
+      setPeekTarget(null)
+    }
+  }, [docId, peekTarget])
 
   useEffect(() => {
     let cancelled = false
@@ -67,6 +82,17 @@ export default function DocLayout() {
     <>
       <main ref={mainRef} className="content">
         <DocTabs />
+        {!inspectorOpen && !peekTarget && doc && (
+          <button
+            type="button"
+            className="rp-reopen-btn"
+            onClick={() => setInspectorOpen(true)}
+            title="Outline / Links を開く"
+            aria-label="右パネルを開く"
+          >
+            Outline / Links
+          </button>
+        )}
         {loading && !doc && (
           <div className="page">
             <p className="muted">読み込み中…</p>
@@ -81,12 +107,27 @@ export default function DocLayout() {
         )}
         {doc && <DocViewer doc={doc} terms={terms} onMutate={handleMutate} />}
       </main>
-      <SidePanel
-        headings={headings}
-        blocks={doc?.blocks ?? []}
-        outgoing={doc?.outgoing ?? []}
-        incoming={doc?.incoming ?? []}
-      />
+      {peekTarget ? (
+        <DocPeekPane
+          docId={peekTarget.docId}
+          focusBlockId={peekTarget.focusBlockId}
+          onBack={() => {
+            setPeekTarget(null)
+            setInspectorOpen(true)
+          }}
+          onClose={() => setPeekTarget(null)}
+        />
+      ) : (
+        inspectorOpen &&
+        doc && (
+          <SidePanel
+            doc={doc}
+            headings={headings}
+            onPeek={(targetDocId, focusBlockId) => setPeekTarget({ docId: targetDocId, focusBlockId })}
+            onCollapse={() => setInspectorOpen(false)}
+          />
+        )
+      )}
     </>
   )
 }
