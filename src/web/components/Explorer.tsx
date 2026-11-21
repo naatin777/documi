@@ -2,7 +2,7 @@ import { ChevronRight, Home, ListChecks, Network, Search, X } from 'lucide-react
 import { useEffect, useMemo, useState, type ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
 import { NavLink } from 'react-router-dom'
-import { ARTIFACT_TYPE_SECTION_LABELS, ARTIFACT_TYPES } from '../../core/types'
+import { ARTIFACT_TYPES } from '../../core/types'
 import type { ArtifactType, DocTreeDir, DocTreeNode, DocumentSummary } from '../../core/types'
 import { api, encodeDocId } from '../api'
 import type { StatusResponse } from '../api'
@@ -191,7 +191,7 @@ export default function Explorer({ reviewBadgeCount, onClose, onOpenSearch, resi
                 >
                   <Chevron collapsed={isCollapsed} />
                   <ArtifactTypeIcon type={type} size={13} className="nav-type-icon" />
-                  <span className="nav-section-label">{ARTIFACT_TYPE_SECTION_LABELS[type]}</span>
+                  <span className="nav-section-label">{t(`types.section.${type}`)}</span>
                   <span className="nav-count">{docs.length}</span>
                 </button>
                 {!isCollapsed && (

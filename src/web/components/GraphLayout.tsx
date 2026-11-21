@@ -2,7 +2,6 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Link } from 'react-router-dom'
 import type { TraceMatrixRow } from '../../core/bundle'
-import { ARTIFACT_TYPE_LABELS } from '../../core/types'
 import { api, encodeDocId, type GraphResponse } from '../api'
 import { useDocsRevision } from '../live'
 import DocPeekPane from './DocPeekPane'
@@ -177,7 +176,7 @@ export default function GraphLayout() {
                     className={`export-mode-chip${matrixFilter === f ? ' active' : ''}`}
                     onClick={() => setMatrixFilter(f)}
                   >
-                    {f}
+                    {t(`matrix.filters.${f}`)}
                   </button>
                 ))}
               </div>
@@ -211,7 +210,7 @@ export default function GraphLayout() {
                           </td>
                           <td>
                             {row.orphan ? (
-                              <span className="sem-review-badge sem-review-stale">orphan</span>
+                              <span className="sem-review-badge sem-review-stale">{t('matrix.orphan')}</span>
                             ) : (
                               row.goals.map((g) => (
                                 <Link key={g.id} to={`/docs/${encodeDocId(g.id)}`} className="matrix-chip type-goal">
@@ -252,13 +251,13 @@ export default function GraphLayout() {
                           </td>
                           <td>
                             <span className={`sem-review-badge sem-review-${row.suspect ? 'suspect' : row.review}`}>
-                              {row.suspect ? 'suspect' : row.review}
+                              {row.suspect ? t('status.review.suspect') : t(`status.review.${row.review}`)}
                             </span>
                           </td>
                           <td>
                             {row.realization ? (
                               <span className={`sem-realization-badge sem-real-${row.realization.status}`}>
-                                {row.realization.status}
+                                {t(`status.realization.${row.realization.status}`)}
                               </span>
                             ) : (
                               <span className="muted">—</span>
@@ -285,15 +284,17 @@ export default function GraphLayout() {
               <div className="peek-connections">
                 <div className="doc-badges" style={{ marginBottom: 10 }}>
                   <span className={`badge badge-type type-${selectedNode.type}`}>
-                    {ARTIFACT_TYPE_LABELS[selectedNode.type]}
+                    {t(`types.singular.${selectedNode.type}`)}
                   </span>
                   {selectedNode.blockKind && <span className="badge badge-format">{selectedNode.blockKind}</span>}
                   {selectedNode.review && (
-                    <span className={`sem-review-badge sem-review-${selectedNode.review}`}>{selectedNode.review}</span>
+                    <span className={`sem-review-badge sem-review-${selectedNode.review}`}>
+                      {t(`status.review.${selectedNode.review}`)}
+                    </span>
                   )}
                   {selectedNode.realization && (
                     <span className={`sem-realization-badge sem-real-${selectedNode.realization}`}>
-                      {selectedNode.realization}
+                      {t(`status.realization.${selectedNode.realization}`)}
                     </span>
                   )}
                 </div>

@@ -188,7 +188,7 @@ function BlockReviewControls({ block, onMutate }: { block: SemanticBlock; onMuta
           onClick={() => void handleCycleStability()}
           title={t('blocks.stabilityTooltip')}
         >
-          {block.stability}
+          {t(`status.stability.${block.stability}`)}
         </button>
 
         {block.review === 'stale' && (
@@ -247,7 +247,9 @@ function BlockReviewControls({ block, onMutate }: { block: SemanticBlock; onMuta
             </div>
           )}
           <div className="sem-trace-group">
-            <span className="sem-meta-label">Implementations ({realization.implementations.length})</span>
+            <span className="sem-meta-label">
+              {t('blocks.implementations', { count: realization.implementations.length })}
+            </span>
             {realization.implementations.length === 0 ? (
               <span className="muted">{t('common.none')}</span>
             ) : (
@@ -261,7 +263,7 @@ function BlockReviewControls({ block, onMutate }: { block: SemanticBlock; onMuta
             )}
           </div>
           <div className="sem-trace-group">
-            <span className="sem-meta-label">Tests ({realization.verifications.length})</span>
+            <span className="sem-meta-label">{t('blocks.tests', { count: realization.verifications.length })}</span>
             {realization.verifications.length === 0 ? (
               <span className="muted">{t('common.none')}</span>
             ) : (
@@ -277,7 +279,9 @@ function BlockReviewControls({ block, onMutate }: { block: SemanticBlock; onMuta
           </div>
           {realization.testResults.length > 0 && (
             <div className="sem-trace-group">
-              <span className="sem-meta-label">Test Results ({realization.testResults.length})</span>
+              <span className="sem-meta-label">
+                {t('blocks.testResults', { count: realization.testResults.length })}
+              </span>
               <ul className="sem-trace-list">
                 {realization.testResults.map((tr, i) => (
                   <li key={i} className={`sem-test-${tr.status}`}>
@@ -289,7 +293,9 @@ function BlockReviewControls({ block, onMutate }: { block: SemanticBlock; onMuta
           )}
           {realization.pullRequests.length > 0 && (
             <div className="sem-trace-group">
-              <span className="sem-meta-label">Pull Requests ({realization.pullRequests.length})</span>
+              <span className="sem-meta-label">
+                {t('blocks.pullRequests', { count: realization.pullRequests.length })}
+              </span>
               <ul className="sem-trace-list">
                 {realization.pullRequests.map((pr) => (
                   <li key={pr.number}>

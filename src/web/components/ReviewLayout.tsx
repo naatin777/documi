@@ -233,12 +233,14 @@ function ReviewInboxCard({
             {block.review === 'approved'
               ? t('blocks.approved')
               : block.review === 'stale'
-                ? '↻ Stale'
+                ? t('blocks.staleShort')
                 : t('blocks.unreviewed')}
           </span>
           {block.suspect && <span className="sem-review-badge sem-review-suspect">{t('blocks.suspect')}</span>}
           {block.realization && (
-            <span className={`sem-realization-badge sem-real-${block.realization}`}>{block.realization}</span>
+            <span className={`sem-realization-badge sem-real-${block.realization}`}>
+              {t(`status.realization.${block.realization}`)}
+            </span>
           )}
         </div>
         <div className="review-card-actions">

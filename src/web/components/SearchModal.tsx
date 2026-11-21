@@ -2,7 +2,6 @@ import { useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useNavigate } from 'react-router-dom'
 import type { SearchHit } from '../../core/bundle'
-import { ARTIFACT_TYPE_LABELS } from '../../core/types'
 import { api, encodeDocId } from '../api'
 
 interface SearchModalProps {
@@ -111,7 +110,7 @@ export default function SearchModal({ open, onClose }: SearchModalProps) {
               onClick={() => openHit(hit)}
             >
               <div className="search-hit-head">
-                <span className={`badge badge-type type-${hit.type}`}>{ARTIFACT_TYPE_LABELS[hit.type]}</span>
+                <span className={`badge badge-type type-${hit.type}`}>{t(`types.singular.${hit.type}`)}</span>
                 {hit.blockKind && <span className="rp-block-kind">{hit.blockKind}</span>}
                 <strong className="search-hit-title">{hit.title}</strong>
                 <span className="search-hit-id mono">{hit.docId}</span>

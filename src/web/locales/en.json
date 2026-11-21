@@ -13,6 +13,55 @@
     "notFoundTitle": "Page not found",
     "notFoundBody": "The requested page does not exist."
   },
+  "types": {
+    "singular": {
+      "goal": "Goal",
+      "decision": "Decision",
+      "domain": "Domain",
+      "spec": "Spec",
+      "contract": "Contract",
+      "architecture": "Architecture",
+      "design": "Design",
+      "verification": "Verification",
+      "guide": "Guide"
+    },
+    "section": {
+      "goal": "Goals",
+      "decision": "Decisions",
+      "domain": "Domain & Glossary",
+      "spec": "Specs",
+      "contract": "Contracts",
+      "architecture": "Architecture",
+      "design": "Designs",
+      "verification": "Verification",
+      "guide": "Guides"
+    }
+  },
+  "status": {
+    "review": {
+      "approved": "Approved",
+      "unreviewed": "Unreviewed",
+      "stale": "Stale",
+      "suspect": "Suspect"
+    },
+    "realization": {
+      "verified": "Verified",
+      "implemented": "Implemented",
+      "in-progress": "In Progress",
+      "unimplemented": "Unimplemented",
+      "drifted": "Drifted"
+    },
+    "intent": {
+      "normative": "Normative",
+      "idea": "Idea",
+      "rejected": "Rejected"
+    },
+    "stability": {
+      "stable": "Stable",
+      "evolving": "Evolving",
+      "volatile": "Volatile"
+    }
+  },
   "nav": {
     "navigation": "Navigation",
     "primaryViews": "Primary views",
@@ -110,7 +159,8 @@
     "openInspectorTitle": "Open Outline / Links",
     "openInspectorAria": "Open right panel",
     "docIssues": "Document Issues ({{count}})",
-    "blocksCount": "{{count}} blocks"
+    "blocksCount": "{{count}} blocks",
+    "inferred": "inferred"
   },
   "inspector": {
     "ariaLabel": "Context Inspector",
@@ -169,7 +219,16 @@
     "designContract": "Design / Contract",
     "verification": "Verification",
     "review": "Review",
-    "realization": "Realization"
+    "realization": "Realization",
+    "orphan": "Orphan",
+    "filters": {
+      "all": "All",
+      "verified": "Verified",
+      "unimplemented": "Unimplemented",
+      "drifted": "Drifted",
+      "unreviewed": "Unreviewed",
+      "orphan": "Orphan"
+    }
   },
   "search": {
     "dialogAria": "Full-text search",
@@ -207,6 +266,7 @@
     "building": "Building bundle…",
     "backToDocumi": "← Back to Documi",
     "meta": "{{docs}} documents · {{blocks}} blocks",
+    "chapter": "Chapter {{index}}",
     "downloadHtml": "Download HTML",
     "printPdf": "Print / Save PDF",
     "toc": "Table of Contents",
@@ -218,6 +278,7 @@
     "approved": "✓ Approved",
     "unreviewed": "○ Unreviewed",
     "stale": "↻ Stale (modified after approval)",
+    "staleShort": "↻ Stale",
     "suspectTooltip": "Upstream changed: {{sources}}",
     "suspect": "⚠ Suspect",
     "realizationTooltip": "Click to view implementations, tests, and PR links",
@@ -226,6 +287,10 @@
     "inProgress": "◐ In Progress",
     "unimplemented": "○ Unimplemented",
     "drifted": "✕ Drifted",
+    "implementations": "Implementations ({{count}})",
+    "tests": "Tests ({{count}})",
+    "testResults": "Test Results ({{count}})",
+    "pullRequests": "Pull Requests ({{count}})",
     "stabilityTooltip": "Click to cycle stability (stable / evolving / volatile)",
     "suspectBannerPrefix": "Upstream changes detected (",
     "suspectBannerSuffix": "). Review and re-approve.",

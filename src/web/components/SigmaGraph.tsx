@@ -5,7 +5,6 @@ import { useNavigate } from 'react-router-dom'
 import { MultiDirectedGraph } from 'graphology'
 import Sigma from 'sigma'
 import { sdfCircle } from 'sigma/rendering'
-import { ARTIFACT_TYPE_LABELS } from '../../core/types'
 import type { ArtifactType } from '../../core/types'
 import { encodeDocId, type GraphEdgeItem, type GraphNodeItem, type GraphResponse } from '../api'
 import { useTheme } from '../theme'
@@ -749,10 +748,10 @@ export default function SigmaGraph({ data, selectedNodeId, onSelectNode }: Sigma
 
       <div className="sigma-legend">
         <div className="sigma-legend-group">
-          {(Object.keys(TYPE_COLORS) as ArtifactType[]).map((t) => (
-            <span key={t} className="sigma-legend-item">
-              <span className="sigma-dot" style={{ background: TYPE_COLORS[t] }} />
-              {ARTIFACT_TYPE_LABELS[t]}
+          {(Object.keys(TYPE_COLORS) as ArtifactType[]).map((type) => (
+            <span key={type} className="sigma-legend-item">
+              <span className="sigma-dot" style={{ background: TYPE_COLORS[type] }} />
+              {t(`types.singular.${type}`)}
             </span>
           ))}
         </div>

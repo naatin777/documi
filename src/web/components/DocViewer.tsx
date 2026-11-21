@@ -1,6 +1,5 @@
 import { useTranslation } from 'react-i18next'
 import type { Document } from '../../core/types'
-import { ARTIFACT_TYPE_LABELS } from '../../core/types'
 import type { TermEntry } from '../api'
 import Markdown from './Markdown'
 import { PrintFooter, PrintHeader } from './PrintChrome'
@@ -14,13 +13,14 @@ interface DocViewerProps {
 
 export default function DocViewer({ doc, terms, onMutate }: DocViewerProps) {
   const { t } = useTranslation()
+  const typeLabel = t(`types.singular.${doc.type}`)
   return (
     <article className="page doc-page">
-      <PrintHeader label={ARTIFACT_TYPE_LABELS[doc.type]} title={doc.title} meta={doc.path} />
+      <PrintHeader label={typeLabel} title={doc.title} meta={doc.path} />
       <header className="doc-header">
         <div className="doc-badges">
-          <span className={`badge badge-type type-${doc.type}`}>{ARTIFACT_TYPE_LABELS[doc.type]}</span>
-          {doc.typeInferred && <span className="badge badge-format">inferred</span>}
+          <span className={`badge badge-type type-${doc.type}`}>{typeLabel}</span>
+          {doc.typeInferred && <span className="badge badge-format">{t('doc.inferred')}</span>}
           {doc.format === 'mdx' && <span className="badge badge-format">MDX</span>}
           {doc.blocks.length > 0 && (
             <span className="badge badge-id">{t('doc.blocksCount', { count: doc.blocks.length })}</span>

@@ -2,7 +2,6 @@ import { Download, X } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useLocation } from 'react-router-dom'
-import { ARTIFACT_TYPE_LABELS } from '../../core/types'
 import type { DocumentSummary } from '../../core/types'
 import { api } from '../api'
 import {
@@ -263,7 +262,7 @@ export default function ExportActions() {
                       <li key={d.id}>
                         <label className="export-doc-check">
                           <input type="checkbox" checked={customIds.has(d.id)} onChange={() => toggleCustomId(d.id)} />
-                          <span className={`badge badge-type type-${d.type}`}>{ARTIFACT_TYPE_LABELS[d.type]}</span>
+                          <span className={`badge badge-type type-${d.type}`}>{t(`types.singular.${d.type}`)}</span>
                           <span>{d.title}</span>
                           <span className="muted mono">{d.id}</span>
                         </label>

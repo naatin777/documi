@@ -74,7 +74,7 @@ describe('Web UI & Live Spec Dogfooding', () => {
         </LiveProvider>
       </MemoryRouter>,
     )
-    expect(html).toContain('Overview')
+    expect(html).toContain('プロジェクト概要')
   })
 
   test('[ui.explorer-modes] 1 本サイドバーが Home / Review Queue / Graph と Flow・Files 切替を提供する', async () => {
@@ -100,13 +100,28 @@ describe('Web UI & Live Spec Dogfooding', () => {
         </ThemeProvider>
       </MemoryRouter>,
     )
-    expect(html).toContain('Home')
-    expect(html).toContain('Review Queue')
+    expect(html).toContain('ホーム')
+    expect(html).toContain('レビュー')
     expect(html).toContain('>3<')
-    expect(html).toContain('Graph &amp; Matrix')
-    expect(html).toContain('Flow')
-    expect(html).toContain('Files')
-    expect(html).toContain('Goals')
+    expect(html).toContain('グラフ・関連表')
+    expect(html).toContain('流れ順')
+    expect(html).toContain('フォルダ順')
+    expect(html).toContain('目標')
+
+    setAppLocale('en')
+    const enHtml = renderToStaticMarkup(
+      <MemoryRouter>
+        <ThemeProvider>
+          <LiveProvider>
+            <Explorer reviewBadgeCount={3} onClose={() => {}} onOpenSearch={() => {}} />
+          </LiveProvider>
+        </ThemeProvider>
+      </MemoryRouter>,
+    )
+    expect(enHtml).toContain('Home')
+    expect(enHtml).toContain('Review Queue')
+    expect(enHtml).toContain('Goals')
+    setAppLocale('ja')
 
     const reviewHtml = renderToStaticMarkup(
       <MemoryRouter>
@@ -117,7 +132,7 @@ describe('Web UI & Live Spec Dogfooding', () => {
         </LiveProvider>
       </MemoryRouter>,
     )
-    expect(reviewHtml).toContain('Review Queue')
+    expect(reviewHtml).toContain('レビュー')
 
     const sampleDoc = store.getIndex().byId.get('specs/sample')!
     const sideHtml = renderToStaticMarkup(
@@ -125,8 +140,8 @@ describe('Web UI & Live Spec Dogfooding', () => {
         <SidePanel doc={sampleDoc} headings={[]} onPeek={() => {}} onCollapse={() => {}} />
       </MemoryRouter>,
     )
-    expect(sideHtml).toContain('Outline')
-    expect(sideHtml).toContain('Links')
+    expect(sideHtml).toContain('目次')
+    expect(sideHtml).toContain('関連リンク')
     expect(sideHtml).toContain('sample.rule')
 
     const tabsHtml = renderToStaticMarkup(
@@ -136,7 +151,7 @@ describe('Web UI & Live Spec Dogfooding', () => {
         </TabsProvider>
       </MemoryRouter>,
     )
-    expect(tabsHtml).toContain('Graph &amp; Matrix')
+    expect(tabsHtml).toContain('グラフ・関連表')
     expect(tabsHtml).toContain('サイドバーを閉じる')
   })
 
@@ -206,10 +221,10 @@ describe('Web UI & Live Spec Dogfooding', () => {
     )
 
     expect(html).toContain('sample.rule')
-    expect(html).toContain('Stale (承認後に変更)')
-    expect(html).toContain('Suspect')
-    expect(html).toContain('Verified (1/1)')
-    expect(html).toContain('Diff')
+    expect(html).toContain('要再確認（承認後に変更）')
+    expect(html).toContain('上流変更')
+    expect(html).toContain('検証済み (1/1)')
+    expect(html).toContain('差分')
     expect(html).toContain('💬 1')
     expect(html).toContain('>承認</button>')
   })

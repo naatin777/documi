@@ -2,7 +2,6 @@ import { Columns2, PanelRightClose } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { NavLink } from 'react-router-dom'
-import { ARTIFACT_TYPE_LABELS } from '../../core/types'
 import type { Document, ResolvedRelation } from '../../core/types'
 import { encodeDocId } from '../api'
 import type { Heading } from '../headings'
@@ -247,7 +246,7 @@ function RelationList({
             >
               <span className="rp-relation-meta">
                 <span className={`rp-edge-kind rp-edge-${rel.kind}`}>{rel.kind}</span>
-                <span className={`rp-relation-type type-${rel.type}`}>{ARTIFACT_TYPE_LABELS[rel.type]}</span>
+                <span className={`rp-relation-type type-${rel.type}`}>{t(`types.singular.${rel.type}`)}</span>
               </span>
               <span className="rp-relation-title">{rel.title}</span>
               <span className="rp-relation-id mono">{rel.ref}</span>

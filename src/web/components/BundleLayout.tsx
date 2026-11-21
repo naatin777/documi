@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Link, useSearchParams } from 'react-router-dom'
-import { ARTIFACT_TYPE_LABELS } from '../../core/types'
 import { api, type BundleResponse } from '../api'
 import { exportBundleHtmlFromDom, printDocument } from '../export'
 import { bundleDocAnchor } from '../mdast'
@@ -165,7 +164,7 @@ export default function BundleLayout() {
               <li key={doc.id}>
                 <a href={`#${bundleDocAnchor(doc.id)}`} className="bundle-toc-link">
                   <span className="bundle-toc-num">{idx + 1}.</span>
-                  <span className={`badge badge-type type-${doc.type}`}>{ARTIFACT_TYPE_LABELS[doc.type]}</span>
+                  <span className={`badge badge-type type-${doc.type}`}>{t(`types.singular.${doc.type}`)}</span>
                   <span className="bundle-toc-title">{doc.title}</span>
                   <span className="bundle-toc-path mono">{doc.path}</span>
                 </a>
@@ -179,9 +178,11 @@ export default function BundleLayout() {
           <article key={doc.id} id={bundleDocAnchor(doc.id)} className="bundle-chapter page">
             <header className="doc-header">
               <div className="doc-badges">
-                <span className="badge badge-id">Chapter {idx + 1}</span>
-                <span className={`badge badge-type type-${doc.type}`}>{ARTIFACT_TYPE_LABELS[doc.type]}</span>
-                {doc.blocks.length > 0 && <span className="badge badge-id">{doc.blocks.length} blocks</span>}
+                <span className="badge badge-id">{t('bundle.chapter', { index: idx + 1 })}</span>
+                <span className={`badge badge-type type-${doc.type}`}>{t(`types.singular.${doc.type}`)}</span>
+                {doc.blocks.length > 0 && (
+                  <span className="badge badge-id">{t('doc.blocksCount', { count: doc.blocks.length })}</span>
+                )}
               </div>
               <h1>{doc.title}</h1>
               {doc.description && <p className="doc-description">{doc.description}</p>}

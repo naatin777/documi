@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Link } from 'react-router-dom'
-import { ARTIFACT_TYPE_LABELS, ARTIFACT_TYPES } from '../../core/types'
+import { ARTIFACT_TYPES } from '../../core/types'
 import { api, encodeDocId } from '../api'
 import type { OverviewResponse } from '../api'
 import { useDocsRevision } from '../live'
@@ -91,8 +91,12 @@ export default function OverviewLayout() {
                       >
                         <div className="ov-card-head">
                           <code className="sem-id">{b.id}</code>
-                          {b.review === 'stale' && <span className="sem-review-badge sem-review-stale">Stale</span>}
-                          {b.suspect && <span className="sem-review-badge sem-review-suspect">Suspect</span>}
+                          {b.review === 'stale' && (
+                            <span className="sem-review-badge sem-review-stale">{t('status.review.stale')}</span>
+                          )}
+                          {b.suspect && (
+                            <span className="sem-review-badge sem-review-suspect">{t('status.review.suspect')}</span>
+                          )}
                           <span className="ov-card-sub">{b.docTitle}</span>
                         </div>
                         {b.suspectSources.length > 0 && (
@@ -135,7 +139,7 @@ export default function OverviewLayout() {
                   {ARTIFACT_TYPES.map((type) => (
                     <div key={type} className={`ov-type-card type-${type}`}>
                       <ArtifactTypeIcon type={type} size={14} className="ov-type-icon" />
-                      <span className="ov-type-name">{ARTIFACT_TYPE_LABELS[type]}</span>
+                      <span className="ov-type-name">{t(`types.singular.${type}`)}</span>
                       <span className="ov-type-count">{data.byType[type]}</span>
                     </div>
                   ))}
@@ -219,57 +223,57 @@ export default function OverviewLayout() {
                     <h3>{t('overview.realization')}</h3>
                     <ul className="ov-kv">
                       <li>
-                        <span>verified</span>
+                        <span>{t('status.realization.verified')}</span>
                         <strong>{data.realizations.verified}</strong>
                       </li>
                       <li>
-                        <span>implemented</span>
+                        <span>{t('status.realization.implemented')}</span>
                         <strong>{data.realizations.implemented}</strong>
                       </li>
                       <li>
-                        <span>in-progress</span>
+                        <span>{t('status.realization.in-progress')}</span>
                         <strong>{data.realizations['in-progress']}</strong>
                       </li>
                       <li>
-                        <span>unimplemented</span>
+                        <span>{t('status.realization.unimplemented')}</span>
                         <strong>{data.realizations.unimplemented}</strong>
                       </li>
                       <li>
-                        <span>drifted</span>
+                        <span>{t('status.realization.drifted')}</span>
                         <strong>{data.realizations.drifted}</strong>
                       </li>
                     </ul>
                   </div>
                   <div className="ov-breakdown-card">
-                    <h3>Specs by Intent</h3>
+                    <h3>{t('overview.specsByIntent')}</h3>
                     <ul className="ov-kv">
                       <li>
-                        <span>normative</span>
+                        <span>{t('status.intent.normative')}</span>
                         <strong>{data.specsByIntent.normative}</strong>
                       </li>
                       <li>
-                        <span>idea</span>
+                        <span>{t('status.intent.idea')}</span>
                         <strong>{data.specsByIntent.idea}</strong>
                       </li>
                       <li>
-                        <span>rejected</span>
+                        <span>{t('status.intent.rejected')}</span>
                         <strong>{data.specsByIntent.rejected}</strong>
                       </li>
                     </ul>
                   </div>
                   <div className="ov-breakdown-card">
-                    <h3>Specs by Stability</h3>
+                    <h3>{t('overview.specsByStability')}</h3>
                     <ul className="ov-kv">
                       <li>
-                        <span>stable</span>
+                        <span>{t('status.stability.stable')}</span>
                         <strong>{data.specsByStability.stable}</strong>
                       </li>
                       <li>
-                        <span>evolving</span>
+                        <span>{t('status.stability.evolving')}</span>
                         <strong>{data.specsByStability.evolving}</strong>
                       </li>
                       <li>
-                        <span>volatile</span>
+                        <span>{t('status.stability.volatile')}</span>
                         <strong>{data.specsByStability.volatile}</strong>
                       </li>
                     </ul>

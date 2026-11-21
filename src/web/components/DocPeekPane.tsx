@@ -2,7 +2,6 @@ import { ArrowLeft, ExternalLink, X } from 'lucide-react'
 import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Link } from 'react-router-dom'
-import { ARTIFACT_TYPE_LABELS } from '../../core/types'
 import type { Document } from '../../core/types'
 import { api, encodeDocId, type TermEntry } from '../api'
 import { useDocsRevision } from '../live'
@@ -131,7 +130,7 @@ export default function DocPeekPane({ docId, focusBlockId, onBack, onClose, extr
                   <span>{t('common.back')}</span>
                 </button>
               )}
-              {doc && <span className={`badge badge-type type-${doc.type}`}>{ARTIFACT_TYPE_LABELS[doc.type]}</span>}
+              {doc && <span className={`badge badge-type type-${doc.type}`}>{t(`types.singular.${doc.type}`)}</span>}
               {doc?.date && <span className="peek-date mono">{doc.date}</span>}
             </div>
             <div className="peek-header-actions">
