@@ -45,6 +45,8 @@ satisfies:
 | `GET /api/source` | `<SourceRef>` 用の AST シンボル / 行範囲コード取得 |
 | `GET /api/code/tree` | Code Explorer 用：`projectRoot` 配下のソースファイルツリーと各ファイルの紐づき `<Spec>` / `<SourceRef>` / `<TermDef>` 件数サマリ（`node_modules`・`.git`・`dist`・`docs/`・隠しディレクトリ除外） |
 | `GET /api/code/file` | Code Explorer 用：POSIX 相対パス (`?path=src/...`) の読み取り専用ソース全文・言語・総行数・紐づき `<Spec>` / ドキュメント / `<TermDef>` 逆リンク一覧（`projectRoot` 外は `403`、未存在は `404`、バイナリ・サイズ上限超過は `400`） |
+| `GET /api/icons/manifest` | Material Icon Theme のファイル・フォルダ名／拡張子マッピング（ライトテーマ上書き込み）を返す |
+| `GET /api/icons/:name` | Material Icon Theme の SVG アイコン（allowlist 登録済みアイコン ID のみ配信・長期キャッシュ付き） |
 | `GET /api/bundle` | 複数ドキュメントバンドル解決 (`?scope=all\|dir:...\|goal:...` または `?ids=...`) |
 | `POST /api/export/pdf` | 単一文書の描画済み HTML から PDF 生成 |
 | `POST /api/export/bundle-pdf` | ローカル `/bundle` URL を `Bun.WebView` で開いて複数文書 PDF 生成 |

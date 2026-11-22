@@ -10,8 +10,10 @@ import { loadDocuments } from '../src/core/loader'
 import { SourceError } from '../src/core/source'
 import { enrichWithRealization } from '../src/core/trace'
 import { createApp } from '../src/server/app'
+import type { MaterialIconManifest } from '../src/server/routes/icons'
 import { DocsStore } from '../src/server/store'
 import CodeExplorerLayout from '../src/web/components/CodeExplorerLayout'
+import { resolveFileIconId, resolveFolderIconId } from '../src/web/components/MaterialIcon'
 import { setAppLocale } from '../src/web/i18n'
 import { LiveProvider } from '../src/web/live'
 
@@ -165,5 +167,42 @@ describe('Read-only Code Explorer', () => {
     )
     expect(html).toContain('仕様紐づけ率')
     expect(html).toContain('コード閲覧')
+  })
+
+  test('[ui.code-explorer] GET /api/icons/manifest と /api/icons/:name が Material Icon Theme を安全に配信しファイル・フォルダ種別を解決する', async () => {
+    const store = await DocsStore.open(docsDir, { projectRoot: projectDir })
+    const app = createApp(store, { projectRoot: projectDir })
+
+    const manifestRes = await app.fetch(new Request('http://localhost/api/icons/manifest'))
+    expect(manifestRes.status).toBe(200)
+    const manifest = (await manifestRes.json()) as MaterialIconManifest
+
+    expect(resolveFileIconId(manifest, 'src/core/editor.ts', 'dark')).toBe('typescript')
+    expect(resolveFileIconId(manifest, 'src/web/App.tsx', 'dark')).toBe('react_ts')
+    expect(resolveFileIconId(manifest, 'tests/mcp-edit.test.ts', 'dark')).toBe('test-ts')
+    expect(resolveFileIconId(manifest, 'docs/specs/ui/web-viewer.mdx', 'dark')).toBe('mdx')
+    expect(resolveFileIconId(manifest, 'package.json', 'dark')).toBe('nodejs')
+    expect(resolveFileIconId(manifest, 'README.md', 'dark')).toBe('readme')
+    expect(resolveFileIconId(manifest, 'Cargo.toml', 'light')).toBe('toml_light')
+    expect(resolveFileIconId(manifest, 'Cargo.toml', 'dark')).toBe('toml')
+    expect(resolveFolderIconId(manifest, 'src', false, 'dark')).toBe('folder-src')
+    expect(resolveFolderIconId(manifest, 'src', true, 'dark')).toBe('folder-src-open')
+    expect(resolveFolderIconId(manifest, 'docs', false, 'dark')).toBe('folder-docs')
+    expect(resolveFolderIconId(manifest, 'unknown-folder-xyz', true, 'dark')).toBe('folder-open')
+
+    const svgRes = await app.fetch(new Request('http://localhost/api/icons/typescript.svg'))
+    expect(svgRes.status).toBe(200)
+    expect(svgRes.headers.get('content-type')).toContain('image/svg+xml')
+    expect(await svgRes.text()).toContain('<svg')
+
+    const folderSvgRes = await app.fetch(new Request('http://localhost/api/icons/folder-src-open.svg'))
+    expect(folderSvgRes.status).toBe(200)
+    expect(await folderSvgRes.text()).toContain('<svg')
+
+    const missingRes = await app.fetch(new Request('http://localhost/api/icons/not-a-real-icon.svg'))
+    expect(missingRes.status).toBe(404)
+
+    const traversalRes = await app.fetch(new Request('http://localhost/api/icons/..%2Fpackage.json'))
+    expect(traversalRes.status).toBe(404)
   })
 })

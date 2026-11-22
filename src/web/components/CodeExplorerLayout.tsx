@@ -1,4 +1,4 @@
-import { ChevronRight, Columns2, Copy, FileCode2, Folder, FolderOpen, Search } from 'lucide-react'
+import { ChevronRight, Columns2, Copy, FileCode2, Search } from 'lucide-react'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Link, useSearchParams } from 'react-router'
@@ -7,6 +7,7 @@ import { encodeDocId } from '../api'
 import { useCopyText, useHighlightedCode } from '../hooks'
 import { toErrorMessage, useCodeFileQuery, useCodeTreeQuery } from '../queries'
 import DocPeekPane from './DocPeekPane'
+import { MaterialFileIcon, MaterialFolderIcon } from './MaterialIcon'
 import ResizeHandle, { useResizableWidth } from './ResizeHandle'
 
 type CoverageFilter = 'all' | 'covered' | 'uncovered'
@@ -266,6 +267,7 @@ export default function CodeExplorerLayout() {
                             className="code-quick-chip mono"
                             onClick={() => selectFile(f.path)}
                           >
+                            <MaterialFileIcon name={f.name} size={14} />
                             <span>{f.path}</span>
                             {f.specCount > 0 && <span className="code-file-badge">{f.specCount}</span>}
                           </button>
@@ -278,7 +280,7 @@ export default function CodeExplorerLayout() {
               <>
                 <header className="code-file-header">
                   <div className="code-file-header-main">
-                    <FileCode2 size={15} strokeWidth={1.8} aria-hidden="true" />
+                    <MaterialFileIcon name={selectedFile} size={16} />
                     <span className="code-file-path mono">{selectedFile}</span>
                     {fileData && (
                       <>
@@ -528,11 +530,7 @@ function CodeTreeBranch({
             className={`nav-chevron${isCollapsed ? ' collapsed' : ''}`}
             aria-hidden="true"
           />
-          {isCollapsed ? (
-            <Folder size={13} strokeWidth={1.75} className="code-tree-icon" aria-hidden="true" />
-          ) : (
-            <FolderOpen size={13} strokeWidth={1.75} className="code-tree-icon" aria-hidden="true" />
-          )}
+          <MaterialFolderIcon name={dir.name} open={!isCollapsed} size={15} />
           <span className="code-tree-name">{dir.name}</span>
           <span className="code-tree-dir-count mono">
             {dir.coveredCount}/{dir.totalCount}
@@ -564,12 +562,13 @@ function CodeTreeBranch({
     <button
       type="button"
       className={`code-tree-file-btn${isActive ? ' active' : ''}${file.covered ? ' covered' : ''}`}
-      style={{ paddingLeft: `${12 + depth * 14}px` }}
+      style={{ paddingLeft: `${26 + depth * 14}px` }}
       title={file.path}
       onClick={() => onSelectFile(file.path)}
     >
-      <span className={`code-cov-dot${file.covered ? ' covered' : ''}`} aria-hidden="true" />
+      <MaterialFileIcon name={file.name} size={15} />
       <span className="code-tree-name">{file.name}</span>
+      <span className={`code-cov-dot${file.covered ? ' covered' : ''}`} aria-hidden="true" />
       {file.specCount > 0 && <span className="code-file-badge mono">{file.specCount}</span>}
     </button>
   )

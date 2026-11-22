@@ -3,6 +3,7 @@ import { Link } from 'react-router'
 import { useCopyText } from '../hooks'
 import { toErrorMessage, useSourceQuery } from '../queries'
 import { HighlightedCode } from './HighlightedCode'
+import { MaterialFileIcon } from './MaterialIcon'
 
 interface SourceRefProps {
   file?: string
@@ -69,7 +70,8 @@ export default function SourceRef({ file, symbol, lines, satisfies, verifies }: 
           className="source-ref-file source-ref-file-link mono"
           title={targetFile}
         >
-          {targetFile}
+          <MaterialFileIcon name={targetFile} size={14} />
+          <span>{targetFile}</span>
         </Link>
         {data?.symbol && (
           <span className="source-ref-symbol">

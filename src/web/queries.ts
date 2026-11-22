@@ -32,6 +32,7 @@ const queryKeys = {
     ['source', params.file, params.symbol ?? '', params.lines ?? ''] as const,
   codeTree: ['code', 'tree'] as const,
   codeFile: (filePath: string) => ['code', 'file', filePath] as const,
+  iconManifest: ['icons', 'manifest'] as const,
 }
 
 export function toErrorMessage(error: unknown): string | null {
@@ -42,7 +43,9 @@ export function toErrorMessage(error: unknown): string | null {
 export function useInvalidateDocs() {
   const queryClient = useQueryClient()
   return useCallback(() => {
-    void queryClient.invalidateQueries()
+    void queryClient.invalidateQueries({
+      predicate: (query) => query.queryKey[0] !== 'icons',
+    })
   }, [queryClient])
 }
 
@@ -151,5 +154,14 @@ export function useCodeFileQuery(filePath: string) {
     queryFn: () => api.codeFile(filePath),
     enabled: Boolean(filePath),
     retry: false,
+  })
+}
+
+export function useIconManifestQuery() {
+  return useQuery({
+    queryKey: queryKeys.iconManifest,
+    queryFn: () => api.iconManifest(),
+    staleTime: Number.POSITIVE_INFINITY,
+    gcTime: Number.POSITIVE_INFINITY,
   })
 }
