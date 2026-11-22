@@ -7,6 +7,7 @@
   --border: #e4e7ec;
   --text: #1c2430;
   --text-muted: #667085;
+  --text-faint: #98a2b3;
   --accent: #262a31;
   --accent-soft: #eef0f3;
   --tc: var(--accent);
@@ -31,6 +32,7 @@
   --border: #2e333c;
   --text: #e4e6ea;
   --text-muted: #9aa1ab;
+  --text-faint: #6b7280;
   --accent: #e4e6ea;
   --accent-soft: #2b3038;
   color-scheme: dark;
@@ -120,6 +122,10 @@ body,
 #root {
   height: 100%;
   margin: 0;
+}
+
+#root {
+  isolation: isolate;
 }
 
 body {

@@ -1,0 +1,29 @@
+---
+type: decision
+title: Web UI 基盤として Base UI (@base-ui/react) と Tailwind CSS v4 を段階採用する
+description: アプリ UI 殻にヘッドレスプリミティブ＋Tailwind CSS v4 を導入し、ドキュメント組版・印刷用 CSS とは明確に分離する方針
+date: 2026-11-23
+tags: [adr, ui, frontend, base-ui, tailwind]
+---
+
+# Web UI 基盤として Base UI (`@base-ui/react`) と Tailwind CSS v4 を段階採用する
+
+<Outcome id="dec.base-ui-tailwind" stability="stable">
+  Documi Web UI のインタラクティブなアプリ殻（ダイアログ・ポップオーバー・メニュー・ツールチップ・新規／改修画面）は **`@base-ui/react`（ヘッドレス UI プリミティブ）＋ Tailwind CSS v4（`@tailwindcss/vite`、Preflight なし・`@layer` 分離）** で構築する。一方で MDX 本文組版・セマンティックブロック装飾・PDF/HTML 印刷（`document.css` / `semantic.css` / `print.css`）は素のセマンティック CSS として維持し、視覚付き総合 UI ライブラリ（MUI / Ant Design 等）は採用しない。
+</Outcome>
+
+## 背景と課題
+
+- 既存の `src/web/styles/*.css` が約 5,000 行規模まで膨らんでおり、UI 機能追加のたびに別ファイルの CSS と JSX を往復する必要があり、不要クラスの取り残しやカスケード干渉が起きやすかった。
+- モーダル（検索 / Export / Mermaid 拡大）・ドロップダウン（開いているタブ一覧 / 言語切替）・用語ホバープレビュー（`TermPopover`）・ツールチップを手書き実装していたため、フォーカストラップ・背面スクロールロック・ビューポート端での反転配置・キーボード操作の保守コストが増えていた。
+
+## 設計方針
+
+1. **CSS カスケード層の明示分離 (`src/web/styles.css`)**
+   - `@layer theme, base, legacy, components, utilities;` を宣言し、`tailwindcss/theme.css` と `tailwindcss/utilities.css` のみを読み込む（Preflight は読み込まない）。
+   - 既存 CSS を `legacy` 層に収めることで、Markdown リスト・見出しウェイト・KaTeX・`@media print` を 1px も壊さず、新旧の段階移行時に Tailwind ユーティリティが常に安全に優先されるようにする。
+   - `tokens.css` の CSS 変数（`--bg`, `--bg-sidebar`, `--border`, `--text`, `--accent` 等）を `@theme inline` で Tailwind カラーへ直結させ、`[data-theme="dark"]` を `@custom-variant dark` で連動させる。
+2. **共通ヘッドレスプリミティブ (`src/web/components/ui/`)**
+   - `Dialog`（`AppDialog` / `DialogClose`）・`Tooltip`（`TooltipProvider` / `AppTooltip`）に加え、`@base-ui/react/menu`・`popover`・`preview-card` を活用し、SSR (`renderToStaticMarkup`) でも安全に動作するよう Portal の有無をガードする。
+3. **段階的移行**
+   - 既存 4,900 行の CSS を一度に全面書き換えせず、モーダル・メニュー・ポップオーバー等の高リスク領域から置換し、新機能および改修箇所で順次 Tailwind v4 へ寄せて旧 CSS を削減する。

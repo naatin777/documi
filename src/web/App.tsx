@@ -6,6 +6,7 @@ import DocTabs from './components/DocTabs'
 import Explorer from './components/Explorer'
 import ResizeHandle, { useResizableWidth } from './components/ResizeHandle'
 import TopBar from './components/TopBar'
+import { TooltipProvider } from './components/ui/Tooltip'
 import { LiveProvider } from './live'
 import { useOverviewQuery } from './queries'
 import { TabsProvider } from './tabs'
@@ -24,7 +25,9 @@ export default function App() {
     <ThemeProvider>
       <LiveProvider>
         <TabsProvider>
-          <AppRouter />
+          <TooltipProvider>
+            <AppRouter />
+          </TooltipProvider>
         </TabsProvider>
       </LiveProvider>
     </ThemeProvider>

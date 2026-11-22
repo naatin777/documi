@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router'
 import type { SearchHit } from '../../core/bundle'
 import { encodeDocId } from '../api'
 import { useSearchQuery } from '../queries'
+import { AppDialog } from './ui/Dialog'
 
 interface SearchModalProps {
   open: boolean
@@ -22,7 +23,6 @@ export default function SearchModal({ open, onClose }: SearchModalProps) {
   useEffect(() => {
     if (!open) return
     setActiveIdx(0)
-    setTimeout(() => inputRef.current?.focus(), 0)
   }, [open])
 
   useEffect(() => {
@@ -44,8 +44,6 @@ export default function SearchModal({ open, onClose }: SearchModalProps) {
     setActiveIdx(0)
   }, [results])
 
-  if (!open) return null
-
   const openHit = (hit: SearchHit) => {
     const hash = hit.kind === 'block' ? `#block-${encodeURIComponent(hit.id)}` : ''
     navigate(`/docs/${encodeDocId(hit.docId)}${hash}`)
@@ -53,10 +51,7 @@ export default function SearchModal({ open, onClose }: SearchModalProps) {
   }
 
   const onKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === 'Escape') {
-      e.preventDefault()
-      onClose()
-    } else if (e.key === 'ArrowDown') {
+    if (e.key === 'ArrowDown') {
       e.preventDefault()
       setActiveIdx((i) => Math.min(i + 1, Math.max(0, results.length - 1)))
     } else if (e.key === 'ArrowUp') {
@@ -69,47 +64,51 @@ export default function SearchModal({ open, onClose }: SearchModalProps) {
   }
 
   return (
-    <div className="modal-backdrop" onClick={onClose}>
-      <div
-        className="modal-card search-modal"
-        role="dialog"
-        aria-label={t('search.dialogAria')}
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div className="search-input-row">
-          <input
-            ref={inputRef}
-            type="search"
-            className="search-input"
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            onKeyDown={onKeyDown}
-            placeholder={t('search.placeholder')}
-          />
-        </div>
-        <div className="search-results">
-          {!query.trim() && <p className="search-empty">{t('search.prompt')}</p>}
-          {query.trim() && loading && results.length === 0 && <p className="search-empty">{t('search.searching')}</p>}
-          {query.trim() && !loading && results.length === 0 && <p className="search-empty">{t('search.noResults')}</p>}
-          {results.map((hit, i) => (
-            <button
-              key={`${hit.kind}:${hit.id}`}
-              type="button"
-              className={`search-hit${i === activeIdx ? ' active' : ''}`}
-              onMouseEnter={() => setActiveIdx(i)}
-              onClick={() => openHit(hit)}
-            >
-              <div className="search-hit-head">
-                <span className={`badge badge-type type-${hit.type}`}>{t(`types.singular.${hit.type}`)}</span>
-                {hit.blockKind && <span className="rp-block-kind">{hit.blockKind}</span>}
-                <strong className="search-hit-title">{hit.title}</strong>
-                <span className="search-hit-id mono">{hit.docId}</span>
-              </div>
-              {hit.snippet && <div className="search-hit-snippet">{hit.snippet}</div>}
-            </button>
-          ))}
-        </div>
+    <AppDialog
+      open={open}
+      onOpenChange={(next) => {
+        if (!next) onClose()
+      }}
+      ariaLabel={t('search.dialogAria')}
+      initialFocus={inputRef}
+    >
+      <div className="border-b border-line px-3.5 py-3">
+        <input
+          ref={inputRef}
+          type="search"
+          className="w-full border-0 bg-transparent text-[15px] text-fg outline-none placeholder:text-fg-muted"
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          onKeyDown={onKeyDown}
+          placeholder={t('search.placeholder')}
+        />
       </div>
-    </div>
+      <div className="grid max-h-[60vh] gap-0.5 overflow-y-auto p-1.5">
+        {!query.trim() && <p className="my-4 text-center text-[13px] text-fg-muted">{t('search.prompt')}</p>}
+        {query.trim() && loading && results.length === 0 && (
+          <p className="my-4 text-center text-[13px] text-fg-muted">{t('search.searching')}</p>
+        )}
+        {query.trim() && !loading && results.length === 0 && (
+          <p className="my-4 text-center text-[13px] text-fg-muted">{t('search.noResults')}</p>
+        )}
+        {results.map((hit, i) => (
+          <button
+            key={`${hit.kind}:${hit.id}`}
+            type="button"
+            className={`flex w-full cursor-pointer flex-col gap-1 rounded-lg border-0 px-2.5 py-2 text-left text-fg transition-colors hover:bg-hover ${i === activeIdx ? 'bg-hover' : 'bg-transparent'}`}
+            onMouseEnter={() => setActiveIdx(i)}
+            onClick={() => openHit(hit)}
+          >
+            <div className="flex flex-wrap items-center gap-1.5">
+              <span className={`badge badge-type type-${hit.type}`}>{t(`types.singular.${hit.type}`)}</span>
+              {hit.blockKind && <span className="rp-block-kind">{hit.blockKind}</span>}
+              <strong className="text-[13.5px]">{hit.title}</strong>
+              <span className="mono ml-auto text-[11px] text-fg-muted">{hit.docId}</span>
+            </div>
+            {hit.snippet && <div className="text-xs leading-[1.45] text-fg-muted">{hit.snippet}</div>}
+          </button>
+        ))}
+      </div>
+    </AppDialog>
   )
 }

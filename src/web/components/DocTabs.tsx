@@ -1,3 +1,4 @@
+import { Popover } from '@base-ui/react/popover'
 import {
   ChevronDown,
   ChevronLeft,
@@ -14,6 +15,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Link, useLocation } from 'react-router'
 import { activeTabKeyFromPath, useTabs, type ViewTabId, type WorkspaceTab } from '../tabs'
+import { AppTooltip } from './ui/Tooltip'
 
 interface DocTabsProps {
   sidebarOpen: boolean
@@ -25,7 +27,6 @@ export default function DocTabs({ sidebarOpen, onToggleSidebar }: DocTabsProps) 
   const { tabs, closeTab, closeAllTabs } = useTabs()
   const { pathname } = useLocation()
   const stripRef = useRef<HTMLDivElement>(null)
-  const menuRef = useRef<HTMLDivElement>(null)
   const activeKey = activeTabKeyFromPath(pathname)
 
   const [canScrollLeft, setCanScrollLeft] = useState(false)
@@ -74,25 +75,6 @@ export default function DocTabs({ sidebarOpen, onToggleSidebar }: DocTabsProps) 
     setMenuOpen(false)
   }, [pathname])
 
-  // 外側クリック・Escape でドロップダウンを閉じる
-  useEffect(() => {
-    if (!menuOpen) return
-    const onPointerDown = (e: MouseEvent) => {
-      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
-        setMenuOpen(false)
-      }
-    }
-    const onKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') setMenuOpen(false)
-    }
-    window.addEventListener('mousedown', onPointerDown)
-    window.addEventListener('keydown', onKeyDown)
-    return () => {
-      window.removeEventListener('mousedown', onPointerDown)
-      window.removeEventListener('keydown', onKeyDown)
-    }
-  }, [menuOpen])
-
   const scrollByStep = (dir: -1 | 1) => {
     const strip = stripRef.current
     if (!strip) return
@@ -127,20 +109,21 @@ export default function DocTabs({ sidebarOpen, onToggleSidebar }: DocTabsProps) 
   return (
     <nav className="doc-tabs" aria-label={t('tabs.workspaceTabs')}>
       <div className="doc-tabs-sidebar-slot">
-        <button
-          type="button"
-          className={`doc-tabs-sidebar-btn${sidebarOpen ? ' active' : ''}`}
-          onClick={onToggleSidebar}
-          aria-expanded={sidebarOpen}
-          aria-label={sidebarOpen ? t('tabs.closeSidebar') : t('tabs.openSidebar')}
-          title={sidebarOpen ? t('tabs.closeSidebarTitle') : t('tabs.openSidebarTitle')}
-        >
-          {sidebarOpen ? (
-            <PanelLeftClose size={15} strokeWidth={1.75} aria-hidden="true" />
-          ) : (
-            <PanelLeftOpen size={15} strokeWidth={1.75} aria-hidden="true" />
-          )}
-        </button>
+        <AppTooltip label={sidebarOpen ? t('tabs.closeSidebarTitle') : t('tabs.openSidebarTitle')}>
+          <button
+            type="button"
+            className={`doc-tabs-sidebar-btn${sidebarOpen ? ' active' : ''}`}
+            onClick={onToggleSidebar}
+            aria-expanded={sidebarOpen}
+            aria-label={sidebarOpen ? t('tabs.closeSidebar') : t('tabs.openSidebar')}
+          >
+            {sidebarOpen ? (
+              <PanelLeftClose size={15} strokeWidth={1.75} aria-hidden="true" />
+            ) : (
+              <PanelLeftOpen size={15} strokeWidth={1.75} aria-hidden="true" />
+            )}
+          </button>
+        </AppTooltip>
       </div>
 
       <div className="doc-tabs-viewport">
@@ -216,76 +199,86 @@ export default function DocTabs({ sidebarOpen, onToggleSidebar }: DocTabsProps) 
         )}
       </div>
 
-      <div className="doc-tabs-menu-wrap" ref={menuRef}>
-        <button
-          type="button"
-          className={`doc-tabs-menu-btn${menuOpen ? ' active' : ''}`}
-          onClick={() => setMenuOpen((v) => !v)}
-          aria-expanded={menuOpen}
-          aria-haspopup="menu"
-          aria-label={t('tabs.openTabsList', { count: tabs.length })}
-          title={t('tabs.openTabsTitle')}
-        >
-          <span className="doc-tabs-menu-count">{tabs.length}</span>
-          <ChevronDown size={12} strokeWidth={1.85} aria-hidden="true" />
-        </button>
+      <div className="doc-tabs-menu-wrap">
+        <Popover.Root open={menuOpen} onOpenChange={setMenuOpen}>
+          <AppTooltip label={t('tabs.openTabsTitle')}>
+            <Popover.Trigger
+              className="doc-tabs-menu-btn data-[popup-open]:bg-hover data-[popup-open]:text-fg"
+              aria-label={t('tabs.openTabsList', { count: tabs.length })}
+            >
+              <span className="doc-tabs-menu-count">{tabs.length}</span>
+              <ChevronDown size={12} strokeWidth={1.85} aria-hidden="true" />
+            </Popover.Trigger>
+          </AppTooltip>
 
-        {menuOpen && (
-          <div className="doc-tabs-dropdown" role="menu" aria-label={t('tabs.openTabsTitle')}>
-            <ul className="doc-tabs-dropdown-list">
-              {tabs.map((tab) => {
-                const isActive = activeKey === tab.key
-                const hideClose = isSoleHome(tab)
-                const typeClass = tab.kind === 'doc' ? `type-${tab.type}` : 'doc-tab-view'
-                const title = resolveTabTitle(tab)
-                return (
-                  <li key={tab.key} className={`doc-tabs-dropdown-row${isActive ? ' active' : ''} ${typeClass}`}>
-                    <Link
-                      to={tab.path}
-                      className="doc-tabs-dropdown-link"
-                      role="menuitem"
-                      onClick={() => setMenuOpen(false)}
-                    >
-                      {tab.kind === 'doc' ? (
-                        <span className="doc-tab-dot" aria-hidden="true" />
-                      ) : (
-                        <ViewTabIcon viewId={tab.viewId} />
-                      )}
-                      <span className="doc-tabs-dropdown-text">
-                        <span className="doc-tabs-dropdown-title">{title}</span>
-                        <span className="doc-tabs-dropdown-id mono">{tab.kind === 'doc' ? tab.docId : tab.path}</span>
-                      </span>
-                    </Link>
-                    {!hideClose && (
+          {typeof document !== 'undefined' && (
+            <Popover.Portal>
+              <Popover.Positioner align="end" sideOffset={4} collisionPadding={8} className="z-60">
+                <Popover.Popup
+                  aria-label={t('tabs.openTabsTitle')}
+                  className="flex max-h-[360px] w-[290px] flex-col overflow-hidden rounded-lg border border-line bg-surface shadow-[0_10px_28px_rgba(15,23,42,0.16)] outline-none transition-all duration-100 data-[starting-style]:scale-95 data-[starting-style]:opacity-0 data-[ending-style]:scale-95 data-[ending-style]:opacity-0 dark:shadow-[0_10px_30px_rgba(0,0,0,0.5)]"
+                >
+                  <ul className="m-0 list-none overflow-y-auto p-1">
+                    {tabs.map((tab) => {
+                      const isActive = activeKey === tab.key
+                      const hideClose = isSoleHome(tab)
+                      const typeClass = tab.kind === 'doc' ? `type-${tab.type}` : 'doc-tab-view'
+                      const title = resolveTabTitle(tab)
+                      return (
+                        <li
+                          key={tab.key}
+                          className={`flex items-center gap-1 rounded-md hover:bg-hover ${isActive ? 'bg-[var(--tc-soft)]' : ''} ${typeClass}`}
+                        >
+                          <Link
+                            to={tab.path}
+                            className="flex min-w-0 flex-1 items-center gap-2 px-2 py-1.5 text-fg no-underline"
+                            onClick={() => setMenuOpen(false)}
+                          >
+                            {tab.kind === 'doc' ? (
+                              <span className="doc-tab-dot" aria-hidden="true" />
+                            ) : (
+                              <ViewTabIcon viewId={tab.viewId} />
+                            )}
+                            <span className="flex min-w-0 flex-col">
+                              <span className="truncate text-[12.5px] font-semibold">{title}</span>
+                              <span className="mono truncate text-[10.5px] text-fg-muted">
+                                {tab.kind === 'doc' ? tab.docId : tab.path}
+                              </span>
+                            </span>
+                          </Link>
+                          {!hideClose && (
+                            <button
+                              type="button"
+                              className="doc-tab-close"
+                              aria-label={t('tabs.closeTab', { title })}
+                              onClick={() => closeTab(tab)}
+                            >
+                              <X size={12} strokeWidth={1.85} aria-hidden="true" />
+                            </button>
+                          )}
+                        </li>
+                      )
+                    })}
+                  </ul>
+                  {(tabs.length > 1 || (tabs[0] && !isSoleHome(tabs[0]))) && (
+                    <div className="border-t border-line bg-sidebar p-1.5">
                       <button
                         type="button"
-                        className="doc-tab-close"
-                        aria-label={t('tabs.closeTab', { title })}
-                        onClick={() => closeTab(tab)}
+                        className="w-full cursor-pointer rounded-md border border-line bg-surface px-2 py-1 text-xs font-semibold text-fg-muted hover:bg-hover hover:text-fg"
+                        onClick={() => {
+                          setMenuOpen(false)
+                          closeAllTabs()
+                        }}
                       >
-                        <X size={12} strokeWidth={1.85} aria-hidden="true" />
+                        {t('tabs.closeAllTabs')}
                       </button>
-                    )}
-                  </li>
-                )
-              })}
-            </ul>
-            {(tabs.length > 1 || (tabs[0] && !isSoleHome(tabs[0]))) && (
-              <div className="doc-tabs-dropdown-foot">
-                <button
-                  type="button"
-                  className="doc-tabs-clear-btn"
-                  onClick={() => {
-                    setMenuOpen(false)
-                    closeAllTabs()
-                  }}
-                >
-                  {t('tabs.closeAllTabs')}
-                </button>
-              </div>
-            )}
-          </div>
-        )}
+                    </div>
+                  )}
+                </Popover.Popup>
+              </Popover.Positioner>
+            </Popover.Portal>
+          )}
+        </Popover.Root>
       </div>
     </nav>
   )

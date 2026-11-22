@@ -1,9 +1,31 @@
-@import './styles/tokens.css';
-@import './styles/layout.css';
-@import './styles/panels.css';
-@import './styles/document.css';
-@import './styles/semantic.css';
-@import './styles/views.css';
-@import './styles/modals.css';
-@import './styles/responsive.css';
-@import './styles/print.css';
+@layer theme, base, legacy, components, utilities;
+
+@import 'tailwindcss/theme.css' layer(theme);
+@import './styles/tokens.css' layer(base);
+@import './styles/layout.css' layer(legacy);
+@import './styles/panels.css' layer(legacy);
+@import './styles/document.css' layer(legacy);
+@import './styles/semantic.css' layer(legacy);
+@import './styles/views.css' layer(legacy);
+@import './styles/modals.css' layer(legacy);
+@import './styles/responsive.css' layer(legacy);
+@import './styles/print.css' layer(legacy);
+@import 'tailwindcss/utilities.css' layer(utilities);
+
+@custom-variant dark (&:where([data-theme="dark"], [data-theme="dark"] *));
+
+@theme inline {
+  --color-surface: var(--bg);
+  --color-sidebar: var(--bg-sidebar);
+  --color-code: var(--bg-code);
+  --color-subtle: var(--bg-subtle);
+  --color-hover: var(--bg-hover);
+  --color-line: var(--border);
+  --color-fg: var(--text);
+  --color-fg-muted: var(--text-muted);
+  --color-fg-faint: var(--text-faint);
+  --color-accent: var(--accent);
+  --color-accent-soft: var(--accent-soft);
+  --font-sans: var(--font-sans);
+  --font-mono: var(--font-mono);
+}

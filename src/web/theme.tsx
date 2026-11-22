@@ -1,6 +1,7 @@
 import { Monitor, Moon, Sun } from 'lucide-react'
 import { createContext, useContext, useEffect, useState, type ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
+import { AppTooltip } from './components/ui/Tooltip'
 
 export type ThemeMode = 'light' | 'dark' | 'system'
 type ResolvedTheme = 'light' | 'dark'
@@ -70,16 +71,17 @@ export function ThemeToggle() {
   const modeLabel = t(`theme.${mode}`)
 
   return (
-    <button
-      type="button"
-      className="theme-toggle"
-      title={t('theme.tooltip', { mode: modeLabel })}
-      aria-label={t('theme.ariaLabel', { mode: modeLabel })}
-      onClick={() => setMode(next)}
-    >
-      {mode === 'light' && <Sun size={15} strokeWidth={1.75} aria-hidden="true" />}
-      {mode === 'dark' && <Moon size={15} strokeWidth={1.75} aria-hidden="true" />}
-      {mode === 'system' && <Monitor size={15} strokeWidth={1.75} aria-hidden="true" />}
-    </button>
+    <AppTooltip label={t('theme.tooltip', { mode: modeLabel })}>
+      <button
+        type="button"
+        className="theme-toggle"
+        aria-label={t('theme.ariaLabel', { mode: modeLabel })}
+        onClick={() => setMode(next)}
+      >
+        {mode === 'light' && <Sun size={15} strokeWidth={1.75} aria-hidden="true" />}
+        {mode === 'dark' && <Moon size={15} strokeWidth={1.75} aria-hidden="true" />}
+        {mode === 'system' && <Monitor size={15} strokeWidth={1.75} aria-hidden="true" />}
+      </button>
+    </AppTooltip>
   )
 }
