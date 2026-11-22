@@ -7,6 +7,7 @@ import { serveStatic } from '@hono/bun'
 import type { DocsIndex } from '../core/types'
 import { handleMcpRequest } from './mcp'
 import { createBlocksRoutes } from './routes/blocks'
+import { createCodeRoutes } from './routes/code'
 import { createDocumentsRoutes } from './routes/documents'
 import { createGraphRoutes } from './routes/graph'
 import { createSystemRoutes } from './routes/system'
@@ -27,6 +28,7 @@ function createApiApp(store: DocsStore, projectRoot: string) {
     .route('/', createDocumentsRoutes(store))
     .route('/', createGraphRoutes(store))
     .route('/blocks', createBlocksRoutes(store))
+    .route('/code', createCodeRoutes(store, projectRoot))
 }
 
 /** Hono RPC (`hc<ApiRoutes>`) が参照する全 `/api/*` ルート型定義 */

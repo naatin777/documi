@@ -226,7 +226,7 @@ for (const def of Object.values(LANGS)) {
   for (const ext of def.exts) EXT_TO_LANG.set(ext, def)
 }
 
-const TEXT_EXTS = new Set([
+export const TEXT_EXTS = new Set([
   ...EXT_TO_LANG.keys(),
   'md',
   'mdx',
@@ -290,7 +290,11 @@ const TEXT_EXTS = new Set([
   'hcl',
 ])
 
-interface LoadedSource {
+export function detectSourceLanguage(ext: string): string {
+  return EXT_TO_LANG.get(ext)?.display ?? (ext || 'text')
+}
+
+export interface LoadedSource {
   absPath: string
   relPath: string
   source: string
@@ -298,7 +302,7 @@ interface LoadedSource {
 }
 
 /** file をプロジェクトルート内に限定して安全に読み込む */
-async function loadSourceFile(projectRoot: string, file: string): Promise<LoadedSource> {
+export async function loadSourceFile(projectRoot: string, file: string): Promise<LoadedSource> {
   if (typeof file !== 'string' || file.trim() === '' || file.includes('\0')) {
     throw new SourceError('file パラメータが不正です', 400)
   }
