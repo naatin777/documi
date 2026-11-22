@@ -76,7 +76,7 @@ export function createApp(source: DocsIndex | DocsStore, options: AppOptions = {
     if (origin && !isLocalOrigin(origin)) {
       return c.json({ error: 'この Origin からの MCP アクセスは許可されていません' }, 403)
     }
-    return handleMcpRequest(store.getIndex(), c.req.raw, projectRoot)
+    return handleMcpRequest(store, c.req.raw, projectRoot)
   })
 
   const dist = options.clientDist ? path.resolve(options.clientDist) : undefined

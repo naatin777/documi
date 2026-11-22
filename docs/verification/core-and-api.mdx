@@ -1,7 +1,7 @@
 ---
 type: verification
 title: Core・Reviews・Trace・Bundle・API・MCP・UI の検証方針
-description: 証拠主義のテスト戦略・JUnit XML 連携・品質ゲート・意図的対象外（Out of Scope）と 10 スイート一覧
+description: 証拠主義のテスト戦略・JUnit XML 連携・品質ゲート・意図的対象外（Out of Scope）と 11 スイート一覧
 tags: [testing, verification]
 verifies:
   - core.document-model
@@ -15,6 +15,7 @@ verifies:
   - core.ast-check
   - core.bundle-export
   - core.full-text-search
+  - core.mcp-surgical-edit
   - ui.web-viewer
   - ui.explorer-modes
   - ui.live-reload
@@ -52,7 +53,7 @@ bun run build
 bun run documi:check
 ```
 
-## 3. テストスイート一覧（10 スイート）
+## 3. テストスイート一覧（11 スイート）
 
 | テストスイート | 検証対象 |
 |---|---|
@@ -60,12 +61,13 @@ bun run documi:check
 | `tests/reviews.test.ts` | サイドカー `reviews.json` 承認・`stale`・Suspect Links 波及・Git/キャッシュ行 diff・フィードバック・Stability 上書き |
 | `tests/trace.test.ts` | `@implements` / `@verifies` / `test("[id]")` 走査・JUnit XML 取り込み・PR 連携・AST 壊れ検知・`documi check` CLI (`--strict` / `--no-review-edit`) |
 | `tests/bundle.test.tsx` | バンドル解決 (`all`/`dir`/`goal`/`ids`)・全文検索・トレーサビリティマトリクス・バンドル描画（ページ内アンカー・見出し名前空間・全タブ展開）・関連 API/MCP |
-| `tests/api.test.ts` | Hono RPC + Zod REST API 全エンドポイント・`DocsStore.reload`・MCP ツール 8 種 |
+| `tests/api.test.ts` | Hono RPC + Zod REST API 全エンドポイント・`DocsStore.reload`・MCP ツール 13 種 |
 | `tests/ui.test.tsx` | Overview・1 本サイドバー (`Flow` / `Files`)・Review Queue・Side-by-Side プレビュー・SSE ライブ更新・用語自動リンク・Graph/Matrix API・Cmd+K 検索・`documi init` CLI |
 | `tests/mdx.test.tsx` | GFM・KaTeX・Shiki・Mermaid・セマンティックタグ 6 種・Living Glossary 自動リンク・相対パス内部リンク・危険構文無効化 |
 | `tests/source.test.ts` | 9 言語の AST シンボル解決・行範囲抽出・パストラバーサル／シンボリックリンク／バイナリ防御 |
 | `tests/i18n.test.ts` | Web UI ロケールカタログ (`en` マスター / `ja` 等) のキー・プレースホルダ完全一致と `setAppLocale` 切替 |
 | `tests/code.test.tsx` | 読み取り専用 Code Explorer のツリー構築・仕様カバレッジ算出・逆リンク集約・境界防御 (`403`/`404`/`400`)・API/SSR 描画 |
+| `tests/mcp-edit.test.ts` | MCP 精密編集 5 ツール (`update_block` / `add_block` / `upsert_term` / `scaffold_document` / `rename_block_id`)・正確なファイル行番号・MDX 安全性および `reviews.json` 書込禁止ガード |
 
 ## 4. 意図的な対象外（Out of Scope）
 
