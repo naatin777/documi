@@ -123,4 +123,5 @@ export const api = {
     return { ...data, tree: data.tree as CodeTreeNode[] }
   },
   codeFile: (filePath: string) => unwrap(rpc.api.code.file.$get({ query: { path: filePath } })),
+  iconManifest: () => unwrap(rpc.api.icons.manifest.$get()),
 }

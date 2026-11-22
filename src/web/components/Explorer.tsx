@@ -1,5 +1,5 @@
 import { ChevronRight, FileCode2, Home, ListChecks, Network, Search, X } from 'lucide-react'
-import { useMemo, useState, type ReactNode } from 'react'
+import { useMemo, useState, type CSSProperties, type ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
 import { NavLink } from 'react-router'
 import { ARTIFACT_TYPES } from '../../core/types'
@@ -10,6 +10,7 @@ import { toErrorMessage, useStatusQuery, useTreeQuery } from '../queries'
 import { ThemeToggle } from '../theme'
 import { ArtifactTypeIcon, BrandMark } from './BrandMark'
 import ExportActions from './ExportActions'
+import { MaterialFileIcon, MaterialFolderIcon } from './MaterialIcon'
 
 type DocListMode = 'flow' | 'files'
 
@@ -272,10 +273,11 @@ function TreeBranch({
           onClick={() => onToggleDir(dir.path)}
         >
           <Chevron collapsed={isCollapsed} />
+          <MaterialFolderIcon name={dir.name} open={!isCollapsed} size={15} />
           <span className="nav-dir-name">{dir.name}</span>
         </button>
         {!isCollapsed && (
-          <div className="nav-dir-children">
+          <div className="nav-dir-children" style={{ '--tree-depth': depth } as CSSProperties}>
             {dir.children.map((child) => (
               <TreeBranch
                 key={child.kind === 'dir' ? `dir:${child.path}` : `doc:${child.doc.id}`}
@@ -298,12 +300,13 @@ function TreeBranch({
     <NavLink
       to={`/docs/${encodeDocId(doc.id)}`}
       className={({ isActive }) => `nav-item nav-tree-doc type-${doc.type}${isActive ? ' active' : ''}`}
-      style={{ paddingLeft: `${10 + depth * 14}px` }}
+      style={{ paddingLeft: `${23 + depth * 14}px` }}
       title={`${doc.id} — ${doc.title}`}
       onClick={onClose}
     >
-      <span className="nav-type-dot" aria-hidden="true" />
+      <MaterialFileIcon name={doc.path} size={15} />
       <span className="nav-title">{doc.title}</span>
+      <span className="nav-type-dot" aria-hidden="true" />
       {doc.issueCount > 0 && <span className="issue-dot" title={t('nav.issueCountTitle', { count: doc.issueCount })} />}
     </NavLink>
   )

@@ -10,6 +10,7 @@ import { createBlocksRoutes } from './routes/blocks'
 import { createCodeRoutes } from './routes/code'
 import { createDocumentsRoutes } from './routes/documents'
 import { createGraphRoutes } from './routes/graph'
+import { createIconsRoutes } from './routes/icons'
 import { createSystemRoutes } from './routes/system'
 import { DocsStore } from './store'
 import { isLocalOrigin, type ErrorStatusCode } from './validator'
@@ -29,6 +30,7 @@ function createApiApp(store: DocsStore, projectRoot: string) {
     .route('/', createGraphRoutes(store))
     .route('/blocks', createBlocksRoutes(store))
     .route('/code', createCodeRoutes(store, projectRoot))
+    .route('/icons', createIconsRoutes())
 }
 
 /** Hono RPC (`hc<ApiRoutes>`) が参照する全 `/api/*` ルート型定義 */

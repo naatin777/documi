@@ -23,7 +23,7 @@ satisfies:
 - `.doccols` 内に `<main className="content">` と条件付きの `<aside className="side-panel">` を並べることで、右ペインが不要な画面（Home / Review 未選択 / Matrix / Graph 未選択）では中央が自動的に全幅へ広がる。
 - `OverviewLayout` / `ReviewLayout` / `DocLayout` / `GraphLayout` / `BundleLayout` / `SearchModal` は `React.lazy()` + `Suspense` でルート単位に Code Splitting し、Sigma.js や Markdown/KaTeX パーサーを該当画面でのみ読み込むことで初期メインバンドルを約 80% 削減している。
 
-- **アイコンとタイポグラフィ**: 全画面の UI アイコンおよび 9 種 Artifact Type アイコンを `lucide-react`（均一ストローク）へ統一し、オリジナル幾何学マーク（`BrandMark` / `public/favicon.svg`）を配置する。本文は `@fontsource/ibm-plex-sans` + `@fontsource/ibm-plex-sans-jp`、コード・Spec ID・数値は `@fontsource-variable/jetbrains-mono` をローカル同梱し、オフラインおよび PDF Export でも同一の組版品質（見出し詰め組み `palt`・等幅数値 `tabular-nums`）を保つ。
+- **アイコンとタイポグラフィ**: 全画面の UI アイコンおよび 9 種 Artifact Type アイコンを `lucide-react`（均一ストローク）へ統一し、オリジナル幾何学マーク（`BrandMark` / `public/favicon.svg`）を配置する。Code Explorer および Docs Explorer（Files モード）・`<SourceRef>` のファイル／フォルダ一覧には `material-icon-theme`（VS Code Material Icon Theme 公式 SVG）を `/api/icons/manifest`・`/api/icons/:name` 経由でオンデマンド配信して表示し、クライアントバンドル肥大を防ぎつつライト／ダーク自動切替に対応する。本文は `@fontsource/ibm-plex-sans` + `@fontsource/ibm-plex-sans-jp`、コード・Spec ID・数値は `@fontsource-variable/jetbrains-mono` をローカル同梱し、オフラインおよび PDF Export でも同一の組版品質（見出し詰め組み `palt`・等幅数値 `tabular-nums`）を保つ。
 
 - **多言語対応 (i18n)**: `i18next` + `react-i18next` を採用し、`src/web/locales/en.json` をマスター（フォールバック言語）として `en` / `ja` を提供する。初回はブラウザ言語を自動検出し、ヘッダーの言語切替ドロップダウン（`LanguageToggle`）で `localStorage` 保存と `<html lang>` 同期を行う。新言語の追加は JSON 1 ファイル追加と `SUPPORTED_LOCALES` への 1 行登録で完結し、`tests/i18n.test.ts` が全ロケールのキー・プレースホルダ整合性を自動検証する。
 
@@ -60,7 +60,7 @@ satisfies:
 ## 5. 読み取り専用 Code Explorer (`/code`)
 
 - `src/core/code.ts` が `projectRoot` 配下のソースファイルツリー（`buildCodeTree`）と全文＋逆リンク集約（`readCodeFile`）を提供し、`/api/code/tree`・`/api/code/file` 経由で配信する。
-- `CodeExplorerLayout` は左側に仕様カバレッジバー・絞り込み付きファイルツリー、中央に Shiki 行番号ハイライト＋行クリック範囲選択＋行内 Spec バッジ付き読み取り専用ビューア、右側に共通の `DocPeekPane` を組み合わせ、ソースコードと仕様書を並べて閲覧できる。
+- `CodeExplorerLayout` は左側に Material Icon・階層ガイド線・仕様リンク絞り込み付きファイルツリー、中央に Shiki 行番号ハイライト＋行クリック範囲選択＋行内 Spec バッジ付き読み取り専用ビューア、右側に共通の `DocPeekPane` を組み合わせ、ソースコードと仕様書を並べて閲覧できる。
 - `<SourceRef>`・`SidePanel` の `Source Refs`・`BlockReviewControls` の実装/テスト箇所リンクから `/code?file=...&line=...` へ双方向ジャンプできる。
 
 <SourceRef file="src/web/components/CodeExplorerLayout.tsx" symbol="CodeExplorerLayout" satisfies="ui.code-explorer" />

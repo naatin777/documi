@@ -1,5 +1,5 @@
-import { ChevronRight, Columns2, Copy, FileCode2, Folder, FolderOpen, Search } from 'lucide-react'
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { ChevronRight, Columns2, Copy, FileCode2, Search } from 'lucide-react'
+import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Link, useSearchParams } from 'react-router'
 import type { CodeFileSummary, CodeSpecLink, CodeTreeDir, CodeTreeNode } from '../../core/code'
@@ -7,6 +7,7 @@ import { encodeDocId } from '../api'
 import { useCopyText, useHighlightedCode } from '../hooks'
 import { toErrorMessage, useCodeFileQuery, useCodeTreeQuery } from '../queries'
 import DocPeekPane from './DocPeekPane'
+import { MaterialFileIcon, MaterialFolderIcon } from './MaterialIcon'
 import ResizeHandle, { useResizableWidth } from './ResizeHandle'
 
 type CoverageFilter = 'all' | 'covered' | 'uncovered'
@@ -166,8 +167,12 @@ export default function CodeExplorerLayout() {
     })
   }
 
-  const coveragePct =
-    treeData && treeData.totalFiles > 0 ? Math.round((treeData.coveredFiles / treeData.totalFiles) * 100) : 0
+  const unlinkedCount = treeData ? treeData.totalFiles - treeData.coveredFiles : 0
+  const filterCounts: Record<CoverageFilter, number | null> = {
+    all: treeData ? treeData.totalFiles : null,
+    covered: treeData ? treeData.coveredFiles : null,
+    uncovered: treeData ? unlinkedCount : null,
+  }
 
   return (
     <>
@@ -175,18 +180,6 @@ export default function CodeExplorerLayout() {
         <div className="code-explorer-shell">
           <aside className="code-tree-pane" style={{ width: `${treeWidth}px`, flexBasis: `${treeWidth}px` }}>
             <div className="code-tree-header">
-              <div className="code-coverage-row">
-                <span className="code-coverage-title">{t('codeExplorer.coverageLabel')}</span>
-                {treeData && (
-                  <span className="code-coverage-stat mono">
-                    {treeData.coveredFiles}/{treeData.totalFiles} ({coveragePct}%)
-                  </span>
-                )}
-              </div>
-              <div className="code-coverage-bar" aria-hidden="true">
-                <div className="code-coverage-fill" style={{ width: `${coveragePct}%` }} />
-              </div>
-
               <div className="code-filter-input-wrap">
                 <Search size={12} strokeWidth={1.9} className="code-filter-icon" aria-hidden="true" />
                 <input
@@ -209,7 +202,10 @@ export default function CodeExplorerLayout() {
                     className={`code-filter-chip${coverageFilter === mode ? ' active' : ''}`}
                     onClick={() => setCoverageFilter(mode)}
                   >
-                    {t(`codeExplorer.filters.${mode}`)}
+                    <span>{t(`codeExplorer.filters.${mode}`)}</span>
+                    {filterCounts[mode] !== null && (
+                      <span className="code-filter-count mono">{filterCounts[mode]}</span>
+                    )}
                   </button>
                 ))}
               </div>
@@ -266,6 +262,7 @@ export default function CodeExplorerLayout() {
                             className="code-quick-chip mono"
                             onClick={() => selectFile(f.path)}
                           >
+                            <MaterialFileIcon name={f.name} size={14} />
                             <span>{f.path}</span>
                             {f.specCount > 0 && <span className="code-file-badge">{f.specCount}</span>}
                           </button>
@@ -278,7 +275,7 @@ export default function CodeExplorerLayout() {
               <>
                 <header className="code-file-header">
                   <div className="code-file-header-main">
-                    <FileCode2 size={15} strokeWidth={1.8} aria-hidden="true" />
+                    <MaterialFileIcon name={selectedFile} size={16} />
                     <span className="code-file-path mono">{selectedFile}</span>
                     {fileData && (
                       <>
@@ -510,6 +507,7 @@ function CodeTreeBranch({
   onToggleDir: (dirPath: string) => void
   onSelectFile: (filePath: string) => void
 }) {
+  const { t } = useTranslation()
   if (node.kind === 'dir') {
     const dir: CodeTreeDir = node
     const isCollapsed = !forceExpand && collapsedDirs.has(dir.path)
@@ -528,18 +526,19 @@ function CodeTreeBranch({
             className={`nav-chevron${isCollapsed ? ' collapsed' : ''}`}
             aria-hidden="true"
           />
-          {isCollapsed ? (
-            <Folder size={13} strokeWidth={1.75} className="code-tree-icon" aria-hidden="true" />
-          ) : (
-            <FolderOpen size={13} strokeWidth={1.75} className="code-tree-icon" aria-hidden="true" />
-          )}
+          <MaterialFolderIcon name={dir.name} open={!isCollapsed} size={15} />
           <span className="code-tree-name">{dir.name}</span>
-          <span className="code-tree-dir-count mono">
-            {dir.coveredCount}/{dir.totalCount}
-          </span>
+          {dir.coveredCount > 0 && (
+            <span
+              className="code-tree-dir-count mono"
+              title={t('codeExplorer.dirLinkedTitle', { count: dir.coveredCount })}
+            >
+              {dir.coveredCount}
+            </span>
+          )}
         </button>
         {!isCollapsed && (
-          <div>
+          <div className="code-tree-children" style={{ '--tree-depth': depth } as CSSProperties}>
             {dir.children.map((child) => (
               <CodeTreeBranch
                 key={child.kind === 'dir' ? `dir:${child.path}` : `file:${child.file.path}`}
@@ -564,13 +563,17 @@ function CodeTreeBranch({
     <button
       type="button"
       className={`code-tree-file-btn${isActive ? ' active' : ''}${file.covered ? ' covered' : ''}`}
-      style={{ paddingLeft: `${12 + depth * 14}px` }}
+      style={{ paddingLeft: `${26 + depth * 14}px` }}
       title={file.path}
       onClick={() => onSelectFile(file.path)}
     >
-      <span className={`code-cov-dot${file.covered ? ' covered' : ''}`} aria-hidden="true" />
+      <MaterialFileIcon name={file.name} size={15} />
       <span className="code-tree-name">{file.name}</span>
-      {file.specCount > 0 && <span className="code-file-badge mono">{file.specCount}</span>}
+      {file.specCount > 0 ? (
+        <span className="code-file-badge mono">{file.specCount}</span>
+      ) : file.covered ? (
+        <span className="code-cov-dot covered" aria-hidden="true" />
+      ) : null}
     </button>
   )
 }
