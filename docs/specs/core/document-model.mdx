@@ -73,3 +73,10 @@ tags: [core, spec]
   **When** 検索クエリが与えられたとき、
   **the** Document Core **shall** ドキュメントのタイトル・ID・タグ・本文および全セマンティックブロックを横断してスコアリング検索し、スニペット付きで返却する。
 </Spec>
+
+## コンテキスト最小化のための MCP 精密編集
+
+<Spec id="core.mcp-surgical-edit" stability="evolving" derives="goals/ai-reproducibility">
+  **When** AI エージェントが MCP 経由で特定のセマンティックブロック・用語・新規文書雛形・ブロック ID リネームを操作するとき、
+  **the** Document Core および MCP Server **shall** 読み取りツールで各ブロックの正確な `docPath`・`startLine`・`endLine` を提供するとともに、対象ブロックや対象ファイルのみを AST 位置ベースで安全に書き換えて即時再読込と検証結果を返す。`docs/` 外への脱出、MDX 危険構文（式・ESM・未許可コンポーネント）、ID 重複、および `docs/.documi/reviews.json` への書き込みは一切拒否する。
+</Spec>

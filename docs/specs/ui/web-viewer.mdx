@@ -46,3 +46,8 @@ tags: [ui, frontend]
   **When** ユーザーが `Cmd+K` / `Ctrl+K` または検索ボタンを押したとき、
   **the** Web UI **shall** ドキュメントとセマンティックブロックを横断検索できるクイック検索モーダルを開き、キーボード操作で該当文書・ブロックへ即座に遷移できるようにする。
 </Spec>
+
+<Spec id="ui.code-explorer" stability="evolving" derives="goals/human-comprehension">
+  **When** ユーザーが Code Explorer（`/code`）を開くか、`<SourceRef>`・`SidePanel` の関連コード・`Realization` のファイル参照をクリックしたとき、
+  **the** Web UI **shall** `projectRoot` 配下のソースファイルツリーと Shiki ハイライト・行番号付きの読み取り専用ソースコード全文を表示し、指定行範囲の強調スクロールおよびそのファイルに紐づく `<Spec>`・ドキュメント・`<TermDef>` への逆リンクと仕様カバレッジ有無を提示する。`projectRoot` 外参照・バイナリ・上限超過ファイルは安全にエラー表示し、Web UI 上でのコード編集機能は提供しない。
+</Spec>

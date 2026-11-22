@@ -1,7 +1,7 @@
 ---
 type: contract
 title: MCP ツールコントラクト
-description: AI エージェントが Streamable HTTP (/mcp) および stdio (documi mcp) 経由で利用する 8 ツール仕様
+description: AI エージェントが Streamable HTTP (/mcp) および stdio (documi mcp) 経由で利用する読み取り・精密編集ツール仕様
 tags: [mcp, ai, contract]
 satisfies:
   - core.document-model
@@ -11,28 +11,49 @@ satisfies:
   - core.realization
   - core.ast-check
   - core.full-text-search
+  - core.mcp-surgical-edit
 ---
 
 # MCP ツールコントラクト
 
-AI エージェント向けに **2 種類のトランスポート** で同じ 8 ツールを提供する。
+AI エージェント向けに **2 種類のトランスポート** で同一のツール群を提供する（設計根拠: [同一リポジトリ原則・Code Explorer・MCP 精密編集ハイブリッド ADR](../decisions/2026-11-code-explorer-and-mcp-editing.mdx)）。
 
 - **Streamable HTTP (`POST /mcp`)**: `documi serve` 起動時に Stateless（`enableJsonResponse: true`）で提供
 - **stdio (`documi mcp`)**: サーバー常駐なしで Claude Code / Cursor / Antigravity 等から直接起動し、`fs.watch` で最新 `docs/` を自動反映
+
+## 読み取り・検証ツール（副作用なし）
 
 | Tool | 入力 | 役割 |
 |---|---|---|
 | `get_project_map` | なし | Goal 全文・Architecture 全文・Decision `<Outcome>` 一覧・Domain 用語集・Review & Realization サマリを一括取得 |
 | `list_documents` | `type?` | ドキュメントサマリ一覧を取得 |
-| `get_document` | `id` | パス ID から本文・セマンティックブロック・関係・問題一覧を取得 |
+| `get_document` | `id` | パス ID から本文・セマンティックブロック（`startLine` / `endLine` 含む）・関係・問題一覧を取得 |
 | `get_relations` | `id` | ドキュメント ID またはブロック ID の外向き/逆参照を取得 |
-| `query_specs` | `kind?`, `intent?`, `stability?`, `review?`, `realization?`, `suspect?`, `hasFeedback?`, `query?` | セマンティックブロックを多軸フィルタ検索 |
-| `get_spec_context` | `id` | 指定 Spec の上流 Goal・未解決フィードバック・関連 Design/Contract・Decision `<Outcome>`・関連用語・`<SourceRef>` を一括集約 |
+| `query_specs` | `kind?`, `intent?`, `stability?`, `review?`, `realization?`, `suspect?`, `hasFeedback?`, `query?` | セマンティックブロックを多軸フィルタ検索（各ブロックの `docPath`・`startLine`・`endLine` を返却） |
+| `get_spec_context` | `id` | 指定 Spec の `docPath`・`startLine`・`endLine`・上流 Goal・未解決フィードバック・関連 Design/Contract・Decision `<Outcome>`・関連用語・`<SourceRef>` を一括集約 |
 | `search_documents` | `query`, `type?`, `limit?` | ドキュメントとセマンティックブロックを横断全文検索 |
 | `validate_docs` | なし | `orphan-spec`・参照切れ・循環・重複 ID・MDX 未対応構文・AST `<SourceRef>` / `<TermDef>` シンボル切れを一括検証 |
 
+## 精密編集・構造操作ツール（Surgical Write）
+
+AI が 1 ブロック修正するために無関係な文書全体を読み込むコンテキスト汚染を防ぐため、AST 位置ベースの局所編集および参照一括更新ツールを提供する。
+
+| Tool | 入力 | 役割 |
+|---|---|---|
+| `update_block` | `id`, `body`, `title?`, `stability?`, `intent?`, `derives?`, `supersedes?`, `scope?`, `aliases?`, `symbols?` | 既存セマンティックブロック（`<Spec>` / `<Constraint>` / `<Outcome>` / `<TermDef>`）の該当行範囲のみを更新し、再読込後の検証結果を返却 |
+| `add_block` | `docId`, `kind`, `id`, `body`, `afterHeading?`, `title?`, `stability?`, `intent?`, `derives?`, `supersedes?`, `scope?`, `aliases?`, `symbols?` | 指定ドキュメント末尾（または指定見出し直下）にセマンティックブロックを 1 件追記し、検証結果を返却 |
+| `upsert_term` | `id`, `definition`, `aliases?`, `symbols?`, `docId?` | 用語集（既定: `domain/glossary`）に `<TermDef>` を追加または更新し、検証結果を返却 |
+| `scaffold_document` | `path`, `title`, `type?`, `description?`, `date?`, `tags?`, `derives?`, `satisfies?`, `verifies?`, `body?` | 規約通りの YAML frontmatter を持つ新規 `.mdx` ドキュメントを作成（既存ファイルの上書きは拒否） |
+| `rename_block_id` | `oldId`, `newId`, `dryRun?` | 全 `docs/` のブロック定義・`derives` / `supersedes` / `satisfies` / `verifies`・`<SourceRef>` と、`projectRoot` 配下の `@implements` / `@verifies` / `test("[id]")` を一括リネーム（`dryRun: true` で変更予定一覧のみ返却） |
+
 ## 事前・事後条件・副作用・エラー規約
 
-- **副作用なし（読み取り専用）**: 全 8 ツールは読み取り専用であり、MDX 本文・`docs/.documi/reviews.json`・ソースコードを一切書き換えない。
-- **入力検証（事前条件）**: すべてのツール引数は Zod スキーマで検証し、型・必須項目違反はエラーを返す。
-- **未存在 ID**: `get_document` / `get_relations` / `get_spec_context` に存在しないドキュメント ID またはブロック ID が渡された場合、推測で補完せず `isError: true` で明示エラーを返す。
+- **読み取りツールの純粋性**: 読み取り・検証ツール 8 種は完全に読み取り専用であり、MDX 本文・`docs/.documi/reviews.json`・ソースコードを一切書き換えない。
+- **書き込みツールの副作用境界（絶対不変）**:
+  - 変更対象は `docs/` 配下の `.mdx` / `.md`（および `rename_block_id` 実行時に限り `projectRoot` 配下の対象ソース・テストファイル）に厳格に限定する。
+  - **`docs/.documi/reviews.json` および `.documi/` 配下は一切変更しない**（人間の承認・フィードバック変更は Web UI / CLI 専用）。
+  - 書き込み成功後は `DocsStore.reload()` を実行し、最新の `issues` / 検証サマリをレスポンスに含めて返す。
+- **事前検証とロールバック**:
+  - すべてのツール引数は Zod スキーマで検証し、型・必須項目・ブロック ID 形式（`BLOCK_ID_PATTERN`）違反は `isError: true` を返す。
+  - パストラバーサル（`..`・絶対パス・`docs/` 外参照）、既存ファイルへの `scaffold_document`、重複 ID となる `add_block` / `rename_block_id`、および MDX 危険構文（式 `{...}`・ESM・未許可コンポーネント）を含む書き込みは、ファイルを一切変更せず `isError: true` で拒否する。
+- **未存在 ID**: `get_document` / `get_relations` / `get_spec_context` / `update_block` / `add_block` / `rename_block_id` に存在しないドキュメント ID またはブロック ID が渡された場合、推測で補完せず `isError: true` で明示エラーを返す。
