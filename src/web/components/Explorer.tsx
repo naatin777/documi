@@ -1,4 +1,4 @@
-import { ChevronRight, Home, ListChecks, Network, Search, X } from 'lucide-react'
+import { ChevronRight, FileCode2, Home, ListChecks, Network, Search, X } from 'lucide-react'
 import { useMemo, useState, type ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
 import { NavLink } from 'react-router'
@@ -130,6 +130,14 @@ export default function Explorer({ reviewBadgeCount, onClose, onOpenSearch, resi
         >
           <GraphIcon />
           <span>{t('nav.graphMatrix')}</span>
+        </NavLink>
+        <NavLink
+          to="/code"
+          className={({ isActive }) => `nav-primary-item${isActive ? ' active' : ''}`}
+          onClick={onClose}
+        >
+          <FileCode2 size={15} strokeWidth={1.75} className="nav-primary-icon" aria-hidden="true" />
+          <span>{t('nav.codeExplorer')}</span>
         </NavLink>
       </div>
 

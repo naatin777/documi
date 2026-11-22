@@ -2,6 +2,7 @@ import {
   ChevronDown,
   ChevronLeft,
   ChevronRight,
+  FileCode2,
   Home,
   ListChecks,
   Network,
@@ -119,6 +120,7 @@ export default function DocTabs({ sidebarOpen, onToggleSidebar }: DocTabsProps) 
     if (tab.kind === 'doc') return tab.title
     if (tab.viewId === 'home') return t('nav.home')
     if (tab.viewId === 'review') return t('nav.reviewQueue')
+    if (tab.viewId === 'code') return t('nav.codeExplorer')
     return t('nav.graphMatrix')
   }
 
@@ -293,5 +295,6 @@ function ViewTabIcon({ viewId }: { viewId: ViewTabId }) {
   const props = { size: 13, strokeWidth: 1.8, className: 'doc-tab-icon', 'aria-hidden': true as const }
   if (viewId === 'home') return <Home {...props} />
   if (viewId === 'review') return <ListChecks {...props} />
+  if (viewId === 'code') return <FileCode2 {...props} />
   return <Network {...props} />
 }

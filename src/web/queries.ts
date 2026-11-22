@@ -30,6 +30,8 @@ const queryKeys = {
   search: (q: string) => ['search', q] as const,
   source: (params: { file: string; symbol?: string; lines?: string }) =>
     ['source', params.file, params.symbol ?? '', params.lines ?? ''] as const,
+  codeTree: ['code', 'tree'] as const,
+  codeFile: (filePath: string) => ['code', 'file', filePath] as const,
 }
 
 export function toErrorMessage(error: unknown): string | null {
@@ -132,6 +134,22 @@ export function useSourceQuery(params: { file?: string; symbol?: string; lines?:
     queryKey: queryKeys.source({ file, symbol: params.symbol, lines: params.lines }),
     queryFn: () => api.source({ file, symbol: params.symbol, lines: params.lines }),
     enabled: enabled && Boolean(file),
+    retry: false,
+  })
+}
+
+export function useCodeTreeQuery() {
+  return useQuery({
+    queryKey: queryKeys.codeTree,
+    queryFn: () => api.codeTree(),
+  })
+}
+
+export function useCodeFileQuery(filePath: string) {
+  return useQuery({
+    queryKey: queryKeys.codeFile(filePath),
+    queryFn: () => api.codeFile(filePath),
+    enabled: Boolean(filePath),
     retry: false,
   })
 }

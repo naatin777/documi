@@ -68,6 +68,7 @@
     "home": "Home",
     "reviewQueue": "Review Queue",
     "graphMatrix": "Graph & Matrix",
+    "codeExplorer": "Code Explorer",
     "documents": "Documents",
     "searchPlaceholder": "Search…",
     "flow": "Flow",
@@ -309,7 +310,31 @@
     "hint": "{{label}} (drag to resize / double-click to reset)",
     "sidebar": "Resize sidebar width",
     "inspector": "Resize right inspector width",
-    "peek": "Resize preview pane width"
+    "peek": "Resize preview pane width",
+    "codeTree": "Resize source tree width"
+  },
+  "codeExplorer": {
+    "coverageLabel": "Spec Coverage",
+    "filterPlaceholder": "Filter files…",
+    "filterAria": "Filter files by specification coverage",
+    "filters": {
+      "all": "All",
+      "covered": "Linked",
+      "uncovered": "Unlinked"
+    },
+    "emptyTree": "No matching files.",
+    "viewerAria": "Read-only source code viewer",
+    "emptyTitle": "Code Explorer",
+    "emptyDescription": "Select a source file on the left to inspect its code alongside linked specifications, design docs, and glossary terms.",
+    "coveredFilesQuick": "Files linked to specifications",
+    "linesCount": "{{count}} lines",
+    "readOnly": "Read-only",
+    "copyPath": "Copy path",
+    "noLinks": "No specifications, documents, or terms linked to this file yet.",
+    "linkedSpecs": "Specs ({{count}})",
+    "linkedDocs": "Docs ({{count}})",
+    "linkedTerms": "Terms ({{count}})",
+    "lineSelectHint": "Click to highlight line {{line}} (Shift+Click for range)"
   },
   "code": {
     "copy": "Copy",

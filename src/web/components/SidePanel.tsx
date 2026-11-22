@@ -191,13 +191,19 @@ export default function SidePanel({ doc, headings, onPeek, onCollapse }: SidePan
               <section className="rp-section">
                 <h2 className="rp-title">{t('inspector.sourceRefs', { count: doc.sourceRefs.length })}</h2>
                 <ul className="rp-source-list">
-                  {doc.sourceRefs.map((ref, i) => (
-                    <li key={`${ref.file}:${ref.symbol ?? ref.lines ?? i}`} className="rp-source-item mono">
-                      <span className="rp-source-file">{ref.file}</span>
-                      {ref.symbol && <span className="rp-source-sym">#{ref.symbol}</span>}
-                      {ref.lines && <span className="rp-source-sym">:L{ref.lines}</span>}
-                    </li>
-                  ))}
+                  {doc.sourceRefs.map((ref, i) => {
+                    const qs = new URLSearchParams({ file: ref.file })
+                    if (ref.lines) qs.set('lines', ref.lines)
+                    return (
+                      <li key={`${ref.file}:${ref.symbol ?? ref.lines ?? i}`} className="rp-source-item mono">
+                        <NavLink to={`/code?${qs.toString()}`} className="rp-source-link">
+                          <span className="rp-source-file">{ref.file}</span>
+                          {ref.symbol && <span className="rp-source-sym">#{ref.symbol}</span>}
+                          {ref.lines && <span className="rp-source-sym">:L{ref.lines}</span>}
+                        </NavLink>
+                      </li>
+                    )
+                  })}
                 </ul>
               </section>
             )}

@@ -4,14 +4,14 @@ import { isArtifactType } from '../core/types'
 import type { ArtifactType } from '../core/types'
 import { encodeDocId } from './api'
 
-export type ViewTabId = 'home' | 'review' | 'graph'
+export type ViewTabId = 'home' | 'review' | 'graph' | 'code'
 
 export type WorkspaceTab =
   | {
       kind: 'view'
       key: `view:${ViewTabId}`
       viewId: ViewTabId
-      path: '/' | '/review' | '/graph'
+      path: '/' | '/review' | '/graph' | '/code'
       title: string
     }
   | {
@@ -44,6 +44,7 @@ const VIEW_TABS: Record<ViewTabId, Extract<WorkspaceTab, { kind: 'view' }>> = {
   home: { kind: 'view', key: 'view:home', viewId: 'home', path: '/', title: 'Home' },
   review: { kind: 'view', key: 'view:review', viewId: 'review', path: '/review', title: 'Review Queue' },
   graph: { kind: 'view', key: 'view:graph', viewId: 'graph', path: '/graph', title: 'Graph & Matrix' },
+  code: { kind: 'view', key: 'view:code', viewId: 'code', path: '/code', title: 'Code Explorer' },
 }
 
 function docIdFromPath(pathname: string): string | null {
@@ -60,6 +61,7 @@ export function activeTabKeyFromPath(pathname: string): string | null {
   if (pathname === '/' || pathname === '') return VIEW_TABS.home.key
   if (pathname === '/review') return VIEW_TABS.review.key
   if (pathname === '/graph') return VIEW_TABS.graph.key
+  if (pathname === '/code') return VIEW_TABS.code.key
   const docId = docIdFromPath(pathname)
   return docId ? `doc:${docId}` : null
 }
@@ -68,6 +70,7 @@ function viewTabForPath(pathname: string): Extract<WorkspaceTab, { kind: 'view' 
   if (pathname === '/' || pathname === '') return VIEW_TABS.home
   if (pathname === '/review') return VIEW_TABS.review
   if (pathname === '/graph') return VIEW_TABS.graph
+  if (pathname === '/code') return VIEW_TABS.code
   return null
 }
 
@@ -84,7 +87,10 @@ function loadTabs(initialPathname: string): WorkspaceTab[] {
     for (const item of parsed) {
       if (typeof item !== 'object' || item === null) continue
       const rec = item as Record<string, unknown>
-      if (rec.kind === 'view' && (rec.viewId === 'home' || rec.viewId === 'review' || rec.viewId === 'graph')) {
+      if (
+        rec.kind === 'view' &&
+        (rec.viewId === 'home' || rec.viewId === 'review' || rec.viewId === 'graph' || rec.viewId === 'code')
+      ) {
         const vt = VIEW_TABS[rec.viewId]
         if (!seen.has(vt.key)) {
           seen.add(vt.key)

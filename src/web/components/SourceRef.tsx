@@ -1,4 +1,5 @@
 import { useTranslation } from 'react-i18next'
+import { Link } from 'react-router'
 import { useCopyText } from '../hooks'
 import { toErrorMessage, useSourceQuery } from '../queries'
 import { HighlightedCode } from './HighlightedCode'
@@ -52,13 +53,24 @@ export default function SourceRef({ file, symbol, lines, satisfies, verifies }: 
 
   const satisfiesList = splitCsv(satisfies)
   const verifiesList = splitCsv(verifies)
+  const targetFile = data?.file ?? file!
+  const codeQuery = new URLSearchParams({ file: targetFile })
+  if (data) {
+    codeQuery.set('lines', `${data.startLine}-${data.endLine}`)
+  } else if (lines) {
+    codeQuery.set('lines', lines)
+  }
 
   return (
     <figure className="source-ref">
       <figcaption className="source-ref-header">
-        <span className="source-ref-file mono" title={data?.file ?? file}>
-          {data?.file ?? file}
-        </span>
+        <Link
+          to={`/code?${codeQuery.toString()}`}
+          className="source-ref-file source-ref-file-link mono"
+          title={targetFile}
+        >
+          {targetFile}
+        </Link>
         {data?.symbol && (
           <span className="source-ref-symbol">
             {data.symbol.qualifiedName ?? data.symbol.name}

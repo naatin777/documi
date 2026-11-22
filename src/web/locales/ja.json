@@ -68,6 +68,7 @@
     "home": "ホーム",
     "reviewQueue": "レビュー",
     "graphMatrix": "グラフ・関連表",
+    "codeExplorer": "コード閲覧",
     "documents": "ドキュメント",
     "searchPlaceholder": "検索…",
     "flow": "流れ順",
@@ -309,7 +310,31 @@
     "hint": "{{label}}（ドラッグで伸縮 / ダブルクリックでリセット）",
     "sidebar": "サイドバー幅を調整",
     "inspector": "右インスペクタ幅を調整",
-    "peek": "プレビューペイン幅を調整"
+    "peek": "プレビューペイン幅を調整",
+    "codeTree": "ファイルツリー幅を調整"
+  },
+  "codeExplorer": {
+    "coverageLabel": "仕様紐づけ率",
+    "filterPlaceholder": "ファイル名で絞り込み…",
+    "filterAria": "仕様紐づけ状態で絞り込み",
+    "filters": {
+      "all": "すべて",
+      "covered": "紐づけあり",
+      "uncovered": "未紐づけ"
+    },
+    "emptyTree": "該当するファイルがありません。",
+    "viewerAria": "読み取り専用ソースコードビューア",
+    "emptyTitle": "コード閲覧 (Code Explorer)",
+    "emptyDescription": "左のファイルツリーからソースファイルを選ぶと、紐づく仕様・設計・用語と並べてコードを確認できます。",
+    "coveredFilesQuick": "仕様と紐づいているファイル",
+    "linesCount": "{{count}} 行",
+    "readOnly": "読み取り専用",
+    "copyPath": "パスをコピー",
+    "noLinks": "このファイルに紐づく仕様・ドキュメント・用語はまだありません。",
+    "linkedSpecs": "仕様 ({{count}})",
+    "linkedDocs": "文書 ({{count}})",
+    "linkedTerms": "用語 ({{count}})",
+    "lineSelectHint": "クリックで {{line}} 行目を強調（Shift+クリックで範囲選択）"
   },
   "code": {
     "copy": "コピー",

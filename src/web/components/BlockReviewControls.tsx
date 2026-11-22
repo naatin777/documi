@@ -1,5 +1,6 @@
 import { useState, type FormEvent } from 'react'
 import { useTranslation } from 'react-i18next'
+import { Link } from 'react-router'
 import { STABILITIES } from '../../core/types'
 import type { BlockDiffResult, SemanticBlock, Stability } from '../../core/types'
 import { api } from '../api'
@@ -221,7 +222,11 @@ export default function BlockReviewControls({ block, onMutate }: { block: Semant
               <ul className="sem-trace-list">
                 {realization.implementations.map((a, i) => (
                   <li key={i} className="mono">
-                    {a.file}:L{a.line}
+                    <Link
+                      to={`/code?${new URLSearchParams({ file: a.file, ...(a.fromDoc ? {} : { line: String(a.line) }) }).toString()}`}
+                    >
+                      {a.file}:L{a.line}
+                    </Link>
                   </li>
                 ))}
               </ul>
@@ -235,7 +240,11 @@ export default function BlockReviewControls({ block, onMutate }: { block: Semant
               <ul className="sem-trace-list">
                 {realization.verifications.map((a, i) => (
                   <li key={i} className="mono">
-                    {a.file}:L{a.line}
+                    <Link
+                      to={`/code?${new URLSearchParams({ file: a.file, ...(a.fromDoc ? {} : { line: String(a.line) }) }).toString()}`}
+                    >
+                      {a.file}:L{a.line}
+                    </Link>
                     {a.testName ? ` — ${a.testName}` : ''}
                   </li>
                 ))}

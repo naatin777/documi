@@ -1,15 +1,19 @@
 import { hc } from 'hono/client'
 import type { ClientResponse, InferResponseType } from 'hono/client'
 import type { ResponseFormat } from 'hono/types'
+import type { CodeTreeNode } from '../core/code'
 import type { ArtifactType, DocTreeNode, Stability } from '../core/types'
 import type { ApiRoutes } from '../server/app'
 
 const rpc = hc<ApiRoutes>('/')
 
 /** サーバー側 Hono ルート定義から自動推論されるレスポンス型（手書き二重管理なし） */
-// Hono の JSONParsed は再帰型 DocTreeNode[] を JSONValue へ丸めるため tree のみ復元する
+// Hono の JSONParsed は再帰型 DocTreeNode[] / CodeTreeNode[] を JSONValue へ丸めるため tree のみ復元する
 type TreeResponse = Omit<InferResponseType<typeof rpc.api.tree.$get, 200>, 'tree'> & {
   tree: DocTreeNode[]
+}
+type CodeTreeResponse = Omit<InferResponseType<typeof rpc.api.code.tree.$get, 200>, 'tree'> & {
+  tree: CodeTreeNode[]
 }
 export type GraphResponse = InferResponseType<typeof rpc.api.graph.$get, 200>
 export type GraphNodeItem = GraphResponse['nodes'][number]
@@ -114,4 +118,9 @@ export const api = {
         },
       }),
     ),
+  codeTree: async (): Promise<CodeTreeResponse> => {
+    const data = await unwrap(rpc.api.code.tree.$get())
+    return { ...data, tree: data.tree as CodeTreeNode[] }
+  },
+  codeFile: (filePath: string) => unwrap(rpc.api.code.file.$get({ query: { path: filePath } })),
 }

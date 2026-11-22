@@ -15,6 +15,7 @@ const OverviewLayout = lazy(() => import('./components/OverviewLayout'))
 const ReviewLayout = lazy(() => import('./components/ReviewLayout'))
 const DocLayout = lazy(() => import('./components/DocLayout'))
 const GraphLayout = lazy(() => import('./components/GraphLayout'))
+const CodeExplorerLayout = lazy(() => import('./components/CodeExplorerLayout'))
 const BundleLayout = lazy(() => import('./components/BundleLayout'))
 const SearchModal = lazy(() => import('./components/SearchModal'))
 
@@ -119,6 +120,7 @@ function AppShell() {
                 <Route path="/" element={<OverviewLayout />} />
                 <Route path="/review" element={<ReviewLayout />} />
                 <Route path="/graph" element={<GraphLayout />} />
+                <Route path="/code" element={<CodeExplorerLayout />} />
                 <Route path="/docs/*" element={<DocLayout />} />
                 <Route path="*" element={<NotFoundLayout />} />
               </Routes>
