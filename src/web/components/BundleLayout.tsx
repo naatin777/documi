@@ -1,9 +1,9 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Link, useSearchParams } from 'react-router-dom'
-import { api, type BundleResponse } from '../api'
+import { Link, useSearchParams } from 'react-router'
 import { exportBundleHtmlFromDom, printDocument } from '../export'
 import { bundleDocAnchor } from '../mdast'
+import { toErrorMessage, useBundleQuery } from '../queries'
 import Markdown from './Markdown'
 import { DocReviewProvider } from './SemanticBlocks'
 
@@ -30,29 +30,21 @@ export default function BundleLayout() {
   )
   const title = searchParams.get('title') ?? undefined
   const action = searchParams.get('action')
-
-  const [bundle, setBundle] = useState<BundleResponse | null>(null)
-  const [error, setError] = useState<string | null>(null)
   const actionFired = useRef(false)
+
+  const bundleQuery = useBundleQuery({ scope, ids, title })
+  const bundle = bundleQuery.data ?? null
+  const error = toErrorMessage(bundleQuery.error)
 
   useEffect(() => {
     window.__DOCUMI_BUNDLE_READY__ = false
-    let cancelled = false
-    api
-      .bundle({ scope, ids, title })
-      .then((res) => {
-        if (!cancelled) {
-          setBundle(res)
-          document.title = `${res.title} — Documi`
-        }
-      })
-      .catch((e: unknown) => {
-        if (!cancelled) setError(e instanceof Error ? e.message : String(e))
-      })
-    return () => {
-      cancelled = true
-    }
   }, [scope, ids, title])
+
+  useEffect(() => {
+    if (bundle) {
+      document.title = `${bundle.title} — Documi`
+    }
+  }, [bundle])
 
   // Mermaid / Shiki / SourceRef の非同期描画完了を待って READY フラグを立てる
   useEffect(() => {

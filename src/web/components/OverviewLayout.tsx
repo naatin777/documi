@@ -1,36 +1,15 @@
-import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Link } from 'react-router-dom'
+import { Link } from 'react-router'
 import { ARTIFACT_TYPES } from '../../core/types'
-import { api, encodeDocId } from '../api'
-import type { OverviewResponse } from '../api'
-import { useDocsRevision } from '../live'
+import { encodeDocId } from '../api'
+import { toErrorMessage, useOverviewQuery } from '../queries'
 import { ArtifactTypeIcon } from './BrandMark'
 
 // @implements ui.web-viewer
 export default function OverviewLayout() {
   const { t } = useTranslation()
-  const revision = useDocsRevision()
-  const [data, setData] = useState<OverviewResponse | null>(null)
-  const [error, setError] = useState<string | null>(null)
-
-  useEffect(() => {
-    let cancelled = false
-    api
-      .overview()
-      .then((res) => {
-        if (!cancelled) {
-          setData(res)
-          setError(null)
-        }
-      })
-      .catch((e: unknown) => {
-        if (!cancelled) setError(e instanceof Error ? e.message : String(e))
-      })
-    return () => {
-      cancelled = true
-    }
-  }, [revision])
+  const { data, error: queryError } = useOverviewQuery()
+  const error = toErrorMessage(queryError)
 
   const totalIssues = data ? data.indexIssues.length + data.docIssues.length : 0
 

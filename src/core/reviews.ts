@@ -3,7 +3,8 @@ import { randomUUID } from 'node:crypto'
 import { realpathSync } from 'node:fs'
 import { mkdir, readFile, writeFile } from 'node:fs/promises'
 import path from 'node:path'
-import { isStability } from './types'
+import { z } from 'zod'
+import { STABILITIES } from './types'
 import type {
   BlockDiffResult,
   BlockReviewRecord,
@@ -63,66 +64,72 @@ export async function loadReviews(docsDir: string, issues: IndexIssue[]): Promis
   }
 }
 
+const reviewFeedbackSchema = z.object({
+  id: z.string(),
+  body: z.string(),
+  author: z.string(),
+  createdAt: z.string(),
+  resolved: z.boolean(),
+})
+
+const stabilitySchema = z.enum(STABILITIES)
+
+const rawBlockRecordSchema = z
+  .object({
+    docPath: z.string().optional(),
+    hash: z.string().optional(),
+    approvedCommit: z.string().optional(),
+    approvedAt: z.string().optional(),
+    approvedBy: z.string().optional(),
+    upstreamHashes: z.record(z.string(), z.unknown()).optional(),
+    stabilityOverride: z.unknown().optional(),
+    feedback: z.array(z.unknown()).optional(),
+  })
+  .loose()
+
+const reviewsFileRootSchema = z
+  .object({
+    blocks: z.record(z.string(), z.unknown()).optional(),
+  })
+  .loose()
+
 function validateReviewsFile(parsed: unknown, issues: IndexIssue[]): ReviewsFile {
-  if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed)) {
+  const rootResult = reviewsFileRootSchema.safeParse(parsed)
+  if (!rootResult.success) {
     issues.push({
       code: 'invalid-reviews',
-      message: 'reviews.json のルートはオブジェクトである必要があります',
-      path: REVIEWS_REL_PATH,
-    })
-    return { version: 1, blocks: {} }
-  }
-  const obj = parsed as Record<string, unknown>
-  const rawBlocks = obj.blocks
-  if (rawBlocks !== undefined && (typeof rawBlocks !== 'object' || rawBlocks === null || Array.isArray(rawBlocks))) {
-    issues.push({
-      code: 'invalid-reviews',
-      message: 'reviews.json の blocks はオブジェクトである必要があります',
+      message: 'reviews.json の構造が不正です（ルートと blocks はオブジェクトである必要があります）',
       path: REVIEWS_REL_PATH,
     })
     return { version: 1, blocks: {} }
   }
 
   const blocks: Record<string, BlockReviewRecord> = {}
-  for (const [id, entry] of Object.entries((rawBlocks as Record<string, unknown>) ?? {})) {
-    if (typeof entry !== 'object' || entry === null || Array.isArray(entry)) continue
-    const e = entry as Record<string, unknown>
-    const feedback: ReviewFeedback[] = Array.isArray(e.feedback)
-      ? e.feedback
-          .filter(
-            (f): f is ReviewFeedback =>
-              typeof f === 'object' &&
-              f !== null &&
-              typeof (f as ReviewFeedback).id === 'string' &&
-              typeof (f as ReviewFeedback).body === 'string' &&
-              typeof (f as ReviewFeedback).author === 'string' &&
-              typeof (f as ReviewFeedback).createdAt === 'string' &&
-              typeof (f as ReviewFeedback).resolved === 'boolean',
-          )
-          .map((f) => ({
-            id: f.id,
-            body: f.body,
-            author: f.author,
-            createdAt: f.createdAt,
-            resolved: f.resolved,
-          }))
-      : []
+  for (const [id, entry] of Object.entries(rootResult.data.blocks ?? {})) {
+    const recResult = rawBlockRecordSchema.safeParse(entry)
+    if (!recResult.success) continue
+    const e = recResult.data
+
+    const feedback: ReviewFeedback[] = (e.feedback ?? []).flatMap((item) => {
+      const f = reviewFeedbackSchema.safeParse(item)
+      return f.success ? [f.data] : []
+    })
 
     const upstreamHashes: Record<string, string> = {}
-    if (typeof e.upstreamHashes === 'object' && e.upstreamHashes !== null && !Array.isArray(e.upstreamHashes)) {
-      for (const [k, v] of Object.entries(e.upstreamHashes as Record<string, unknown>)) {
-        if (typeof v === 'string') upstreamHashes[k] = v
-      }
+    for (const [k, v] of Object.entries(e.upstreamHashes ?? {})) {
+      if (typeof v === 'string') upstreamHashes[k] = v
     }
 
+    const stabilityParsed = stabilitySchema.safeParse(e.stabilityOverride)
+
     blocks[id] = {
-      docPath: typeof e.docPath === 'string' ? e.docPath : '',
-      hash: typeof e.hash === 'string' ? e.hash : '',
-      approvedCommit: typeof e.approvedCommit === 'string' ? e.approvedCommit : undefined,
-      approvedAt: typeof e.approvedAt === 'string' ? e.approvedAt : undefined,
-      approvedBy: typeof e.approvedBy === 'string' ? e.approvedBy : undefined,
+      docPath: e.docPath ?? '',
+      hash: e.hash ?? '',
+      approvedCommit: e.approvedCommit,
+      approvedAt: e.approvedAt,
+      approvedBy: e.approvedBy,
       upstreamHashes: Object.keys(upstreamHashes).length > 0 ? upstreamHashes : undefined,
-      stabilityOverride: isStability(e.stabilityOverride) ? e.stabilityOverride : undefined,
+      stabilityOverride: stabilityParsed.success ? stabilityParsed.data : undefined,
       feedback,
     }
   }

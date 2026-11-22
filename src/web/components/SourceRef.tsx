@@ -1,8 +1,6 @@
-import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { api } from '../api'
-import type { SourceResponse } from '../api'
 import { useCopyText } from '../hooks'
+import { toErrorMessage, useSourceQuery } from '../queries'
 import { HighlightedCode } from './HighlightedCode'
 
 interface SourceRefProps {
@@ -24,9 +22,6 @@ function splitCsv(value?: string): string[] {
 /** 実ファイルのコードを AST / 行範囲で取得して表示する */
 export default function SourceRef({ file, symbol, lines, satisfies, verifies }: SourceRefProps) {
   const { t } = useTranslation()
-  const [data, setData] = useState<SourceResponse | null>(null)
-  const [error, setError] = useState<string | null>(null)
-  const [loading, setLoading] = useState(true)
   const { copied, copy } = useCopyText()
 
   const valid =
@@ -35,33 +30,17 @@ export default function SourceRef({ file, symbol, lines, satisfies, verifies }: 
     ((typeof symbol === 'string' && symbol !== '' && (lines === undefined || lines === '')) ||
       (typeof lines === 'string' && lines !== '' && (symbol === undefined || symbol === '')))
 
-  useEffect(() => {
-    if (!valid || typeof file !== 'string') {
-      setLoading(false)
-      return
-    }
-    let cancelled = false
-    setLoading(true)
-    setError(null)
-    api
-      .source({
-        file,
-        symbol: typeof symbol === 'string' ? symbol : undefined,
-        lines: typeof lines === 'string' ? lines : undefined,
-      })
-      .then((res) => {
-        if (!cancelled) setData(res)
-      })
-      .catch((e: unknown) => {
-        if (!cancelled) setError(e instanceof Error ? e.message : String(e))
-      })
-      .finally(() => {
-        if (!cancelled) setLoading(false)
-      })
-    return () => {
-      cancelled = true
-    }
-  }, [file, symbol, lines, valid])
+  const sourceQuery = useSourceQuery(
+    {
+      file,
+      symbol: typeof symbol === 'string' ? symbol : undefined,
+      lines: typeof lines === 'string' ? lines : undefined,
+    },
+    valid,
+  )
+  const data = sourceQuery.data ?? null
+  const error = toErrorMessage(sourceQuery.error)
+  const loading = valid && sourceQuery.isPending
 
   if (!valid) {
     return (

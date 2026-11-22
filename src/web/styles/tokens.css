@@ -1,0 +1,141 @@
+:root {
+  --bg: #ffffff;
+  --bg-sidebar: #f6f7f9;
+  --bg-code: #f6f8fa;
+  --bg-subtle: #f2f4f7;
+  --bg-hover: #eceff3;
+  --border: #e4e7ec;
+  --text: #1c2430;
+  --text-muted: #667085;
+  --accent: #262a31;
+  --accent-soft: #eef0f3;
+  --tc: var(--accent);
+  --tc-soft: var(--accent-soft);
+  --explorer-width: 280px;
+  --panel-width: 300px;
+  --topbar-height: 48px;
+  --tabs-height: 40px;
+  --font-sans:
+    'IBM Plex Sans', 'IBM Plex Sans JP', -apple-system, BlinkMacSystemFont, 'Hiragino Sans',
+    'Hiragino Kaku Gothic ProN', 'Noto Sans JP', 'Yu Gothic', Meiryo, sans-serif;
+  --font-mono: 'JetBrains Mono Variable', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  color-scheme: light;
+}
+
+[data-theme='dark'] {
+  --bg: #14161a;
+  --bg-sidebar: #1a1d22;
+  --bg-code: #0c0e11;
+  --bg-subtle: #23272e;
+  --bg-hover: #2a2f37;
+  --border: #2e333c;
+  --text: #e4e6ea;
+  --text-muted: #9aa1ab;
+  --accent: #e4e6ea;
+  --accent-soft: #2b3038;
+  color-scheme: dark;
+}
+
+/* Artifact Type ごとのアクセントカラー */
+.type-goal {
+  --tc: #b45309;
+  --tc-soft: #fbe3c2;
+}
+.type-decision {
+  --tc: #be123c;
+  --tc-soft: #fbdfe6;
+}
+.type-domain {
+  --tc: #0369a1;
+  --tc-soft: #d8effc;
+}
+.type-spec {
+  --tc: #2563eb;
+  --tc-soft: #d9e6fd;
+}
+.type-contract {
+  --tc: #15803d;
+  --tc-soft: #dcf2e2;
+}
+.type-architecture {
+  --tc: #6d28d9;
+  --tc-soft: #eaddfd;
+}
+.type-design {
+  --tc: #0f766e;
+  --tc-soft: #d2f0ec;
+}
+.type-verification {
+  --tc: #b91c1c;
+  --tc-soft: #fbe0e0;
+}
+.type-guide {
+  --tc: #a21caf;
+  --tc-soft: #f6defa;
+}
+
+[data-theme='dark'] .type-goal {
+  --tc: #f0a04b;
+  --tc-soft: rgba(240, 160, 75, 0.16);
+}
+[data-theme='dark'] .type-decision {
+  --tc: #f2708a;
+  --tc-soft: rgba(242, 112, 138, 0.16);
+}
+[data-theme='dark'] .type-domain {
+  --tc: #56b6f0;
+  --tc-soft: rgba(86, 182, 240, 0.16);
+}
+[data-theme='dark'] .type-spec {
+  --tc: #6ea0f7;
+  --tc-soft: rgba(110, 160, 247, 0.16);
+}
+[data-theme='dark'] .type-contract {
+  --tc: #5fce85;
+  --tc-soft: rgba(95, 206, 133, 0.16);
+}
+[data-theme='dark'] .type-architecture {
+  --tc: #b18cf5;
+  --tc-soft: rgba(177, 140, 245, 0.16);
+}
+[data-theme='dark'] .type-design {
+  --tc: #45c8bc;
+  --tc-soft: rgba(69, 200, 188, 0.16);
+}
+[data-theme='dark'] .type-verification {
+  --tc: #ef7b7b;
+  --tc-soft: rgba(239, 123, 123, 0.16);
+}
+[data-theme='dark'] .type-guide {
+  --tc: #e070d8;
+  --tc-soft: rgba(224, 112, 216, 0.16);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+  margin: 0;
+}
+
+body {
+  font-family: var(--font-sans);
+  color: var(--text);
+  background: var(--bg);
+  font-size: 15px;
+  line-height: 1.75;
+  letter-spacing: 0.01em;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+}
+
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+  border-radius: 4px;
+}

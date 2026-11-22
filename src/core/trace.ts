@@ -2,6 +2,7 @@ import { execFileSync } from 'node:child_process'
 import { readdir, readFile, stat } from 'node:fs/promises'
 import type { Dirent } from 'node:fs'
 import path from 'node:path'
+import { XMLParser } from 'fast-xml-parser'
 import { BLOCK_ID_PATTERN } from './types'
 import type {
   CodeAnchor,
@@ -222,16 +223,66 @@ function findCommentPart(line: string): string | null {
   return null
 }
 
+const junitXmlParser = new XMLParser({
+  ignoreAttributes: false,
+  attributeNamePrefix: '@_',
+  textNodeName: '#text',
+  parseTagValue: false,
+  parseAttributeValue: false,
+  trimValues: true,
+})
+
+function toArray<T>(value: T | T[] | undefined): T[] {
+  if (value === undefined || value === null) return []
+  return Array.isArray(value) ? value : [value]
+}
+
+function collectTestcases(node: unknown, out: Record<string, unknown>[]): void {
+  if (!node || typeof node !== 'object') return
+  if (Array.isArray(node)) {
+    for (const item of node) collectTestcases(item, out)
+    return
+  }
+  const obj = node as Record<string, unknown>
+  if ('testcase' in obj) {
+    for (const tc of toArray(obj.testcase)) {
+      if (tc && typeof tc === 'object') out.push(tc as Record<string, unknown>)
+    }
+  }
+  for (const [key, val] of Object.entries(obj)) {
+    if (key === 'testcase' || key.startsWith('@_') || key === '#text') continue
+    collectTestcases(val, out)
+  }
+}
+
+function extractFailureMessage(node: unknown): string | undefined {
+  const first = toArray(node)[0]
+  if (typeof first === 'string') return first.trim().slice(0, 200) || undefined
+  if (first && typeof first === 'object') {
+    const obj = first as Record<string, unknown>
+    const attrMsg = typeof obj['@_message'] === 'string' ? obj['@_message'].trim() : ''
+    if (attrMsg) return attrMsg
+    const textMsg = typeof obj['#text'] === 'string' ? obj['#text'].trim().slice(0, 200) : ''
+    if (textMsg) return textMsg
+  }
+  return undefined
+}
+
 /** JUnit XML テストレポートから `[spec.id]` 付きのテスト結果を抽出する */
 export function parseJunitXml(xml: string): TestCaseResult[] {
-  const results: TestCaseResult[] = []
-  const tagRe = /<testcase\b([^>]*?)(?:\/>|>([\s\S]*?)<\/testcase>)/g
-  let m: RegExpExecArray | null
+  let parsed: unknown
+  try {
+    parsed = junitXmlParser.parse(xml)
+  } catch {
+    return []
+  }
 
-  while ((m = tagRe.exec(xml)) !== null) {
-    const attrs = parseXmlAttrs(m[1] ?? '')
-    const inner = m[2] ?? ''
-    const name = attrs.name ?? ''
+  const testcases: Record<string, unknown>[] = []
+  collectTestcases(parsed, testcases)
+
+  const results: TestCaseResult[] = []
+  for (const tc of testcases) {
+    const name = typeof tc['@_name'] === 'string' ? tc['@_name'] : ''
     if (!name) continue
 
     const specIds: string[] = []
@@ -244,40 +295,21 @@ export function parseJunitXml(xml: string): TestCaseResult[] {
 
     let status: TestCaseResult['status'] = 'passed'
     let message: string | undefined
-    const failMatch = /<(?:failure|error)\b([^>]*)>([\s\S]*?)<\/(?:failure|error)>/.exec(inner)
-    if (failMatch || /<(?:failure|error)\b[^>]*\/>/.test(inner)) {
+    if ('failure' in tc || 'error' in tc) {
       status = 'failed'
-      const failAttrs = parseXmlAttrs(failMatch?.[1] ?? '')
-      message = failAttrs.message || failMatch?.[2]?.trim().slice(0, 200) || undefined
-    } else if (/<skipped\b/.test(inner)) {
+      message = extractFailureMessage(tc.failure ?? tc.error)
+    } else if ('skipped' in tc) {
       status = 'skipped'
     }
 
-    const file = attrs.file || attrs.classname || undefined
+    const fileAttr = typeof tc['@_file'] === 'string' ? tc['@_file'] : undefined
+    const classAttr = typeof tc['@_classname'] === 'string' ? tc['@_classname'] : undefined
+    const file = fileAttr || classAttr || undefined
     for (const specId of specIds) {
       results.push({ specId, name, file, status, message })
     }
   }
   return results
-}
-
-function parseXmlAttrs(raw: string): Record<string, string> {
-  const out: Record<string, string> = {}
-  const re = /([a-zA-Z0-9_:-]+)\s*=\s*"([^"]*)"/g
-  let m: RegExpExecArray | null
-  while ((m = re.exec(raw)) !== null) {
-    out[m[1]!] = decodeXmlEntities(m[2]!)
-  }
-  return out
-}
-
-function decodeXmlEntities(s: string): string {
-  return s
-    .replace(/&quot;/g, '"')
-    .replace(/&apos;/g, "'")
-    .replace(/&lt;/g, '<')
-    .replace(/&gt;/g, '>')
-    .replace(/&amp;/g, '&')
 }
 
 export async function loadTestResults(

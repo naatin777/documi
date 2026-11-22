@@ -1,13 +1,13 @@
 import { lazy, Suspense, useEffect, useState, type CSSProperties } from 'react'
 import { ErrorBoundary, type FallbackProps } from 'react-error-boundary'
 import { useTranslation } from 'react-i18next'
-import { Route, Routes, useLocation } from 'react-router-dom'
-import { api } from './api'
+import { Route, Routes, useLocation } from 'react-router'
 import DocTabs from './components/DocTabs'
 import Explorer from './components/Explorer'
 import ResizeHandle, { useResizableWidth } from './components/ResizeHandle'
 import TopBar from './components/TopBar'
-import { LiveProvider, useDocsRevision } from './live'
+import { LiveProvider } from './live'
+import { useOverviewQuery } from './queries'
 import { TabsProvider } from './tabs'
 import { ThemeProvider } from './theme'
 
@@ -50,7 +50,6 @@ function AppShell() {
   const [navOpen, setNavOpen] = useState(false)
   const [searchOpen, setSearchOpen] = useState(false)
   const [sidebarOpen, setSidebarOpen] = useState(true)
-  const [reviewBadgeCount, setReviewBadgeCount] = useState(0)
   const {
     width: explorerWidth,
     setWidth: setExplorerWidth,
@@ -61,29 +60,14 @@ function AppShell() {
     minWidth: 200,
     maxWidth: 480,
   })
-  const revision = useDocsRevision()
   const location = useLocation()
+  const { data: overview } = useOverviewQuery()
+  const reviewBadgeCount = overview ? overview.attentionBlocks.length + overview.openFeedbackItems.length : 0
 
   // ルート遷移時にモバイルの Explorer ドロワーを閉じる
   useEffect(() => {
     setNavOpen(false)
   }, [location.pathname])
-
-  // Review Queue の要確認バッジ件数を購読
-  useEffect(() => {
-    let cancelled = false
-    api
-      .overview()
-      .then((res) => {
-        if (!cancelled) {
-          setReviewBadgeCount(res.attentionBlocks.length + res.openFeedbackItems.length)
-        }
-      })
-      .catch(() => {})
-    return () => {
-      cancelled = true
-    }
-  }, [revision])
 
   // Cmd+K / Ctrl+K (全文検索) および Cmd+B / Ctrl+B (サイドバー開閉)
   useEffect(() => {

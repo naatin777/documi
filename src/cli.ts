@@ -2,6 +2,7 @@
 import { existsSync } from 'node:fs'
 import { mkdir, writeFile } from 'node:fs/promises'
 import path from 'node:path'
+import { parseArgs as parseNodeArgs } from 'node:util'
 import { runDocsCheck } from './core/checker'
 import { loadDocuments } from './core/loader'
 import { approveBlock, ReviewError } from './core/reviews'
@@ -41,54 +42,44 @@ Options:
   -h, --help           ヘルプを表示`)
 }
 
+const CLI_OPTIONS = {
+  docs: { type: 'string' },
+  project: { type: 'string' },
+  port: { type: 'string' },
+  host: { type: 'string' },
+  'test-report': { type: 'string' },
+  author: { type: 'string' },
+  format: { type: 'string' },
+  scope: { type: 'string' },
+  ids: { type: 'string' },
+  title: { type: 'string' },
+  out: { type: 'string' },
+  strict: { type: 'boolean' },
+  'no-review-edit': { type: 'boolean' },
+  prs: { type: 'boolean' },
+  json: { type: 'boolean' },
+  help: { type: 'boolean', short: 'h' },
+} as const
+
+type CliFlags = Partial<Record<keyof typeof CLI_OPTIONS, string | boolean>>
+
 interface ParsedArgs {
   command?: string
   positionals: string[]
-  flags: Record<string, string | boolean>
+  flags: CliFlags
 }
 
-function parseArgs(argv: string[]): ParsedArgs {
-  const positionals: string[] = []
-  const flags: Record<string, string | boolean> = {}
-  const valueFlags = new Set([
-    'docs',
-    'project',
-    'port',
-    'host',
-    'test-report',
-    'author',
-    'format',
-    'scope',
-    'ids',
-    'title',
-    'out',
-  ])
-
-  for (let i = 0; i < argv.length; i++) {
-    const arg = argv[i]!
-    if (arg === '-h' || arg === '--help') {
-      flags.help = true
-    } else if (arg.startsWith('--')) {
-      const eq = arg.indexOf('=')
-      if (eq >= 0) {
-        flags[arg.slice(2, eq)] = arg.slice(eq + 1)
-      } else {
-        const key = arg.slice(2)
-        if (valueFlags.has(key) && argv[i + 1] && !argv[i + 1]!.startsWith('-')) {
-          flags[key] = argv[++i]!
-        } else {
-          flags[key] = true
-        }
-      }
-    } else {
-      positionals.push(arg)
-    }
-  }
-
+function parseCliArgs(argv: string[]): ParsedArgs {
+  const { values, positionals } = parseNodeArgs({
+    args: argv,
+    options: CLI_OPTIONS,
+    allowPositionals: true,
+    strict: false,
+  })
   return {
     command: positionals[0],
     positionals: positionals.slice(1),
-    flags,
+    flags: values as CliFlags,
   }
 }
 
@@ -361,7 +352,7 @@ async function cmdExport(flags: Record<string, string | boolean>): Promise<numbe
 }
 
 async function main(): Promise<void> {
-  const { command, positionals, flags } = parseArgs(process.argv.slice(2))
+  const { command, positionals, flags } = parseCliArgs(process.argv.slice(2))
   if (flags.help || !command) {
     usage()
     process.exit(command ? 0 : 1)

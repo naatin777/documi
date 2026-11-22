@@ -1,11 +1,12 @@
 import { beforeEach, describe, expect, test } from 'bun:test'
 import { renderToStaticMarkup } from 'react-dom/server'
-import { MemoryRouter } from 'react-router-dom'
+import { MemoryRouter } from 'react-router'
 import type { TermEntry } from '../src/web/api'
 import Markdown from '../src/web/components/Markdown'
 import { extractHeadings } from '../src/web/headings'
 import { highlightCode, normalizeLang } from '../src/web/highlight'
 import { setAppLocale } from '../src/web/i18n'
+import { LiveProvider } from '../src/web/live'
 
 beforeEach(() => {
   setAppLocale('ja')
@@ -25,7 +26,9 @@ const SAMPLE_TERMS: TermEntry[] = [
 function render(body: string, format: 'markdown' | 'mdx' = 'mdx', currentDir = 'specs') {
   return renderToStaticMarkup(
     <MemoryRouter>
-      <Markdown body={body} format={format} currentDir={currentDir} terms={SAMPLE_TERMS} />
+      <LiveProvider>
+        <Markdown body={body} format={format} currentDir={currentDir} terms={SAMPLE_TERMS} />
+      </LiveProvider>
     </MemoryRouter>,
   )
 }

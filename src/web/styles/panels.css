@@ -1,0 +1,453 @@
+/* ---------- Side panel (Outline / Relations) ---------- */
+
+.rp-section {
+  margin-bottom: 28px;
+}
+
+.rp-title {
+  margin: 0 0 10px;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  color: var(--text-muted);
+}
+
+.rp-outline {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.rp-outline-link {
+  display: block;
+  width: 100%;
+  padding: 3px 8px;
+  border: none;
+  border-radius: 5px;
+  background: transparent;
+  font: inherit;
+  font-size: 13px;
+  color: var(--text);
+  text-align: left;
+  cursor: pointer;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.rp-outline-link:hover {
+  background: var(--bg-hover);
+  color: var(--text);
+}
+
+.rp-relations {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.rp-relation {
+  display: block;
+  padding: 7px 10px;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  background: var(--bg);
+  text-decoration: none;
+  color: var(--text);
+}
+
+.rp-relation:hover {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+
+.rp-relation-meta {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 2px;
+}
+
+.rp-relation-type {
+  font-size: 10.5px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--tc);
+}
+
+.rp-relation-id {
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.rp-relation-title {
+  display: block;
+  font-size: 13px;
+  font-weight: 500;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.rp-empty {
+  margin: 0;
+  font-size: 12.5px;
+  color: var(--text-muted);
+}
+
+/* ---------- SidePanel ブロック & エッジ種別 ---------- */
+
+.rp-blocks {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 4px;
+}
+
+.rp-block-link {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  padding: 4px 6px;
+  cursor: pointer;
+  text-align: left;
+  color: var(--text);
+  font-size: 12px;
+}
+
+.rp-block-link:hover {
+  background: var(--bg-hover);
+}
+
+.rp-block-kind {
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  padding: 1px 5px;
+  border-radius: 4px;
+  background: var(--accent-soft);
+  color: var(--text-muted);
+  flex-shrink: 0;
+}
+
+.rp-block-id {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.rp-edge-kind {
+  font-size: 10px;
+  font-weight: 700;
+  padding: 1px 5px;
+  border-radius: 4px;
+  background: var(--bg-subtle);
+  color: var(--text-muted);
+  border: 1px solid var(--border);
+}
+
+.rp-edge-derives {
+  color: #b45309;
+  border-color: #f59e0b;
+}
+
+.rp-edge-satisfies {
+  color: #0f766e;
+  border-color: #14b8a6;
+}
+
+.rp-edge-verifies {
+  color: #15803d;
+  border-color: #22c55e;
+}
+
+.rp-edge-supersedes {
+  color: #be123c;
+  border-color: #f43f5e;
+}
+
+/* 右ペイン: Context Inspector (Outline / Links) & Side-by-Side Peek */
+
+.rp-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  padding: 6px 10px;
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+
+.rp-tabs {
+  display: inline-flex;
+  gap: 2px;
+  padding: 2px;
+  border-radius: 7px;
+  background: var(--bg-subtle);
+  border: 1px solid var(--border);
+}
+
+.rp-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  border: none;
+  border-radius: 5px;
+  background: transparent;
+  color: var(--text-muted);
+  font-size: 12px;
+  font-weight: 600;
+  padding: 3px 10px;
+  cursor: pointer;
+}
+
+.rp-tab:hover {
+  color: var(--text);
+}
+
+.rp-tab.active {
+  background: var(--bg);
+  color: var(--text);
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.08);
+}
+
+.rp-tab-count {
+  font-size: 10.5px;
+  opacity: 0.75;
+}
+
+.rp-collapse-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  border: none;
+  border-radius: 5px;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+}
+
+.rp-collapse-btn:hover {
+  background: var(--bg-hover);
+  color: var(--text);
+}
+
+.rp-reopen-btn {
+  position: sticky;
+  top: 12px;
+  float: right;
+  margin: 8px 14px 0 0;
+  z-index: 15;
+  padding: 4px 10px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--bg-sidebar);
+  color: var(--text-muted);
+  font-size: 11.5px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.rp-reopen-btn:hover {
+  color: var(--text);
+  background: var(--bg-hover);
+}
+
+.rp-health-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  padding: 7px 14px;
+  border-bottom: 1px solid var(--border);
+  font-size: 11.5px;
+  color: var(--text-muted);
+  flex-shrink: 0;
+}
+
+.rp-health-bar strong {
+  color: var(--text);
+}
+
+.rp-health-warn {
+  margin-left: auto;
+  padding: 1px 6px;
+  border-radius: 999px;
+  background: rgba(217, 119, 6, 0.16);
+  color: #b45309;
+  font-weight: 700;
+  font-size: 10.5px;
+}
+
+[data-theme='dark'] .rp-health-warn {
+  color: #f59e0b;
+}
+
+.rp-body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 14px 14px 40px;
+}
+
+.rp-relation-row {
+  display: flex;
+  align-items: stretch;
+  gap: 4px;
+}
+
+.rp-relation-row .rp-relation {
+  flex: 1;
+  min-width: 0;
+}
+
+.rp-relation-btn {
+  width: 100%;
+  text-align: left;
+  cursor: pointer;
+}
+
+.rp-peek-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  flex-shrink: 0;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--bg);
+  color: var(--text-muted);
+  cursor: pointer;
+}
+
+.rp-peek-btn:hover {
+  color: var(--text);
+  border-color: var(--accent);
+  background: var(--bg-hover);
+}
+
+.rp-source-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.rp-source-item {
+  padding: 5px 8px;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  background: var(--bg);
+  font-size: 11px;
+  overflow-wrap: anywhere;
+}
+
+.rp-source-sym {
+  color: var(--text-muted);
+}
+
+/* DocPeekPane (Side-by-Side プレビュー) */
+
+.peek-header {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg-sidebar);
+  flex-shrink: 0;
+}
+
+.peek-header-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.peek-header-left,
+.peek-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.peek-date {
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.peek-icon-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 8px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--bg);
+  color: var(--text-muted);
+  font-size: 11.5px;
+  font-weight: 600;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.peek-icon-btn:hover {
+  color: var(--text);
+  border-color: var(--accent);
+  background: var(--bg-hover);
+}
+
+.peek-title-row {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.peek-title {
+  font-size: 15px;
+  line-height: 1.35;
+}
+
+.peek-path {
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.peek-body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 16px 20px 48px;
+}
+
+.peek-description {
+  margin: 0 0 14px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--border);
+  font-size: 13px;
+  color: var(--text-muted);
+}
+
+.peek-doc-content .markdown {
+  font-size: 14px;
+}
+
+.peek-focus-highlight {
+  box-shadow: 0 0 0 2px #f59e0b;
+  transition: box-shadow 0.3s ease;
+}

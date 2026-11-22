@@ -7,18 +7,14 @@ import type { ApiRoutes } from '../server/app'
 const rpc = hc<ApiRoutes>('/')
 
 /** サーバー側 Hono ルート定義から自動推論されるレスポンス型（手書き二重管理なし） */
-export type StatusResponse = InferResponseType<typeof rpc.api.status.$get, 200>
-export type OverviewResponse = InferResponseType<typeof rpc.api.overview.$get, 200>
 // Hono の JSONParsed は再帰型 DocTreeNode[] を JSONValue へ丸めるため tree のみ復元する
-export type TreeResponse = Omit<InferResponseType<typeof rpc.api.tree.$get, 200>, 'tree'> & {
+type TreeResponse = Omit<InferResponseType<typeof rpc.api.tree.$get, 200>, 'tree'> & {
   tree: DocTreeNode[]
 }
 export type GraphResponse = InferResponseType<typeof rpc.api.graph.$get, 200>
 export type GraphNodeItem = GraphResponse['nodes'][number]
 export type GraphEdgeItem = GraphResponse['edges'][number]
 export type TermEntry = InferResponseType<typeof rpc.api.terms.$get, 200>['terms'][number]
-export type BundleResponse = InferResponseType<typeof rpc.api.bundle.$get, 200>
-export type SourceResponse = InferResponseType<typeof rpc.api.source.$get, 200>
 export type ReviewBlocksResponse = InferResponseType<typeof rpc.api.blocks.$get, 200>
 
 type SuccessJson<R> = R extends ClientResponse<infer T, infer S, 'json'> ? (S extends 200 | 201 ? T : never) : never

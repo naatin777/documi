@@ -33,7 +33,7 @@ function buildStandaloneHtml(selector: string, bodyClass: string, fallbackTitle:
   const css = collectCss()
   return [
     '<!doctype html>',
-    `<html lang="ja" data-theme="${escapeHtml(document.documentElement.dataset.theme ?? 'light')}">`,
+    `<html lang="${escapeHtml(document.documentElement.lang || 'en')}" data-theme="${escapeHtml(document.documentElement.dataset.theme ?? 'light')}">`,
     '<head>',
     '<meta charset="utf-8">',
     '<meta name="viewport" content="width=device-width, initial-scale=1">',

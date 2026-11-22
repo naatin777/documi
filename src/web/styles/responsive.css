@@ -1,0 +1,131 @@
+/* ---------- Mobile / narrow ---------- */
+
+@media (max-width: 900px) {
+  .app {
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+  }
+
+  .topbar {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    height: var(--topbar-height);
+    padding: 0 8px;
+    border-bottom: 1px solid var(--border);
+    background: var(--bg-sidebar);
+    flex-shrink: 0;
+  }
+
+  .topbar-menu {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 36px;
+    height: 36px;
+    border: none;
+    border-radius: 6px;
+    background: transparent;
+    color: var(--text);
+    cursor: pointer;
+  }
+
+  .topbar-menu:hover {
+    background: var(--bg-hover);
+  }
+
+  .topbar-title {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    font-size: 15px;
+    font-weight: 700;
+    letter-spacing: -0.01em;
+  }
+
+  .topbar-actions {
+    margin-left: auto;
+    display: flex;
+    align-items: center;
+  }
+
+  .doc-tabs-sidebar-slot,
+  .resize-handle {
+    display: none;
+  }
+
+  .explorer {
+    position: fixed;
+    top: 0;
+    left: 0;
+    bottom: 0;
+    width: min(300px, 85vw);
+    z-index: 60;
+    transform: translateX(-105%);
+    transition: transform 0.15s ease;
+    box-shadow: 4px 0 16px rgba(15, 23, 42, 0.12);
+  }
+
+  .app.nav-open .explorer {
+    transform: translateX(0);
+  }
+
+  .explorer-close {
+    display: flex;
+  }
+
+  .nav-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(15, 23, 42, 0.35);
+    z-index: 50;
+  }
+
+  .workspace {
+    flex: 1;
+    min-height: 0;
+  }
+
+  .doccols {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+  }
+
+  .content {
+    overflow: visible;
+    flex: none;
+  }
+
+  .side-panel,
+  .side-panel.side-panel-peek {
+    flex: none;
+    flex-basis: auto !important;
+    border-left: none;
+    border-top: 1px solid var(--border);
+    overflow: visible;
+  }
+
+  .page {
+    padding: 24px 20px 64px;
+  }
+
+  .markdown h1,
+  .markdown h2,
+  .markdown h3,
+  .markdown h4,
+  .markdown h5,
+  .markdown h6 {
+    scroll-margin-top: calc(var(--topbar-height) + 16px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .explorer,
+  .nav-chevron {
+    transition: none;
+  }
+}

@@ -1,9 +1,8 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Link } from 'react-router-dom'
-import type { TraceMatrixRow } from '../../core/bundle'
-import { api, encodeDocId, type GraphResponse } from '../api'
-import { useDocsRevision } from '../live'
+import { Link } from 'react-router'
+import { encodeDocId } from '../api'
+import { toErrorMessage, useGraphQuery, useMatrixQuery } from '../queries'
 import DocPeekPane from './DocPeekPane'
 import SigmaGraph from './SigmaGraph'
 
@@ -12,36 +11,21 @@ type MatrixFilter = 'all' | 'verified' | 'unimplemented' | 'drifted' | 'unreview
 
 export default function GraphLayout() {
   const { t } = useTranslation()
-  const revision = useDocsRevision()
   const [tab, setTab] = useState<PageTab>('graph')
   const [matrixFilter, setMatrixFilter] = useState<MatrixFilter>('all')
   const [edgeLayer, setEdgeLayer] = useState<'trace' | 'all'>('all')
   const [granularity, setGranularity] = useState<'docs' | 'blocks'>('docs')
-  const [rows, setRows] = useState<TraceMatrixRow[]>([])
-  const [graph, setGraph] = useState<GraphResponse | null>(null)
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null)
-  const [error, setError] = useState<string | null>(null)
 
   const handleSelectNode = useCallback((id: string | null) => {
     setSelectedNodeId(id)
   }, [])
 
-  useEffect(() => {
-    let cancelled = false
-    Promise.all([api.matrix(), api.graph(edgeLayer, granularity)])
-      .then(([m, g]) => {
-        if (cancelled) return
-        setRows(m.rows)
-        setGraph(g)
-        setError(null)
-      })
-      .catch((e: unknown) => {
-        if (!cancelled) setError(e instanceof Error ? e.message : String(e))
-      })
-    return () => {
-      cancelled = true
-    }
-  }, [revision, edgeLayer, granularity])
+  const matrixQuery = useMatrixQuery()
+  const graphQuery = useGraphQuery(edgeLayer, granularity)
+  const rows = useMemo(() => matrixQuery.data?.rows ?? [], [matrixQuery.data])
+  const graph = graphQuery.data ?? null
+  const error = toErrorMessage(matrixQuery.error ?? graphQuery.error)
 
   const filteredRows = useMemo(() => {
     return rows.filter((r) => {

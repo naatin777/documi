@@ -11,7 +11,7 @@ import {
 } from 'lucide-react'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Link, useLocation } from 'react-router-dom'
+import { Link, useLocation } from 'react-router'
 import { activeTabKeyFromPath, useTabs, type ViewTabId, type WorkspaceTab } from '../tabs'
 
 interface DocTabsProps {
