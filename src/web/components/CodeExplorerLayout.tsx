@@ -1,5 +1,5 @@
 import { ChevronRight, Columns2, Copy, FileCode2, Search } from 'lucide-react'
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Link, useSearchParams } from 'react-router'
 import type { CodeFileSummary, CodeSpecLink, CodeTreeDir, CodeTreeNode } from '../../core/code'
@@ -537,7 +537,7 @@ function CodeTreeBranch({
           </span>
         </button>
         {!isCollapsed && (
-          <div>
+          <div className="code-tree-children" style={{ '--tree-depth': depth } as CSSProperties}>
             {dir.children.map((child) => (
               <CodeTreeBranch
                 key={child.kind === 'dir' ? `dir:${child.path}` : `file:${child.file.path}`}

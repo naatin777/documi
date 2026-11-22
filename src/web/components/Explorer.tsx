@@ -1,5 +1,5 @@
 import { ChevronRight, FileCode2, Home, ListChecks, Network, Search, X } from 'lucide-react'
-import { useMemo, useState, type ReactNode } from 'react'
+import { useMemo, useState, type CSSProperties, type ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
 import { NavLink } from 'react-router'
 import { ARTIFACT_TYPES } from '../../core/types'
@@ -277,7 +277,7 @@ function TreeBranch({
           <span className="nav-dir-name">{dir.name}</span>
         </button>
         {!isCollapsed && (
-          <div className="nav-dir-children">
+          <div className="nav-dir-children" style={{ '--tree-depth': depth } as CSSProperties}>
             {dir.children.map((child) => (
               <TreeBranch
                 key={child.kind === 'dir' ? `dir:${child.path}` : `doc:${child.doc.id}`}
@@ -300,7 +300,7 @@ function TreeBranch({
     <NavLink
       to={`/docs/${encodeDocId(doc.id)}`}
       className={({ isActive }) => `nav-item nav-tree-doc type-${doc.type}${isActive ? ' active' : ''}`}
-      style={{ paddingLeft: `${26 + depth * 14}px` }}
+      style={{ paddingLeft: `${23 + depth * 14}px` }}
       title={`${doc.id} — ${doc.title}`}
       onClick={onClose}
     >
