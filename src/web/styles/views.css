@@ -675,38 +675,6 @@
   gap: 7px;
 }
 
-.code-coverage-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  font-size: 11.5px;
-}
-
-.code-coverage-title {
-  font-weight: 600;
-  color: var(--text-muted);
-}
-
-.code-coverage-stat {
-  font-size: 11px;
-  color: var(--text);
-  font-variant-numeric: tabular-nums;
-}
-
-.code-coverage-bar {
-  height: 4px;
-  border-radius: 999px;
-  background: var(--border);
-  overflow: hidden;
-}
-
-.code-coverage-fill {
-  height: 100%;
-  background: #16a34a;
-  border-radius: 999px;
-  transition: width 0.2s ease;
-}
-
 .code-filter-input-wrap {
   position: relative;
   display: flex;
@@ -743,6 +711,10 @@
 }
 
 .code-filter-chip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
   border: 1px solid var(--border);
   border-radius: 5px;
   background: var(--bg);
@@ -752,6 +724,12 @@
   font-weight: 500;
   padding: 3px 4px;
   cursor: pointer;
+}
+
+.code-filter-count {
+  font-size: 10px;
+  opacity: 0.72;
+  font-variant-numeric: tabular-nums;
 }
 
 .code-filter-chip.active {

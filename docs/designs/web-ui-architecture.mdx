@@ -60,7 +60,7 @@ satisfies:
 ## 5. 読み取り専用 Code Explorer (`/code`)
 
 - `src/core/code.ts` が `projectRoot` 配下のソースファイルツリー（`buildCodeTree`）と全文＋逆リンク集約（`readCodeFile`）を提供し、`/api/code/tree`・`/api/code/file` 経由で配信する。
-- `CodeExplorerLayout` は左側に仕様カバレッジバー・絞り込み付きファイルツリー、中央に Shiki 行番号ハイライト＋行クリック範囲選択＋行内 Spec バッジ付き読み取り専用ビューア、右側に共通の `DocPeekPane` を組み合わせ、ソースコードと仕様書を並べて閲覧できる。
+- `CodeExplorerLayout` は左側に Material Icon・階層ガイド線・仕様リンク絞り込み付きファイルツリー、中央に Shiki 行番号ハイライト＋行クリック範囲選択＋行内 Spec バッジ付き読み取り専用ビューア、右側に共通の `DocPeekPane` を組み合わせ、ソースコードと仕様書を並べて閲覧できる。
 - `<SourceRef>`・`SidePanel` の `Source Refs`・`BlockReviewControls` の実装/テスト箇所リンクから `/code?file=...&line=...` へ双方向ジャンプできる。
 
 <SourceRef file="src/web/components/CodeExplorerLayout.tsx" symbol="CodeExplorerLayout" satisfies="ui.code-explorer" />

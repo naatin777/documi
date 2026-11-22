@@ -314,13 +314,13 @@
     "codeTree": "ファイルツリー幅を調整"
   },
   "codeExplorer": {
-    "coverageLabel": "仕様紐づけ率",
     "filterPlaceholder": "ファイル名で絞り込み…",
-    "filterAria": "仕様紐づけ状態で絞り込み",
+    "filterAria": "仕様リンク有無で絞り込み",
+    "dirLinkedTitle": "仕様・文書にリンクされたファイル: {{count}} 件",
     "filters": {
       "all": "すべて",
-      "covered": "紐づけあり",
-      "uncovered": "未紐づけ"
+      "covered": "リンクあり",
+      "uncovered": "その他"
     },
     "emptyTree": "該当するファイルがありません。",
     "viewerAria": "読み取り専用ソースコードビューア",

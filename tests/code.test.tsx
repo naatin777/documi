@@ -165,7 +165,7 @@ describe('Read-only Code Explorer', () => {
         </LiveProvider>
       </MemoryRouter>,
     )
-    expect(html).toContain('仕様紐づけ率')
+    expect(html).toContain('リンクあり')
     expect(html).toContain('コード閲覧')
   })
 

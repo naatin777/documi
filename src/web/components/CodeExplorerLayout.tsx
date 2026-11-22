@@ -167,8 +167,12 @@ export default function CodeExplorerLayout() {
     })
   }
 
-  const coveragePct =
-    treeData && treeData.totalFiles > 0 ? Math.round((treeData.coveredFiles / treeData.totalFiles) * 100) : 0
+  const unlinkedCount = treeData ? treeData.totalFiles - treeData.coveredFiles : 0
+  const filterCounts: Record<CoverageFilter, number | null> = {
+    all: treeData ? treeData.totalFiles : null,
+    covered: treeData ? treeData.coveredFiles : null,
+    uncovered: treeData ? unlinkedCount : null,
+  }
 
   return (
     <>
@@ -176,18 +180,6 @@ export default function CodeExplorerLayout() {
         <div className="code-explorer-shell">
           <aside className="code-tree-pane" style={{ width: `${treeWidth}px`, flexBasis: `${treeWidth}px` }}>
             <div className="code-tree-header">
-              <div className="code-coverage-row">
-                <span className="code-coverage-title">{t('codeExplorer.coverageLabel')}</span>
-                {treeData && (
-                  <span className="code-coverage-stat mono">
-                    {treeData.coveredFiles}/{treeData.totalFiles} ({coveragePct}%)
-                  </span>
-                )}
-              </div>
-              <div className="code-coverage-bar" aria-hidden="true">
-                <div className="code-coverage-fill" style={{ width: `${coveragePct}%` }} />
-              </div>
-
               <div className="code-filter-input-wrap">
                 <Search size={12} strokeWidth={1.9} className="code-filter-icon" aria-hidden="true" />
                 <input
@@ -210,7 +202,10 @@ export default function CodeExplorerLayout() {
                     className={`code-filter-chip${coverageFilter === mode ? ' active' : ''}`}
                     onClick={() => setCoverageFilter(mode)}
                   >
-                    {t(`codeExplorer.filters.${mode}`)}
+                    <span>{t(`codeExplorer.filters.${mode}`)}</span>
+                    {filterCounts[mode] !== null && (
+                      <span className="code-filter-count mono">{filterCounts[mode]}</span>
+                    )}
                   </button>
                 ))}
               </div>
@@ -512,6 +507,7 @@ function CodeTreeBranch({
   onToggleDir: (dirPath: string) => void
   onSelectFile: (filePath: string) => void
 }) {
+  const { t } = useTranslation()
   if (node.kind === 'dir') {
     const dir: CodeTreeDir = node
     const isCollapsed = !forceExpand && collapsedDirs.has(dir.path)
@@ -532,9 +528,14 @@ function CodeTreeBranch({
           />
           <MaterialFolderIcon name={dir.name} open={!isCollapsed} size={15} />
           <span className="code-tree-name">{dir.name}</span>
-          <span className="code-tree-dir-count mono">
-            {dir.coveredCount}/{dir.totalCount}
-          </span>
+          {dir.coveredCount > 0 && (
+            <span
+              className="code-tree-dir-count mono"
+              title={t('codeExplorer.dirLinkedTitle', { count: dir.coveredCount })}
+            >
+              {dir.coveredCount}
+            </span>
+          )}
         </button>
         {!isCollapsed && (
           <div className="code-tree-children" style={{ '--tree-depth': depth } as CSSProperties}>
@@ -568,8 +569,11 @@ function CodeTreeBranch({
     >
       <MaterialFileIcon name={file.name} size={15} />
       <span className="code-tree-name">{file.name}</span>
-      <span className={`code-cov-dot${file.covered ? ' covered' : ''}`} aria-hidden="true" />
-      {file.specCount > 0 && <span className="code-file-badge mono">{file.specCount}</span>}
+      {file.specCount > 0 ? (
+        <span className="code-file-badge mono">{file.specCount}</span>
+      ) : file.covered ? (
+        <span className="code-cov-dot covered" aria-hidden="true" />
+      ) : null}
     </button>
   )
 }

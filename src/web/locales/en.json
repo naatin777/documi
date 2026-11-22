@@ -314,13 +314,13 @@
     "codeTree": "Resize source tree width"
   },
   "codeExplorer": {
-    "coverageLabel": "Spec Coverage",
     "filterPlaceholder": "Filter files…",
-    "filterAria": "Filter files by specification coverage",
+    "filterAria": "Filter files by specification link",
+    "dirLinkedTitle": "{{count}} files linked to specs or docs",
     "filters": {
       "all": "All",
       "covered": "Linked",
-      "uncovered": "Unlinked"
+      "uncovered": "Other"
     },
     "emptyTree": "No matching files.",
     "viewerAria": "Read-only source code viewer",
