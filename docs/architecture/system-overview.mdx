@@ -62,10 +62,11 @@ flowchart TB
 
 ## パス解決と副作用の境界 (`projectRoot` / Functional Core)
 
-- `<SourceRef file="src/..." />`・`<TermDef symbols="src/...#Symbol">`・`@implements` / `@verifies` の走査はすべて **`projectRoot` からの POSIX 相対パス** で解決する（`.mdx` ファイルからの相対パスではない）。
+- **同一リポジトリ・同一ブランチ既定**: `docs/` とプロジェクトコードは同一リポジトリ・同一ブランチに共存させることを標準とし、1 つの PR 内で仕様・実装・テスト・`documi check` を原子的に検証する（[ADR](../decisions/2026-11-code-explorer-and-mcp-editing.mdx)）。
+- `<SourceRef file="src/..." />`・`<TermDef symbols="src/...#Symbol">`・`@implements` / `@verifies` の走査および読み取り専用 Code Explorer はすべて **`projectRoot` からの POSIX 相対パス** で解決する（`.mdx` ファイルからの相対パスではない）。
 - `projectRoot` の既定値は `docs/` の親ディレクトリであり、モノレポ等で階層が異なる場合は `--project <dir>` または環境変数 `DOCUMI_PROJECT_ROOT` で全コマンド（`serve` / `mcp` / `check` / `export`）横断で上書きできる。
 - 絶対パス・`..` によるパストラバーサル・`projectRoot` 外を指すシンボリックリンクは `src/core/source.ts` で拒否する。
-- **純粋計算と副作用の境界**: `src/core/` はフレームワーク非依存を保ち、解析・グラフ構築・ハッシュ・Diff・Realization 集計・バンドル解決の計算ロジックを独立させる。HTTP・SSE・ファイル監視・PDF レンダリング等の入出力副作用は `src/server/` および `src/cli.ts` の境界層に閉じ込める。
+- **純粋計算と副作用の境界**: `src/core/` はフレームワーク非依存を保ち、解析・グラフ構築・ハッシュ・Diff・Realization 集計・バンドル解決・AST ブロック書き換え計算を独立させる。HTTP・SSE・ファイル監視・PDF レンダリング・ファイル書き込みの副作用は `src/server/` および `src/cli.ts` の境界層に閉じ込め、MCP 書き込みツールは `docs/.documi/reviews.json` には一切触れない。
 
 ## 5 層・9 種類の Artifact Type と AI コンテキスト方針
 
