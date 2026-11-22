@@ -2,13 +2,9 @@ import { Fragment, type ReactNode } from 'react'
 import { Link } from 'react-router'
 import katex from 'katex'
 import 'katex/dist/katex.min.css'
-import { unified } from 'unified'
-import remarkParse from 'remark-parse'
-import remarkGfm from 'remark-gfm'
-import remarkMath from 'remark-math'
-import remarkMdx from 'remark-mdx'
 import type { BlockContent, DefinitionContent, List, ListItem, PhrasingContent, Root, RootContent, Table } from 'mdast'
 import type { MdxJsxAttribute, MdxJsxFlowElement, MdxJsxTextElement } from 'mdast-util-mdx'
+import { parseMarkdownAst } from '../core/mdast-parser'
 import type { DocFormat } from '../core/types'
 import { encodeDocId, type TermEntry } from './api'
 import { uniqueHeadingId } from './headingIds'
@@ -22,20 +18,8 @@ import { TermInline } from './components/TermPopover'
 
 export type { DocFormat } from '../core/types'
 
-const processors = {
-  markdown: unified().use(remarkParse).use(remarkGfm).use(remarkMath),
-  mdx: unified().use(remarkParse).use(remarkGfm).use(remarkMath).use(remarkMdx),
-} as const
-
 export function parseMarkdown(body: string, format: DocFormat): Root {
-  if (format === 'mdx') {
-    try {
-      return processors.mdx.parse(body) as Root
-    } catch {
-      return processors.markdown.parse(body) as Root
-    }
-  }
-  return processors.markdown.parse(body) as Root
+  return parseMarkdownAst(body, format).tree
 }
 
 export interface RenderOptions {

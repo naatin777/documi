@@ -46,10 +46,11 @@ satisfies:
 
 <SourceRef file="src/web/components/DocPeekPane.tsx" symbol="DocPeekPane" />
 
-## 4. Hono RPC クライアントと SSE ライブ更新
+## 4. Hono RPC クライアント・React Query キャッシュと SSE ライブ更新
 
 - `src/web/api.ts` は `hc<ApiRoutes>('/')` と `InferResponseType` によりサーバー側ルート定義（`src/server/app.ts`）からレスポンス型を直接推論し、フロント側の手書き型二重管理を排除している。
-- `LiveProvider` が `/api/events` の SSE を購読し、ファイル変更・承認・テスト結果更新時の `reload` イベントで全画面のリビジョンを更新する。
+- `src/web/queries.ts` が `@tanstack/react-query` ベースの共通クエリフック群を提供し、タブ切替や再訪時の重複フェッチを抑制する。`LiveProvider` が `/api/events` の SSE を購読し、ファイル変更・承認・テスト結果更新時の `reload` イベントで `queryClient.invalidateQueries()` を実行して全画面をライブ再描画する。
+- コードハイライト（`src/web/highlight.ts`）は `shiki/core` + JavaScript Regex エンジンで主要開発言語と 2 テーマのみをオンデマンド遅延読込し、スタイルシートは `src/web/styles/` 配下に役割別モジュール（`tokens` / `layout` / `panels` / `document` / `semantic` / `views` / `modals` / `responsive` / `print`）として分割管理する。
 
 <SourceRef file="src/web/api.ts" symbol="encodeDocId" />
 

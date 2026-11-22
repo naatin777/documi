@@ -1,11 +1,6 @@
 import { createHash } from 'node:crypto'
-import { unified } from 'unified'
-import remarkParse from 'remark-parse'
-import remarkGfm from 'remark-gfm'
-import remarkMath from 'remark-math'
-import remarkMdx from 'remark-mdx'
-import type { Root } from 'mdast'
 import type { MdxJsxAttribute, MdxJsxFlowElement, MdxJsxTextElement } from 'mdast-util-mdx'
+import { ALLOWED_MDX_COMPONENTS, parseMarkdownAst } from './mdast-parser'
 import { BLOCK_ID_PATTERN, isNoteIntent, isSpecIntent, isStability } from './types'
 import type {
   BlockKind,
@@ -18,25 +13,7 @@ import type {
   Stability,
 } from './types'
 
-/** Documi が許可する MDX コンポーネント一覧 */
-export const ALLOWED_MDX_COMPONENTS: ReadonlySet<string> = new Set([
-  // 既存リッチ表現
-  'Callout',
-  'Tabs',
-  'Tabs.Tab',
-  'Tab',
-  'Steps',
-  'Steps.Step',
-  'Step',
-  'SourceRef',
-  // セマンティックタグ
-  'Spec',
-  'Constraint',
-  'Outcome',
-  'Note',
-  'TermDef',
-  'Term',
-])
+export { ALLOWED_MDX_COMPONENTS } from './mdast-parser'
 
 const SEMANTIC_BLOCK_TAGS: Record<string, BlockKind> = {
   Spec: 'spec',
@@ -45,9 +22,6 @@ const SEMANTIC_BLOCK_TAGS: Record<string, BlockKind> = {
   Note: 'note',
   TermDef: 'term',
 }
-
-const mdProcessor = unified().use(remarkParse).use(remarkGfm).use(remarkMath)
-const mdxProcessor = unified().use(remarkParse).use(remarkGfm).use(remarkMath).use(remarkMdx)
 
 export interface ExtractedMdx {
   blocks: SemanticBlock[]
@@ -90,18 +64,9 @@ export function computeContentHash(rawBody: string): string {
  */
 export function extractMdxArtifacts(body: string, format: DocFormat, docId: string): ExtractedMdx {
   const issues: DocIssue[] = []
-  let tree: Root
-
-  if (format === 'mdx') {
-    try {
-      tree = mdxProcessor.parse(body) as Root
-    } catch (error) {
-      const msg = error instanceof Error ? error.message : String(error)
-      issues.push({ code: 'mdx-parse-error', message: `MDX の構文解析に失敗しました: ${msg}` })
-      tree = mdProcessor.parse(body) as Root
-    }
-  } else {
-    tree = mdProcessor.parse(body) as Root
+  const { tree, parseError } = parseMarkdownAst(body, format)
+  if (parseError) {
+    issues.push({ code: 'mdx-parse-error', message: `MDX の構文解析に失敗しました: ${parseError}` })
   }
 
   const definitions = new Map<string, string>()
