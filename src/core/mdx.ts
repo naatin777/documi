@@ -62,7 +62,7 @@ export function computeContentHash(rawBody: string): string {
  * セマンティックブロック・SourceRef・内部リンク・用語参照・安全性 issue を一括抽出する。
  * コードは一切実行しない。
  */
-export function extractMdxArtifacts(body: string, format: DocFormat, docId: string): ExtractedMdx {
+export function extractMdxArtifacts(body: string, format: DocFormat, docId: string, lineOffset = 0): ExtractedMdx {
   const issues: DocIssue[] = []
   const { tree, parseError } = parseMarkdownAst(body, format)
   if (parseError) {
@@ -127,13 +127,13 @@ export function extractMdxArtifacts(body: string, format: DocFormat, docId: stri
         } else if (name !== null) {
           const parsed = parseStringAttributes(jsx, issues)
           if (name === 'SourceRef') {
-            extractSourceRef(parsed, node, sourceRefs)
+            extractSourceRef(parsed, node, sourceRefs, lineOffset)
           } else if (name === 'Term') {
             const termName = parsed.name?.trim()
             if (termName) termRefs.push(termName)
           } else if (name in SEMANTIC_BLOCK_TAGS) {
             const kind = SEMANTIC_BLOCK_TAGS[name]!
-            const block = extractSemanticBlock(kind, parsed, node, body, docId, () => ++noteCounter, issues)
+            const block = extractSemanticBlock(kind, parsed, node, body, docId, () => ++noteCounter, issues, lineOffset)
             if (block) blocks.push(block)
           }
         }
@@ -210,9 +210,10 @@ function extractSemanticBlock(
   docId: string,
   nextNoteNum: () => number,
   issues: DocIssue[],
+  lineOffset: number,
 ): SemanticBlock | null {
-  const startLine = node.position?.start?.line ?? 1
-  const endLine = node.position?.end?.line ?? startLine
+  const startLine = (node.position?.start?.line ?? 1) + lineOffset
+  const endLine = (node.position?.end?.line ?? node.position?.start?.line ?? 1) + lineOffset
   const rawId = props.id?.trim()
 
   let id: string
@@ -305,7 +306,12 @@ function extractSemanticBlock(
   return block
 }
 
-function extractSourceRef(props: Record<string, string>, node: GenericNode, out: SourceRefDecl[]): void {
+function extractSourceRef(
+  props: Record<string, string>,
+  node: GenericNode,
+  out: SourceRefDecl[],
+  lineOffset: number,
+): void {
   const file = props.file?.trim()
   if (!file) return
   out.push({
@@ -314,7 +320,7 @@ function extractSourceRef(props: Record<string, string>, node: GenericNode, out:
     lines: props.lines?.trim() || undefined,
     satisfies: splitCsv(props.satisfies),
     verifies: splitCsv(props.verifies),
-    startLine: node.position?.start?.line ?? 1,
+    startLine: (node.position?.start?.line ?? 1) + lineOffset,
   })
 }
 

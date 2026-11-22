@@ -8,6 +8,7 @@ satisfies:
   - core.type-inference
   - core.mdx-blocks
   - core.rooted-dag
+  - core.mcp-surgical-edit
 ---
 
 # Document Core の設計
@@ -36,5 +37,7 @@ YAML frontmatter を分離し、省略時はディレクトリ名・ファイル
 <SourceRef file="src/core/loader.ts" symbol="loadDocuments" satisfies="core.document-model" />
 
 <SourceRef file="src/core/mdx.ts" symbol="extractMdxArtifacts" satisfies="core.mdx-blocks" />
+
+<SourceRef file="src/core/editor.ts" symbol="updateBlockInDocs" satisfies="core.mcp-surgical-edit" />
 
 <SourceRef file="src/core/source.ts" symbol="resolveSourceSymbol" />

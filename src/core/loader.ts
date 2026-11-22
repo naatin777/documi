@@ -161,9 +161,11 @@ async function parseDocumentFile(
 
   let rawFm: Record<string, unknown> = {}
   let body = source
+  let bodyLineOffset = 0
   try {
     const fm = splitFrontmatter(source)
     body = fm.body
+    bodyLineOffset = fm.bodyStartLine - 1
     if (fm.hasFrontmatter) {
       const parsed = parseYamlFrontmatter(fm.data)
       if (parsed === null || parsed === undefined) {
@@ -188,7 +190,7 @@ async function parseDocumentFile(
     return null
   }
 
-  const extracted = extractMdxArtifacts(body, format, docId)
+  const extracted = extractMdxArtifacts(body, format, docId, bodyLineOffset)
   docIssues.push(...extracted.issues)
 
   const { type, typeInferred } = resolveArtifactType(rawFm.type, docId, docIssues)

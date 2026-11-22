@@ -271,18 +271,23 @@ describe('MCP endpoint', () => {
     })
   }
 
-  test('tools/list が全 8 ツールを返す', async () => {
+  test('tools/list が全 13 ツールを返す', async () => {
     const res = await app.fetch(mcpRequest({ jsonrpc: '2.0', id: 1, method: 'tools/list', params: {} }))
     expect(res.status).toBe(200)
     const body = (await res.json()) as { result?: { tools: { name: string }[] } }
     expect(body.result?.tools.map((t) => t.name).sort()).toEqual([
+      'add_block',
       'get_document',
       'get_project_map',
       'get_relations',
       'get_spec_context',
       'list_documents',
       'query_specs',
+      'rename_block_id',
+      'scaffold_document',
       'search_documents',
+      'update_block',
+      'upsert_term',
       'validate_docs',
     ])
   })

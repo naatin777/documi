@@ -8,6 +8,7 @@ import type { ZodTypeAny } from 'zod'
 import {
   ARTIFACT_TYPES,
   BLOCK_KINDS,
+  NOTE_INTENTS,
   REALIZATION_STATUSES,
   REVIEW_STATUSES,
   SPEC_INTENTS,
@@ -17,12 +18,21 @@ import type {
   ArtifactType,
   BlockKind,
   DocsIndex,
+  NoteIntent,
   RealizationStatus,
   ReviewStatus,
   SemanticBlock,
   SpecIntent,
   Stability,
 } from '../core/types'
+import {
+  addBlockToDoc,
+  EditError,
+  renameBlockIdAcrossProject,
+  scaffoldDocument,
+  updateBlockInDocs,
+  upsertTermInDocs,
+} from '../core/editor'
 import { getDocument, toDocumentSummary } from '../core/loader'
 import { searchIndex } from '../core/bundle'
 import { validateSourceLinks } from '../core/trace'
@@ -60,6 +70,12 @@ const nodeIdSchema: ZodTypeAny = z
   .min(1)
   .describe('ドキュメント ID またはブロック ID (例: "auth.lockout", "specs/artifact-model")')
 
+const optionalStringListSchema = (desc: string): ZodTypeAny => z.array(z.string().min(1)).optional().describe(desc)
+const optionalBlockIntentSchema: ZodTypeAny = z
+  .enum([...SPEC_INTENTS, ...NOTE_INTENTS.filter((i) => i === 'informative')] as [string, ...string[]])
+  .optional()
+  .describe('採用意思 (normative / idea / rejected / informative)')
+
 function jsonResult(data: unknown): CallToolResult {
   const text = JSON.stringify(data, null, 2)
   return {
@@ -72,7 +88,29 @@ function errorResult(message: string): CallToolResult {
   return { isError: true, content: [{ type: 'text', text: message }] }
 }
 
-function createDocumiMcpServer(getIndex: () => DocsIndex, projectRoot?: string): McpServer {
+async function buildValidationPayload(index: DocsIndex, projectRoot?: string) {
+  const docIssues = index.documents.flatMap((d) =>
+    d.issues.map((issue) => ({
+      docId: d.id,
+      path: d.path,
+      code: issue.code,
+      message: issue.message,
+      blockId: issue.blockId,
+    })),
+  )
+  const sourceIssues = projectRoot ? (await validateSourceLinks(projectRoot, index)).issues : []
+  const totalIssues = index.issues.length + docIssues.length + sourceIssues.length
+  return {
+    ok: totalIssues === 0,
+    indexIssues: index.issues,
+    docIssues,
+    sourceIssues,
+    totalIssues,
+  }
+}
+
+function createDocumiMcpServer(store: DocsStore, projectRoot?: string): McpServer {
+  const getIndex = () => store.getIndex()
   const server = new McpServer({
     name: 'documi',
     version: '0.1.0',
@@ -261,7 +299,11 @@ function createDocumiMcpServer(getIndex: () => DocsIndex, projectRoot?: string):
         if (q && !b.id.toLowerCase().includes(q) && !b.rawBody.toLowerCase().includes(q)) return false
         return true
       })
-      return jsonResult({ blocks: matched, count: matched.length })
+      const withPaths = matched.map((b) => ({
+        ...b,
+        docPath: index.byId.get(b.docId)?.path ?? '',
+      }))
+      return jsonResult({ blocks: withPaths, count: withPaths.length })
     },
   )
 
@@ -326,7 +368,9 @@ function createDocumiMcpServer(getIndex: () => DocsIndex, projectRoot?: string):
       )
 
       return jsonResult({
-        target: block ?? toDocumentSummary(doc),
+        target: block ? { ...block, docPath: doc.path } : toDocumentSummary(doc),
+        docPath: doc.path,
+        ...(block ? { startLine: block.startLine, endLine: block.endLine } : {}),
         document: toDocumentSummary(doc),
         openFeedback,
         upstreamGoals,
@@ -369,24 +413,194 @@ function createDocumiMcpServer(getIndex: () => DocsIndex, projectRoot?: string):
     },
     async () => {
       const index = getIndex()
-      const docIssues = index.documents.flatMap((d) =>
-        d.issues.map((issue) => ({
-          docId: d.id,
-          path: d.path,
-          code: issue.code,
-          message: issue.message,
-          blockId: issue.blockId,
-        })),
-      )
-      const sourceIssues = projectRoot ? (await validateSourceLinks(projectRoot, index)).issues : []
-      const totalIssues = index.issues.length + docIssues.length + sourceIssues.length
-      return jsonResult({
-        ok: totalIssues === 0,
-        indexIssues: index.issues,
-        docIssues,
-        sourceIssues,
-        totalIssues,
-      })
+      return jsonResult(await buildValidationPayload(index, projectRoot))
+    },
+  )
+
+  // ---------- 精密編集・構造操作ツール (Surgical Write) ----------
+  // @implements core.mcp-surgical-edit
+
+  registerTool(
+    'update_block',
+    {
+      description:
+        '既存セマンティックブロック (<Spec> / <Constraint> / <Outcome> / <TermDef> / <Note>) の該当行範囲のみを安全に書き換え、再読込後の検証結果を返します。reviews.json には一切触れません。',
+      inputSchema: {
+        id: z.string().min(1).describe('更新対象のブロック ID'),
+        body: z.string().min(1).describe('新しいブロック本文 (MDX 安全構文のみ)'),
+        title: z.string().optional().describe('ブロックタイトル (任意)'),
+        stability: optionalStabilitySchema,
+        intent: optionalBlockIntentSchema,
+        derives: optionalStringListSchema('上流の derives 参照一覧'),
+        supersedes: optionalStringListSchema('supersedes 参照一覧'),
+        scope: z.string().optional().describe('Constraint の scope (任意)'),
+        aliases: optionalStringListSchema('TermDef の別名一覧'),
+        symbols: optionalStringListSchema('TermDef のコードシンボル一覧 (src/...#Symbol)'),
+      },
+    },
+    async (args: {
+      id: string
+      body: string
+      title?: string
+      stability?: Stability
+      intent?: SpecIntent | NoteIntent
+      derives?: string[]
+      supersedes?: string[]
+      scope?: string
+      aliases?: string[]
+      symbols?: string[]
+    }) => {
+      try {
+        const result = await updateBlockInDocs(store.rootDir, getIndex(), args)
+        const nextIndex = await store.reload()
+        const validation = await buildValidationPayload(nextIndex, projectRoot)
+        return jsonResult({ ...result, validation })
+      } catch (e) {
+        if (e instanceof EditError) return errorResult(e.message)
+        throw e
+      }
+    },
+  )
+
+  registerTool(
+    'add_block',
+    {
+      description:
+        '指定ドキュメント末尾（または指定見出し直下）にセマンティックブロックを 1 件追記し、再読込後の検証結果を返します。',
+      inputSchema: {
+        docId: docIdSchema,
+        kind: z.enum(BLOCK_KINDS).describe('ブロック種別 (spec / constraint / outcome / note / term)'),
+        id: z.string().min(1).describe('新規ブロック ID (プロジェクト全体で一意)'),
+        body: z.string().min(1).describe('ブロック本文 (MDX 安全構文のみ)'),
+        afterHeading: z.string().optional().describe('挿入先の見出しテキスト (省略時は文書末尾)'),
+        title: z.string().optional().describe('ブロックタイトル (任意)'),
+        stability: optionalStabilitySchema,
+        intent: optionalBlockIntentSchema,
+        derives: optionalStringListSchema('上流の derives 参照一覧'),
+        supersedes: optionalStringListSchema('supersedes 参照一覧'),
+        scope: z.string().optional().describe('Constraint の scope (任意)'),
+        aliases: optionalStringListSchema('TermDef の別名一覧'),
+        symbols: optionalStringListSchema('TermDef のコードシンボル一覧 (src/...#Symbol)'),
+      },
+    },
+    async (args: {
+      docId: string
+      kind: BlockKind
+      id: string
+      body: string
+      afterHeading?: string
+      title?: string
+      stability?: Stability
+      intent?: SpecIntent | NoteIntent
+      derives?: string[]
+      supersedes?: string[]
+      scope?: string
+      aliases?: string[]
+      symbols?: string[]
+    }) => {
+      try {
+        const result = await addBlockToDoc(store.rootDir, getIndex(), args)
+        const nextIndex = await store.reload()
+        const validation = await buildValidationPayload(nextIndex, projectRoot)
+        return jsonResult({ ...result, validation })
+      } catch (e) {
+        if (e instanceof EditError) return errorResult(e.message)
+        throw e
+      }
+    },
+  )
+
+  registerTool(
+    'upsert_term',
+    {
+      description: '用語集 (既定: domain/glossary) に <TermDef> を追加または更新し、検証結果を返します。',
+      inputSchema: {
+        id: z.string().min(1).describe('用語 ID (例: "Artifact")'),
+        definition: z.string().min(1).describe('用語の定義本文'),
+        aliases: optionalStringListSchema('別名一覧'),
+        symbols: optionalStringListSchema('コードシンボル一覧 (src/...#Symbol)'),
+        docId: z.string().optional().describe('追加先の用語集ドキュメント ID (既定: domain/glossary)'),
+      },
+    },
+    async (args: { id: string; definition: string; aliases?: string[]; symbols?: string[]; docId?: string }) => {
+      try {
+        const result = await upsertTermInDocs(store.rootDir, getIndex(), args)
+        const nextIndex = await store.reload()
+        const validation = await buildValidationPayload(nextIndex, projectRoot)
+        return jsonResult({ ...result, validation })
+      } catch (e) {
+        if (e instanceof EditError) return errorResult(e.message)
+        throw e
+      }
+    },
+  )
+
+  registerTool(
+    'scaffold_document',
+    {
+      description:
+        '規約通りの YAML frontmatter を持つ新規 .mdx ドキュメントを作成します（既存ファイルの上書きは拒否）。',
+      inputSchema: {
+        path: z.string().min(1).describe('docs/ からの相対パス (例: "specs/auth/oauth.mdx")'),
+        title: z.string().min(1).describe('ドキュメントタイトル'),
+        type: optionalTypeSchema,
+        description: z.string().optional().describe('概要説明'),
+        date: z.string().optional().describe('決定日 (YYYY-MM-DD または YYYY-MM、ADR 用)'),
+        tags: optionalStringListSchema('タグ一覧'),
+        derives: optionalStringListSchema('frontmatter の derives 一覧'),
+        satisfies: optionalStringListSchema('frontmatter の satisfies 一覧'),
+        verifies: optionalStringListSchema('frontmatter の verifies 一覧'),
+        body: z.string().optional().describe('初期本文 (省略可)'),
+      },
+    },
+    async (args: {
+      path: string
+      title: string
+      type?: ArtifactType
+      description?: string
+      date?: string
+      tags?: string[]
+      derives?: string[]
+      satisfies?: string[]
+      verifies?: string[]
+      body?: string
+    }) => {
+      try {
+        const result = await scaffoldDocument(store.rootDir, getIndex(), args)
+        const nextIndex = await store.reload()
+        const validation = await buildValidationPayload(nextIndex, projectRoot)
+        return jsonResult({ ...result, validation })
+      } catch (e) {
+        if (e instanceof EditError) return errorResult(e.message)
+        throw e
+      }
+    },
+  )
+
+  registerTool(
+    'rename_block_id',
+    {
+      description:
+        '全 docs/ のブロック定義・参照・SourceRef および projectRoot 配下の @implements / @verifies / test("[id]") を一括リネームします。dryRun: true で変更予定一覧のみ確認できます。',
+      inputSchema: {
+        oldId: z.string().min(1).describe('変更前のブロック ID'),
+        newId: z.string().min(1).describe('変更後のブロック ID'),
+        dryRun: optionalBoolSchema('true のときファイルを変更せず対象箇所一覧のみ返却'),
+      },
+    },
+    async (args: { oldId: string; newId: string; dryRun?: boolean }) => {
+      try {
+        const result = await renameBlockIdAcrossProject(store.rootDir, projectRoot, getIndex(), args)
+        if (!result.dryRun && result.changes.length > 0) {
+          const nextIndex = await store.reload()
+          const validation = await buildValidationPayload(nextIndex, projectRoot)
+          return jsonResult({ ...result, validation })
+        }
+        return jsonResult(result)
+      } catch (e) {
+        if (e instanceof EditError) return errorResult(e.message)
+        throw e
+      }
     },
   )
 
@@ -396,8 +610,8 @@ function createDocumiMcpServer(getIndex: () => DocsIndex, projectRoot?: string):
 /**
  * Stateless な Streamable HTTP として MCP リクエストを処理する。
  */
-export async function handleMcpRequest(index: DocsIndex, request: Request, projectRoot?: string): Promise<Response> {
-  const server = createDocumiMcpServer(() => index, projectRoot)
+export async function handleMcpRequest(store: DocsStore, request: Request, projectRoot?: string): Promise<Response> {
+  const server = createDocumiMcpServer(store, projectRoot)
   const transport = new WebStandardStreamableHTTPServerTransport({ enableJsonResponse: true })
   await server.connect(transport)
   return transport.handleRequest(request)
@@ -408,7 +622,7 @@ export async function handleMcpRequest(index: DocsIndex, request: Request, proje
  * DocsStore から毎回最新インデックスを読むため、起動中の docs/ 変更も即時反映される。
  */
 export async function startMcpStdio(store: DocsStore, projectRoot?: string): Promise<McpServer> {
-  const server = createDocumiMcpServer(() => store.getIndex(), projectRoot)
+  const server = createDocumiMcpServer(store, projectRoot)
   const transport = new StdioServerTransport()
   await server.connect(transport)
   return server
