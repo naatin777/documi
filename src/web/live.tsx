@@ -1,12 +1,13 @@
 import { QueryClientProvider, useQueryClient } from '@tanstack/react-query'
 import { useEffect, useState, type ReactNode } from 'react'
+import { isStaticSite } from './api'
 import { createAppQueryClient } from './queries'
 
 function LiveEventSubscriber({ children }: { children: ReactNode }) {
   const queryClient = useQueryClient()
 
   useEffect(() => {
-    if (typeof EventSource === 'undefined') return
+    if (isStaticSite() || typeof EventSource === 'undefined') return
     const es = new EventSource('/api/events')
     const onReload = () => {
       void queryClient.invalidateQueries()

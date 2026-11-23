@@ -1,3 +1,5 @@
+import { isStaticSite } from './api'
+
 /**
  * 単一文書および複数文書バンドルの HTML / PDF / 印刷書き出しユーティリティ。
  */
@@ -99,7 +101,7 @@ export function buildBundleUrl(params: BundleExportParams): string {
   else qs.set('scope', params.scope || 'all')
   if (params.title) qs.set('title', params.title)
   if (params.action) qs.set('action', params.action)
-  return `/bundle?${qs.toString()}`
+  return isStaticSite() ? `#/bundle?${qs.toString()}` : `/bundle?${qs.toString()}`
 }
 
 /** 複数ドキュメントを /bundle 経由でサーバー側 PDF 生成してダウンロードする。 */

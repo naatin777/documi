@@ -53,6 +53,7 @@ import { createApp } from './server/app'
 import { startServer } from './server/index'
 import { startMcpStdio } from './server/mcp'
 import { PdfError, renderPdfFromUrl, renderStandaloneHtmlFromUrl } from './server/pdf'
+import { buildStaticSite } from './server/site'
 import { DocsStore } from './server/store'
 
 export interface CliIo {
@@ -77,6 +78,7 @@ Usage:
   documi check [options]                         ドキュメント・グラフ・ASTシンボル・テスト結果を一括検証
   documi approve <block-id...> [opts]            指定したセマンティックブロックを承認 (reviews.json を更新)
   documi export [options]                        複数ドキュメントを 1 冊の PDF / HTML にまとめて出力
+  documi build-site [options]                    GitHub Pages 等に公開できる読み取り専用静的サイトを生成
 
   [AI & 人間向け 読み取り・検索コマンド (すべて --json 対応)]
   documi map [options]                           Goal / Architecture / Outcome / 用語 / 統計を一括取得
@@ -139,7 +141,10 @@ Options:
   --format <pdf|html>     出力形式 (export 用、既定: pdf)
   --ids <a,b,c>           出力するドキュメント ID をカンマ区切りで指定 (export 用)
   --title <text>          表紙タイトル (export) / 文書・ブロックタイトル (scaffold / block)
-  --out <file>            出力先ファイルパス (export 用、既定: documi-bundle.pdf|html)
+  --out <file>            出力先ファイル／ディレクトリ (export 既定: documi-bundle.pdf|html / build-site 既定: ./dist-site)
+  --base <path>           静的サイトのアセットベースパス (build-site 用、既定: ./)
+  --no-code               Code Explorer / ソーススニペットを含めずに書き出す (build-site 用)
+  --revisions <n>         各文書で同梱する過去コミット版の最大件数 (build-site 用、既定: 5)
   --json                  JSON 形式で結果を出力
   -h, --help              ヘルプを表示`)
 }
@@ -163,6 +168,9 @@ const CLI_OPTIONS = {
   ids: { type: 'string' },
   title: { type: 'string' },
   out: { type: 'string' },
+  base: { type: 'string' },
+  'no-code': { type: 'boolean' },
+  revisions: { type: 'string' },
   strict: { type: 'boolean' },
   'no-review-edit': { type: 'boolean' },
   prs: { type: 'boolean' },
@@ -1015,6 +1023,33 @@ async function cmdScaffold(positionals: string[], flags: CliFlags, io: CliIo): P
   return 0
 }
 
+async function cmdBuildSite(flags: CliFlags, io: CliIo): Promise<number> {
+  const { docsDir, projectRoot, testReportPath } = resolveCliPaths(flags)
+  const outDir = path.resolve(typeof flags.out === 'string' ? flags.out : 'dist-site')
+  const basePath = typeof flags.base === 'string' ? flags.base : undefined
+  const maxRevisions = typeof flags.revisions === 'string' ? Number(flags.revisions) : undefined
+
+  try {
+    const result = await buildStaticSite({
+      docsDir,
+      projectRoot,
+      testReportPath,
+      outDir,
+      basePath,
+      includeCode: flags['no-code'] !== true,
+      maxRevisions: maxRevisions !== undefined && Number.isFinite(maxRevisions) ? maxRevisions : undefined,
+    })
+    io.out(`✓ Built static site → ${result.outDir}`)
+    io.out(
+      `  documents: ${result.documentCount}, revisions: ${result.revisionCount}, code files: ${result.codeFileCount}, snippets: ${result.sourceSnippetCount}, icons: ${result.iconCount}`,
+    )
+    return 0
+  } catch (error) {
+    io.err(`✗ Static site ビルド失敗: ${error instanceof Error ? error.message : String(error)}`)
+    return 1
+  }
+}
+
 /**
  * CLI エントリポイント（テストから直接呼び出せるように分離）。
  */
@@ -1032,6 +1067,7 @@ export async function runCli(argv: string[], io: CliIo = DEFAULT_IO): Promise<nu
     if (command === 'check') return await cmdCheck(flags, io)
     if (command === 'approve') return await cmdApprove(positionals, flags, io)
     if (command === 'export') return await cmdExport(flags, io)
+    if (command === 'build-site') return await cmdBuildSite(flags, io)
     if (command === 'map') return await cmdMap(flags, io)
     if (command === 'list') return await cmdList(flags, io)
     if (command === 'show') return await cmdShow(positionals, flags, io)

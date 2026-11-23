@@ -3,11 +3,12 @@ import { useTranslation } from 'react-i18next'
 import { Link } from 'react-router'
 import { STABILITIES } from '../../core/types'
 import type { BlockDiffResult, SemanticBlock, Stability } from '../../core/types'
-import { api } from '../api'
+import { api, isStaticSite } from '../api'
 
 /** ブロック単位の承認・Diff・Stability 変更・Realization 詳細・AI 向けフィードバック操作 UI */
 export default function BlockReviewControls({ block, onMutate }: { block: SemanticBlock; onMutate: () => void }) {
   const { t } = useTranslation()
+  const readOnly = isStaticSite()
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [showDiff, setShowDiff] = useState(false)
@@ -147,15 +148,19 @@ export default function BlockReviewControls({ block, onMutate }: { block: Semant
           </button>
         )}
 
-        <button
-          type="button"
-          className={`sem-action-btn sem-pill-${block.stability}`}
-          disabled={busy}
-          onClick={() => void handleCycleStability()}
-          title={t('blocks.stabilityTooltip')}
-        >
-          {t(`status.stability.${block.stability}`)}
-        </button>
+        {readOnly ? (
+          <span className={`sem-pill sem-pill-${block.stability}`}>{t(`status.stability.${block.stability}`)}</span>
+        ) : (
+          <button
+            type="button"
+            className={`sem-action-btn sem-pill-${block.stability}`}
+            disabled={busy}
+            onClick={() => void handleCycleStability()}
+            title={t('blocks.stabilityTooltip')}
+          >
+            {t(`status.stability.${block.stability}`)}
+          </button>
+        )}
 
         {block.review === 'stale' && (
           <button
@@ -168,16 +173,18 @@ export default function BlockReviewControls({ block, onMutate }: { block: Semant
           </button>
         )}
 
-        <button
-          type="button"
-          className={`sem-action-btn${showFeedback || openCount > 0 ? ' has-feedback' : ''}`}
-          disabled={busy}
-          onClick={() => setShowFeedback((v) => !v)}
-        >
-          💬 {openCount > 0 ? openCount : ''}
-        </button>
+        {(!readOnly || block.feedback.length > 0) && (
+          <button
+            type="button"
+            className={`sem-action-btn${showFeedback || openCount > 0 ? ' has-feedback' : ''}`}
+            disabled={busy}
+            onClick={() => setShowFeedback((v) => !v)}
+          >
+            💬 {openCount > 0 ? openCount : ''}
+          </button>
+        )}
 
-        {needsApproval && (
+        {!readOnly && needsApproval && (
           <button
             type="button"
             className="sem-action-btn sem-approve-btn"
@@ -322,32 +329,36 @@ export default function BlockReviewControls({ block, onMutate }: { block: Semant
                   <div className="sem-feedback-text">{fb.body}</div>
                   <div className="sem-feedback-meta">
                     <span>{fb.author}</span>
-                    <button
-                      type="button"
-                      className="sem-feedback-toggle"
-                      disabled={busy}
-                      onClick={() => void handleResolveFeedback(fb.id, !fb.resolved)}
-                    >
-                      {fb.resolved ? t('blocks.reopenFeedback') : t('blocks.resolveFeedback')}
-                    </button>
+                    {!readOnly && (
+                      <button
+                        type="button"
+                        className="sem-feedback-toggle"
+                        disabled={busy}
+                        onClick={() => void handleResolveFeedback(fb.id, !fb.resolved)}
+                      >
+                        {fb.resolved ? t('blocks.reopenFeedback') : t('blocks.resolveFeedback')}
+                      </button>
+                    )}
                   </div>
                 </li>
               ))}
             </ul>
           )}
-          <form className="sem-feedback-form" onSubmit={(e) => void handleSubmitFeedback(e)}>
-            <input
-              type="text"
-              className="sem-feedback-input"
-              value={draft}
-              onChange={(e) => setDraft(e.target.value)}
-              placeholder={t('blocks.feedbackPlaceholder')}
-              disabled={busy}
-            />
-            <button type="submit" className="sem-action-btn sem-approve-btn" disabled={busy || !draft.trim()}>
-              {t('common.submit')}
-            </button>
-          </form>
+          {!readOnly && (
+            <form className="sem-feedback-form" onSubmit={(e) => void handleSubmitFeedback(e)}>
+              <input
+                type="text"
+                className="sem-feedback-input"
+                value={draft}
+                onChange={(e) => setDraft(e.target.value)}
+                placeholder={t('blocks.feedbackPlaceholder')}
+                disabled={busy}
+              />
+              <button type="submit" className="sem-action-btn sem-approve-btn" disabled={busy || !draft.trim()}>
+                {t('common.submit')}
+              </button>
+            </form>
+          )}
         </div>
       )}
     </>

@@ -1,6 +1,7 @@
 import { File, Folder, FolderOpen } from 'lucide-react'
 import { useState } from 'react'
 import type { MaterialIconManifest } from '../../server/routes/icons'
+import { isStaticSite, staticAssetUrl } from '../api'
 import { useIconManifestQuery } from '../queries'
 import { useTheme } from '../theme'
 
@@ -66,7 +67,8 @@ export function resolveFolderIconId(
 }
 
 function iconSrc(iconId: string): string {
-  return `/api/icons/${encodeURIComponent(iconId)}.svg`
+  const encoded = encodeURIComponent(iconId)
+  return isStaticSite() ? staticAssetUrl(`data/icons/${encoded}.svg`) : `/api/icons/${encoded}.svg`
 }
 
 export function MaterialFileIcon({ name, size = 15, className }: { name: string; size?: number; className?: string }) {

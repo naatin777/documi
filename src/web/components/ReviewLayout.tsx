@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Link } from 'react-router'
 import type { BlockDiffResult } from '../../core/types'
-import { api, encodeDocId, type ReviewBlocksResponse } from '../api'
+import { api, encodeDocId, isStaticSite, type ReviewBlocksResponse } from '../api'
 import { toErrorMessage, useBlocksQuery, useInvalidateDocs } from '../queries'
 import DocPeekPane from './DocPeekPane'
 
@@ -253,7 +253,7 @@ function ReviewInboxCard({
           >
             {t('common.open')} ↗
           </Link>
-          {needsApprove && (
+          {!isStaticSite() && needsApprove && (
             <button type="button" className="sem-action-btn sem-approve-btn" disabled={busy} onClick={onApprove}>
               {busy ? t('common.processing') : t('review.approve')}
             </button>

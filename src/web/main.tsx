@@ -10,14 +10,17 @@ import '@fontsource-variable/jetbrains-mono'
 import './i18n'
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
-import { BrowserRouter } from 'react-router'
+import { BrowserRouter, HashRouter } from 'react-router'
+import { isStaticSite } from './api'
 import App from './App'
 import './styles.css'
 
+const Router = isStaticSite() ? HashRouter : BrowserRouter
+
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
-    <BrowserRouter>
+    <Router>
       <App />
-    </BrowserRouter>
+    </Router>
   </StrictMode>,
 )
