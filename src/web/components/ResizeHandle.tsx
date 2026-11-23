@@ -131,7 +131,15 @@ export default function ResizeHandle({
     }
   }
 
-  const classes = ['resize-handle', className ?? '', dragging ? 'dragging' : ''].filter(Boolean).join(' ')
+  const classes = [
+    'relative z-25 w-0 flex-[0_0_0] cursor-col-resize touch-none max-[900px]:hidden print:hidden',
+    'before:content-[""] before:absolute before:inset-y-0 before:-left-1 before:w-[9px]',
+    'after:content-[""] after:absolute after:inset-y-0 after:-left-px after:w-0.5 after:transition-colors after:duration-120',
+    dragging ? 'after:bg-accent' : 'after:bg-transparent hover:after:bg-accent focus-visible:after:bg-accent',
+    className ?? '',
+  ]
+    .filter(Boolean)
+    .join(' ')
 
   return (
     <div

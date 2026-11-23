@@ -68,28 +68,9 @@
 }
 
 @media print {
-  .topbar,
-  .resize-handle,
-  .explorer,
-  .doc-tabs,
-  .side-panel,
-  .nav-overlay,
   .codeblock-toolbar,
-  .mermaid-zoom,
-  .theme-toggle,
-  .topbar-action,
   .issues-panel {
     display: none !important;
-  }
-
-  .app,
-  .workspace,
-  .doccols,
-  .content {
-    display: block !important;
-    height: auto !important;
-    min-height: 0 !important;
-    overflow: visible !important;
   }
 
   .page {

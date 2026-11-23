@@ -43,7 +43,6 @@ export default function ReviewLayout() {
     })
   }, [data, filter])
 
-  // 要確認が 0 件で未承認がある場合は初回だけ分かりやすく案内する
   const handleApprove = async (blockId: string) => {
     setBusyId(blockId)
     setActionError(null)
@@ -76,10 +75,17 @@ export default function ReviewLayout() {
     }
   }
 
+  const filterTabClass = (active: boolean) =>
+    `inline-flex cursor-pointer items-center gap-1.5 rounded-full border px-3 py-1.5 text-[12.5px] font-semibold ${
+      active
+        ? 'border-accent bg-accent text-surface'
+        : 'border-line bg-sidebar text-fg-muted hover:border-accent hover:text-fg'
+    }`
+
   return (
     <>
-      <main className="content">
-        <article className="page review-page">
+      <main className="relative min-h-0 min-w-0 flex-1 overflow-y-auto bg-surface max-[900px]:flex-none max-[900px]:overflow-visible">
+        <article className="page">
           <header className="doc-header">
             <div className="doc-badges">
               <span className="badge badge-type">{t('review.badge')}</span>
@@ -92,59 +98,60 @@ export default function ReviewLayout() {
 
           {data && (
             <>
-              <div className="review-filter-tabs" role="tablist" aria-label={t('review.filterAria')}>
+              <div className="my-4 mb-5 flex flex-wrap gap-1.5" role="tablist" aria-label={t('review.filterAria')}>
                 <button
                   type="button"
                   role="tab"
                   aria-selected={filter === 'attention'}
-                  className={`review-filter-tab${filter === 'attention' ? ' active' : ''}`}
+                  className={filterTabClass(filter === 'attention')}
                   onClick={() => setFilter('attention')}
                 >
-                  {t('review.filters.attention')} <span className="review-tab-count">{attentionCount}</span>
+                  {t('review.filters.attention')} <span className="text-[11px] opacity-80">{attentionCount}</span>
                 </button>
                 <button
                   type="button"
                   role="tab"
                   aria-selected={filter === 'feedback'}
-                  className={`review-filter-tab${filter === 'feedback' ? ' active' : ''}`}
+                  className={filterTabClass(filter === 'feedback')}
                   onClick={() => setFilter('feedback')}
                 >
-                  {t('review.filters.feedback')} <span className="review-tab-count">{feedbackBlockCount}</span>
+                  {t('review.filters.feedback')} <span className="text-[11px] opacity-80">{feedbackBlockCount}</span>
                 </button>
                 <button
                   type="button"
                   role="tab"
                   aria-selected={filter === 'unreviewed'}
-                  className={`review-filter-tab${filter === 'unreviewed' ? ' active' : ''}`}
+                  className={filterTabClass(filter === 'unreviewed')}
                   onClick={() => setFilter('unreviewed')}
                 >
-                  {t('review.filters.unreviewed')} <span className="review-tab-count">{data.counts.unreviewed}</span>
+                  {t('review.filters.unreviewed')}{' '}
+                  <span className="text-[11px] opacity-80">{data.counts.unreviewed}</span>
                 </button>
                 <button
                   type="button"
                   role="tab"
                   aria-selected={filter === 'approved'}
-                  className={`review-filter-tab${filter === 'approved' ? ' active' : ''}`}
+                  className={filterTabClass(filter === 'approved')}
                   onClick={() => setFilter('approved')}
                 >
-                  {t('review.filters.approved')} <span className="review-tab-count">{data.counts.approved}</span>
+                  {t('review.filters.approved')} <span className="text-[11px] opacity-80">{data.counts.approved}</span>
                 </button>
                 <button
                   type="button"
                   role="tab"
                   aria-selected={filter === 'all'}
-                  className={`review-filter-tab${filter === 'all' ? ' active' : ''}`}
+                  className={filterTabClass(filter === 'all')}
                   onClick={() => setFilter('all')}
                 >
-                  {t('review.filters.all')} <span className="review-tab-count">{data.blocks.length}</span>
+                  {t('review.filters.all')} <span className="text-[11px] opacity-80">{data.blocks.length}</span>
                 </button>
               </div>
 
               {filtered.length === 0 ? (
-                <div className="review-empty-state">
+                <div className="rounded-[10px] border border-dashed border-line px-5 py-7 text-center text-fg-muted">
                   {filter === 'attention' ? (
                     <>
-                      <p>{t('review.emptyAttention')}</p>
+                      <p className="m-0 mb-3">{t('review.emptyAttention')}</p>
                       {data.counts.unreviewed > 0 && (
                         <button type="button" className="button" onClick={() => setFilter('unreviewed')}>
                           {t('review.checkUnreviewed', { count: data.counts.unreviewed })}
@@ -152,11 +159,11 @@ export default function ReviewLayout() {
                       )}
                     </>
                   ) : (
-                    <p>{t('review.emptyFiltered')}</p>
+                    <p className="m-0">{t('review.emptyFiltered')}</p>
                   )}
                 </div>
               ) : (
-                <div className="review-inbox-list">
+                <div className="flex flex-col gap-3">
                   {filtered.map((block) => (
                     <ReviewInboxCard
                       key={block.id}
@@ -206,13 +213,14 @@ function ReviewInboxCard({
   const { t } = useTranslation()
   const openFeedback = block.feedback.filter((f) => !f.resolved)
   const needsApprove = block.review !== 'approved' || block.suspect
+  const isAttention = block.review === 'stale' || block.suspect
 
   return (
     <section
-      className={`review-card${block.review === 'stale' ? ' is-stale' : ''}${block.suspect ? ' is-suspect' : ''}`}
+      className={`rounded-[10px] border bg-sidebar px-4 py-3.5 ${isAttention ? 'border-amber-600' : 'border-line'}`}
     >
-      <header className="review-card-head">
-        <div className="review-card-id-group">
+      <header className="mb-1.5 flex flex-wrap items-center justify-between gap-2">
+        <div className="flex flex-wrap items-center gap-1.5">
           <span className={`sem-kind sem-kind-${block.kind}`}>{block.kind.toUpperCase()}</span>
           <code className="sem-id">{block.id}</code>
           <span className={`sem-review-badge sem-review-${block.review}`}>
@@ -229,7 +237,7 @@ function ReviewInboxCard({
             </span>
           )}
         </div>
-        <div className="review-card-actions">
+        <div className="flex items-center gap-1.5">
           {block.review === 'stale' && (
             <button type="button" className="sem-action-btn" onClick={onToggleDiff}>
               {diffOpen ? t('review.closeDiff') : t('review.diff')}
@@ -240,7 +248,7 @@ function ReviewInboxCard({
           </button>
           <Link
             to={`/docs/${encodeDocId(block.docId)}#block-${encodeURIComponent(block.id)}`}
-            className="sem-action-btn review-card-open-link"
+            className="sem-action-btn no-underline"
           >
             {t('common.open')} ↗
           </Link>
@@ -252,28 +260,33 @@ function ReviewInboxCard({
         </div>
       </header>
 
-      <div className="review-card-doc">
-        <Link to={`/docs/${encodeDocId(block.docId)}`}>{block.docTitle}</Link>
-        <span className="mono">{block.docPath}</span>
+      <div className="mb-2 flex items-baseline gap-2 text-[12.5px]">
+        <Link to={`/docs/${encodeDocId(block.docId)}`} className="font-semibold text-fg no-underline hover:underline">
+          {block.docTitle}
+        </Link>
+        <span className="mono text-[11px] text-fg-muted">{block.docPath}</span>
       </div>
 
-      <p className="review-card-body">{block.rawBody}</p>
+      <p className="m-0 whitespace-pre-wrap text-[13.5px] leading-[1.65]">{block.rawBody}</p>
 
       {block.suspect && block.suspectSources.length > 0 && (
-        <div className="sem-suspect-banner">
+        <div className="sem-suspect-banner mt-2 rounded-md border">
           {t('review.suspectBanner', { sources: block.suspectSources.join(', ') })}
         </div>
       )}
 
       {diffOpen && diff && (
-        <div className="sem-diff-box">
+        <div className="sem-diff-panel mt-2.5 overflow-hidden rounded-md border border-line">
           {!diff.hasBase ? (
-            <p className="muted">{t('review.noBaseSnapshot')}</p>
+            <p className="sem-diff-empty muted">{t('review.noBaseSnapshot')}</p>
           ) : (
-            <pre className="sem-diff-pre">
+            <pre className="sem-diff-lines">
               {diff.lines.map((line, i) => (
-                <div key={i} className={`diff-line diff-${line.type}`}>
-                  <span className="diff-sign">{line.type === 'add' ? '+' : line.type === 'del' ? '-' : ' '}</span>
+                <div
+                  key={i}
+                  className={`sem-diff-line ${line.type === 'add' ? 'sem-diff-add' : line.type === 'del' ? 'sem-diff-del' : ''}`}
+                >
+                  <span className="sem-diff-mark">{line.type === 'add' ? '+' : line.type === 'del' ? '-' : ' '}</span>
                   <span>{line.text}</span>
                 </div>
               ))}
@@ -283,7 +296,7 @@ function ReviewInboxCard({
       )}
 
       {openFeedback.length > 0 && (
-        <ul className="review-card-feedback">
+        <ul className="m-0 mt-2.5 flex list-none flex-col gap-1 rounded-md border border-line bg-surface px-3 py-2 text-[12.5px]">
           {openFeedback.map((fb) => (
             <li key={fb.id}>
               <strong>{fb.author}:</strong> {fb.body}

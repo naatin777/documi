@@ -101,7 +101,11 @@ export default function SearchModal({ open, onClose }: SearchModalProps) {
           >
             <div className="flex flex-wrap items-center gap-1.5">
               <span className={`badge badge-type type-${hit.type}`}>{t(`types.singular.${hit.type}`)}</span>
-              {hit.blockKind && <span className="rp-block-kind">{hit.blockKind}</span>}
+              {hit.blockKind && (
+                <span className="shrink-0 rounded bg-accent-soft px-[5px] py-px text-[10px] font-bold text-fg-muted uppercase">
+                  {hit.blockKind}
+                </span>
+              )}
               <strong className="text-[13.5px]">{hit.title}</strong>
               <span className="mono ml-auto text-[11px] text-fg-muted">{hit.docId}</span>
             </div>

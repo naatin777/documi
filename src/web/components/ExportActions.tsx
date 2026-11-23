@@ -130,10 +130,20 @@ export default function ExportActions() {
     })
   }
 
+  const chipClass = (active: boolean) =>
+    `cursor-pointer rounded-full border px-2.5 py-1 text-xs font-semibold ${
+      active ? 'border-accent bg-accent text-surface' : 'border-line bg-subtle text-fg-muted hover:text-fg'
+    }`
+
   return (
     <>
       <AppTooltip label={t('export.buttonTitle')}>
-        <button type="button" className="topbar-action" onClick={() => setOpen(true)} aria-label="Export">
+        <button
+          type="button"
+          className="flex h-7 w-7 cursor-pointer items-center justify-center rounded-md border-0 bg-transparent text-fg-muted hover:bg-hover hover:text-fg print:hidden"
+          onClick={() => setOpen(true)}
+          aria-label="Export"
+        >
           <ExportIcon />
         </button>
       </AppTooltip>
@@ -150,57 +160,37 @@ export default function ExportActions() {
         </header>
 
         <div className="grid gap-3.5 overflow-y-auto px-4 py-3.5">
-          <div className="export-field">
-            <span className="export-label">{t('export.targetLabel')}</span>
-            <div className="export-modes">
+          <div className="grid gap-1.5">
+            <span className="text-xs font-bold text-fg-muted">{t('export.targetLabel')}</span>
+            <div className="flex flex-wrap gap-1.5">
               {isDocPage && (
-                <button
-                  type="button"
-                  className={`export-mode-chip${mode === 'current' ? ' active' : ''}`}
-                  onClick={() => setMode('current')}
-                >
+                <button type="button" className={chipClass(mode === 'current')} onClick={() => setMode('current')}>
                   {t('export.currentDoc')}
                 </button>
               )}
-              <button
-                type="button"
-                className={`export-mode-chip${mode === 'all' ? ' active' : ''}`}
-                onClick={() => setMode('all')}
-              >
+              <button type="button" className={chipClass(mode === 'all')} onClick={() => setMode('all')}>
                 {t('export.allDocs', { count: docs.length })}
               </button>
-              <button
-                type="button"
-                className={`export-mode-chip${mode === 'goal' ? ' active' : ''}`}
-                onClick={() => setMode('goal')}
-              >
+              <button type="button" className={chipClass(mode === 'goal')} onClick={() => setMode('goal')}>
                 {t('export.goalBundle')}
               </button>
-              <button
-                type="button"
-                className={`export-mode-chip${mode === 'dir' ? ' active' : ''}`}
-                onClick={() => setMode('dir')}
-              >
+              <button type="button" className={chipClass(mode === 'dir')} onClick={() => setMode('dir')}>
                 {t('export.directory')}
               </button>
-              <button
-                type="button"
-                className={`export-mode-chip${mode === 'custom' ? ' active' : ''}`}
-                onClick={() => setMode('custom')}
-              >
+              <button type="button" className={chipClass(mode === 'custom')} onClick={() => setMode('custom')}>
                 {t('export.customSelection', { count: customIds.size })}
               </button>
             </div>
           </div>
 
           {mode === 'goal' && (
-            <div className="export-field">
-              <label className="export-label" htmlFor="export-goal-select">
+            <div className="grid gap-1.5">
+              <label className="text-xs font-bold text-fg-muted" htmlFor="export-goal-select">
                 {t('export.rootGoal')}
               </label>
               <select
                 id="export-goal-select"
-                className="export-select"
+                className="w-full rounded-[7px] border border-line bg-surface px-2.5 py-[7px] text-[13px] text-fg"
                 value={selectedGoal}
                 onChange={(e) => setSelectedGoal(e.target.value)}
               >
@@ -214,13 +204,13 @@ export default function ExportActions() {
           )}
 
           {mode === 'dir' && (
-            <div className="export-field">
-              <label className="export-label" htmlFor="export-dir-select">
+            <div className="grid gap-1.5">
+              <label className="text-xs font-bold text-fg-muted" htmlFor="export-dir-select">
                 {t('export.targetDir')}
               </label>
               <select
                 id="export-dir-select"
-                className="export-select"
+                className="w-full rounded-[7px] border border-line bg-surface px-2.5 py-[7px] text-[13px] text-fg"
                 value={selectedDir}
                 onChange={(e) => setSelectedDir(e.target.value)}
               >
@@ -234,12 +224,12 @@ export default function ExportActions() {
           )}
 
           {mode === 'custom' && (
-            <div className="export-field">
-              <span className="export-label">{t('export.selectDocs')}</span>
-              <ul className="export-doc-list">
+            <div className="grid gap-1.5">
+              <span className="text-xs font-bold text-fg-muted">{t('export.selectDocs')}</span>
+              <ul className="m-0 grid max-h-[200px] list-none gap-1 overflow-y-auto rounded-lg border border-line p-1.5">
                 {docs.map((d) => (
                   <li key={d.id}>
-                    <label className="export-doc-check">
+                    <label className="flex cursor-pointer items-center gap-2 px-1 py-[3px] text-[12.5px]">
                       <input type="checkbox" checked={customIds.has(d.id)} onChange={() => toggleCustomId(d.id)} />
                       <span className={`badge badge-type type-${d.type}`}>{t(`types.singular.${d.type}`)}</span>
                       <span>{d.title}</span>
@@ -252,14 +242,14 @@ export default function ExportActions() {
           )}
 
           {mode !== 'current' && (
-            <div className="export-field">
-              <label className="export-label" htmlFor="export-title-input">
+            <div className="grid gap-1.5">
+              <label className="text-xs font-bold text-fg-muted" htmlFor="export-title-input">
                 {t('export.coverTitle')}
               </label>
               <input
                 id="export-title-input"
                 type="text"
-                className="export-input"
+                className="w-full rounded-[7px] border border-line bg-surface px-2.5 py-[7px] text-[13px] text-fg"
                 value={customTitle}
                 onChange={(e) => setCustomTitle(e.target.value)}
                 placeholder={t('export.coverTitlePlaceholder')}
@@ -267,7 +257,7 @@ export default function ExportActions() {
             </div>
           )}
 
-          {message && <p className="export-message">{message}</p>}
+          {message && <p className="m-0 text-[12.5px] text-amber-700 dark:text-amber-400">{message}</p>}
         </div>
 
         <footer className="flex justify-end gap-2 border-t border-line bg-sidebar px-4 py-3">

@@ -1,15 +1,8 @@
-@layer theme, base, legacy, components, utilities;
-
 @import 'tailwindcss/theme.css' layer(theme);
 @import './styles/tokens.css' layer(base);
-@import './styles/layout.css' layer(legacy);
-@import './styles/panels.css' layer(legacy);
-@import './styles/document.css' layer(legacy);
-@import './styles/semantic.css' layer(legacy);
-@import './styles/views.css' layer(legacy);
-@import './styles/modals.css' layer(legacy);
-@import './styles/responsive.css' layer(legacy);
-@import './styles/print.css' layer(legacy);
+@import './styles/document.css' layer(components);
+@import './styles/semantic.css' layer(components);
+@import './styles/print.css' layer(components);
 @import 'tailwindcss/utilities.css' layer(utilities);
 
 @custom-variant dark (&:where([data-theme="dark"], [data-theme="dark"] *));

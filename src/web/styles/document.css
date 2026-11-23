@@ -704,3 +704,39 @@
 .markdown .md-raw {
   padding: 10px 14px;
 }
+
+.mdx-tabs-expanded {
+  display: grid;
+  gap: 10px;
+  border: none;
+  background: transparent;
+}
+
+.mdx-tab-expanded-item {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.mdx-tab-expanded-label {
+  padding: 5px 12px;
+  font-size: 12px;
+  font-weight: 700;
+  background: var(--bg-subtle);
+  border-bottom: 1px solid var(--border);
+}
+
+@media (max-width: 900px) {
+  .page {
+    padding: 24px 20px 64px;
+  }
+
+  .markdown h1,
+  .markdown h2,
+  .markdown h3,
+  .markdown h4,
+  .markdown h5,
+  .markdown h6 {
+    scroll-margin-top: calc(var(--topbar-height) + 16px);
+  }
+}

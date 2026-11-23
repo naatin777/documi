@@ -74,7 +74,7 @@ export function ThemeToggle() {
     <AppTooltip label={t('theme.tooltip', { mode: modeLabel })}>
       <button
         type="button"
-        className="theme-toggle"
+        className="flex h-7 w-7 cursor-pointer items-center justify-center rounded-md border-0 bg-transparent text-fg-muted hover:bg-hover hover:text-fg print:hidden"
         aria-label={t('theme.ariaLabel', { mode: modeLabel })}
         onClick={() => setMode(next)}
       >

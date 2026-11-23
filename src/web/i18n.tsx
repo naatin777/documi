@@ -114,7 +114,7 @@ export function LanguageToggle() {
     <Menu.Root>
       <AppTooltip label={`${t('lang.label')}: ${activeLocale.nativeLabel}`}>
         <Menu.Trigger
-          className="topbar-action data-[popup-open]:bg-hover data-[popup-open]:text-fg"
+          className="flex h-7 w-7 cursor-pointer items-center justify-center rounded-md border-0 bg-transparent text-fg-muted hover:bg-hover hover:text-fg data-[popup-open]:bg-hover data-[popup-open]:text-fg print:hidden"
           aria-label={t('lang.switchAria', { language: activeLocale.nativeLabel })}
         >
           <Globe size={14} strokeWidth={1.75} aria-hidden="true" />

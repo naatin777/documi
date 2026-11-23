@@ -354,25 +354,34 @@ export default function SigmaGraph({ data, selectedNodeId, onSelectNode }: Sigma
     setQuery('')
   }
 
+  const ctrlBtnClass = (active = false) =>
+    `flex h-[30px] w-[30px] cursor-pointer items-center justify-center rounded-lg border text-[15px] font-bold shadow-[0_4px_12px_rgba(0,0,0,0.08)] ${
+      active ? 'border-accent bg-accent text-surface' : 'border-line bg-surface text-fg hover:bg-hover'
+    }`
+
   return (
-    <div className="sigma-wrapper sigma-full">
-      <div className="sigma-overlay-top">
-        <div className="sigma-search">
+    <div className="relative flex flex-1 flex-col overflow-hidden bg-sidebar">
+      <div className="pointer-events-none absolute top-3 right-3 left-3 z-15 flex items-start justify-between gap-2.5">
+        <div className="pointer-events-auto relative w-[min(280px,65%)]">
           <input
             type="search"
-            className="sigma-search-input"
+            className="w-full rounded-lg border border-line bg-surface px-2.5 py-1.5 text-[12.5px] text-fg shadow-[0_4px_12px_rgba(0,0,0,0.08)]"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder={t('graph.searchNodePlaceholder')}
           />
           {matchingNodes.length > 0 && (
-            <ul className="sigma-search-dropdown">
+            <ul className="absolute top-[calc(100%+4px)] right-0 left-0 m-0 max-h-[220px] list-none overflow-y-auto rounded-lg border border-line bg-surface p-1 shadow-[0_10px_24px_rgba(0,0,0,0.14)]">
               {matchingNodes.map((n) => (
                 <li key={n.id}>
-                  <button type="button" className="sigma-search-item" onClick={() => focusNode(n.id)}>
-                    <span className="sigma-dot" style={{ background: TYPE_COLORS[n.type] }} />
+                  <button
+                    type="button"
+                    className="flex w-full cursor-pointer items-center gap-1.5 rounded-md border-0 bg-transparent px-2 py-1.5 text-left text-xs text-fg hover:bg-hover"
+                    onClick={() => focusNode(n.id)}
+                  >
+                    <span className="h-2 w-2 shrink-0 rounded-full" style={{ background: TYPE_COLORS[n.type] }} />
                     <span>{n.title}</span>
-                    <span className="muted mono">{n.id}</span>
+                    <span className="muted mono ml-auto text-[10.5px]">{n.id}</span>
                   </button>
                 </li>
               ))}
@@ -380,10 +389,10 @@ export default function SigmaGraph({ data, selectedNodeId, onSelectNode }: Sigma
           )}
         </div>
 
-        <div className="sigma-controls">
+        <div className="pointer-events-auto flex gap-1">
           <button
             type="button"
-            className="sigma-ctrl-btn"
+            className={ctrlBtnClass()}
             onClick={() => void sigmaRef.current?.getCamera().zoomIn({ duration: 220 })}
             title={t('graph.zoomIn')}
             aria-label={t('graph.zoomIn')}
@@ -392,7 +401,7 @@ export default function SigmaGraph({ data, selectedNodeId, onSelectNode }: Sigma
           </button>
           <button
             type="button"
-            className="sigma-ctrl-btn"
+            className={ctrlBtnClass()}
             onClick={() => void sigmaRef.current?.getCamera().zoomOut({ duration: 220 })}
             title={t('graph.zoomOut')}
             aria-label={t('graph.zoomOut')}
@@ -401,7 +410,7 @@ export default function SigmaGraph({ data, selectedNodeId, onSelectNode }: Sigma
           </button>
           <button
             type="button"
-            className="sigma-ctrl-btn"
+            className={ctrlBtnClass()}
             onClick={() => {
               onSelectNode(null)
               void sigmaRef.current?.getCamera().reset({ duration: 280 })
@@ -413,7 +422,7 @@ export default function SigmaGraph({ data, selectedNodeId, onSelectNode }: Sigma
           </button>
           <button
             type="button"
-            className="sigma-ctrl-btn"
+            className={ctrlBtnClass()}
             onClick={() => shakeRef.current?.()}
             title={t('graph.resimulate')}
             aria-label={t('graph.resimulate')}
@@ -422,7 +431,7 @@ export default function SigmaGraph({ data, selectedNodeId, onSelectNode }: Sigma
           </button>
           <button
             type="button"
-            className={`sigma-ctrl-btn${showForces ? ' active' : ''}`}
+            className={ctrlBtnClass(showForces)}
             onClick={() => setShowForces((v) => !v)}
             title={t('graph.forcesSettings')}
             aria-label={t('graph.forcesLabel')}
@@ -433,8 +442,8 @@ export default function SigmaGraph({ data, selectedNodeId, onSelectNode }: Sigma
       </div>
 
       {showForces && (
-        <div className="sigma-forces-panel">
-          <div className="sigma-forces-head">
+        <div className="absolute top-[52px] right-3 z-20 grid w-[220px] gap-2 rounded-[10px] border border-line bg-surface px-3 py-2.5 text-xs shadow-[0_10px_28px_rgba(0,0,0,0.16)]">
+          <div className="flex items-center justify-between">
             <strong>Forces</strong>
             <button
               type="button"
@@ -447,10 +456,11 @@ export default function SigmaGraph({ data, selectedNodeId, onSelectNode }: Sigma
               {t('common.reset')}
             </button>
           </div>
-          <label className="sigma-slider">
+          <label className="grid gap-[3px] text-[11.5px] text-fg-muted">
             <span>Center force</span>
             <input
               type="range"
+              className="w-full accent-[var(--accent)]"
               min={0.01}
               max={0.25}
               step={0.005}
@@ -458,10 +468,11 @@ export default function SigmaGraph({ data, selectedNodeId, onSelectNode }: Sigma
               onChange={(e) => updateForce('centerForce', Number(e.target.value))}
             />
           </label>
-          <label className="sigma-slider">
+          <label className="grid gap-[3px] text-[11.5px] text-fg-muted">
             <span>Repel force</span>
             <input
               type="range"
+              className="w-full accent-[var(--accent)]"
               min={40}
               max={320}
               step={10}
@@ -469,10 +480,11 @@ export default function SigmaGraph({ data, selectedNodeId, onSelectNode }: Sigma
               onChange={(e) => updateForce('repelForce', Number(e.target.value))}
             />
           </label>
-          <label className="sigma-slider">
+          <label className="grid gap-[3px] text-[11.5px] text-fg-muted">
             <span>Link force</span>
             <input
               type="range"
+              className="w-full accent-[var(--accent)]"
               min={0.01}
               max={0.2}
               step={0.005}
@@ -480,10 +492,11 @@ export default function SigmaGraph({ data, selectedNodeId, onSelectNode }: Sigma
               onChange={(e) => updateForce('linkForce', Number(e.target.value))}
             />
           </label>
-          <label className="sigma-slider">
+          <label className="grid gap-[3px] text-[11.5px] text-fg-muted">
             <span>Link distance</span>
             <input
               type="range"
+              className="w-full accent-[var(--accent)]"
               min={14}
               max={70}
               step={2}
@@ -495,23 +508,26 @@ export default function SigmaGraph({ data, selectedNodeId, onSelectNode }: Sigma
       )}
 
       {webglError ? (
-        <div className="sigma-fallback">
+        <div className="px-5 py-10 text-center">
           <p className="error-text">{webglError}</p>
         </div>
       ) : (
-        <div ref={containerRef} className="sigma-stage sigma-stage-full" />
+        <div
+          ref={containerRef}
+          className="relative min-h-[460px] w-full flex-1 bg-[radial-gradient(circle_at_center,var(--bg)_0%,var(--bg-sidebar)_100%)]"
+        />
       )}
 
-      <div className="sigma-legend">
-        <div className="sigma-legend-group">
+      <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 border-t border-line bg-surface px-3 py-2 text-[11.5px] text-fg-muted">
+        <div className="flex flex-wrap gap-2.5">
           {(Object.keys(TYPE_COLORS) as ArtifactType[]).map((type) => (
-            <span key={type} className="sigma-legend-item">
-              <span className="sigma-dot" style={{ background: TYPE_COLORS[type] }} />
+            <span key={type} className="inline-flex items-center gap-[5px]">
+              <span className="h-2 w-2 shrink-0 rounded-full" style={{ background: TYPE_COLORS[type] }} />
               {t(`types.singular.${type}`)}
             </span>
           ))}
         </div>
-        <div className="sigma-legend-hint">{t('graph.hint')}</div>
+        <div className="text-[11px]">{t('graph.hint')}</div>
       </div>
     </div>
   )

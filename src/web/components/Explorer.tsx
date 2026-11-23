@@ -32,13 +32,22 @@ const READING_FLOW_ORDER: readonly ArtifactType[] = [
 
 interface ExplorerProps {
   reviewBadgeCount: number
+  navOpen?: boolean
+  sidebarOpen?: boolean
   onClose: () => void
   onOpenSearch: () => void
   resizeHandle?: ReactNode
 }
 
 // @implements ui.explorer-modes
-export default function Explorer({ reviewBadgeCount, onClose, onOpenSearch, resizeHandle }: ExplorerProps) {
+export default function Explorer({
+  reviewBadgeCount,
+  navOpen = false,
+  sidebarOpen = true,
+  onClose,
+  onOpenSearch,
+  resizeHandle,
+}: ExplorerProps) {
   const { t } = useTranslation()
   const [mode, setMode] = useState<DocListMode>('flow')
   const [collapsedDirs, setCollapsedDirs] = useState<ReadonlySet<string>>(new Set())
@@ -78,78 +87,98 @@ export default function Explorer({ reviewBadgeCount, onClose, onOpenSearch, resi
     })
   }
 
+  const primaryNavClass = ({ isActive }: { isActive: boolean }) =>
+    `flex items-center gap-2 rounded-md px-2.5 py-1.5 text-[13px] font-semibold no-underline ${
+      isActive ? 'bg-accent-soft text-fg' : 'text-fg-muted hover:bg-hover hover:text-fg'
+    }`
+
   return (
-    <aside className="explorer" aria-label={t('nav.navigation')}>
-      <div className="explorer-header">
-        <NavLink to="/" className="brand brand-link" onClick={onClose}>
+    <aside
+      className={`relative flex min-h-0 flex-col border-r border-line bg-sidebar ${sidebarOpen ? '' : 'min-[901px]:hidden'} max-[900px]:fixed max-[900px]:inset-y-0 max-[900px]:left-0 max-[900px]:z-60 max-[900px]:w-[min(300px,85vw)] max-[900px]:shadow-[4px_0_16px_rgba(15,23,42,0.12)] max-[900px]:transition-transform max-[900px]:duration-150 motion-reduce:transition-none ${navOpen ? 'max-[900px]:translate-x-0' : 'max-[900px]:-translate-x-[105%]'} print:hidden`}
+      aria-label={t('nav.navigation')}
+    >
+      <div className="flex h-[var(--tabs-height)] shrink-0 items-center justify-between border-b border-line pr-2.5 pl-3.5">
+        <NavLink
+          to="/"
+          className="inline-flex items-center gap-2 text-[15.5px] font-bold tracking-[-0.01em] text-inherit no-underline"
+          onClick={onClose}
+        >
           <BrandMark size={20} />
           <span>Documi</span>
         </NavLink>
-        <div className="explorer-actions">
+        <div className="flex items-center gap-0.5">
           <ExportActions />
           <LanguageToggle />
           <ThemeToggle />
-          <button type="button" className="explorer-close" onClick={onClose} aria-label={t('nav.closeMenu')}>
+          <button
+            type="button"
+            className="hidden h-7 w-7 cursor-pointer items-center justify-center rounded-md border-0 bg-transparent text-fg-muted hover:bg-hover hover:text-fg max-[900px]:flex"
+            onClick={onClose}
+            aria-label={t('nav.closeMenu')}
+          >
             <X size={16} strokeWidth={1.75} aria-hidden="true" />
           </button>
         </div>
       </div>
 
-      <div className="explorer-search-wrap">
-        <button type="button" className="explorer-search-btn" onClick={onOpenSearch}>
-          <span className="explorer-search-label">
+      <div className="px-2.5 pt-2 pb-1">
+        <button
+          type="button"
+          className="flex w-full cursor-pointer items-center justify-between rounded-[7px] border border-line bg-surface px-2.5 py-1.5 text-[12.5px] text-fg-muted hover:border-fg-muted hover:text-fg"
+          onClick={onOpenSearch}
+        >
+          <span className="inline-flex items-center gap-1.5">
             <Search size={13} strokeWidth={1.8} aria-hidden="true" />
             <span>{t('nav.searchPlaceholder')}</span>
           </span>
-          <kbd className="explorer-kbd">⌘K</kbd>
+          <kbd className="rounded border border-line bg-subtle px-[5px] py-px font-mono text-[11px]">⌘K</kbd>
         </button>
       </div>
 
-      <div className="explorer-primary-nav" role="navigation" aria-label={t('nav.primaryViews')}>
-        <NavLink
-          to="/"
-          end
-          className={({ isActive }) => `nav-primary-item${isActive ? ' active' : ''}`}
-          onClick={onClose}
-        >
+      <div
+        className="flex flex-col gap-0.5 border-b border-line px-2 pt-1.5 pb-2"
+        role="navigation"
+        aria-label={t('nav.primaryViews')}
+      >
+        <NavLink to="/" end className={primaryNavClass} onClick={onClose}>
           <HomeIcon />
           <span>{t('nav.home')}</span>
         </NavLink>
-        <NavLink
-          to="/review"
-          className={({ isActive }) => `nav-primary-item${isActive ? ' active' : ''}`}
-          onClick={onClose}
-        >
+        <NavLink to="/review" className={primaryNavClass} onClick={onClose}>
           <ReviewIcon />
           <span>{t('nav.reviewQueue')}</span>
-          {reviewBadgeCount > 0 && <span className="nav-badge warn">{reviewBadgeCount}</span>}
+          {reviewBadgeCount > 0 && (
+            <span className="ml-auto h-[18px] min-w-[18px] rounded-full bg-amber-600/16 px-1.5 text-center text-[10.5px] leading-[18px] font-bold text-amber-700 tabular-nums dark:text-amber-500">
+              {reviewBadgeCount}
+            </span>
+          )}
         </NavLink>
-        <NavLink
-          to="/graph"
-          className={({ isActive }) => `nav-primary-item${isActive ? ' active' : ''}`}
-          onClick={onClose}
-        >
+        <NavLink to="/graph" className={primaryNavClass} onClick={onClose}>
           <GraphIcon />
           <span>{t('nav.graphMatrix')}</span>
         </NavLink>
-        <NavLink
-          to="/code"
-          className={({ isActive }) => `nav-primary-item${isActive ? ' active' : ''}`}
-          onClick={onClose}
-        >
-          <FileCode2 size={15} strokeWidth={1.75} className="nav-primary-icon" aria-hidden="true" />
+        <NavLink to="/code" className={primaryNavClass} onClick={onClose}>
+          <FileCode2 size={15} strokeWidth={1.75} aria-hidden="true" />
           <span>{t('nav.codeExplorer')}</span>
         </NavLink>
       </div>
 
-      <div className="explorer-docs-bar">
-        <span className="explorer-docs-label">{t('nav.documents')}</span>
-        <div className="explorer-mode-inline" role="tablist" aria-label={t('nav.documents')}>
+      <div className="flex items-center justify-between gap-2 px-3 pt-2 pb-1">
+        <span className="text-[11px] font-bold tracking-[0.06em] text-fg-muted uppercase">{t('nav.documents')}</span>
+        <div
+          className="inline-flex rounded-md border border-line bg-subtle p-0.5"
+          role="tablist"
+          aria-label={t('nav.documents')}
+        >
           <button
             type="button"
             role="tab"
             aria-selected={mode === 'flow'}
-            className={`explorer-mode-pill${mode === 'flow' ? ' active' : ''}`}
+            className={`cursor-pointer rounded border-0 px-2 py-0.5 text-[11px] font-semibold ${
+              mode === 'flow'
+                ? 'bg-surface text-fg shadow-[0_1px_2px_rgba(15,23,42,0.08)]'
+                : 'bg-transparent text-fg-muted hover:text-fg'
+            }`}
             onClick={() => setMode('flow')}
             title={t('nav.flowTitle')}
           >
@@ -159,7 +188,11 @@ export default function Explorer({ reviewBadgeCount, onClose, onOpenSearch, resi
             type="button"
             role="tab"
             aria-selected={mode === 'files'}
-            className={`explorer-mode-pill${mode === 'files' ? ' active' : ''}`}
+            className={`cursor-pointer rounded border-0 px-2 py-0.5 text-[11px] font-semibold ${
+              mode === 'files'
+                ? 'bg-surface text-fg shadow-[0_1px_2px_rgba(15,23,42,0.08)]'
+                : 'bg-transparent text-fg-muted hover:text-fg'
+            }`}
             onClick={() => setMode('files')}
             title={t('nav.filesTitle')}
           >
@@ -168,39 +201,54 @@ export default function Explorer({ reviewBadgeCount, onClose, onOpenSearch, resi
         </div>
       </div>
 
-      <nav className="explorer-nav" aria-label={t('nav.documents')}>
+      <nav className="min-h-0 flex-1 overflow-y-auto py-1.5" aria-label={t('nav.documents')}>
         {mode === 'flow' ? (
           READING_FLOW_ORDER.map((type) => {
             const docs = grouped.get(type) ?? []
             const isCollapsed = collapsedTypes.has(type)
             return (
-              <section key={type} className={`nav-group type-${type}`}>
+              <section key={type} className={`mb-1 type-${type}`}>
                 <button
                   type="button"
-                  className="nav-section"
+                  className="flex w-full cursor-pointer items-center gap-1.5 border-0 bg-transparent px-3 py-1.5 text-left text-[11.5px] font-bold tracking-[0.04em] text-fg-muted uppercase hover:bg-hover"
                   aria-expanded={!isCollapsed}
                   onClick={() => toggleType(type)}
                 >
                   <Chevron collapsed={isCollapsed} />
-                  <ArtifactTypeIcon type={type} size={13} className="nav-type-icon" />
-                  <span className="nav-section-label">{t(`types.section.${type}`)}</span>
-                  <span className="nav-count">{docs.length}</span>
+                  <ArtifactTypeIcon type={type} size={13} className="shrink-0 text-[var(--tc)]" />
+                  <span className="flex-1 text-[var(--tc)]">{t(`types.section.${type}`)}</span>
+                  <span className="rounded-full bg-subtle px-[7px] text-[10.5px] leading-[1.7] font-semibold text-fg-muted tabular-nums">
+                    {docs.length}
+                  </span>
                 </button>
                 {!isCollapsed && (
-                  <ul>
-                    {docs.length === 0 && <li className="nav-empty">{t('nav.noDocs')}</li>}
+                  <ul className="m-0 list-none p-0">
+                    {docs.length === 0 && (
+                      <li className="py-1 pr-3 pl-[30px] text-xs text-fg-muted">{t('nav.noDocs')}</li>
+                    )}
                     {docs.map((doc) => (
                       <li key={doc.id}>
                         <NavLink
                           to={`/docs/${encodeDocId(doc.id)}`}
-                          className={({ isActive }) => `nav-item${isActive ? ' active' : ''}`}
+                          className={({ isActive }) =>
+                            `flex items-baseline gap-2 border-l-[3px] py-[5px] pr-3 pl-[30px] text-[13.5px] no-underline ${
+                              isActive
+                                ? 'border-l-[var(--tc)] bg-[var(--tc-soft)] font-semibold text-[var(--tc)]'
+                                : 'border-l-transparent text-fg hover:bg-hover'
+                            }`
+                          }
                           title={`${doc.id} — ${doc.title}`}
                           onClick={onClose}
                         >
-                          <span className="nav-title">{doc.title}</span>
-                          {doc.date && <span className="nav-date mono">{doc.date}</span>}
+                          <span className="truncate">{doc.title}</span>
+                          {doc.date && (
+                            <span className="mono ml-auto shrink-0 text-[10.5px] text-fg-muted">{doc.date}</span>
+                          )}
                           {doc.issueCount > 0 && (
-                            <span className="issue-dot" title={t('nav.issueCountTitle', { count: doc.issueCount })} />
+                            <span
+                              className="h-[7px] w-[7px] shrink-0 self-center rounded-full bg-amber-600"
+                              title={t('nav.issueCountTitle', { count: doc.issueCount })}
+                            />
                           )}
                         </NavLink>
                       </li>
@@ -211,8 +259,8 @@ export default function Explorer({ reviewBadgeCount, onClose, onOpenSearch, resi
             )
           })
         ) : (
-          <div className="nav-tree">
-            {tree.length === 0 && <div className="nav-empty">{t('nav.noDocs')}</div>}
+          <div className="px-1">
+            {tree.length === 0 && <div className="py-1 pr-3 pl-[30px] text-xs text-fg-muted">{t('nav.noDocs')}</div>}
             {tree.map((node) => (
               <TreeBranch
                 key={node.kind === 'dir' ? `dir:${node.path}` : `doc:${node.doc.id}`}
@@ -228,20 +276,26 @@ export default function Explorer({ reviewBadgeCount, onClose, onOpenSearch, resi
       </nav>
 
       {status && status.issues.length > 0 && (
-        <details className="explorer-issues">
-          <summary>{t('nav.loadIssues', { count: status.issues.length })}</summary>
-          <ul>
+        <details className="max-h-[180px] overflow-y-auto border-t border-line px-4 py-2 text-xs">
+          <summary className="cursor-pointer font-semibold text-amber-700">
+            {t('nav.loadIssues', { count: status.issues.length })}
+          </summary>
+          <ul className="m-0 mt-2 list-none p-0">
             {status.issues.map((issue, i) => (
-              <li key={i}>
-                {issue.path && <code>{issue.path}</code>}
+              <li key={i} className="mb-2">
+                {issue.path && <code className="block text-[11px] text-fg-muted">{issue.path}</code>}
                 <span>{issue.message}</span>
               </li>
             ))}
           </ul>
         </details>
       )}
-      {error && <div className="explorer-error">{error}</div>}
-      {status && <div className="explorer-footer">docs: {status.rootDir}</div>}
+      {error && <div className="border-t border-line px-4 py-2 text-xs text-red-600">{error}</div>}
+      {status && (
+        <div className="truncate border-t border-line px-4 py-2 font-mono text-[11px] text-fg-muted">
+          docs: {status.rootDir}
+        </div>
+      )}
       {resizeHandle}
     </aside>
   )
@@ -264,20 +318,23 @@ function TreeBranch({
     const dir: DocTreeDir = node
     const isCollapsed = collapsedDirs.has(dir.path)
     return (
-      <div className="nav-dir">
+      <div className="group/dir">
         <button
           type="button"
-          className="nav-dir-btn"
+          className="flex w-full cursor-pointer items-center gap-1.5 rounded-md border-0 bg-transparent px-2 py-[5px] text-left text-[12.5px] font-semibold text-fg-muted hover:bg-hover hover:text-fg"
           style={{ paddingLeft: `${8 + depth * 14}px` }}
           aria-expanded={!isCollapsed}
           onClick={() => onToggleDir(dir.path)}
         >
           <Chevron collapsed={isCollapsed} />
           <MaterialFolderIcon name={dir.name} open={!isCollapsed} size={15} />
-          <span className="nav-dir-name">{dir.name}</span>
+          <span className="truncate">{dir.name}</span>
         </button>
         {!isCollapsed && (
-          <div className="nav-dir-children" style={{ '--tree-depth': depth } as CSSProperties}>
+          <div
+            className="relative before:pointer-events-none before:absolute before:top-0 before:bottom-0.5 before:left-[calc(14px+var(--tree-depth,0)*14px)] before:w-px before:bg-line before:opacity-70 before:transition-colors before:duration-140 before:content-[''] group-hover/dir:before:bg-fg-faint group-hover/dir:before:opacity-90"
+            style={{ '--tree-depth': depth } as CSSProperties}
+          >
             {dir.children.map((child) => (
               <TreeBranch
                 key={child.kind === 'dir' ? `dir:${child.path}` : `doc:${child.doc.id}`}
@@ -299,15 +356,26 @@ function TreeBranch({
   return (
     <NavLink
       to={`/docs/${encodeDocId(doc.id)}`}
-      className={({ isActive }) => `nav-item nav-tree-doc type-${doc.type}${isActive ? ' active' : ''}`}
+      className={({ isActive }) =>
+        `flex items-center gap-1.5 border-l-[3px] py-[5px] pr-3 text-[13.5px] no-underline type-${doc.type} ${
+          isActive
+            ? 'border-l-[var(--tc)] bg-[var(--tc-soft)] font-semibold text-[var(--tc)]'
+            : 'border-l-transparent text-fg hover:bg-hover'
+        }`
+      }
       style={{ paddingLeft: `${23 + depth * 14}px` }}
       title={`${doc.id} — ${doc.title}`}
       onClick={onClose}
     >
       <MaterialFileIcon name={doc.path} size={15} />
-      <span className="nav-title">{doc.title}</span>
-      <span className="nav-type-dot" aria-hidden="true" />
-      {doc.issueCount > 0 && <span className="issue-dot" title={t('nav.issueCountTitle', { count: doc.issueCount })} />}
+      <span className="min-w-0 flex-1 truncate">{doc.title}</span>
+      <span className="h-[7px] w-[7px] shrink-0 rounded-full bg-[var(--tc)]" aria-hidden="true" />
+      {doc.issueCount > 0 && (
+        <span
+          className="h-[7px] w-[7px] shrink-0 rounded-full bg-amber-600"
+          title={t('nav.issueCountTitle', { count: doc.issueCount })}
+        />
+      )}
     </NavLink>
   )
 }
@@ -317,7 +385,7 @@ function Chevron({ collapsed }: { collapsed: boolean }) {
     <ChevronRight
       size={12}
       strokeWidth={2}
-      className={`nav-chevron${collapsed ? ' collapsed' : ''}`}
+      className={`shrink-0 text-fg-muted transition-transform duration-150 motion-reduce:transition-none ${collapsed ? 'rotate-0' : 'rotate-90'}`}
       aria-hidden="true"
     />
   )

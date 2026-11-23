@@ -80,8 +80,8 @@ export default function BundleLayout() {
 
   if (error) {
     return (
-      <div className="bundle-shell">
-        <div className="bundle-error">
+      <div className="min-h-screen bg-surface text-fg">
+        <div className="mx-auto max-w-[900px] px-6 py-12">
           <h1>{t('bundle.errorTitle')}</h1>
           <p className="error-text">{error}</p>
           <Link to="/" className="button">
@@ -94,22 +94,22 @@ export default function BundleLayout() {
 
   if (!bundle) {
     return (
-      <div className="bundle-shell">
+      <div className="min-h-screen bg-surface p-8 text-fg">
         <p className="muted">{t('bundle.building')}</p>
       </div>
     )
   }
 
   return (
-    <div className="bundle-shell">
-      <div className="bundle-toolbar">
-        <Link to="/" className="sem-action-btn">
+    <div className="min-h-screen bg-surface text-fg">
+      <div className="bundle-toolbar sticky top-0 z-30 flex items-center gap-3 border-b border-line bg-sidebar px-5 py-2.5 print:hidden">
+        <Link to="/" className="sem-action-btn no-underline">
           {t('bundle.backToDocumi')}
         </Link>
-        <span className="bundle-toolbar-meta">
+        <span className="text-[12.5px] text-fg-muted">
           {t('bundle.meta', { docs: bundle.summary.documentCount, blocks: bundle.summary.blockCount })}
         </span>
-        <div className="bundle-toolbar-actions">
+        <div className="ml-auto flex gap-2">
           <button type="button" className="sem-action-btn" onClick={() => exportBundleHtmlFromDom(bundle.title)}>
             {t('bundle.downloadHtml')}
           </button>
@@ -119,46 +119,46 @@ export default function BundleLayout() {
         </div>
       </div>
 
-      <div className="bundle-root">
+      <div className="bundle-root mx-auto max-w-[900px] px-6 pt-8 pb-20">
         {/* 表紙 */}
-        <section className="bundle-cover">
-          <div className="bundle-cover-brand">Documi Living Specification</div>
-          <h1>{bundle.title}</h1>
-          <p className="bundle-cover-scope">{bundle.scopeLabel}</p>
-          <dl className="bundle-cover-stats">
-            <div>
-              <dt>Documents</dt>
-              <dd>{bundle.summary.documentCount}</dd>
-            </div>
-            <div>
-              <dt>Semantic Blocks</dt>
-              <dd>{bundle.summary.blockCount}</dd>
-            </div>
-            <div>
-              <dt>Approved</dt>
-              <dd>{bundle.summary.approvedCount}</dd>
-            </div>
-            <div>
-              <dt>Verified</dt>
-              <dd>{bundle.summary.verifiedCount}</dd>
-            </div>
+        <section className="bundle-cover mb-9 border-b-2 border-line pt-12 pb-9">
+          <div className="mb-2 text-xs font-bold tracking-[0.08em] text-fg-muted uppercase">
+            Documi Living Specification
+          </div>
+          <h1 className="m-0 mb-2 text-[32px] leading-[1.25] font-bold">{bundle.title}</h1>
+          <p className="m-0 mb-6 text-fg-muted">{bundle.scopeLabel}</p>
+          <dl className="m-0 mb-5 grid grid-cols-4 gap-3 max-sm:grid-cols-2">
+            {[
+              ['Documents', bundle.summary.documentCount],
+              ['Semantic Blocks', bundle.summary.blockCount],
+              ['Approved', bundle.summary.approvedCount],
+              ['Verified', bundle.summary.verifiedCount],
+            ].map(([label, val]) => (
+              <div key={String(label)} className="rounded-lg border border-line bg-sidebar px-3 py-2.5">
+                <dt className="text-[11px] text-fg-muted">{label}</dt>
+                <dd className="m-0 mt-0.5 text-xl font-bold">{val}</dd>
+              </div>
+            ))}
           </dl>
-          <div className="bundle-cover-date">
+          <div className="text-xs text-fg-muted">
             {t('bundle.generated', { date: new Date(bundle.generatedAt).toLocaleString(i18n.language) })}
           </div>
         </section>
 
         {/* 目次 (TOC) */}
-        <nav className="bundle-toc" aria-label={t('bundle.toc')}>
-          <h2>{t('bundle.toc')}</h2>
-          <ol>
+        <nav className="bundle-toc mb-12 border-b border-line pb-6" aria-label={t('bundle.toc')}>
+          <h2 className="m-0 mb-3 text-lg font-bold">{t('bundle.toc')}</h2>
+          <ol className="m-0 grid list-none gap-1.5 p-0">
             {bundle.documents.map((doc, idx) => (
               <li key={doc.id}>
-                <a href={`#${bundleDocAnchor(doc.id)}`} className="bundle-toc-link">
-                  <span className="bundle-toc-num">{idx + 1}.</span>
+                <a
+                  href={`#${bundleDocAnchor(doc.id)}`}
+                  className="flex items-center gap-2 rounded-md px-2 py-1.5 text-fg no-underline hover:bg-hover"
+                >
+                  <span className="w-6 font-semibold text-fg-muted">{idx + 1}.</span>
                   <span className={`badge badge-type type-${doc.type}`}>{t(`types.singular.${doc.type}`)}</span>
-                  <span className="bundle-toc-title">{doc.title}</span>
-                  <span className="bundle-toc-path mono">{doc.path}</span>
+                  <span>{doc.title}</span>
+                  <span className="mono ml-auto text-[11.5px] text-fg-muted">{doc.path}</span>
                 </a>
               </li>
             ))}
@@ -167,7 +167,11 @@ export default function BundleLayout() {
 
         {/* 各ドキュメント章 */}
         {bundle.documents.map((doc, idx) => (
-          <article key={doc.id} id={bundleDocAnchor(doc.id)} className="bundle-chapter page">
+          <article
+            key={doc.id}
+            id={bundleDocAnchor(doc.id)}
+            className="bundle-chapter page border-b border-line py-7 pb-10"
+          >
             <header className="doc-header">
               <div className="doc-badges">
                 <span className="badge badge-id">{t('bundle.chapter', { index: idx + 1 })}</span>
@@ -179,8 +183,8 @@ export default function BundleLayout() {
               <h1>{doc.title}</h1>
               {doc.description && <p className="doc-description">{doc.description}</p>}
               <div className="doc-meta">
-                {doc.tags.length > 0 && <span className="meta-item">tags: {doc.tags.join(', ')}</span>}
-                <span className="meta-item mono">{doc.path}</span>
+                {doc.tags.length > 0 && <span>tags: {doc.tags.join(', ')}</span>}
+                <span className="mono">{doc.path}</span>
               </div>
             </header>
 
