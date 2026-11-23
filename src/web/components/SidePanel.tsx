@@ -18,6 +18,13 @@ type InspectorTab = 'outline' | 'links'
 
 const TRACE_KINDS = new Set(['derives', 'satisfies', 'verifies', 'supersedes'])
 
+const EDGE_KIND_STYLES: Record<string, string> = {
+  derives: 'border-amber-500 text-amber-700 dark:text-amber-400',
+  satisfies: 'border-teal-500 text-teal-700 dark:text-teal-400',
+  verifies: 'border-green-500 text-green-700 dark:text-green-400',
+  supersedes: 'border-rose-500 text-rose-700 dark:text-rose-400',
+}
+
 export default function SidePanel({ doc, headings, onPeek, onCollapse }: SidePanelProps) {
   const { t } = useTranslation()
   const [tab, setTab] = useState<InspectorTab>('outline')
@@ -69,6 +76,13 @@ export default function SidePanel({ doc, headings, onPeek, onCollapse }: SidePan
 
   const totalLinks = upstream.length + downstream.length + doc.sourceRefs.length + mentions.length
 
+  const tabClass = (active: boolean) =>
+    `inline-flex cursor-pointer items-center gap-[5px] rounded-[5px] border-0 px-2.5 py-[3px] text-xs font-semibold ${
+      active
+        ? 'bg-surface text-fg shadow-[0_1px_2px_rgba(15,23,42,0.08)]'
+        : 'bg-transparent text-fg-muted hover:text-fg'
+    }`
+
   return (
     <>
       <ResizeHandle
@@ -80,14 +94,22 @@ export default function SidePanel({ doc, headings, onPeek, onCollapse }: SidePan
         onReset={resetPanelWidth}
         label={t('resize.inspector')}
       />
-      <aside className="side-panel" style={{ flexBasis: `${panelWidth}px` }} aria-label={t('inspector.ariaLabel')}>
-        <header className="rp-header">
-          <div className="rp-tabs" role="tablist" aria-label={t('inspector.switchAria')}>
+      <aside
+        className="flex min-h-0 min-w-0 shrink-0 grow-0 flex-col overflow-hidden border-l border-line bg-sidebar max-[900px]:flex-none max-[900px]:!basis-auto max-[900px]:overflow-visible max-[900px]:border-t max-[900px]:border-l-0 print:hidden"
+        style={{ flexBasis: `${panelWidth}px` }}
+        aria-label={t('inspector.ariaLabel')}
+      >
+        <header className="flex shrink-0 items-center justify-between gap-1.5 border-b border-line px-2.5 py-1.5">
+          <div
+            className="inline-flex gap-0.5 rounded-[7px] border border-line bg-subtle p-0.5"
+            role="tablist"
+            aria-label={t('inspector.switchAria')}
+          >
             <button
               type="button"
               role="tab"
               aria-selected={tab === 'outline'}
-              className={`rp-tab${tab === 'outline' ? ' active' : ''}`}
+              className={tabClass(tab === 'outline')}
               onClick={() => setTab('outline')}
             >
               {t('inspector.outline')}
@@ -96,15 +118,15 @@ export default function SidePanel({ doc, headings, onPeek, onCollapse }: SidePan
               type="button"
               role="tab"
               aria-selected={tab === 'links'}
-              className={`rp-tab${tab === 'links' ? ' active' : ''}`}
+              className={tabClass(tab === 'links')}
               onClick={() => setTab('links')}
             >
-              {t('inspector.links')} <span className="rp-tab-count">{totalLinks}</span>
+              {t('inspector.links')} <span className="text-[10.5px] opacity-75">{totalLinks}</span>
             </button>
           </div>
           <button
             type="button"
-            className="rp-collapse-btn"
+            className="flex h-[26px] w-[26px] cursor-pointer items-center justify-center rounded-[5px] border-0 bg-transparent text-fg-muted hover:bg-hover hover:text-fg"
             onClick={onCollapse}
             title={t('inspector.closePanel')}
             aria-label={t('inspector.closePanel')}
@@ -114,27 +136,31 @@ export default function SidePanel({ doc, headings, onPeek, onCollapse }: SidePan
         </header>
 
         {reviewStats.total > 0 && (
-          <div className="rp-health-bar">
+          <div className="flex shrink-0 flex-wrap items-center gap-2.5 border-b border-line px-3.5 py-[7px] text-[11.5px] text-fg-muted">
             <span>
-              Approved <strong>{reviewStats.approved}</strong>/{reviewStats.total}
+              Approved <strong className="text-fg">{reviewStats.approved}</strong>/{reviewStats.total}
             </span>
             {reviewStats.specTotal > 0 && (
               <span>
-                Verified <strong>{reviewStats.verified}</strong>/{reviewStats.specTotal}
+                Verified <strong className="text-fg">{reviewStats.verified}</strong>/{reviewStats.specTotal}
               </span>
             )}
             {reviewStats.attention > 0 && (
-              <span className="rp-health-warn">{t('inspector.attentionCount', { count: reviewStats.attention })}</span>
+              <span className="ml-auto rounded-full bg-amber-600/16 px-1.5 py-px text-[10.5px] font-bold text-amber-700 dark:text-amber-500">
+                {t('inspector.attentionCount', { count: reviewStats.attention })}
+              </span>
             )}
           </div>
         )}
 
         {tab === 'outline' ? (
-          <div className="rp-body">
+          <div className="min-h-0 flex-1 overflow-y-auto px-3.5 pt-3.5 pb-10">
             {doc.blocks.length > 0 && (
-              <section className="rp-section">
-                <h2 className="rp-title">{t('inspector.blocks', { count: doc.blocks.length })}</h2>
-                <ul className="rp-blocks">
+              <section className="mb-7">
+                <h2 className="m-0 mb-2.5 text-[11px] font-bold tracking-[0.07em] text-fg-muted uppercase">
+                  {t('inspector.blocks', { count: doc.blocks.length })}
+                </h2>
+                <ul className="m-0 grid list-none gap-1 p-0">
                   {doc.blocks.map((b) => {
                     const openFb = b.feedback.filter((f) => !f.resolved).length
                     const dotClass = b.suspect ? 'suspect' : b.review
@@ -142,13 +168,15 @@ export default function SidePanel({ doc, headings, onPeek, onCollapse }: SidePan
                       <li key={b.id}>
                         <button
                           type="button"
-                          className="rp-block-link"
+                          className="flex w-full cursor-pointer items-center gap-1.5 rounded-md border-0 bg-transparent px-1.5 py-1 text-left text-xs text-fg hover:bg-hover"
                           onClick={() => scrollToElement(`block-${b.id}`)}
                           title={`${b.id} (${b.suspect ? 'suspect' : b.review})`}
                         >
                           {b.kind !== 'note' && <span className={`rp-review-dot rp-review-${dotClass}`} />}
-                          <span className={`rp-block-kind rp-block-kind-${b.kind}`}>{b.kind}</span>
-                          <span className="rp-block-id mono">{b.id}</span>
+                          <span className="shrink-0 rounded bg-accent-soft px-[5px] py-px text-[10px] font-bold text-fg-muted uppercase">
+                            {b.kind}
+                          </span>
+                          <span className="mono truncate">{b.id}</span>
                           {openFb > 0 && <span className="rp-fb-count">{openFb}</span>}
                         </button>
                       </li>
@@ -159,12 +187,18 @@ export default function SidePanel({ doc, headings, onPeek, onCollapse }: SidePan
             )}
 
             {headings.length > 0 ? (
-              <section className="rp-section">
-                <h2 className="rp-title">{t('inspector.headings')}</h2>
-                <ul className="rp-outline">
+              <section className="mb-7">
+                <h2 className="m-0 mb-2.5 text-[11px] font-bold tracking-[0.07em] text-fg-muted uppercase">
+                  {t('inspector.headings')}
+                </h2>
+                <ul className="m-0 list-none p-0">
                   {headings.map((h, i) => (
                     <li key={`${h.id}-${i}`} style={{ paddingLeft: `${(h.level - 1) * 12}px` }}>
-                      <button type="button" className="rp-outline-link" onClick={() => scrollToElement(h.id)}>
+                      <button
+                        type="button"
+                        className="block w-full cursor-pointer truncate rounded-[5px] border-0 bg-transparent px-2 py-[3px] text-left text-[13px] text-fg hover:bg-hover"
+                        onClick={() => scrollToElement(h.id)}
+                      >
                         {h.text}
                       </button>
                     </li>
@@ -172,34 +206,48 @@ export default function SidePanel({ doc, headings, onPeek, onCollapse }: SidePan
                 </ul>
               </section>
             ) : (
-              doc.blocks.length === 0 && <p className="rp-empty">{t('inspector.emptyOutline')}</p>
+              doc.blocks.length === 0 && (
+                <p className="m-0 text-[12.5px] text-fg-muted">{t('inspector.emptyOutline')}</p>
+              )
             )}
           </div>
         ) : (
-          <div className="rp-body">
-            <section className="rp-section">
-              <h2 className="rp-title">{t('inspector.upstream', { count: upstream.length })}</h2>
+          <div className="min-h-0 flex-1 overflow-y-auto px-3.5 pt-3.5 pb-10">
+            <section className="mb-7">
+              <h2 className="m-0 mb-2.5 text-[11px] font-bold tracking-[0.07em] text-fg-muted uppercase">
+                {t('inspector.upstream', { count: upstream.length })}
+              </h2>
               <RelationList items={upstream} empty={t('inspector.emptyUpstream')} onPeek={onPeek} />
             </section>
 
-            <section className="rp-section">
-              <h2 className="rp-title">{t('inspector.downstream', { count: downstream.length })}</h2>
+            <section className="mb-7">
+              <h2 className="m-0 mb-2.5 text-[11px] font-bold tracking-[0.07em] text-fg-muted uppercase">
+                {t('inspector.downstream', { count: downstream.length })}
+              </h2>
               <RelationList items={downstream} empty={t('inspector.emptyDownstream')} onPeek={onPeek} />
             </section>
 
             {doc.sourceRefs.length > 0 && (
-              <section className="rp-section">
-                <h2 className="rp-title">{t('inspector.sourceRefs', { count: doc.sourceRefs.length })}</h2>
-                <ul className="rp-source-list">
+              <section className="mb-7">
+                <h2 className="m-0 mb-2.5 text-[11px] font-bold tracking-[0.07em] text-fg-muted uppercase">
+                  {t('inspector.sourceRefs', { count: doc.sourceRefs.length })}
+                </h2>
+                <ul className="m-0 flex list-none flex-col gap-1 p-0">
                   {doc.sourceRefs.map((ref, i) => {
                     const qs = new URLSearchParams({ file: ref.file })
                     if (ref.lines) qs.set('lines', ref.lines)
                     return (
-                      <li key={`${ref.file}:${ref.symbol ?? ref.lines ?? i}`} className="rp-source-item mono">
-                        <NavLink to={`/code?${qs.toString()}`} className="rp-source-link">
-                          <span className="rp-source-file">{ref.file}</span>
-                          {ref.symbol && <span className="rp-source-sym">#{ref.symbol}</span>}
-                          {ref.lines && <span className="rp-source-sym">:L{ref.lines}</span>}
+                      <li
+                        key={`${ref.file}:${ref.symbol ?? ref.lines ?? i}`}
+                        className="mono rounded-md border border-line bg-surface px-2 py-[5px] text-[11px] [overflow-wrap:anywhere]"
+                      >
+                        <NavLink
+                          to={`/code?${qs.toString()}`}
+                          className="group inline-flex flex-wrap text-inherit no-underline"
+                        >
+                          <span className="group-hover:text-accent group-hover:underline">{ref.file}</span>
+                          {ref.symbol && <span className="text-fg-muted">#{ref.symbol}</span>}
+                          {ref.lines && <span className="text-fg-muted">:L{ref.lines}</span>}
                         </NavLink>
                       </li>
                     )
@@ -209,8 +257,10 @@ export default function SidePanel({ doc, headings, onPeek, onCollapse }: SidePan
             )}
 
             {mentions.length > 0 && (
-              <section className="rp-section">
-                <h2 className="rp-title">{t('inspector.mentions', { count: mentions.length })}</h2>
+              <section className="mb-7">
+                <h2 className="m-0 mb-2.5 text-[11px] font-bold tracking-[0.07em] text-fg-muted uppercase">
+                  {t('inspector.mentions', { count: mentions.length })}
+                </h2>
                 <RelationList items={mentions} empty="" onPeek={onPeek} />
               </section>
             )}
@@ -231,17 +281,17 @@ function RelationList({
   onPeek: (docId: string, focusBlockId?: string) => void
 }) {
   const { t } = useTranslation()
-  if (items.length === 0) return <p className="rp-empty">{empty}</p>
+  if (items.length === 0) return <p className="m-0 text-[12.5px] text-fg-muted">{empty}</p>
   return (
-    <ul className="rp-relations">
+    <ul className="m-0 flex list-none flex-col gap-1 p-0">
       {items.map((rel) => {
         const focusBlockId = rel.targetKind === 'block' ? rel.ref : undefined
         const hash = focusBlockId ? `#block-${encodeURIComponent(focusBlockId)}` : ''
         return (
-          <li key={`${rel.kind}:${rel.docId}:${rel.ref}`} className="rp-relation-row">
+          <li key={`${rel.kind}:${rel.docId}:${rel.ref}`} className="flex items-stretch gap-1">
             <NavLink
               to={`/docs/${encodeDocId(rel.docId)}${hash}`}
-              className="rp-relation"
+              className="block min-w-0 flex-1 rounded-[7px] border border-line bg-surface px-2.5 py-[7px] text-fg no-underline hover:border-accent hover:bg-accent-soft"
               onClick={(e) => {
                 if (e.shiftKey) {
                   e.preventDefault()
@@ -250,16 +300,24 @@ function RelationList({
               }}
               title={t('inspector.linkHint')}
             >
-              <span className="rp-relation-meta">
-                <span className={`rp-edge-kind rp-edge-${rel.kind}`}>{rel.kind}</span>
-                <span className={`rp-relation-type type-${rel.type}`}>{t(`types.singular.${rel.type}`)}</span>
+              <span className="mb-0.5 flex items-center gap-1.5">
+                <span
+                  className={`rounded border bg-subtle px-[5px] py-px text-[10px] font-bold ${EDGE_KIND_STYLES[rel.kind] ?? 'border-line text-fg-muted'}`}
+                >
+                  {rel.kind}
+                </span>
+                <span
+                  className={`text-[10.5px] font-bold tracking-[0.05em] text-[var(--tc)] uppercase type-${rel.type}`}
+                >
+                  {t(`types.singular.${rel.type}`)}
+                </span>
               </span>
-              <span className="rp-relation-title">{rel.title}</span>
-              <span className="rp-relation-id mono">{rel.ref}</span>
+              <span className="block truncate text-[13px] font-medium">{rel.title}</span>
+              <span className="mono text-[11px] text-fg-muted">{rel.ref}</span>
             </NavLink>
             <button
               type="button"
-              className="rp-peek-btn"
+              className="flex w-7 shrink-0 cursor-pointer items-center justify-center rounded-md border border-line bg-surface text-fg-muted hover:border-accent hover:bg-hover hover:text-fg"
               onClick={() => onPeek(rel.docId, focusBlockId)}
               title={t('inspector.peekButtonTitle')}
               aria-label={t('inspector.peekButtonAria', { title: rel.title })}

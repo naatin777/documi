@@ -396,46 +396,9 @@
   border-radius: 6px;
 }
 
-.mermaid-zoom {
-  position: fixed;
-  inset: 0;
-  z-index: 100;
-  background: rgba(0, 0, 0, 0.55);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 40px;
-}
-
-.mermaid-zoom-inner {
-  position: relative;
-  background: var(--bg);
-  border-radius: 10px;
-  padding: 32px;
-  max-width: 90vw;
-  max-height: 90vh;
-  overflow: auto;
-}
-
-.mermaid-zoom-inner svg {
+.mermaid-zoom-svg svg {
   max-width: none;
   height: auto;
-}
-
-.mermaid-zoom-close {
-  position: absolute;
-  top: 8px;
-  right: 12px;
-  border: none;
-  background: transparent;
-  font-size: 22px;
-  line-height: 1;
-  color: var(--text-muted);
-  cursor: pointer;
-}
-
-.mermaid-zoom-close:hover {
-  color: var(--text);
 }
 
 /* ---------- MDX components ---------- */
@@ -742,80 +705,38 @@
   padding: 10px 14px;
 }
 
-/* ---------- Living Glossary ポップオーバー ---------- */
-
-.term-ref-wrap {
-  position: relative;
-  display: inline;
+.mdx-tabs-expanded {
+  display: grid;
+  gap: 10px;
+  border: none;
+  background: transparent;
 }
 
-.term-popover {
-  position: absolute;
-  left: 0;
-  top: calc(100% + 6px);
-  z-index: 40;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  width: min(440px, 85vw);
-  padding: 12px 14px;
+.mdx-tab-expanded-item {
   border: 1px solid var(--border);
-  border-radius: 10px;
-  background: var(--bg);
-  color: var(--text);
-  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.16);
-  font-size: 13px;
-  line-height: 1.55;
-  text-align: left;
+  border-radius: 8px;
+  overflow: hidden;
 }
 
-.term-popover-head {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: baseline;
-  gap: 8px;
-}
-
-.term-popover-name {
-  font-size: 14px;
-  color: var(--text);
-}
-
-.term-popover-aliases {
-  font-size: 11.5px;
-  color: var(--text-muted);
-}
-
-.term-popover-body {
-  color: var(--text);
-}
-
-.term-popover-code {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  border: 1px solid var(--border);
-  border-radius: 6px;
-  background: var(--bg-code);
-  padding: 6px 8px;
-  max-height: 180px;
-  overflow: auto;
-  font-size: 11.5px;
-}
-
-.term-popover-symbol {
-  font-size: 11px;
-  color: var(--text-muted);
-}
-
-.term-popover-foot {
-  display: flex;
-  justify-content: flex-end;
-}
-
-.term-popover-link {
+.mdx-tab-expanded-label {
+  padding: 5px 12px;
   font-size: 12px;
-  font-weight: 600;
-  color: #0369a1;
-  text-decoration: none;
+  font-weight: 700;
+  background: var(--bg-subtle);
+  border-bottom: 1px solid var(--border);
+}
+
+@media (max-width: 900px) {
+  .page {
+    padding: 24px 20px 64px;
+  }
+
+  .markdown h1,
+  .markdown h2,
+  .markdown h3,
+  .markdown h4,
+  .markdown h5,
+  .markdown h6 {
+    scroll-margin-top: calc(var(--topbar-height) + 16px);
+  }
 }

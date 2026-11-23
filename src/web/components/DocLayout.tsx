@@ -57,11 +57,14 @@ export default function DocLayout() {
 
   return (
     <>
-      <main ref={mainRef} className="content">
+      <main
+        ref={mainRef}
+        className="relative min-h-0 min-w-0 flex-1 overflow-y-auto bg-surface max-[900px]:flex-none max-[900px]:overflow-visible print:block print:h-auto print:min-h-0 print:overflow-visible"
+      >
         {!inspectorOpen && !peekTarget && doc && (
           <button
             type="button"
-            className="rp-reopen-btn"
+            className="sticky top-3 float-right z-15 mt-2 mr-3.5 cursor-pointer rounded-md border border-line bg-sidebar px-2.5 py-1 text-[11.5px] font-semibold text-fg-muted hover:bg-hover hover:text-fg print:hidden"
             onClick={() => setInspectorOpen(true)}
             title={t('doc.openInspectorTitle')}
             aria-label={t('doc.openInspectorAria')}

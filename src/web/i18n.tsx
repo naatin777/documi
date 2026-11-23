@@ -1,7 +1,8 @@
+import { Menu } from '@base-ui/react/menu'
 import i18n from 'i18next'
 import { Check, Globe } from 'lucide-react'
-import { useEffect, useRef, useState } from 'react'
 import { initReactI18next, useTranslation } from 'react-i18next'
+import { AppTooltip } from './components/ui/Tooltip'
 import en from './locales/en.json'
 import ja from './locales/ja.json'
 
@@ -106,68 +107,47 @@ if (typeof document !== 'undefined') {
 
 export function LanguageToggle() {
   const { t, i18n: instance } = useTranslation()
-  const [open, setOpen] = useState(false)
-  const wrapRef = useRef<HTMLDivElement>(null)
   const activeCode = matchLocale(instance.resolvedLanguage ?? instance.language) ?? 'en'
   const activeLocale = SUPPORTED_LOCALES.find((l) => l.code === activeCode) ?? SUPPORTED_LOCALES[0]
 
-  useEffect(() => {
-    if (!open) return
-    const onPointerDown = (e: MouseEvent) => {
-      if (wrapRef.current && !wrapRef.current.contains(e.target as Node)) {
-        setOpen(false)
-      }
-    }
-    const onKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') setOpen(false)
-    }
-    window.addEventListener('mousedown', onPointerDown)
-    window.addEventListener('keydown', onKeyDown)
-    return () => {
-      window.removeEventListener('mousedown', onPointerDown)
-      window.removeEventListener('keydown', onKeyDown)
-    }
-  }, [open])
-
   return (
-    <div className="lang-menu-wrap" ref={wrapRef}>
-      <button
-        type="button"
-        className={`topbar-action lang-toggle-btn${open ? ' active' : ''}`}
-        onClick={() => setOpen((v) => !v)}
-        aria-expanded={open}
-        aria-haspopup="menu"
-        aria-label={t('lang.switchAria', { language: activeLocale.nativeLabel })}
-        title={`${t('lang.label')}: ${activeLocale.nativeLabel}`}
-      >
-        <Globe size={14} strokeWidth={1.75} aria-hidden="true" />
-      </button>
+    <Menu.Root>
+      <AppTooltip label={`${t('lang.label')}: ${activeLocale.nativeLabel}`}>
+        <Menu.Trigger
+          className="flex h-7 w-7 cursor-pointer items-center justify-center rounded-md border-0 bg-transparent text-fg-muted hover:bg-hover hover:text-fg data-[popup-open]:bg-hover data-[popup-open]:text-fg print:hidden"
+          aria-label={t('lang.switchAria', { language: activeLocale.nativeLabel })}
+        >
+          <Globe size={14} strokeWidth={1.75} aria-hidden="true" />
+        </Menu.Trigger>
+      </AppTooltip>
 
-      {open && (
-        <div className="lang-dropdown" role="menu" aria-label={t('lang.label')}>
-          {SUPPORTED_LOCALES.map((loc) => {
-            const selected = loc.code === activeCode
-            return (
-              <button
-                key={loc.code}
-                type="button"
-                role="menuitemradio"
-                aria-checked={selected}
-                className={`lang-option${selected ? ' active' : ''}`}
-                onClick={() => {
-                  setAppLocale(loc.code)
-                  setOpen(false)
-                }}
-              >
-                <span className="lang-option-code mono">{loc.shortLabel}</span>
-                <span className="lang-option-label">{loc.nativeLabel}</span>
-                {selected && <Check size={13} strokeWidth={2} className="lang-option-check" aria-hidden="true" />}
-              </button>
-            )
-          })}
-        </div>
+      {typeof document !== 'undefined' && (
+        <Menu.Portal>
+          <Menu.Positioner align="end" sideOffset={4} collisionPadding={8} className="z-60">
+            <Menu.Popup
+              aria-label={t('lang.label')}
+              className="flex min-w-[148px] flex-col gap-0.5 rounded-lg border border-line bg-surface p-1 shadow-[0_10px_26px_rgba(15,23,42,0.16)] outline-none transition-all duration-100 data-[starting-style]:scale-95 data-[starting-style]:opacity-0 data-[ending-style]:scale-95 data-[ending-style]:opacity-0 dark:shadow-[0_10px_28px_rgba(0,0,0,0.5)]"
+            >
+              <Menu.RadioGroup value={activeCode} onValueChange={(v) => setAppLocale(v as SupportedLocale)}>
+                {SUPPORTED_LOCALES.map((loc) => (
+                  <Menu.RadioItem
+                    key={loc.code}
+                    value={loc.code}
+                    className="flex w-full cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-left text-[12.5px] text-fg outline-none data-[checked]:bg-accent-soft data-[checked]:font-semibold data-[highlighted]:bg-hover"
+                  >
+                    <span className="mono w-[22px] shrink-0 text-[10.5px] text-fg-muted">{loc.shortLabel}</span>
+                    <span className="flex-1">{loc.nativeLabel}</span>
+                    <Menu.RadioItemIndicator className="shrink-0 text-accent">
+                      <Check size={13} strokeWidth={2} aria-hidden="true" />
+                    </Menu.RadioItemIndicator>
+                  </Menu.RadioItem>
+                ))}
+              </Menu.RadioGroup>
+            </Menu.Popup>
+          </Menu.Positioner>
+        </Menu.Portal>
       )}
-    </div>
+    </Menu.Root>
   )
 }
 

@@ -89,7 +89,7 @@ export function MaterialFileIcon({ name, size = 15, className }: { name: string;
       aria-hidden="true"
       draggable={false}
       decoding="async"
-      className={`material-icon${className ? ` ${className}` : ''}`}
+      className={`inline-block shrink-0 align-middle object-contain select-none${className ? ` ${className}` : ''}`}
       onError={() => setFailedSrc(src)}
     />
   )
@@ -129,7 +129,7 @@ export function MaterialFolderIcon({
       aria-hidden="true"
       draggable={false}
       decoding="async"
-      className={`material-icon${className ? ` ${className}` : ''}`}
+      className={`inline-block shrink-0 align-middle object-contain select-none${className ? ` ${className}` : ''}`}
       onError={() => setFailedSrc(src)}
     />
   )

@@ -6,6 +6,7 @@ import DocTabs from './components/DocTabs'
 import Explorer from './components/Explorer'
 import ResizeHandle, { useResizableWidth } from './components/ResizeHandle'
 import TopBar from './components/TopBar'
+import { TooltipProvider } from './components/ui/Tooltip'
 import { LiveProvider } from './live'
 import { useOverviewQuery } from './queries'
 import { TabsProvider } from './tabs'
@@ -24,7 +25,9 @@ export default function App() {
     <ThemeProvider>
       <LiveProvider>
         <TabsProvider>
-          <AppRouter />
+          <TooltipProvider>
+            <AppRouter />
+          </TooltipProvider>
         </TabsProvider>
       </LiveProvider>
     </ThemeProvider>
@@ -89,18 +92,20 @@ function AppShell() {
 
   return (
     <div
-      className={`app${navOpen ? ' nav-open' : ''}${!sidebarOpen ? ' sidebar-collapsed' : ''}`}
+      className={`grid h-screen ${sidebarOpen ? 'grid-cols-[var(--explorer-width)_minmax(0,1fr)]' : 'min-[901px]:grid-cols-[minmax(0,1fr)]'} max-[900px]:flex max-[900px]:flex-col print:block print:h-auto print:min-h-0 print:overflow-visible`}
       style={{ '--explorer-width': `${explorerWidth}px` } as CSSProperties}
     >
       <TopBar onMenu={() => setNavOpen(true)} />
       <Explorer
         reviewBadgeCount={reviewBadgeCount}
+        navOpen={navOpen}
+        sidebarOpen={sidebarOpen}
         onClose={() => setNavOpen(false)}
         onOpenSearch={() => setSearchOpen(true)}
         resizeHandle={
           <ResizeHandle
             side="right"
-            className="resize-handle-edge-right"
+            className="absolute inset-y-0 right-0"
             width={explorerWidth}
             minWidth={200}
             maxWidth={480}
@@ -110,10 +115,16 @@ function AppShell() {
           />
         }
       />
-      {navOpen && <div className="nav-overlay" onClick={() => setNavOpen(false)} aria-hidden="true" />}
-      <div className="workspace">
+      {navOpen && (
+        <div
+          className="fixed inset-0 z-50 bg-slate-900/35 print:hidden"
+          onClick={() => setNavOpen(false)}
+          aria-hidden="true"
+        />
+      )}
+      <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden print:block print:h-auto print:min-h-0 print:overflow-visible">
         <DocTabs sidebarOpen={sidebarOpen} onToggleSidebar={() => setSidebarOpen((v) => !v)} />
-        <div className="doccols">
+        <div className="flex min-h-0 min-w-0 flex-1 overflow-hidden max-[900px]:flex-col max-[900px]:overflow-y-auto print:block print:h-auto print:min-h-0 print:overflow-visible">
           <ErrorBoundary FallbackComponent={ErrorFallback} resetKeys={[location.pathname]}>
             <Suspense fallback={<RouteLoading />}>
               <Routes>
@@ -140,7 +151,7 @@ function AppShell() {
 function RouteLoading() {
   const { t } = useTranslation()
   return (
-    <main className="content">
+    <main className="relative min-h-0 min-w-0 flex-1 overflow-y-auto bg-surface max-[900px]:flex-none max-[900px]:overflow-visible">
       <div className="page">
         <p className="muted">{t('common.loading')}</p>
       </div>
@@ -151,7 +162,7 @@ function RouteLoading() {
 function ErrorFallback({ error, resetErrorBoundary }: FallbackProps) {
   const { t } = useTranslation()
   return (
-    <main className="content">
+    <main className="relative min-h-0 min-w-0 flex-1 overflow-y-auto bg-surface max-[900px]:flex-none max-[900px]:overflow-visible">
       <div className="page">
         <h1>{t('common.errorTitle')}</h1>
         <p className="error-text">{error instanceof Error ? error.message : String(error)}</p>
@@ -166,7 +177,7 @@ function ErrorFallback({ error, resetErrorBoundary }: FallbackProps) {
 function NotFoundLayout() {
   const { t } = useTranslation()
   return (
-    <main className="content">
+    <main className="relative min-h-0 min-w-0 flex-1 overflow-y-auto bg-surface max-[900px]:flex-none max-[900px]:overflow-visible">
       <div className="page">
         <h1>{t('common.notFoundTitle')}</h1>
         <p>{t('common.notFoundBody')}</p>

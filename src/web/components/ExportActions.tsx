@@ -11,6 +11,8 @@ import {
   type BundleExportParams,
 } from '../export'
 import { useDocumentsQuery } from '../queries'
+import { AppDialog, DialogClose } from './ui/Dialog'
+import { AppTooltip } from './ui/Tooltip'
 
 type ScopeMode = 'current' | 'all' | 'goal' | 'dir' | 'custom'
 
@@ -44,15 +46,6 @@ export default function ExportActions() {
     const dirList = [...new Set(docs.map((d) => d.dir).filter(Boolean))].sort()
     if (dirList[0] && !selectedDir) setSelectedDir(dirList[0])
   }, [open, docs, selectedGoal, selectedDir])
-
-  useEffect(() => {
-    if (!open) return
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') setOpen(false)
-    }
-    window.addEventListener('keydown', onKey)
-    return () => window.removeEventListener('keydown', onKey)
-  }, [open])
 
   const goals = useMemo(() => docs.filter((d) => d.type === 'goal'), [docs])
   const dirs = useMemo(() => [...new Set(docs.map((d) => d.dir).filter(Boolean))].sort(), [docs])
@@ -137,178 +130,153 @@ export default function ExportActions() {
     })
   }
 
+  const chipClass = (active: boolean) =>
+    `cursor-pointer rounded-full border px-2.5 py-1 text-xs font-semibold ${
+      active ? 'border-accent bg-accent text-surface' : 'border-line bg-subtle text-fg-muted hover:text-fg'
+    }`
+
   return (
     <>
-      <button
-        type="button"
-        className="topbar-action"
-        onClick={() => setOpen(true)}
-        title={t('export.buttonTitle')}
-        aria-label="Export"
-      >
-        <ExportIcon />
-      </button>
+      <AppTooltip label={t('export.buttonTitle')}>
+        <button
+          type="button"
+          className="flex h-7 w-7 cursor-pointer items-center justify-center rounded-md border-0 bg-transparent text-fg-muted hover:bg-hover hover:text-fg print:hidden"
+          onClick={() => setOpen(true)}
+          aria-label="Export"
+        >
+          <ExportIcon />
+        </button>
+      </AppTooltip>
 
-      {open && (
-        <div className="modal-backdrop" onClick={() => setOpen(false)}>
-          <div
-            className="modal-card export-modal"
-            role="dialog"
-            aria-label="Export"
-            onClick={(e) => e.stopPropagation()}
+      <AppDialog open={open} onOpenChange={setOpen} ariaLabel="Export">
+        <header className="flex items-center justify-between border-b border-line px-4 py-3">
+          <h2 className="m-0 text-[15px] font-bold">{t('export.modalTitle')}</h2>
+          <DialogClose
+            className="flex h-7 w-7 cursor-pointer items-center justify-center rounded-md border-0 bg-transparent text-fg-muted hover:bg-hover hover:text-fg"
+            aria-label={t('common.close')}
           >
-            <header className="modal-header">
-              <h2>{t('export.modalTitle')}</h2>
-              <button
-                type="button"
-                className="modal-close"
-                onClick={() => setOpen(false)}
-                aria-label={t('common.close')}
-              >
-                <X size={15} strokeWidth={1.85} aria-hidden="true" />
+            <X size={15} strokeWidth={1.85} aria-hidden="true" />
+          </DialogClose>
+        </header>
+
+        <div className="grid gap-3.5 overflow-y-auto px-4 py-3.5">
+          <div className="grid gap-1.5">
+            <span className="text-xs font-bold text-fg-muted">{t('export.targetLabel')}</span>
+            <div className="flex flex-wrap gap-1.5">
+              {isDocPage && (
+                <button type="button" className={chipClass(mode === 'current')} onClick={() => setMode('current')}>
+                  {t('export.currentDoc')}
+                </button>
+              )}
+              <button type="button" className={chipClass(mode === 'all')} onClick={() => setMode('all')}>
+                {t('export.allDocs', { count: docs.length })}
               </button>
-            </header>
-
-            <div className="modal-body">
-              <div className="export-field">
-                <span className="export-label">{t('export.targetLabel')}</span>
-                <div className="export-modes">
-                  {isDocPage && (
-                    <button
-                      type="button"
-                      className={`export-mode-chip${mode === 'current' ? ' active' : ''}`}
-                      onClick={() => setMode('current')}
-                    >
-                      {t('export.currentDoc')}
-                    </button>
-                  )}
-                  <button
-                    type="button"
-                    className={`export-mode-chip${mode === 'all' ? ' active' : ''}`}
-                    onClick={() => setMode('all')}
-                  >
-                    {t('export.allDocs', { count: docs.length })}
-                  </button>
-                  <button
-                    type="button"
-                    className={`export-mode-chip${mode === 'goal' ? ' active' : ''}`}
-                    onClick={() => setMode('goal')}
-                  >
-                    {t('export.goalBundle')}
-                  </button>
-                  <button
-                    type="button"
-                    className={`export-mode-chip${mode === 'dir' ? ' active' : ''}`}
-                    onClick={() => setMode('dir')}
-                  >
-                    {t('export.directory')}
-                  </button>
-                  <button
-                    type="button"
-                    className={`export-mode-chip${mode === 'custom' ? ' active' : ''}`}
-                    onClick={() => setMode('custom')}
-                  >
-                    {t('export.customSelection', { count: customIds.size })}
-                  </button>
-                </div>
-              </div>
-
-              {mode === 'goal' && (
-                <div className="export-field">
-                  <label className="export-label" htmlFor="export-goal-select">
-                    {t('export.rootGoal')}
-                  </label>
-                  <select
-                    id="export-goal-select"
-                    className="export-select"
-                    value={selectedGoal}
-                    onChange={(e) => setSelectedGoal(e.target.value)}
-                  >
-                    {goals.map((g) => (
-                      <option key={g.id} value={g.id}>
-                        {g.title} ({g.id})
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              )}
-
-              {mode === 'dir' && (
-                <div className="export-field">
-                  <label className="export-label" htmlFor="export-dir-select">
-                    {t('export.targetDir')}
-                  </label>
-                  <select
-                    id="export-dir-select"
-                    className="export-select"
-                    value={selectedDir}
-                    onChange={(e) => setSelectedDir(e.target.value)}
-                  >
-                    {dirs.map((d) => (
-                      <option key={d} value={d}>
-                        {d}/
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              )}
-
-              {mode === 'custom' && (
-                <div className="export-field">
-                  <span className="export-label">{t('export.selectDocs')}</span>
-                  <ul className="export-doc-list">
-                    {docs.map((d) => (
-                      <li key={d.id}>
-                        <label className="export-doc-check">
-                          <input type="checkbox" checked={customIds.has(d.id)} onChange={() => toggleCustomId(d.id)} />
-                          <span className={`badge badge-type type-${d.type}`}>{t(`types.singular.${d.type}`)}</span>
-                          <span>{d.title}</span>
-                          <span className="muted mono">{d.id}</span>
-                        </label>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              )}
-
-              {mode !== 'current' && (
-                <div className="export-field">
-                  <label className="export-label" htmlFor="export-title-input">
-                    {t('export.coverTitle')}
-                  </label>
-                  <input
-                    id="export-title-input"
-                    type="text"
-                    className="export-input"
-                    value={customTitle}
-                    onChange={(e) => setCustomTitle(e.target.value)}
-                    placeholder={t('export.coverTitlePlaceholder')}
-                  />
-                </div>
-              )}
-
-              {message && <p className="export-message">{message}</p>}
+              <button type="button" className={chipClass(mode === 'goal')} onClick={() => setMode('goal')}>
+                {t('export.goalBundle')}
+              </button>
+              <button type="button" className={chipClass(mode === 'dir')} onClick={() => setMode('dir')}>
+                {t('export.directory')}
+              </button>
+              <button type="button" className={chipClass(mode === 'custom')} onClick={() => setMode('custom')}>
+                {t('export.customSelection', { count: customIds.size })}
+              </button>
             </div>
-
-            <footer className="modal-footer">
-              <button type="button" className="sem-action-btn" disabled={busy} onClick={handlePreviewPrint}>
-                {mode === 'current' ? t('export.printDialog') : t('export.bundlePreview')}
-              </button>
-              <button type="button" className="sem-action-btn" disabled={busy} onClick={handleHtml}>
-                {t('export.saveHtml')}
-              </button>
-              <button
-                type="button"
-                className="sem-action-btn sem-approve-btn"
-                disabled={busy}
-                onClick={() => void handlePdf()}
-              >
-                {busy ? t('export.generating') : t('export.downloadPdf')}
-              </button>
-            </footer>
           </div>
+
+          {mode === 'goal' && (
+            <div className="grid gap-1.5">
+              <label className="text-xs font-bold text-fg-muted" htmlFor="export-goal-select">
+                {t('export.rootGoal')}
+              </label>
+              <select
+                id="export-goal-select"
+                className="w-full rounded-[7px] border border-line bg-surface px-2.5 py-[7px] text-[13px] text-fg"
+                value={selectedGoal}
+                onChange={(e) => setSelectedGoal(e.target.value)}
+              >
+                {goals.map((g) => (
+                  <option key={g.id} value={g.id}>
+                    {g.title} ({g.id})
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
+
+          {mode === 'dir' && (
+            <div className="grid gap-1.5">
+              <label className="text-xs font-bold text-fg-muted" htmlFor="export-dir-select">
+                {t('export.targetDir')}
+              </label>
+              <select
+                id="export-dir-select"
+                className="w-full rounded-[7px] border border-line bg-surface px-2.5 py-[7px] text-[13px] text-fg"
+                value={selectedDir}
+                onChange={(e) => setSelectedDir(e.target.value)}
+              >
+                {dirs.map((d) => (
+                  <option key={d} value={d}>
+                    {d}/
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
+
+          {mode === 'custom' && (
+            <div className="grid gap-1.5">
+              <span className="text-xs font-bold text-fg-muted">{t('export.selectDocs')}</span>
+              <ul className="m-0 grid max-h-[200px] list-none gap-1 overflow-y-auto rounded-lg border border-line p-1.5">
+                {docs.map((d) => (
+                  <li key={d.id}>
+                    <label className="flex cursor-pointer items-center gap-2 px-1 py-[3px] text-[12.5px]">
+                      <input type="checkbox" checked={customIds.has(d.id)} onChange={() => toggleCustomId(d.id)} />
+                      <span className={`badge badge-type type-${d.type}`}>{t(`types.singular.${d.type}`)}</span>
+                      <span>{d.title}</span>
+                      <span className="muted mono">{d.id}</span>
+                    </label>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+
+          {mode !== 'current' && (
+            <div className="grid gap-1.5">
+              <label className="text-xs font-bold text-fg-muted" htmlFor="export-title-input">
+                {t('export.coverTitle')}
+              </label>
+              <input
+                id="export-title-input"
+                type="text"
+                className="w-full rounded-[7px] border border-line bg-surface px-2.5 py-[7px] text-[13px] text-fg"
+                value={customTitle}
+                onChange={(e) => setCustomTitle(e.target.value)}
+                placeholder={t('export.coverTitlePlaceholder')}
+              />
+            </div>
+          )}
+
+          {message && <p className="m-0 text-[12.5px] text-amber-700 dark:text-amber-400">{message}</p>}
         </div>
-      )}
+
+        <footer className="flex justify-end gap-2 border-t border-line bg-sidebar px-4 py-3">
+          <button type="button" className="sem-action-btn" disabled={busy} onClick={handlePreviewPrint}>
+            {mode === 'current' ? t('export.printDialog') : t('export.bundlePreview')}
+          </button>
+          <button type="button" className="sem-action-btn" disabled={busy} onClick={handleHtml}>
+            {t('export.saveHtml')}
+          </button>
+          <button
+            type="button"
+            className="sem-action-btn sem-approve-btn"
+            disabled={busy}
+            onClick={() => void handlePdf()}
+          >
+            {busy ? t('export.generating') : t('export.downloadPdf')}
+          </button>
+        </footer>
+      </AppDialog>
     </>
   )
 }

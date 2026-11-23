@@ -67,7 +67,7 @@ export default function SourceRef({ file, symbol, lines, satisfies, verifies }: 
       <figcaption className="source-ref-header">
         <Link
           to={`/code?${codeQuery.toString()}`}
-          className="source-ref-file source-ref-file-link mono"
+          className="source-ref-file mono inline-flex items-center gap-1.5 text-inherit no-underline hover:text-accent hover:underline"
           title={targetFile}
         >
           <MaterialFileIcon name={targetFile} size={14} />

@@ -65,8 +65,11 @@ export default function DocPeekPane({ docId, focusBlockId, onBack, onClose, extr
     const target = container.querySelector<HTMLElement>(`[id="${CSS.escape(targetId)}"]`)
     if (target) {
       target.scrollIntoView({ behavior: 'smooth', block: 'center' })
-      target.classList.add('peek-focus-highlight')
-      const timer = setTimeout(() => target.classList.remove('peek-focus-highlight'), 1800)
+      target.classList.add('ring-2', 'ring-amber-500', 'transition-shadow', 'duration-300')
+      const timer = setTimeout(
+        () => target.classList.remove('ring-2', 'ring-amber-500', 'transition-shadow', 'duration-300'),
+        1800,
+      )
       return () => clearTimeout(timer)
     }
   }, [doc, focusBlockId, activeTab])
@@ -77,6 +80,16 @@ export default function DocPeekPane({ docId, focusBlockId, onBack, onClose, extr
     if (typeof window === 'undefined') return 860
     return Math.max(360, Math.min(860, Math.round(window.innerWidth * 0.65)))
   }, [])
+
+  const iconBtnClass =
+    'inline-flex cursor-pointer items-center gap-1 rounded-md border border-line bg-surface px-2 py-[3px] text-[11.5px] font-semibold text-fg-muted no-underline hover:border-accent hover:bg-hover hover:text-fg'
+
+  const tabClass = (active: boolean) =>
+    `inline-flex cursor-pointer items-center gap-[5px] rounded-[5px] border-0 px-2.5 py-[3px] text-xs font-semibold ${
+      active
+        ? 'bg-surface text-fg shadow-[0_1px_2px_rgba(15,23,42,0.08)]'
+        : 'bg-transparent text-fg-muted hover:text-fg'
+    }`
 
   return (
     <>
@@ -90,45 +103,49 @@ export default function DocPeekPane({ docId, focusBlockId, onBack, onClose, extr
         label={t('resize.peek')}
       />
       <aside
-        className="side-panel side-panel-peek"
+        className="flex min-h-0 min-w-0 shrink-0 grow-0 flex-col overflow-hidden border-l border-line bg-surface max-[900px]:flex-none max-[900px]:!basis-auto max-[900px]:overflow-visible max-[900px]:border-t max-[900px]:border-l-0 print:hidden"
         style={{ flexBasis: `${peekWidth}px` }}
         aria-label={t('peek.ariaLabel')}
       >
-        <header className="peek-header">
-          <div className="peek-header-top">
-            <div className="peek-header-left">
+        <header className="flex shrink-0 flex-col gap-1.5 border-b border-line bg-sidebar px-3.5 py-2.5">
+          <div className="flex items-center justify-between gap-2">
+            <div className="flex items-center gap-1.5">
               {onBack && (
-                <button type="button" className="peek-icon-btn" onClick={onBack} title={t('peek.backToInspector')}>
+                <button type="button" className={iconBtnClass} onClick={onBack} title={t('peek.backToInspector')}>
                   <ArrowLeft size={13} strokeWidth={1.8} aria-hidden="true" />
                   <span>{t('common.back')}</span>
                 </button>
               )}
               {doc && <span className={`badge badge-type type-${doc.type}`}>{t(`types.singular.${doc.type}`)}</span>}
-              {doc?.date && <span className="peek-date mono">{doc.date}</span>}
+              {doc?.date && <span className="mono text-[11px] text-fg-muted">{doc.date}</span>}
             </div>
-            <div className="peek-header-actions">
-              <Link to={openHref} className="peek-icon-btn peek-open-link" title={t('peek.openInMain')}>
+            <div className="flex items-center gap-1.5">
+              <Link to={openHref} className={iconBtnClass} title={t('peek.openInMain')}>
                 <span>{t('common.open')}</span>
                 <ExternalLink size={12} strokeWidth={1.8} aria-hidden="true" />
               </Link>
-              <button type="button" className="peek-icon-btn" onClick={onClose} aria-label={t('peek.closePreview')}>
+              <button type="button" className={iconBtnClass} onClick={onClose} aria-label={t('peek.closePreview')}>
                 <X size={13} strokeWidth={1.8} aria-hidden="true" />
               </button>
             </div>
           </div>
 
-          <div className="peek-title-row">
-            <strong className="peek-title">{doc?.title ?? docId}</strong>
-            <span className="peek-path mono">{focusBlockId ? `${docId} #${focusBlockId}` : docId}</span>
+          <div className="flex flex-col gap-px">
+            <strong className="text-[15px] leading-[1.35]">{doc?.title ?? docId}</strong>
+            <span className="mono text-[11px] text-fg-muted">{focusBlockId ? `${docId} #${focusBlockId}` : docId}</span>
           </div>
 
           {extraTab && (
-            <div className="rp-tabs" role="tablist" aria-label={t('peek.switchAria')}>
+            <div
+              className="inline-flex w-fit gap-0.5 rounded-[7px] border border-line bg-subtle p-0.5"
+              role="tablist"
+              aria-label={t('peek.switchAria')}
+            >
               <button
                 type="button"
                 role="tab"
                 aria-selected={activeTab === 'preview'}
-                className={`rp-tab${activeTab === 'preview' ? ' active' : ''}`}
+                className={tabClass(activeTab === 'preview')}
                 onClick={() => setActiveTab('preview')}
               >
                 {t('peek.bodyTab')}
@@ -137,7 +154,7 @@ export default function DocPeekPane({ docId, focusBlockId, onBack, onClose, extr
                 type="button"
                 role="tab"
                 aria-selected={activeTab === 'extra'}
-                className={`rp-tab${activeTab === 'extra' ? ' active' : ''}`}
+                className={tabClass(activeTab === 'extra')}
                 onClick={() => setActiveTab('extra')}
               >
                 {extraTab.label}
@@ -146,7 +163,7 @@ export default function DocPeekPane({ docId, focusBlockId, onBack, onClose, extr
           )}
         </header>
 
-        <div ref={bodyRef} className="peek-body">
+        <div ref={bodyRef} className="min-h-0 flex-1 overflow-y-auto px-5 pt-4 pb-12">
           {activeTab === 'extra' && extraTab ? (
             extraTab.content
           ) : (
@@ -154,8 +171,10 @@ export default function DocPeekPane({ docId, focusBlockId, onBack, onClose, extr
               {loading && !doc && <p className="muted">{t('common.loading')}</p>}
               {error && <p className="error-text">{error}</p>}
               {doc && (
-                <div className="peek-doc-content">
-                  {doc.description && <p className="peek-description">{doc.description}</p>}
+                <div className="[&_.markdown]:text-sm">
+                  {doc.description && (
+                    <p className="m-0 mb-3.5 border-b border-line pb-3 text-[13px] text-fg-muted">{doc.description}</p>
+                  )}
                   <DocReviewProvider blocks={doc.blocks} onMutate={handleMutate}>
                     <Markdown
                       body={doc.body}

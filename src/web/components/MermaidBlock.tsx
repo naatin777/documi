@@ -1,6 +1,8 @@
+import { X } from 'lucide-react'
 import { useEffect, useId, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useTheme } from '../theme'
+import { AppDialog, DialogClose } from './ui/Dialog'
 
 type MermaidModule = typeof import('mermaid').default
 
@@ -90,26 +92,22 @@ export default function MermaidBlock({ code }: MermaidBlockProps) {
           <code>{code}</code>
         </pre>
       )}
-      {zoomed && svg && (
-        <div
-          className="mermaid-zoom"
-          role="dialog"
-          aria-modal="true"
-          aria-label={t('mermaid.zoomAria')}
-          onClick={() => setZoomed(false)}
+      {svg && (
+        <AppDialog
+          open={zoomed}
+          onOpenChange={setZoomed}
+          ariaLabel={t('mermaid.zoomAria')}
+          align="center"
+          className="relative max-h-[90vh] max-w-[90vw] w-auto overflow-auto p-8"
         >
-          <div className="mermaid-zoom-inner" onClick={(e) => e.stopPropagation()}>
-            <button
-              type="button"
-              className="mermaid-zoom-close"
-              aria-label={t('common.close')}
-              onClick={() => setZoomed(false)}
-            >
-              ×
-            </button>
-            <div dangerouslySetInnerHTML={{ __html: svg }} />
-          </div>
-        </div>
+          <DialogClose
+            className="absolute top-2.5 right-3 flex h-7 w-7 cursor-pointer items-center justify-center rounded-md border-0 bg-transparent text-fg-muted hover:bg-hover hover:text-fg"
+            aria-label={t('common.close')}
+          >
+            <X size={16} strokeWidth={1.85} aria-hidden="true" />
+          </DialogClose>
+          <div className="mermaid-zoom-svg" dangerouslySetInnerHTML={{ __html: svg }} />
+        </AppDialog>
       )}
     </div>
   )
