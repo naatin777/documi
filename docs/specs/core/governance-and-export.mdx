@@ -1,0 +1,39 @@
+---
+type: spec
+title: レビュー・実装トレース・バンドル・静的サイト出力仕様
+description: サイドカー人間承認・Realization 自動算出・AST 参照検証・複数バンドル解決・プロバイダ非依存静的サイト書き出しの仕様
+tags: [core, spec, governance, export]
+---
+
+# レビュー・実装トレース・バンドル・静的サイト出力仕様
+
+## 人間レビュー・Diff・Suspect Links
+
+<Spec id="core.human-review" stability="stable" derives="goals/low-friction-governance">
+  **When** 人間がセマンティックブロックを承認したとき、
+  **the** Document Core **shall** MDX 本文ではなくサイドカー `docs/.documi/reviews.json` にコンテンツハッシュ・承認コミット SHA・上流ハッシュを保存し、本文変更で `stale`、上流変更で `suspect` を自動判定するとともに承認時点からの行 diff を算出する。
+</Spec>
+
+## コード・テスト・PR 連携と実装状態の自動算出
+
+<Spec id="core.realization" stability="stable" derives="goals/low-friction-governance">
+  **When** プロジェクトのソース/テスト・JUnit XML レポート・PR 情報を走査するとき、
+  **the** Document Core **shall** `@implements` / `@verifies` / `test("[id] ...")` / `<SourceRef>` / PR 参照を集約し、各 `normative` `<Spec>` の `realization` (`unimplemented` / `in-progress` / `implemented` / `verified` / `drifted`) を完全自動で算出する。
+</Spec>
+
+<Spec id="core.ast-check" stability="stable" derives="goals/low-friction-governance">
+  **When** `documi check` または MCP `validate_docs` が実行されたとき、
+  **the** Document Core **shall** 全 `<SourceRef>` および `<TermDef symbols="...">` を `@ast-grep/napi` で実在検証し、`--no-review-edit` 指定時は `reviews.json` の未許可変更もエラーとして検出する。
+</Spec>
+
+## 複数バンドル解決と静的サイト書き出し
+
+<Spec id="core.bundle-export" stability="evolving" derives="goals/human-comprehension">
+  **When** `all` / `dir:<path>` / `goal:<id>` / 明示 `ids` のいずれかでバンドルが要求されたとき、
+  **the** Document Core **shall** 対象ドキュメント一式（Goal 起点時はトレーサビリティ下流および関連用語集・Decision を自動同梱）を解決する。
+</Spec>
+
+<Spec id="core.static-site" stability="evolving" derives="goals/human-comprehension">
+  **When** `documi build-site` が実行されたとき、
+  **the** Documi CLI および Web UI **shall** ビルド済み Web UI アセット（CSS フォント URL・動的チャンク preload ベースパス・favicon を含む相対/任意ベースパス対応済み）と事前計算済みの全読み取り API JSON（Overview・ツリー・ドキュメント詳細・履歴・過去版・グラフ・マトリクス・検索インデックス・任意でハッシュ索引化したコード＆`<SourceRef>` スニペット・アイコン）およびホスティング補助ファイル（`_headers`・`.nojekyll`・`404.html`・`window.__DOCUMI_STATIC__` 注入済み `index.html`）を静的ディレクトリへ出力し、Cloudflare Pages / Workers Static Assets・Vercel・Netlify・GitHub Pages・S3 等の任意の静的ホスティング上でサーバーレス・読み取り専用に動作できるようにする。`--no-code` 指定時はソースコード全文を含めない。
+</Spec>
