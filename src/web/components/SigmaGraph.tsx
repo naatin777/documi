@@ -77,6 +77,7 @@ export default function SigmaGraph({ data, selectedNodeId, onSelectNode }: Sigma
   useEffect(() => {
     const container = containerRef.current
     if (!container) return
+    let disposed = false
 
     const { graph, simNodes, simEdges, worldRadius } = buildGraphAndSim(data, isDark)
     const simById = new Map(simNodes.map((n) => [n.id, n]))
@@ -227,10 +228,17 @@ export default function SigmaGraph({ data, selectedNodeId, onSelectNode }: Sigma
         },
       })
       renderer.setCustomBBox({ x: [-worldRadius, worldRadius], y: [-worldRadius, worldRadius] })
-      setWebglError(null)
+      queueMicrotask(() => {
+        if (!disposed) setWebglError(null)
+      })
     } catch (e) {
-      setWebglError(e instanceof Error ? e.message : t('graph.webglError'))
-      return
+      const message = e instanceof Error ? e.message : t('graph.webglError')
+      queueMicrotask(() => {
+        if (!disposed) setWebglError(message)
+      })
+      return () => {
+        disposed = true
+      }
     }
 
     sigmaRef.current = renderer
@@ -340,6 +348,7 @@ export default function SigmaGraph({ data, selectedNodeId, onSelectNode }: Sigma
     })
 
     return () => {
+      disposed = true
       killed = true
       camera.off('updated', onCameraUpdated)
       if (rafId !== null) cancelAnimationFrame(rafId)

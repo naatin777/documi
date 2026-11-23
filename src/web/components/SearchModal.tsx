@@ -1,8 +1,9 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useNavigate } from 'react-router'
 import type { SearchHit } from '../../core/bundle'
 import { encodeDocId } from '../api'
+import { useDebouncedValue } from '../hooks'
 import { useSearchQuery } from '../queries'
 import { AppDialog } from './ui/Dialog'
 
@@ -16,26 +17,10 @@ export default function SearchModal({ open, onClose }: SearchModalProps) {
   const { t } = useTranslation()
   const navigate = useNavigate()
   const [query, setQuery] = useState('')
-  const [debouncedQuery, setDebouncedQuery] = useState('')
-  const [activeIdx, setActiveIdx] = useState(0)
+  const [selection, setSelection] = useState<{ scope: string; idx: number }>({ scope: '', idx: 0 })
   const inputRef = useRef<HTMLInputElement>(null)
 
-  useEffect(() => {
-    if (!open) return
-    setActiveIdx(0)
-  }, [open])
-
-  useEffect(() => {
-    if (!open) return
-    const q = query.trim()
-    if (!q) {
-      setDebouncedQuery('')
-      return
-    }
-    const timer = setTimeout(() => setDebouncedQuery(q), 120)
-    return () => clearTimeout(timer)
-  }, [open, query])
-
+  const debouncedQuery = useDebouncedValue(query, 120, open)
   const searchQuery = useSearchQuery(debouncedQuery, open)
   const results = useMemo(
     () => (debouncedQuery ? (searchQuery.data?.results ?? []) : []),
@@ -43,9 +28,16 @@ export default function SearchModal({ open, onClose }: SearchModalProps) {
   )
   const loading = Boolean(debouncedQuery) && searchQuery.isFetching
 
-  useEffect(() => {
-    setActiveIdx(0)
-  }, [results])
+  const selectionScope = `${open ? '1' : '0'}:${debouncedQuery}:${results.length}`
+  const activeIdx =
+    selection.scope === selectionScope && results.length > 0 ? Math.min(selection.idx, results.length - 1) : 0
+  const setActiveIdx = (next: number | ((prev: number) => number)) => {
+    setSelection((prev) => {
+      const base = prev.scope === selectionScope ? prev.idx : 0
+      const resolved = typeof next === 'function' ? next(base) : next
+      return { scope: selectionScope, idx: resolved }
+    })
+  }
 
   const openHit = (hit: SearchHit) => {
     const hash = hit.kind === 'block' ? `#block-${encodeURIComponent(hit.id)}` : ''

@@ -31,7 +31,9 @@ export default function DocTabs({ sidebarOpen, onToggleSidebar }: DocTabsProps) 
 
   const [canScrollLeft, setCanScrollLeft] = useState(false)
   const [canScrollRight, setCanScrollRight] = useState(false)
-  const [menuOpen, setMenuOpen] = useState(false)
+  const [menuState, setMenuState] = useState<{ open: boolean; path: string }>({ open: false, path: pathname })
+  const menuOpen = menuState.open && menuState.path === pathname
+  const setMenuOpen = (open: boolean) => setMenuState({ open, path: pathname })
 
   const syncOverflow = useCallback(() => {
     const strip = stripRef.current
@@ -69,11 +71,6 @@ export default function DocTabs({ sidebarOpen, onToggleSidebar }: DocTabsProps) 
     ro.observe(strip)
     return () => ro.disconnect()
   }, [tabs, syncOverflow])
-
-  // ルート遷移時にドロップダウンを閉じる
-  useEffect(() => {
-    setMenuOpen(false)
-  }, [pathname])
 
   const scrollByStep = (dir: -1 | 1) => {
     const strip = stripRef.current

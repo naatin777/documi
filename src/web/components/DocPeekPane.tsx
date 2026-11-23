@@ -34,7 +34,13 @@ function tabClass(active: boolean) {
 export default function DocPeekPane({ docId, focusBlockId, onBack, onClose, extraTab }: DocPeekPaneProps) {
   const { t } = useTranslation()
   const handleMutate = useInvalidateDocs()
-  const [activeTab, setActiveTab] = useState<'preview' | 'extra'>('preview')
+  const [tabState, setTabState] = useState<{ scope: string; tab: 'preview' | 'extra' }>({
+    scope: '',
+    tab: 'preview',
+  })
+  const tabScope = `${docId}:${focusBlockId ?? ''}`
+  const activeTab: 'preview' | 'extra' = tabState.scope === tabScope ? tabState.tab : 'preview'
+  const setActiveTab = (tab: 'preview' | 'extra') => setTabState({ scope: tabScope, tab })
   const bodyRef = useRef<HTMLDivElement>(null)
   const {
     width: peekWidth,
@@ -53,11 +59,6 @@ export default function DocPeekPane({ docId, focusBlockId, onBack, onClose, extr
   const terms = termsQuery.data?.terms ?? []
   const loading = docQuery.isPending
   const error = toErrorMessage(docQuery.error)
-
-  // 別ドキュメントへ切り替えたら本文タブへ戻す
-  useEffect(() => {
-    setActiveTab('preview')
-  }, [docId, focusBlockId])
 
   // ブロック指定がある場合はペイン内を該当ブロックへスクロール
   useEffect(() => {
