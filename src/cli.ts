@@ -823,6 +823,12 @@ async function cmdContext(positionals: string[], flags: CliFlags, io: CliIo): Pr
   }
 
   io.out(`Spec Context: ${id} (${ctx.docPath}${ctx.startLine ? `:${ctx.startLine}-${ctx.endLine}` : ''})`)
+  if ('rawBody' in ctx.target && ctx.target.rawBody) {
+    io.out(`  body:`)
+    for (const line of ctx.target.rawBody.trim().split('\n')) {
+      io.out(`    ${line}`)
+    }
+  }
   if (ctx.upstreamGoals.length > 0) {
     io.out(`  upstream goals: ${ctx.upstreamGoals.map((g) => g.id).join(', ')}`)
   }

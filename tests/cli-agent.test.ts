@@ -149,10 +149,14 @@ describe('AI & Human CLI commands', () => {
     expect(ctxFullRes.code).toBe(0)
     expect((ctxFullRes.json().upstreamGoals as Array<{ body?: string }>)[0]?.body).toContain('# Core Goal')
 
-    // 人間向けテキスト出力もエラーなく動作
+    // 人間・AI 向けテキスト出力もエラーなく動作（context テキストに対象 Spec 本文が含まれる）
     const textMap = await execCli(['map', '--project', projectDir])
     expect(textMap.code).toBe(0)
     expect(textMap.stdout).toContain('Documi Project Map')
+
+    const textCtx = await execCli(['context', 'auth.lockout', '--project', projectDir])
+    expect(textCtx.code).toBe(0)
+    expect(textCtx.stdout).toContain('5回失敗でアカウントをロックする。')
   })
 
   test('[core.ai-cli] scaffold / block add / block update (stdin) / term upsert / block rename が精密編集と検証を行う', async () => {

@@ -98,7 +98,7 @@ const optionalBlockIntentSchema = z
   .describe('採用意思 (normative / idea / rejected / informative)')
 
 function jsonResult(data: unknown): CallToolResult {
-  const text = JSON.stringify(data, null, 2)
+  const text = JSON.stringify(data)
   return {
     content: [{ type: 'text', text }],
     structuredContent: data as Record<string, unknown>,
