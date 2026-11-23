@@ -26,6 +26,16 @@ tags: [core, spec, governance, export]
   **the** Document Core **shall** 全 `<SourceRef>` および `<TermDef symbols="...">` を `@ast-grep/napi` で実在検証し、`--no-review-edit` 指定時は `reviews.json` の未許可変更もエラーとして検出する。
 </Spec>
 
+<Spec id="core.doc-health" stability="evolving" derives="goals/low-friction-governance">
+  **When** `documi check`・`documi map`・MCP `get_project_map` / `validate_docs`・REST `/api/overview` / `/api/check` が実行されたとき、
+  **the** Document Core **shall** 全 `normative` `<Spec>` に対する `design` (`satisfies`) および `verification` (`verifies`) カバレッジ、1 ファイルあたり推奨上限を超えた肥大化 `spec` 文書、および `architecture` 鮮度ギャップを CI を失敗させない Advisory 健全性ヒントとして算出・提示する。
+</Spec>
+
+<Spec id="core.ast-exports" stability="evolving" derives="goals/human-comprehension">
+  **When** `<SourceRef file="src/..." mode="exports" />`・`GET /api/source/exports`・Code Explorer (`/api/code/file`)・`documi context` / MCP `get_spec_context` がソースファイルの公開シンボルを要求したとき、
+  **the** Document Core **shall** `@ast-grep/napi` により対象ファイルから export / 公開されている `class`・`interface`・`type`・`enum`・`function`・`constant` 等の名前・種別・1 行シグネチャ・行範囲を自動抽出し、手書き複製なしで常に最新の公開境界一覧を提供する。
+</Spec>
+
 ## 複数バンドル解決と静的サイト書き出し
 
 <Spec id="core.bundle-export" stability="evolving" derives="goals/human-comprehension">

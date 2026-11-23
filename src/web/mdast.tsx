@@ -486,6 +486,7 @@ function renderJsx(node: JsxNode, ctx: Ctx, level: 'flow' | 'text'): ReactNode {
             file={strProp(props, 'file')}
             symbol={strProp(props, 'symbol')}
             lines={strProp(props, 'lines')}
+            mode={strProp(props, 'mode')}
             satisfies={strProp(props, 'satisfies')}
             verifies={strProp(props, 'verifies')}
           />

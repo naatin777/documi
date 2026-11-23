@@ -3,6 +3,7 @@ import { z } from 'zod'
 import { resolveBundleDocuments, searchIndex } from '../../core/bundle'
 import type { RagConfig } from '../../core/config'
 import { getDocumentHistory, getDocumentRevision, HistoryError } from '../../core/git'
+import { computeDocumentHealth } from '../../core/health'
 import { searchIndexHybrid } from '../../core/hybrid-retrieval'
 import { buildDocTree, getDocument, toDocumentSummary } from '../../core/loader'
 import { ARTIFACT_TYPES, REALIZATION_STATUSES, SPEC_INTENTS, STABILITIES } from '../../core/types'
@@ -205,6 +206,7 @@ export function createDocumentsRoutes(store: DocsStore, projectRoot?: string, ra
           .slice(0, 8)
           .map(toDocumentSummary)
         const uncommittedCount = index.documents.filter((d) => Boolean(d.freshness?.workingStatus)).length
+        const health = computeDocumentHealth(index)
 
         return c.json(
           {
@@ -219,6 +221,7 @@ export function createDocumentsRoutes(store: DocsStore, projectRoot?: string, ra
             specsByStability,
             reviews,
             realizations,
+            health,
             attentionBlocks,
             openFeedbackItems,
             goals,

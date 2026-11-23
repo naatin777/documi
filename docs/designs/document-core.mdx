@@ -12,6 +12,7 @@ satisfies:
   - core.auto-mentions
   - core.mcp-surgical-edit
   - core.doc-history
+  - core.ast-exports
 ---
 
 # Document Core の設計
@@ -55,4 +56,4 @@ YAML frontmatter を分離し、省略時はディレクトリ名・ファイル
 
 <SourceRef file="src/core/git.ts" symbol="getDocumentHistory" satisfies="core.doc-history" />
 
-<SourceRef file="src/core/source.ts" symbol="resolveSourceSymbol" />
+<SourceRef file="src/core/source.ts" mode="exports" satisfies="core.ast-exports" />

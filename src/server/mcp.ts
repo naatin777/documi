@@ -17,6 +17,7 @@ import { retrieveContextHybrid, searchIndexHybrid } from '../core/hybrid-retriev
 import {
   buildProjectMap,
   buildValidationPayload,
+  collectSourceRefExports,
   getDocumentDetail,
   getNodeRelations,
   getSpecContext,
@@ -60,15 +61,17 @@ const DOCUMI_MCP_INSTRUCTIONS = [
   '   - Only call get_document or get_relations when full document prose or graph edges are needed.',
   '2. Surgical editing (prefer over full-file rewrites):',
   '   - Use update_block, add_block, upsert_term, scaffold_document, and rename_block_id (always preview with dryRun: true first).',
-  '3. Code & test synchronization:',
+  '3. Code, tests & documentation sync triggers:',
   '   - Link implementation code with `// @implements <spec.id>` (or `<SourceRef file="src/..." satisfies="<spec.id>" />`).',
   "   - Link tests with `test('[<spec.id>] ...', ...)` (or `// @verifies <spec.id>`).",
   '   - Always write `<SourceRef file="...">` and `<TermDef symbols="...">` as project-root-relative POSIX paths.',
+  '   - Surface public boundary symbols (exported classes, interfaces, types, public functions) via `<SourceRef file="..." mode="exports" />` or `<SourceRef symbol="..." />` rather than hand-copying code; never write internal if/for pseudocode or private helper steps in docs.',
+  '   - Update triggers before finishing: new subsystem/module -> update architecture + add/update design (with `satisfies` + `<SourceRef>`); high-reversibility structural choice -> add decision (ADR); new spec/test suite -> update verification (`verifies`); spec file > 10 blocks -> split by domain.',
   '4. Strict invariants:',
   '   - NEVER edit `docs/.documi/reviews.json` directly (human approvals and feedback only).',
   '   - NEVER write executable JS in MDX (no ESM import/export, no JSX `{...}` expressions, no unapproved components).',
   '   - NEVER create temporary `tasks.md` checklists inside docs/; realization is derived automatically from code, tests, and PRs.',
-  '5. Always call validate_docs before finishing and fix all reported issues.',
+  '5. Always call validate_docs before finishing, fix all errors, and review health coverage hints (missing design / missing verification / bloated spec docs).',
 ].join('\n')
 
 const artifactTypeSchema = z.enum(ARTIFACT_TYPES)
@@ -222,7 +225,8 @@ function createDocumiMcpServer(store: DocsStore, projectRoot?: string, ragConfig
     async ({ id, full }: { id: string; full?: boolean }) => {
       const context = getSpecContext(getIndex(), id, { full })
       if (!context) return errorResult(`対象が見つかりません: ${id}`)
-      return jsonResult(context)
+      const exportedSymbols = projectRoot ? await collectSourceRefExports(projectRoot, context.sourceRefs) : []
+      return jsonResult(exportedSymbols.length > 0 ? { ...context, exportedSymbols } : context)
     },
   )
 

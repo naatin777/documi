@@ -199,12 +199,17 @@ EOF
 - \`documi scaffold <rel-path.mdx> --title "..." [--type spec] [--derives a,b] [--body -]\` — 規約通りの frontmatter を持つ新規文書を作成する（既存ファイルの上書きは拒否）。
 - \`documi block rename <old-id> <new-id> --dry-run\` — 全 \`${relDocsDir}/\` とコード・テストの ID 参照を一括リネームする（必ず先に \`--dry-run\` で対象を確認）。
 
-## 3. コード・テストと仕様の同期
+## 3. コード・テストと仕様の同期・更新トリガー
 
 - 実装コードには \`// @implements <spec.id>\`（または設計書に \`<SourceRef file="src/..." satisfies="<spec.id>" />\`）を付与する。
 - 検証テストには \`test('[<spec.id>] ...', ...)\`（または \`// @verifies <spec.id>\`）を含め、設定されていれば JUnit XML を出力する。
 - \`<SourceRef file="...">\` と \`<TermDef symbols="...">\` は必ずプロジェクトルートからの POSIX 相対パスで記述する。
-- 振る舞い・API・アーキテクチャを変更したら、対応する仕様・コントラクト・設計・ADR も同じ変更で更新する。
+- **書く／書かないの境界**: 公開シンボル（export された \`class\` / \`interface\` / \`type\` / 公開関数）は手書きコピペせず \`<SourceRef file="src/..." mode="exports" />\` や \`<SourceRef symbol="..." />\` で AST 紐づけして把握できるようにする。一方、非公開ヘルパーや関数内の \`if\`/\`for\` 擬似コードは書かず、外部から観測できる条件・エラー・フォールバックのみを \`spec\` / \`contract\` に書く。
+- **更新トリガー（PR 完了前セルフチェック）**:
+  - 新サブシステム・主要モジュール追加 → \`architecture\` 更新 ＋ \`design\`（\`satisfies\`・\`<SourceRef>\`）追加・更新
+  - 後戻りコストが高い構造・技術判断 → \`decision\`（ADR＋\`<Outcome>\`）を追加
+  - 新しい \`<Spec>\` やテストスイート追加 → \`verification\` の \`verifies\` と一覧を更新
+  - 1 つの \`spec\` ファイルが 10 件超の \`<Spec>\` を超えた → \`documi scaffold\` で領域別に分割
 
 ## 4. 守るべき不変ルール
 
@@ -214,7 +219,7 @@ EOF
 
 ## 5. 完了前の検証と引き継ぎ
 
-1. \`documi check --no-review-edit\` を実行し、エラー 0 件（Rooted DAG・MDX 安全性・AST シンボル参照）を確認する。
+1. \`documi check --no-review-edit\` を実行し、エラー 0 件（Rooted DAG・MDX 安全性・AST シンボル参照）および健全性ヒント（Design / Verification カバレッジ・Spec 肥大化）を確認する。
 2. 追加・変更した Spec ID を簡潔にまとめ、人間レビュアーが Web UI（\`documi serve\`）で確認・承認できるようにする。
 `,
       'documi-bootstrap/SKILL.md': `---
@@ -295,12 +300,17 @@ EOF
 - \`documi scaffold <rel-path.mdx> --title "..." [--type spec] [--derives a,b] [--body -]\` — create a new typed document with valid frontmatter (refuses to overwrite existing files).
 - \`documi block rename <old-id> <new-id> --dry-run\` — safely rename a block ID and all cross-references across \`${relDocsDir}/\` and code/tests (always preview with \`--dry-run\` first).
 
-## 3. Sync Code & Tests With Specs
+## 3. Sync Code, Tests & Update Triggers
 
 - Link implementation code to specs with \`// @implements <spec.id>\` (or \`<SourceRef file="src/..." satisfies="<spec.id>" />\`).
 - Link verification tests with \`test('[<spec.id>] ...', ...)\` (or \`// @verifies <spec.id>\`) and emit JUnit XML when running tests if configured.
 - Always write \`<SourceRef file="...">\` and \`<TermDef symbols="...">\` as POSIX paths relative to the project root.
-- Update the relevant specs, contracts, designs, or decisions in the same change whenever behavior, API, or architecture changes.
+- **Boundary rule**: Surface public boundary symbols (exported classes, interfaces, types, public functions) via \`<SourceRef file="src/..." mode="exports" />\` or \`<SourceRef symbol="..." />\` rather than hand-copying declarations; never write private helper steps or function-internal \`if\`/\`for\` pseudocode in docs—record only observable behavior, errors, and fallbacks in \`spec\`/\`contract\`.
+- **Update triggers (check before finishing)**:
+  - New subsystem or core module -> update \`architecture\` and add/update \`design\` (with \`satisfies\` + \`<SourceRef>\`)
+  - High-reversibility structural/technical choice -> add a \`decision\` (ADR with \`<Outcome>\`)
+  - New \`<Spec>\` or test suite -> update \`verification\` (\`verifies\` list + suite table)
+  - A \`spec\` file exceeds ~10 \`<Spec>\` blocks -> split by domain with \`documi scaffold\`
 
 ## 4. Invariant Guardrails
 
@@ -310,7 +320,7 @@ EOF
 
 ## 5. Verify Before Finishing
 
-1. Run \`documi check --no-review-edit\` and confirm 0 errors (Rooted DAG, MDX safety, AST symbol references).
+1. Run \`documi check --no-review-edit\` and confirm 0 errors (Rooted DAG, MDX safety, AST symbol references) and inspect any health hints (Design / Verification coverage, bloated spec files).
 2. Summarize any new or modified Spec IDs so the human reviewer can inspect and approve them in the Documi Web UI (\`documi serve\`).
 `,
     'documi-bootstrap/SKILL.md': `---

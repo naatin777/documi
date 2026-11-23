@@ -317,6 +317,7 @@ export async function buildStaticSite(options: BuildStaticSiteOptions): Promise<
   let sourceSnippetCount = 0
   const codeFileIndex: Record<string, string> = {}
   const sourceIndex: Record<string, string> = {}
+  const sourceExportsIndex: Record<string, string> = {}
 
   if (includeCode) {
     const codeTreePayload = await fetchJson<{ tree: CodeTreeNode[] }>(app, '/api/code/tree')
@@ -337,8 +338,13 @@ export async function buildStaticSite(options: BuildStaticSiteOptions): Promise<
 
     // 文書内の全 SourceRef および TermDef symbols を事前解決
     const sourceQueries = new Map<string, { file: string; symbol?: string; lines?: string }>()
+    const exportFiles = new Set<string>()
     for (const doc of index.documents) {
       for (const ref of doc.sourceRefs) {
+        if (ref.mode === 'exports') {
+          exportFiles.add(ref.file)
+          continue
+        }
         const params = { file: ref.file, symbol: ref.symbol, lines: ref.lines }
         sourceQueries.set(sourceKey(params), params)
       }
@@ -366,6 +372,17 @@ export async function buildStaticSite(options: BuildStaticSiteOptions): Promise<
         sourceSnippetCount++
       }
     }
+
+    for (const file of exportFiles) {
+      const qs = new URLSearchParams({ file })
+      const exportsPayload = await fetchJson<unknown>(app, `/api/source/exports?${qs.toString()}`)
+      if (exportsPayload) {
+        const h = stableHash(file)
+        sourceExportsIndex[file] = h
+        await writeJson(path.join(dataDir, 'source-exports', `${h}.json`), exportsPayload)
+        sourceSnippetCount++
+      }
+    }
   } else {
     await writeJson(path.join(dataDir, 'code', 'tree.json'), {
       totalFiles: 0,
@@ -376,6 +393,7 @@ export async function buildStaticSite(options: BuildStaticSiteOptions): Promise<
   }
   await writeJson(path.join(dataDir, 'code', 'file-index.json'), codeFileIndex)
   await writeJson(path.join(dataDir, 'source-index.json'), sourceIndex)
+  await writeJson(path.join(dataDir, 'source-exports-index.json'), sourceExportsIndex)
 
   // 4. Material Icon Theme（実際に使用するアイコン SVG のみコピー）
   let iconCount = 0

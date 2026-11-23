@@ -1,5 +1,7 @@
 import { execFileSync } from 'node:child_process'
 import path from 'node:path'
+import { computeDocumentHealth } from './health'
+import type { DocumentHealthSummary } from './health'
 import { loadDocuments } from './loader'
 import { REVIEWS_REL_PATH } from './reviews'
 import { enrichWithRealization, validateSourceLinks } from './trace'
@@ -34,6 +36,7 @@ export interface CheckReport {
   warnings: CheckFinding[]
   realizationCounts: Record<RealizationStatus, number>
   reviewCounts: { approved: number; unreviewed: number; stale: number; suspect: number }
+  health: DocumentHealthSummary
   index: DocsIndex
 }
 
@@ -147,6 +150,8 @@ export async function runDocsCheck(options: CheckOptions): Promise<CheckReport> 
     }
   }
 
+  const health = computeDocumentHealth(index)
+
   return {
     ok: errors.length === 0,
     docsDir,
@@ -156,6 +161,7 @@ export async function runDocsCheck(options: CheckOptions): Promise<CheckReport> 
     warnings,
     realizationCounts,
     reviewCounts,
+    health,
     index,
   }
 }

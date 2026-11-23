@@ -137,6 +137,11 @@
     "orphanSpecs": "上位目標と未接続の仕様 ({{count}})",
     "allIssues": "すべての問題 ({{count}})",
     "realizationStability": "実装・検証と安定度",
+    "healthTitle": "ドキュメント健全性・カバレッジ",
+    "designCoverage": "Design カバレッジ",
+    "verificationCoverage": "Verification カバレッジ",
+    "healthHealthy": "良好",
+    "healthHintsCount": "改善ヒント {{count}} 件",
     "realization": "実装・検証状況",
     "specsByIntent": "意図別の仕様数",
     "specsByStability": "安定度別の仕様数"
@@ -369,6 +374,7 @@
     "linkedSpecs": "仕様 ({{count}})",
     "linkedDocs": "文書 ({{count}})",
     "linkedTerms": "用語 ({{count}})",
+    "exportedSymbols": "公開シンボル ({{count}})",
     "lineSelectHint": "クリックで {{line}} 行目を強調（Shift+クリックで範囲選択）"
   },
   "code": {
@@ -385,9 +391,12 @@
     "zoomAria": "Mermaid 図（拡大）"
   },
   "sourceRef": {
-    "invalidProps": "SourceRef には file と symbol または lines のどちらか一方が必要です",
+    "invalidProps": "SourceRef には file と mode=\"exports\"・symbol・lines のいずれかが必要です",
     "truncated": " (途中まで)",
-    "loading": "ソースを読み込み中…"
+    "loading": "ソースを読み込み中…",
+    "exportsBadge": "公開シンボル",
+    "exportsCount": "{{count}} 件",
+    "noExports": "このファイルに公開シンボルはありません。"
   },
   "term": {
     "loadingSymbol": "コード定義を読み込み中…",

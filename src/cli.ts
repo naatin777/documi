@@ -22,6 +22,7 @@ import { loadDocuments } from './core/loader'
 import {
   buildProjectMap,
   buildValidationPayload,
+  collectSourceRefExports,
   getDocumentDetail,
   getNodeRelations,
   getSpecContext,
@@ -527,6 +528,7 @@ async function cmdCheck(flags: CliFlags, io: CliIo): Promise<number> {
       blockCount: report.blockCount,
       reviewCounts: report.reviewCounts,
       realizationCounts: report.realizationCounts,
+      health: report.health,
       errors: report.errors,
       warnings: report.warnings,
     })
@@ -541,6 +543,16 @@ async function cmdCheck(flags: CliFlags, io: CliIo): Promise<number> {
   io.out(
     `  realization: verified=${report.realizationCounts.verified} implemented=${report.realizationCounts.implemented} in-progress=${report.realizationCounts['in-progress']} unimplemented=${report.realizationCounts.unimplemented} drifted=${report.realizationCounts.drifted}`,
   )
+  io.out(
+    `  coverage:    design=${report.health.designCoveredSpecs}/${report.health.totalNormativeSpecs} verification=${report.health.verificationCoveredSpecs}/${report.health.totalNormativeSpecs}`,
+  )
+
+  if (report.health.hints.length > 0) {
+    io.out(`\nHealth Hints (${report.health.hints.length}, advisory):`)
+    for (const h of report.health.hints) {
+      io.out(`  ℹ [${h.code}] ${h.message}`)
+    }
+  }
 
   if (report.warnings.length > 0) {
     io.out(`\nWarnings (${report.warnings.length}):`)
@@ -645,6 +657,9 @@ async function cmdMap(flags: CliFlags, io: CliIo): Promise<number> {
   )
   io.out(
     `  realization: verified=${map.realizationSummary.verified} implemented=${map.realizationSummary.implemented} in-progress=${map.realizationSummary['in-progress']} unimplemented=${map.realizationSummary.unimplemented} drifted=${map.realizationSummary.drifted}`,
+  )
+  io.out(
+    `  coverage:    design=${map.health.designCoveredSpecs}/${map.health.totalNormativeSpecs} verification=${map.health.verificationCoveredSpecs}/${map.health.totalNormativeSpecs}${map.health.hints.length > 0 ? ` (${map.health.hints.length} health hints)` : ''}`,
   )
 
   if (map.goals.length > 0) {
@@ -1036,8 +1051,11 @@ async function cmdContext(positionals: string[], flags: CliFlags, io: CliIo): Pr
     return 1
   }
 
+  const exportedSymbols = await collectSourceRefExports(projectRoot, ctx.sourceRefs)
+  const payload = exportedSymbols.length > 0 ? { ...ctx, exportedSymbols } : ctx
+
   if (flags.json === true) {
-    printJson(io, ctx)
+    printJson(io, payload)
     return 0
   }
 
@@ -1066,7 +1084,17 @@ async function cmdContext(positionals: string[], flags: CliFlags, io: CliIo): Pr
   }
   if (ctx.sourceRefs.length > 0) {
     io.out(`  sourceRefs (${ctx.sourceRefs.length}):`)
-    for (const r of ctx.sourceRefs) io.out(`    - ${r.file}${r.symbol ? `#${r.symbol}` : ''}`)
+    for (const r of ctx.sourceRefs) {
+      const suffix = r.mode === 'exports' ? ' [exports]' : r.symbol ? `#${r.symbol}` : r.lines ? `:${r.lines}` : ''
+      io.out(`    - ${r.file}${suffix}`)
+    }
+  }
+  if (exportedSymbols.length > 0) {
+    io.out(`  exported symbols (${exportedSymbols.length} files):`)
+    for (const fileEntry of exportedSymbols) {
+      const summary = fileEntry.symbols.map((s) => `${s.kind} ${s.name} (L${s.startLine})`).join(', ')
+      io.out(`    - ${fileEntry.file}: ${summary}`)
+    }
   }
   return 0
 }
