@@ -8,9 +8,10 @@ export function useHighlightedCode(code: string, lang?: string | null): string |
   useEffect(() => {
     let cancelled = false
     setHtml(null)
-    void highlightCode(code, lang).then((result) => {
+    void (async () => {
+      const result = await highlightCode(code, lang)
       if (!cancelled) setHtml(result)
-    })
+    })()
     return () => {
       cancelled = true
     }
@@ -34,16 +35,16 @@ export function useCopyText(): { copied: boolean; copy: (text: string) => void }
   const copy = useCallback((text: string) => {
     const clipboard = navigator.clipboard
     if (!clipboard) return
-    void clipboard
-      .writeText(text)
-      .then(() => {
+    void (async () => {
+      try {
+        await clipboard.writeText(text)
         setCopied(true)
         if (timer.current) clearTimeout(timer.current)
         timer.current = setTimeout(() => setCopied(false), 1500)
-      })
-      .catch(() => {
+      } catch {
         // clipboard が使えない環境では何もしない
-      })
+      }
+    })()
   }, [])
 
   return { copied, copy }

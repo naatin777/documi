@@ -25,6 +25,12 @@ const EDGE_KIND_STYLES: Record<string, string> = {
   supersedes: 'border-rose-500 text-rose-700 dark:text-rose-400',
 }
 
+function tabClass(active: boolean) {
+  return `inline-flex cursor-pointer items-center gap-[5px] rounded-[5px] border-0 px-2.5 py-[3px] text-xs font-semibold ${
+    active ? 'bg-surface text-fg shadow-[0_1px_2px_rgba(15,23,42,0.08)]' : 'bg-transparent text-fg-muted hover:text-fg'
+  }`
+}
+
 export default function SidePanel({ doc, headings, onPeek, onCollapse }: SidePanelProps) {
   const { t } = useTranslation()
   const [tab, setTab] = useState<InspectorTab>('outline')
@@ -75,13 +81,6 @@ export default function SidePanel({ doc, headings, onPeek, onCollapse }: SidePan
   }, [doc.outgoing, doc.incoming])
 
   const totalLinks = upstream.length + downstream.length + doc.sourceRefs.length + mentions.length
-
-  const tabClass = (active: boolean) =>
-    `inline-flex cursor-pointer items-center gap-[5px] rounded-[5px] border-0 px-2.5 py-[3px] text-xs font-semibold ${
-      active
-        ? 'bg-surface text-fg shadow-[0_1px_2px_rgba(15,23,42,0.08)]'
-        : 'bg-transparent text-fg-muted hover:text-fg'
-    }`
 
   return (
     <>

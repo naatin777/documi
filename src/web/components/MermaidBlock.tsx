@@ -34,7 +34,7 @@ export default function MermaidBlock({ code }: MermaidBlockProps) {
     setError(null)
     setSvg(null)
     const renderId = `mermaid-${reactId.replace(/[^a-zA-Z0-9]/g, '')}`
-    ;(async () => {
+    void (async () => {
       try {
         const mermaid = await getMermaid()
         mermaid.initialize({
@@ -98,7 +98,7 @@ export default function MermaidBlock({ code }: MermaidBlockProps) {
           onOpenChange={setZoomed}
           ariaLabel={t('mermaid.zoomAria')}
           align="center"
-          className="relative max-h-[90vh] max-w-[90vw] w-auto overflow-auto p-8"
+          className="relative max-h-[90vh] w-auto max-w-[90vw] overflow-auto p-8"
         >
           <DialogClose
             className="absolute top-2.5 right-3 flex h-7 w-7 cursor-pointer items-center justify-center rounded-md border-0 bg-transparent text-fg-muted hover:bg-hover hover:text-fg"

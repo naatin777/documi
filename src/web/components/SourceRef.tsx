@@ -54,7 +54,7 @@ export default function SourceRef({ file, symbol, lines, satisfies, verifies }: 
 
   const satisfiesList = splitCsv(satisfies)
   const verifiesList = splitCsv(verifies)
-  const targetFile = data?.file ?? file!
+  const targetFile = data?.file ?? file
   const codeQuery = new URLSearchParams({ file: targetFile })
   if (data) {
     codeQuery.set('lines', `${data.startLine}-${data.endLine}`)

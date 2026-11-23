@@ -27,17 +27,17 @@ function mcpCall(name: string, args: Record<string, unknown>, id = 1): Request {
   })
 }
 
-async function callTool<T = Record<string, unknown>>(
+async function callTool(
   name: string,
   args: Record<string, unknown>,
-): Promise<{ isError: boolean; text: string; data?: T }> {
+): Promise<{ isError: boolean; text: string; data?: Record<string, unknown> }> {
   const res = await app.fetch(mcpCall(name, args))
   expect(res.status).toBe(200)
   const json = (await res.json()) as {
     result?: {
       isError?: boolean
       content?: Array<{ text?: string }>
-      structuredContent?: T
+      structuredContent?: Record<string, unknown>
     }
   }
   return {
@@ -116,34 +116,36 @@ afterEach(async () => {
 
 describe('MCP Surgical Editing', () => {
   test('[core.mcp-surgical-edit] query_specs と get_spec_context が正確な docPath とファイル行番号を返す', async () => {
-    const ctx = await callTool<{ docPath: string; startLine: number; endLine: number }>('get_spec_context', {
+    const ctx = await callTool('get_spec_context', {
       id: 'auth.lockout',
     })
     expect(ctx.isError).toBe(false)
-    expect(ctx.data?.docPath).toBe('specs/auth.mdx')
+    const ctxData = ctx.data as { docPath: string; startLine: number; endLine: number } | undefined
+    expect(ctxData?.docPath).toBe('specs/auth.mdx')
     const rawLines = (await readFile(path.join(docsDir, 'specs/auth.mdx'), 'utf-8')).split('\n')
-    expect(rawLines[ctx.data!.startLine - 1]).toContain('<Spec id="auth.lockout"')
-    expect(rawLines[ctx.data!.endLine - 1]).toContain('</Spec>')
+    expect(rawLines[ctxData!.startLine - 1]).toContain('<Spec id="auth.lockout"')
+    expect(rawLines[ctxData!.endLine - 1]).toContain('</Spec>')
 
-    const queried = await callTool<{ blocks: Array<{ id: string; docPath: string; startLine: number }> }>(
-      'query_specs',
-      { query: 'auth.lockout' },
-    )
+    const queried = await callTool('query_specs', { query: 'auth.lockout' })
     expect(queried.isError).toBe(false)
-    const hit = queried.data?.blocks.find((b) => b.id === 'auth.lockout')
+    const queriedData = queried.data as
+      | { blocks: Array<{ id: string; docPath: string; startLine: number }> }
+      | undefined
+    const hit = queriedData?.blocks.find((b) => b.id === 'auth.lockout')
     expect(hit?.docPath).toBe('specs/auth.mdx')
-    expect(hit?.startLine).toBe(ctx.data?.startLine)
+    expect(hit?.startLine).toBe(ctxData?.startLine)
   })
 
   test('[core.mcp-surgical-edit] update_block が対象ブロックのみを書き換え周囲の文書を保持する', async () => {
-    const res = await callTool<{ id: string; startLine: number; validation: { ok: boolean } }>('update_block', {
+    const res = await callTool('update_block', {
       id: 'auth.lockout',
       body: '3回失敗で10分間ロックする。',
       stability: 'evolving',
     })
     expect(res.isError).toBe(false)
-    expect(res.data?.id).toBe('auth.lockout')
-    expect(res.data?.validation.ok).toBe(true)
+    const resData = res.data as { id: string; startLine: number; validation: { ok: boolean } } | undefined
+    expect(resData?.id).toBe('auth.lockout')
+    expect(resData?.validation.ok).toBe(true)
 
     const updated = await readFile(path.join(docsDir, 'specs/auth.mdx'), 'utf-8')
     expect(updated).toContain('3回失敗で10分間ロックする。')
@@ -157,7 +159,7 @@ describe('MCP Surgical Editing', () => {
 
   test('[core.mcp-surgical-edit] add_block と upsert_term と scaffold_document が動作し重複・上書きを拒否する', async () => {
     // add_block (afterHeading)
-    const added = await callTool<{ id: string; docId: string; validation: { ok: boolean } }>('add_block', {
+    const added = await callTool('add_block', {
       docId: 'specs/auth',
       kind: 'spec',
       id: 'auth.mfa',
@@ -166,7 +168,8 @@ describe('MCP Surgical Editing', () => {
       body: '管理者は MFA を必須とする。',
     })
     expect(added.isError).toBe(false)
-    expect(added.data?.validation.ok).toBe(true)
+    const addedData = added.data as { id: string; docId: string; validation: { ok: boolean } } | undefined
+    expect(addedData?.validation.ok).toBe(true)
     const specFile = await readFile(path.join(docsDir, 'specs/auth.mdx'), 'utf-8')
     expect(specFile.indexOf('auth.mfa')).toBeLessThan(specFile.indexOf('auth.lockout'))
 
@@ -180,7 +183,7 @@ describe('MCP Surgical Editing', () => {
     expect(dup.isError).toBe(true)
 
     // upsert_term: 新規追加 → 更新
-    const createdTerm = await callTool<{ action: string }>('upsert_term', {
+    const createdTerm = await callTool('upsert_term', {
       id: 'Token',
       definition: '認証トークン',
       aliases: ['トークン'],
@@ -188,7 +191,7 @@ describe('MCP Surgical Editing', () => {
     expect(createdTerm.isError).toBe(false)
     expect(createdTerm.data?.action).toBe('created')
 
-    const updatedTerm = await callTool<{ action: string }>('upsert_term', {
+    const updatedTerm = await callTool('upsert_term', {
       id: 'Token',
       definition: 'JWT 形式の認証トークン',
       aliases: ['トークン', 'JWT'],
@@ -199,7 +202,7 @@ describe('MCP Surgical Editing', () => {
     expect(glossary).toContain('JWT 形式の認証トークン')
 
     // scaffold_document: 新規作成 & 既存上書き拒否
-    const scaffolded = await callTool<{ docId: string; path: string }>('scaffold_document', {
+    const scaffolded = await callTool('scaffold_document', {
       path: 'decisions/2026-11-mfa',
       type: 'decision',
       title: 'MFA 方式選定',
@@ -218,13 +221,15 @@ describe('MCP Surgical Editing', () => {
   })
 
   test('[core.mcp-surgical-edit] rename_block_id が dryRun と一括リネームを行い類似プレフィックスを誤置換しない', async () => {
-    const dry = await callTool<{ dryRun: boolean; changes: Array<{ path: string; occurrences: number }> }>(
-      'rename_block_id',
-      { oldId: 'auth.lockout', newId: 'auth.account-lock', dryRun: true },
-    )
+    const dry = await callTool('rename_block_id', {
+      oldId: 'auth.lockout',
+      newId: 'auth.account-lock',
+      dryRun: true,
+    })
     expect(dry.isError).toBe(false)
-    expect(dry.data?.dryRun).toBe(true)
-    expect(dry.data?.changes.map((c) => c.path)).toEqual([
+    const dryData = dry.data as { dryRun: boolean; changes: Array<{ path: string; occurrences: number }> } | undefined
+    expect(dryData?.dryRun).toBe(true)
+    expect(dryData?.changes.map((c) => c.path)).toEqual([
       'docs/designs/auth.mdx',
       'docs/specs/auth.mdx',
       'src/auth.ts',
@@ -234,12 +239,13 @@ describe('MCP Surgical Editing', () => {
     expect(await readFile(path.join(docsDir, 'specs/auth.mdx'), 'utf-8')).toContain('id="auth.lockout"')
 
     // 本実行
-    const real = await callTool<{ dryRun: boolean; validation: { ok: boolean } }>('rename_block_id', {
+    const real = await callTool('rename_block_id', {
       oldId: 'auth.lockout',
       newId: 'auth.account-lock',
     })
     expect(real.isError).toBe(false)
-    expect(real.data?.validation.ok).toBe(true)
+    const realData = real.data as { dryRun: boolean; validation: { ok: boolean } } | undefined
+    expect(realData?.validation.ok).toBe(true)
 
     const specText = await readFile(path.join(docsDir, 'specs/auth.mdx'), 'utf-8')
     expect(specText).toContain('id="auth.account-lock"')

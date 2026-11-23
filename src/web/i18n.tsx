@@ -1,10 +1,12 @@
 import { Menu } from '@base-ui/react/menu'
-import i18n from 'i18next'
+import { createInstance } from 'i18next'
 import { Check, Globe } from 'lucide-react'
 import { initReactI18next, useTranslation } from 'react-i18next'
 import { AppTooltip } from './components/ui/Tooltip'
 import en from './locales/en.json'
 import ja from './locales/ja.json'
+
+const i18n = createInstance()
 
 /**
  * 対応ロケール一覧。
@@ -55,8 +57,10 @@ function detectInitialLocale(): SupportedLocale {
     }
   }
   if (typeof navigator !== 'undefined') {
-    const langs =
-      Array.isArray(navigator.languages) && navigator.languages.length > 0 ? navigator.languages : [navigator.language]
+    const langs: readonly string[] =
+      Array.isArray(navigator.languages) && navigator.languages.length > 0
+        ? navigator.languages.filter((l): l is string => typeof l === 'string')
+        : [navigator.language]
     for (const candidate of langs) {
       const matched = matchLocale(candidate)
       if (matched) return matched
@@ -126,7 +130,7 @@ export function LanguageToggle() {
           <Menu.Positioner align="end" sideOffset={4} collisionPadding={8} className="z-60">
             <Menu.Popup
               aria-label={t('lang.label')}
-              className="flex min-w-[148px] flex-col gap-0.5 rounded-lg border border-line bg-surface p-1 shadow-[0_10px_26px_rgba(15,23,42,0.16)] outline-none transition-all duration-100 data-[starting-style]:scale-95 data-[starting-style]:opacity-0 data-[ending-style]:scale-95 data-[ending-style]:opacity-0 dark:shadow-[0_10px_28px_rgba(0,0,0,0.5)]"
+              className="flex min-w-[148px] flex-col gap-0.5 rounded-lg border border-line bg-surface p-1 shadow-[0_10px_26px_rgba(15,23,42,0.16)] transition-all duration-100 outline-none data-[ending-style]:scale-95 data-[ending-style]:opacity-0 data-[starting-style]:scale-95 data-[starting-style]:opacity-0 dark:shadow-[0_10px_28px_rgba(0,0,0,0.5)]"
             >
               <Menu.RadioGroup value={activeCode} onValueChange={(v) => setAppLocale(v as SupportedLocale)}>
                 {SUPPORTED_LOCALES.map((loc) => (

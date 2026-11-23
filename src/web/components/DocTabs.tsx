@@ -157,7 +157,7 @@ export default function DocTabs({ sidebarOpen, onToggleSidebar }: DocTabsProps) 
         )}
 
         <div
-          className="flex min-w-0 flex-1 items-stretch gap-0.5 overflow-x-auto overflow-y-hidden overscroll-x-contain px-2 pt-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+          className="flex min-w-0 flex-1 [scrollbar-width:none] items-stretch gap-0.5 overflow-x-auto overflow-y-hidden overscroll-x-contain px-2 pt-1 [&::-webkit-scrollbar]:hidden"
           style={stripMaskStyle}
           ref={stripRef}
           onScroll={syncOverflow}
@@ -249,7 +249,7 @@ export default function DocTabs({ sidebarOpen, onToggleSidebar }: DocTabsProps) 
               <Popover.Positioner align="end" sideOffset={4} collisionPadding={8} className="z-60">
                 <Popover.Popup
                   aria-label={t('tabs.openTabsTitle')}
-                  className="flex max-h-[360px] w-[290px] flex-col overflow-hidden rounded-lg border border-line bg-surface shadow-[0_10px_28px_rgba(15,23,42,0.16)] outline-none transition-all duration-100 data-[starting-style]:scale-95 data-[starting-style]:opacity-0 data-[ending-style]:scale-95 data-[ending-style]:opacity-0 dark:shadow-[0_10px_30px_rgba(0,0,0,0.5)]"
+                  className="flex max-h-[360px] w-[290px] flex-col overflow-hidden rounded-lg border border-line bg-surface shadow-[0_10px_28px_rgba(15,23,42,0.16)] transition-all duration-100 outline-none data-[ending-style]:scale-95 data-[ending-style]:opacity-0 data-[starting-style]:scale-95 data-[starting-style]:opacity-0 dark:shadow-[0_10px_30px_rgba(0,0,0,0.5)]"
                 >
                   <ul className="m-0 list-none overflow-y-auto p-1">
                     {tabs.map((tab) => {

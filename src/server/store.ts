@@ -58,8 +58,9 @@ export class DocsStore {
 
   async reload(): Promise<DocsIndex> {
     if (this.reloading) return this.reloading
-    this.reloading = loadDocuments(this.rootDir)
-      .then(async (next) => {
+    const task = (async () => {
+      try {
+        const next = await loadDocuments(this.rootDir)
         if (this.options.enrichTrace !== false) {
           await enrichWithRealization(next, {
             projectRoot: this.projectRoot,
@@ -77,11 +78,12 @@ export class DocsStore {
           }
         }
         return next
-      })
-      .finally(() => {
+      } finally {
         this.reloading = null
-      })
-    return this.reloading
+      }
+    })()
+    this.reloading = task
+    return task
   }
 
   subscribe(listener: IndexListener): () => void {
@@ -108,7 +110,7 @@ export class DocsStore {
 
     try {
       watcher = watch(this.rootDir, { recursive: true }, (_event, filename) => {
-        if (filename && shouldIgnorePath(String(filename))) return
+        if (filename && shouldIgnorePath(filename)) return
         scheduleReload()
       })
     } catch {

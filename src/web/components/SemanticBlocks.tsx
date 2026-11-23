@@ -1,4 +1,4 @@
-import { createContext, useContext, type ReactNode } from 'react'
+import { createContext, useContext, useMemo, type ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
 import { isNoteIntent, isSpecIntent, isStability } from '../../core/types'
 import type { SemanticBlock } from '../../core/types'
@@ -21,8 +21,8 @@ export function DocReviewProvider({
   onMutate: () => void
   children: ReactNode
 }) {
-  const blocksById = new Map(blocks.map((b) => [b.id, b]))
-  return <DocReviewContext.Provider value={{ blocksById, onMutate }}>{children}</DocReviewContext.Provider>
+  const value = useMemo(() => ({ blocksById: new Map(blocks.map((b) => [b.id, b])), onMutate }), [blocks, onMutate])
+  return <DocReviewContext.Provider value={value}>{children}</DocReviewContext.Provider>
 }
 
 function useSemanticBlock(id?: string): { block?: SemanticBlock; onMutate?: () => void } {

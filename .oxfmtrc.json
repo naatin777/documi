@@ -4,5 +4,12 @@
   "semi": false,
   "printWidth": 120,
   "trailingComma": "all",
+  "sortImports": {
+    "newlinesBetween": false
+  },
+  "sortPackageJson": true,
+  "sortTailwindcss": {
+    "stylesheet": "./src/web/styles.css"
+  },
   "ignorePatterns": ["docs/**", "**/*.md", "**/*.mdx"]
 }

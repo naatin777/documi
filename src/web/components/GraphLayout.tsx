@@ -16,6 +16,18 @@ const EDGE_KIND_STYLES: Record<string, string> = {
   supersedes: 'border-rose-500 text-rose-700 dark:text-rose-400',
 }
 
+function chipClass(active: boolean) {
+  return `cursor-pointer rounded-full border px-2.5 py-1 text-xs font-semibold ${
+    active ? 'border-accent bg-accent text-surface' : 'border-line bg-subtle text-fg-muted hover:text-fg'
+  }`
+}
+
+function pageTabClass(active: boolean) {
+  return `cursor-pointer border-0 border-b-2 bg-transparent px-3 py-2 text-[13.5px] font-semibold ${
+    active ? 'border-b-accent text-fg' : 'border-b-transparent text-fg-muted hover:text-fg'
+  }`
+}
+
 export default function GraphLayout() {
   const { t } = useTranslation()
   const [tab, setTab] = useState<PageTab>('graph')
@@ -77,16 +89,6 @@ export default function GraphLayout() {
     }
     return { out, inc }
   }, [selectedNodeId, graph])
-
-  const chipClass = (active: boolean) =>
-    `cursor-pointer rounded-full border px-2.5 py-1 text-xs font-semibold ${
-      active ? 'border-accent bg-accent text-surface' : 'border-line bg-subtle text-fg-muted hover:text-fg'
-    }`
-
-  const pageTabClass = (active: boolean) =>
-    `cursor-pointer border-0 border-b-2 bg-transparent px-3 py-2 text-[13.5px] font-semibold ${
-      active ? 'border-b-accent text-fg' : 'border-b-transparent text-fg-muted hover:text-fg'
-    }`
 
   const matrixChipClass =
     'mr-1 mb-1 inline-block rounded-full bg-[var(--tc-soft)] px-[7px] py-px text-[11.5px] font-semibold text-[var(--tc)] no-underline'

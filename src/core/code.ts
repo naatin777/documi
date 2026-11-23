@@ -274,7 +274,7 @@ export async function buildCodeTree(projectRoot: string, index: DocsIndex): Prom
   const docsRel = normalizeRelPath(path.relative(root, index.rootDir))
   const safeDocsRel = docsRel.startsWith('..') ? '' : docsRel
 
-  const relFiles = (await collectProjectCodeFiles(root, '', safeDocsRel)).sort((a, b) => a.localeCompare(b))
+  const relFiles = (await collectProjectCodeFiles(root, '', safeDocsRel)).toSorted((a, b) => a.localeCompare(b))
   const rev = buildFileReverseIndex(index)
 
   const files: CodeFileSummary[] = []
@@ -358,12 +358,12 @@ export async function readCodeFile(projectRoot: string, index: DocsIndex, filePa
   }
 
   const rev = buildFileReverseIndex(index)
-  const specLinks = [...(rev.specs.get(loaded.relPath) ?? [])].sort((a, b) => {
+  const specLinks = [...(rev.specs.get(loaded.relPath) ?? [])].toSorted((a, b) => {
     if ((a.line ?? Infinity) !== (b.line ?? Infinity)) return (a.line ?? Infinity) - (b.line ?? Infinity)
     return a.specId.localeCompare(b.specId)
   })
-  const docRefs = [...(rev.docs.get(loaded.relPath) ?? [])].sort((a, b) => a.docId.localeCompare(b.docId))
-  const termLinks = [...(rev.terms.get(loaded.relPath) ?? [])].sort((a, b) => a.termId.localeCompare(b.termId))
+  const docRefs = [...(rev.docs.get(loaded.relPath) ?? [])].toSorted((a, b) => a.docId.localeCompare(b.docId))
+  const termLinks = [...(rev.terms.get(loaded.relPath) ?? [])].toSorted((a, b) => a.termId.localeCompare(b.termId))
 
   const totalLines =
     loaded.source === ''

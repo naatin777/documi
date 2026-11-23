@@ -1,13 +1,13 @@
 import { promises as fs } from 'node:fs'
 import path from 'node:path'
-import { parse, registerDynamicLanguage } from '@ast-grep/napi'
-import type { SgNode } from '@ast-grep/napi'
 import goLang from '@ast-grep/lang-go'
-import rustLang from '@ast-grep/lang-rust'
-import pythonLang from '@ast-grep/lang-python'
 import javaLang from '@ast-grep/lang-java'
 import kotlinLang from '@ast-grep/lang-kotlin'
+import pythonLang from '@ast-grep/lang-python'
+import rustLang from '@ast-grep/lang-rust'
 import swiftLang from '@ast-grep/lang-swift'
+import { parse, registerDynamicLanguage } from '@ast-grep/napi'
+import type { SgNode } from '@ast-grep/napi'
 
 registerDynamicLanguage({
   go: goLang,
@@ -505,7 +505,7 @@ export async function resolveSourceSymbol(projectRoot: string, file: string, sym
   const loaded = await loadSourceFile(projectRoot, file)
   const def = EXT_TO_LANG.get(loaded.ext)
   if (!def) {
-    const supported = [...new Set(EXT_TO_LANG.keys())].sort().join(', ')
+    const supported = [...new Set(EXT_TO_LANG.keys())].toSorted().join(', ')
     throw new SourceError(`シンボル検索に対応していない拡張子です: .${loaded.ext} (対応: ${supported})`, 400)
   }
   if (!symbol || !symbol.trim()) throw new SourceError('symbol パラメータが必要です', 400)

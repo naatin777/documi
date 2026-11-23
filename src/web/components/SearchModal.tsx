@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useNavigate } from 'react-router'
 import type { SearchHit } from '../../core/bundle'
@@ -37,7 +37,10 @@ export default function SearchModal({ open, onClose }: SearchModalProps) {
   }, [open, query])
 
   const searchQuery = useSearchQuery(debouncedQuery, open)
-  const results = debouncedQuery ? (searchQuery.data?.results ?? []) : []
+  const results = useMemo(
+    () => (debouncedQuery ? (searchQuery.data?.results ?? []) : []),
+    [debouncedQuery, searchQuery.data?.results],
+  )
   const loading = Boolean(debouncedQuery) && searchQuery.isFetching
 
   useEffect(() => {
@@ -46,7 +49,7 @@ export default function SearchModal({ open, onClose }: SearchModalProps) {
 
   const openHit = (hit: SearchHit) => {
     const hash = hit.kind === 'block' ? `#block-${encodeURIComponent(hit.id)}` : ''
-    navigate(`/docs/${encodeDocId(hit.docId)}${hash}`)
+    void navigate(`/docs/${encodeDocId(hit.docId)}${hash}`)
     onClose()
   }
 
@@ -59,7 +62,7 @@ export default function SearchModal({ open, onClose }: SearchModalProps) {
       setActiveIdx((i) => Math.max(i - 1, 0))
     } else if (e.key === 'Enter' && results[activeIdx]) {
       e.preventDefault()
-      openHit(results[activeIdx]!)
+      openHit(results[activeIdx])
     }
   }
 

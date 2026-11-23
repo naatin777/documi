@@ -182,14 +182,14 @@ export function TabsProvider({ children }: { children: ReactNode }) {
 
       if (next.length === 0) {
         setTabs([VIEW_TABS.home])
-        if (pathname !== '/') navigate('/')
+        if (pathname !== '/') void navigate('/')
         return
       }
 
       setTabs(next)
       if (activeKey === tab.key) {
         const neighbor = next[Math.min(idx, next.length - 1)]
-        navigate(neighbor ? neighbor.path : '/')
+        void navigate(neighbor ? neighbor.path : '/')
       }
     },
     [tabs, pathname, navigate],
@@ -197,7 +197,7 @@ export function TabsProvider({ children }: { children: ReactNode }) {
 
   const closeAllTabs = useCallback(() => {
     setTabs([VIEW_TABS.home])
-    if (pathname !== '/') navigate('/')
+    if (pathname !== '/') void navigate('/')
   }, [pathname, navigate])
 
   const value = useMemo(() => ({ tabs, openTab, closeTab, closeAllTabs }), [tabs, openTab, closeTab, closeAllTabs])

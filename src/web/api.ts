@@ -1,6 +1,5 @@
 import { hc } from 'hono/client'
 import type { ClientResponse, InferResponseType } from 'hono/client'
-import type { ResponseFormat } from 'hono/types'
 import type { CodeTreeNode } from '../core/code'
 import type { ArtifactType, DocTreeNode, Stability } from '../core/types'
 import type { ApiRoutes } from '../server/app'
@@ -23,9 +22,7 @@ export type ReviewBlocksResponse = InferResponseType<typeof rpc.api.blocks.$get,
 
 type SuccessJson<R> = R extends ClientResponse<infer T, infer S, 'json'> ? (S extends 200 | 201 ? T : never) : never
 
-async function unwrap<R extends ClientResponse<unknown, number, ResponseFormat>>(
-  promise: Promise<R>,
-): Promise<SuccessJson<R>> {
+async function unwrap<R extends ClientResponse<unknown, number>>(promise: Promise<R>): Promise<SuccessJson<R>> {
   const res = await promise
   if (!res.ok) {
     const body = (await res.json().catch(() => ({}))) as { error?: string }

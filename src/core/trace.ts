@@ -1,8 +1,9 @@
 import { execFileSync } from 'node:child_process'
-import { readdir, readFile, stat } from 'node:fs/promises'
 import type { Dirent } from 'node:fs'
+import { readdir, readFile, stat } from 'node:fs/promises'
 import path from 'node:path'
 import { XMLParser } from 'fast-xml-parser'
+import { resolveSourceLines, resolveSourceSymbol, SourceError } from './source'
 import { BLOCK_ID_PATTERN } from './types'
 import type {
   CodeAnchor,
@@ -13,7 +14,6 @@ import type {
   RealizationSummary,
   TestCaseResult,
 } from './types'
-import { resolveSourceLines, resolveSourceSymbol, SourceError } from './source'
 
 const IGNORED_DIRS = new Set([
   'node_modules',

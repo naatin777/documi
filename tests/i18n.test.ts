@@ -17,7 +17,7 @@ function flattenKeys(obj: Record<string, unknown>, prefix = ''): Map<string, str
 }
 
 function extractPlaceholders(template: string): string[] {
-  return [...template.matchAll(/\{\{(\w+)\}\}/g)].map((m) => m[1]!).sort()
+  return [...template.matchAll(/\{\{(\w+)\}\}/g)].map((m) => m[1]!).toSorted()
 }
 
 describe('Web UI i18n catalogs', () => {

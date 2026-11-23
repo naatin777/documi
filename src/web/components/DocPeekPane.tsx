@@ -25,6 +25,12 @@ interface DocPeekPaneProps {
  * 右ペインに別ドキュメントの本文をそのまま並べて表示する Side-by-Side プレビューペイン。
  * Graph のノード選択時や、文書閲覧中の関連文書比較、Review Queue からの文脈確認で共通利用する。
  */
+function tabClass(active: boolean) {
+  return `inline-flex cursor-pointer items-center gap-[5px] rounded-[5px] border-0 px-2.5 py-[3px] text-xs font-semibold ${
+    active ? 'bg-surface text-fg shadow-[0_1px_2px_rgba(15,23,42,0.08)]' : 'bg-transparent text-fg-muted hover:text-fg'
+  }`
+}
+
 export default function DocPeekPane({ docId, focusBlockId, onBack, onClose, extraTab }: DocPeekPaneProps) {
   const { t } = useTranslation()
   const handleMutate = useInvalidateDocs()
@@ -83,13 +89,6 @@ export default function DocPeekPane({ docId, focusBlockId, onBack, onClose, extr
 
   const iconBtnClass =
     'inline-flex cursor-pointer items-center gap-1 rounded-md border border-line bg-surface px-2 py-[3px] text-[11.5px] font-semibold text-fg-muted no-underline hover:border-accent hover:bg-hover hover:text-fg'
-
-  const tabClass = (active: boolean) =>
-    `inline-flex cursor-pointer items-center gap-[5px] rounded-[5px] border-0 px-2.5 py-[3px] text-xs font-semibold ${
-      active
-        ? 'bg-surface text-fg shadow-[0_1px_2px_rgba(15,23,42,0.08)]'
-        : 'bg-transparent text-fg-muted hover:text-fg'
-    }`
 
   return (
     <>

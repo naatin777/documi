@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
 interface PrintHeaderProps {
@@ -20,7 +21,8 @@ export function PrintHeader({ label, title, meta }: PrintHeaderProps) {
 /** 印刷時と HTML 書き出し時にだけ表示するフッター */
 export function PrintFooter({ meta }: { meta?: string }) {
   const { t, i18n } = useTranslation()
-  const date = new Date().toLocaleDateString(i18n.language, {
+  const [renderedAt] = useState(() => new Date())
+  const date = renderedAt.toLocaleDateString(i18n.language, {
     year: 'numeric',
     month: 'long',
     day: 'numeric',

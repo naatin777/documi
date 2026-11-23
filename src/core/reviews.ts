@@ -4,6 +4,8 @@ import { realpathSync } from 'node:fs'
 import { mkdir, readFile, writeFile } from 'node:fs/promises'
 import path from 'node:path'
 import { z } from 'zod'
+import { splitFrontmatter } from './frontmatter'
+import { computeContentHash, extractMdxArtifacts } from './mdx'
 import { STABILITIES } from './types'
 import type {
   BlockDiffResult,
@@ -16,8 +18,6 @@ import type {
   SemanticBlock,
   Stability,
 } from './types'
-import { splitFrontmatter } from './frontmatter'
-import { computeContentHash, extractMdxArtifacts } from './mdx'
 
 export const REVIEWS_REL_PATH = '.documi/reviews.json'
 const SNAPSHOT_CACHE_REL_PATH = '.documi/cache/approved-bodies.json'
@@ -142,13 +142,13 @@ export async function saveReviews(docsDir: string, reviews: ReviewsFile): Promis
   await mkdir(path.dirname(filePath), { recursive: true })
 
   const sortedBlocks: Record<string, BlockReviewRecord> = {}
-  for (const id of Object.keys(reviews.blocks).sort()) {
+  for (const id of Object.keys(reviews.blocks).toSorted()) {
     const rec = reviews.blocks[id]!
     const sortedUpstreams =
       rec.upstreamHashes && Object.keys(rec.upstreamHashes).length > 0
         ? Object.fromEntries(
             Object.keys(rec.upstreamHashes)
-              .sort()
+              .toSorted()
               .map((k) => [k, rec.upstreamHashes![k]!]),
           )
         : undefined
@@ -277,7 +277,7 @@ export function applyReviewsAndSuspects(index: DocsIndex, reviews: ReviewsFile):
 
     if (sources.size > 0) {
       block.suspect = true
-      block.suspectSources = [...sources].sort()
+      block.suspectSources = [...sources].toSorted()
     }
   }
 }

@@ -16,6 +16,12 @@ import { AppTooltip } from './ui/Tooltip'
 
 type ScopeMode = 'current' | 'all' | 'goal' | 'dir' | 'custom'
 
+function chipClass(active: boolean) {
+  return `cursor-pointer rounded-full border px-2.5 py-1 text-xs font-semibold ${
+    active ? 'border-accent bg-accent text-surface' : 'border-line bg-subtle text-fg-muted hover:text-fg'
+  }`
+}
+
 /** 単一文書および複数文書バンドルの Export モーダルを開くボタン */
 export default function ExportActions() {
   const { t } = useTranslation()
@@ -43,12 +49,12 @@ export default function ExportActions() {
     if (!open || docs.length === 0) return
     const firstGoal = docs.find((d) => d.type === 'goal')
     if (firstGoal && !selectedGoal) setSelectedGoal(firstGoal.id)
-    const dirList = [...new Set(docs.map((d) => d.dir).filter(Boolean))].sort()
+    const dirList = [...new Set(docs.map((d) => d.dir).filter(Boolean))].toSorted()
     if (dirList[0] && !selectedDir) setSelectedDir(dirList[0])
   }, [open, docs, selectedGoal, selectedDir])
 
   const goals = useMemo(() => docs.filter((d) => d.type === 'goal'), [docs])
-  const dirs = useMemo(() => [...new Set(docs.map((d) => d.dir).filter(Boolean))].sort(), [docs])
+  const dirs = useMemo(() => [...new Set(docs.map((d) => d.dir).filter(Boolean))].toSorted(), [docs])
 
   const buildParams = (): BundleExportParams | null => {
     const title = customTitle.trim() || undefined
@@ -129,11 +135,6 @@ export default function ExportActions() {
       return next
     })
   }
-
-  const chipClass = (active: boolean) =>
-    `cursor-pointer rounded-full border px-2.5 py-1 text-xs font-semibold ${
-      active ? 'border-accent bg-accent text-surface' : 'border-line bg-subtle text-fg-muted hover:text-fg'
-    }`
 
   return (
     <>

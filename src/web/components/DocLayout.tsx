@@ -64,7 +64,7 @@ export default function DocLayout() {
         {!inspectorOpen && !peekTarget && doc && (
           <button
             type="button"
-            className="sticky top-3 float-right z-15 mt-2 mr-3.5 cursor-pointer rounded-md border border-line bg-sidebar px-2.5 py-1 text-[11.5px] font-semibold text-fg-muted hover:bg-hover hover:text-fg print:hidden"
+            className="sticky top-3 z-15 float-right mt-2 mr-3.5 cursor-pointer rounded-md border border-line bg-sidebar px-2.5 py-1 text-[11.5px] font-semibold text-fg-muted hover:bg-hover hover:text-fg print:hidden"
             onClick={() => setInspectorOpen(true)}
             title={t('doc.openInspectorTitle')}
             aria-label={t('doc.openInspectorAria')}
