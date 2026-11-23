@@ -89,6 +89,7 @@ export function encodeDocId(docId: string): string {
 
 let cachedSearchIndex: Promise<StaticSearchEntry[]> | null = null
 let cachedSourceIndex: Promise<Record<string, string>> | null = null
+let cachedCodeFileIndex: Promise<Record<string, string>> | null = null
 
 function loadStaticSearchIndex(): Promise<StaticSearchEntry[]> {
   cachedSearchIndex ??= fetchStaticJson<{ entries: StaticSearchEntry[] }>('data/search-index.json').then(
@@ -100,6 +101,11 @@ function loadStaticSearchIndex(): Promise<StaticSearchEntry[]> {
 function loadStaticSourceIndex(): Promise<Record<string, string>> {
   cachedSourceIndex ??= fetchStaticJson<Record<string, string>>('data/source-index.json')
   return cachedSourceIndex
+}
+
+function loadStaticCodeFileIndex(): Promise<Record<string, string>> {
+  cachedCodeFileIndex ??= fetchStaticJson<Record<string, string>>('data/code/file-index.json')
+  return cachedCodeFileIndex
 }
 
 async function searchStatic(q: string, type: ArtifactType | '' | undefined, limit: number): Promise<SearchResponse> {
@@ -365,10 +371,17 @@ export const api = {
     const data = await unwrap(rpc.api.code.tree.$get())
     return { ...data, tree: data.tree as CodeTreeNode[] }
   },
-  codeFile: (filePath: string): Promise<CodeFileResponse> =>
-    isStaticSite()
-      ? fetchStaticJson<CodeFileResponse>(`data/code/files/${encodeDocId(filePath)}.json`)
-      : unwrap(rpc.api.code.file.$get({ query: { path: filePath } })),
+  codeFile: async (filePath: string): Promise<CodeFileResponse> => {
+    if (isStaticSite()) {
+      const idx = await loadStaticCodeFileIndex()
+      const hash = idx[filePath]
+      if (!hash) {
+        throw new Error(`ソースファイルは静的サイトに同梱されていません: ${filePath}`)
+      }
+      return fetchStaticJson<CodeFileResponse>(`data/code/files/${hash}.json`)
+    }
+    return unwrap(rpc.api.code.file.$get({ query: { path: filePath } }))
+  },
   iconManifest: (): Promise<IconManifestResponse> =>
     isStaticSite()
       ? fetchStaticJson<IconManifestResponse>('data/icons/manifest.json')

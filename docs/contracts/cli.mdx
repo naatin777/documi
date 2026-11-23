@@ -114,7 +114,7 @@ AI エディタ・CLI エージェント向けに **stdio トランスポート*
 
 ## `documi build-site`
 
-GitHub Pages 等の静的ホスティングへそのまま公開できる **読み取り専用の静的 Documi サイト** を生成する（事前に `bun run build` が必要）。`index.html`（`window.__DOCUMI_STATIC__` 注入済み）・`404.html`・`.nojekyll`・`assets/`・`data/*.json` を出力し、フロントエンドは `HashRouter` と静的 JSON フェッチへ自動切替する。
+Cloudflare Pages / Workers Static Assets・Vercel・Netlify・GitHub Pages・AWS S3 等の任意の静的ホスティングへそのまま配置できる **プロバイダ非依存・読み取り専用の静的 Documi サイト** をオプションで生成する（事前に `bun run build` が必要）。`index.html`（`window.__DOCUMI_STATIC__` 注入済み）・`404.html`・`_headers`（Cloudflare Pages / Netlify 用キャッシュ制御）・`.nojekyll`・`assets/`（CSS フォント URL および動的チャンク preload パスを相対/ベースパス対応化）・`data/*.json`（コードファイルは特殊文字・ドットファイル衝突を避けるためハッシュ索引化）を出力し、フロントエンドは `HashRouter` と静的 JSON フェッチへ自動切替する。
 
 | Option | 説明 |
 |---|---|

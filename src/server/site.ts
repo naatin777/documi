@@ -1,6 +1,6 @@
 import { createHash } from 'node:crypto'
 import { existsSync } from 'node:fs'
-import { cp, mkdir, readFile, rm, writeFile } from 'node:fs/promises'
+import { cp, mkdir, readdir, readFile, rm, writeFile } from 'node:fs/promises'
 import path from 'node:path'
 import type { CodeTreeNode } from '../core/code'
 import type { DocumentHistory, DocTreeNode } from '../core/types'
@@ -42,6 +42,20 @@ export interface StaticSearchEntry {
   text: string
 }
 
+const STATIC_HEADERS_FILE = `# Cloudflare Pages / Netlify cache headers (ignored by hosts that do not use _headers)
+/assets/*
+  Cache-Control: public, max-age=31536000, immutable
+
+/index.html
+  Cache-Control: public, max-age=0, must-revalidate
+
+/404.html
+  Cache-Control: public, max-age=0, must-revalidate
+
+/data/*
+  Cache-Control: public, max-age=0, must-revalidate
+`
+
 function encodeDocPathSegments(docId: string): string {
   return docId
     .split('/')
@@ -60,7 +74,7 @@ function sourceKey(params: { file: string; symbol?: string; lines?: string }): s
   return `${params.file}|${params.symbol ?? ''}|${params.lines ?? ''}`
 }
 
-function sourceHash(key: string): string {
+function stableHash(key: string): string {
   return createHash('sha256').update(key).digest('hex').slice(0, 16)
 }
 
@@ -141,10 +155,42 @@ async function fetchJson<T>(app: ReturnType<typeof createApp>, urlPath: string):
   return (await res.json()) as T
 }
 
+/**
+ * Vite が既定 base="/" で出力した CSS 内フォント URL と preload-helper のルート固定 "/" を
+ * 任意のサブパス・全静的ホスティング（Cloudflare Pages / Vercel / Netlify / GitHub Pages / S3 等）で動作するよう書き換える。
+ */
+async function rewriteCopiedAssetsForStaticHosting(outDir: string): Promise<void> {
+  const assetsDir = path.join(outDir, 'assets')
+  if (!existsSync(assetsDir)) return
+
+  const entries = await readdir(assetsDir, { withFileTypes: true })
+  for (const entry of entries) {
+    if (!entry.isFile()) continue
+    const filePath = path.join(assetsDir, entry.name)
+    if (entry.name.endsWith('.css')) {
+      const css = await readFile(filePath, 'utf-8')
+      const next = css
+        .replaceAll('url(/assets/', 'url(./')
+        .replaceAll('url("/assets/', 'url("./')
+        .replaceAll("url('/assets/", "url('./")
+      if (next !== css) {
+        await writeFile(filePath, next, 'utf-8')
+      }
+    } else if (entry.name.startsWith('preload-helper-') && entry.name.endsWith('.js')) {
+      const js = await readFile(filePath, 'utf-8')
+      const baseExpr = '((window.__DOCUMI_STATIC__&&window.__DOCUMI_STATIC__.basePath)||"./")'
+      const next = js.replace(/return\s*(?:`\/`|"\/"|'\/')\s*\+/g, `return ${baseExpr}+`)
+      if (next !== js) {
+        await writeFile(filePath, next, 'utf-8')
+      }
+    }
+  }
+}
+
 // @implements core.static-site
 /**
- * ビルド済み Web UI と事前計算した API JSON 一式を静的サイトディレクトリへ書き出す。
- * GitHub Pages 等の静的ホスティング上で読み取り専用 Documi をサーバーレス動作させられる。
+ * ビルド済み Web UI と事前計算した API JSON 一式を、プロバイダ非依存の静的サイトディレクトリへ書き出す。
+ * Cloudflare Pages / Workers Static Assets / Vercel / Netlify / GitHub Pages / S3 等の任意の静的ホスティング上で読み取り専用 Documi をサーバーレス動作させられる。
  */
 export async function buildStaticSite(options: BuildStaticSiteOptions): Promise<BuildStaticSiteResult> {
   const docsDir = path.resolve(options.docsDir)
@@ -172,7 +218,9 @@ export async function buildStaticSite(options: BuildStaticSiteOptions): Promise<
   await rm(outDir, { recursive: true, force: true })
   await mkdir(outDir, { recursive: true })
   await cp(clientDist, outDir, { recursive: true })
+  await rewriteCopiedAssetsForStaticHosting(outDir)
   await writeFile(path.join(outDir, '.nojekyll'), '', 'utf-8')
+  await writeFile(path.join(outDir, '_headers'), STATIC_HEADERS_FILE, 'utf-8')
 
   const dataDir = path.join(outDir, 'data')
   await mkdir(dataDir, { recursive: true })
@@ -263,9 +311,11 @@ export async function buildStaticSite(options: BuildStaticSiteOptions): Promise<
   await writeJson(path.join(dataDir, 'search-index.json'), { entries: searchEntries })
 
   // 3. Code Explorer & <SourceRef> / <TermDef symbols> のスニペット
+  // ファイル名に `[id].tsx` やドットファイル等を含んでいても全静的ホスティングで確実に配信できるようハッシュ索引で保存する
   let codeTree: CodeTreeNode[] = []
   let codeFileCount = 0
   let sourceSnippetCount = 0
+  const codeFileIndex: Record<string, string> = {}
   const sourceIndex: Record<string, string> = {}
 
   if (includeCode) {
@@ -277,7 +327,9 @@ export async function buildStaticSite(options: BuildStaticSiteOptions): Promise<
       for (const relFile of collectCodeFilePaths(codeTree)) {
         const filePayload = await fetchJson<unknown>(app, `/api/code/file?path=${encodeURIComponent(relFile)}`)
         if (filePayload) {
-          await writeJson(path.join(dataDir, 'code', 'files', `${relFile}.json`), filePayload)
+          const h = stableHash(relFile)
+          codeFileIndex[relFile] = h
+          await writeJson(path.join(dataDir, 'code', 'files', `${h}.json`), filePayload)
           codeFileCount++
         }
       }
@@ -308,7 +360,7 @@ export async function buildStaticSite(options: BuildStaticSiteOptions): Promise<
       if (params.lines) qs.set('lines', params.lines)
       const snippet = await fetchJson<unknown>(app, `/api/source?${qs.toString()}`)
       if (snippet) {
-        const h = sourceHash(key)
+        const h = stableHash(key)
         sourceIndex[key] = h
         await writeJson(path.join(dataDir, 'sources', `${h}.json`), snippet)
         sourceSnippetCount++
@@ -322,6 +374,7 @@ export async function buildStaticSite(options: BuildStaticSiteOptions): Promise<
       files: [],
     })
   }
+  await writeJson(path.join(dataDir, 'code', 'file-index.json'), codeFileIndex)
   await writeJson(path.join(dataDir, 'source-index.json'), sourceIndex)
 
   // 4. Material Icon Theme（実際に使用するアイコン SVG のみコピー）
@@ -353,6 +406,7 @@ export async function buildStaticSite(options: BuildStaticSiteOptions): Promise<
   const rewrittenHtml = rawHtml
     .replaceAll('src="/assets/', `src="${basePath}assets/`)
     .replaceAll('href="/assets/', `href="${basePath}assets/`)
+    .replaceAll('href="/favicon.svg"', `href="${basePath}favicon.svg"`)
     .replace('</head>', `  ${bootScript}\n  </head>`)
 
   await writeFile(path.join(outDir, 'index.html'), rewrittenHtml, 'utf-8')
