@@ -300,4 +300,35 @@ describe('MCP Surgical Editing', () => {
     })
     expect(revMdxRes.isError).toBe(true)
   })
+
+  test('[core.ai-cli] MCP initialize が自己完結の運用 instructions を返却する', async () => {
+    const res = await app.fetch(
+      new Request('http://localhost/mcp', {
+        method: 'POST',
+        headers: {
+          'content-type': 'application/json',
+          accept: 'application/json, text/event-stream',
+        },
+        body: JSON.stringify({
+          jsonrpc: '2.0',
+          id: 99,
+          method: 'initialize',
+          params: {
+            protocolVersion: '2025-03-26',
+            capabilities: {},
+            clientInfo: { name: 'documi-test', version: '0.1.0' },
+          },
+        }),
+      }),
+    )
+    expect(res.status).toBe(200)
+    const json = (await res.json()) as {
+      result?: { instructions?: string; serverInfo?: { name: string } }
+    }
+    expect(json.result?.serverInfo?.name).toBe('documi')
+    expect(json.result?.instructions).toContain('get_project_map')
+    expect(json.result?.instructions).toContain('get_spec_context')
+    expect(json.result?.instructions).toContain('validate_docs')
+    expect(json.result?.instructions).toContain('reviews.json')
+  })
 })

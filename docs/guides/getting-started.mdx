@@ -16,15 +16,20 @@ bun run build    # フロントエンドを dist/ にビルド
 bun run start    # 本番サーバー起動 (http://localhost:3000)
 ```
 
-他プロジェクトへ導入する場合は CLI からそのまま初期化・起動・MCP 接続できます。
+他プロジェクトへ導入する場合は CLI からそのまま初期化・起動できます。AI エージェント連携は **「CLI + Agent Skills（MCP 設定不要）」** と **「MCP サーバー単体（`instructions` 内蔵で Skill 不要）」** の両方を完全にサポートしています。
 
 ```bash
-documi init --project /path/to/repo           # <project>/docs 雛形を生成
+documi init --project /path/to/repo           # <project>/docs 雛形 + .agents/skills/ 生成 (既定: --en / 日本語は --ja)
 documi serve --project /path/to/repo          # Web UI + API + HTTP MCP 起動
-documi mcp --project /path/to/repo            # stdio MCP サーバー起動 (AI エディタ連携)
+documi mcp --project /path/to/repo            # stdio MCP サーバー起動 (MCP 派向け・Skill 不要)
 ```
 
-既定のドキュメントディレクトリは `<project>/docs` ですが、既存の `docs/` と分けたい場合はプロジェクトルート直下に `.documi.json`（または `.documi.yml`）を置くことで `--project` 1 つで自動認識されます。
+`documi init` は `AGENTS.md` 等と競合させないよう、標準 **Agent Skills** 形式（`.agents/skills/`）で CLI ベースの以下 2 つのスキルを自動配置します：
+
+- **`documi/SKILL.md`**: 日常開発で `documi map` → `documi query` / `search` → `documi context` → 精密編集（`documi block` / `term` / `scaffold`）→ `documi check` を使う運用スキル
+- **`documi-bootstrap/SKILL.md`**: 既存コードベース（Brownfield）を棚卸しし、初期 Goal・Architecture・用語集・コア仕様を段階的に立ち上げるスキル
+
+言語は `--en`（既定）または `--ja`（`--lang ja`）で切り替えられます。既存の `docs/` があるプロジェクトやスキルだけ更新したい場合は `--skills-only` / `--force-skills` を利用できます。また既存の `docs/` と分けたい場合はプロジェクトルート直下に `.documi.json`（または `.documi.yml`）を置くことで `--project` 1 つで自動認識されます。
 
 ```json
 {
