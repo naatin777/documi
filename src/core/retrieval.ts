@@ -539,7 +539,9 @@ interface RetrievedHitItem {
 
 export interface RetrieveContextResult {
   query: string
-  mode: 'bm25+graph' | 'bm25'
+  mode: 'bm25+graph' | 'bm25' | 'hybrid+graph' | 'hybrid'
+  modelId?: string
+  fallbackReason?: string
   expandedTerms: string[]
   hits: RetrievedHitItem[]
   upstreamGoals: Array<{ id: string; title: string; description: string }>
@@ -558,25 +560,27 @@ function summarize(raw: string, maxChars: number): string {
 }
 
 /**
- * 自然文の質問・タスク記述から、BM25 + 用語集同義語展開 + 明示グラフ展開（Goal / Decision Outcome / Contract / Design / 用語 / SourceRef）を
- * トークン（文字数）予算内にパックして 1 発で返す Graph-aware Retrieval。
- * CLI (`documi retrieve`) および MCP (`retrieve_context`) が共通利用する。
- * @implements core.graph-retrieval
+ * ランキング済みの一次ヒット群から、重複排除・明示グラフ展開・文字数予算パッキングを行って RetrieveContextResult を組み立てる。
+ * BM25 単体 (`retrieveContext`) と Hybrid RRF (`retrieveContextHybrid`) の双方が共通利用する。
  */
-export function retrieveContext(
+export function assembleGraphContext(
   index: DocsIndex,
-  rawQuery: string,
-  options: RetrieveContextOptions = {},
+  query: string,
+  rawHits: readonly SearchHit[],
+  expandedTerms: string[],
+  options: {
+    limit?: number
+    budget?: number
+    includeGraph?: boolean
+    mode?: RetrieveContextResult['mode']
+    modelId?: string
+    fallbackReason?: string
+  } = {},
 ): RetrieveContextResult {
-  const query = rawQuery.trim()
   const limit = Math.max(1, Math.min(options.limit ?? 8, 30))
   const budgetLimit = Math.max(500, Math.min(options.budget ?? 6000, 40000))
   const includeGraph = options.includeGraph !== false
-
-  const { hits: rawHits, expandedTerms } = searchIndexBm25(index, query, {
-    type: options.type,
-    limit: Math.min(limit * 2 + 4, 60),
-  })
+  const mode = options.mode ?? (includeGraph ? 'bm25+graph' : 'bm25')
 
   let budgetUsed = 0
   const tryConsume = (text: string): boolean => {
@@ -630,7 +634,9 @@ export function retrieveContext(
   if (!includeGraph || hits.length === 0) {
     return {
       query,
-      mode: includeGraph ? 'bm25+graph' : 'bm25',
+      mode,
+      ...(options.modelId ? { modelId: options.modelId } : {}),
+      ...(options.fallbackReason ? { fallbackReason: options.fallbackReason } : {}),
       expandedTerms,
       hits,
       upstreamGoals,
@@ -791,7 +797,9 @@ export function retrieveContext(
 
   return {
     query,
-    mode: 'bm25+graph',
+    mode,
+    ...(options.modelId ? { modelId: options.modelId } : {}),
+    ...(options.fallbackReason ? { fallbackReason: options.fallbackReason } : {}),
     expandedTerms,
     hits,
     upstreamGoals,
@@ -802,4 +810,32 @@ export function retrieveContext(
     budgetUsed,
     budgetLimit,
   }
+}
+
+/**
+ * 自然文の質問・タスク記述から、BM25 + 用語集同義語展開 + 明示グラフ展開（Goal / Decision Outcome / Contract / Design / 用語 / SourceRef）を
+ * トークン（文字数）予算内にパックして 1 発で返す Graph-aware Retrieval。
+ * CLI (`documi retrieve`) および MCP (`retrieve_context`) が共通利用する。
+ * @implements core.graph-retrieval
+ */
+export function retrieveContext(
+  index: DocsIndex,
+  rawQuery: string,
+  options: RetrieveContextOptions = {},
+): RetrieveContextResult {
+  const query = rawQuery.trim()
+  const limit = Math.max(1, Math.min(options.limit ?? 8, 30))
+  const includeGraph = options.includeGraph !== false
+
+  const { hits: rawHits, expandedTerms } = searchIndexBm25(index, query, {
+    type: options.type,
+    limit: Math.min(limit * 2 + 4, 60),
+  })
+
+  return assembleGraphContext(index, query, rawHits, expandedTerms, {
+    limit,
+    budget: options.budget,
+    includeGraph,
+    mode: includeGraph ? 'bm25+graph' : 'bm25',
+  })
 }

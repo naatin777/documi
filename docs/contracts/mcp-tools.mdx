@@ -14,6 +14,7 @@ satisfies:
   - core.mcp-surgical-edit
   - core.ai-cli
   - core.graph-retrieval
+  - core.hybrid-rag
 ---
 
 # MCP ツールコントラクト
@@ -33,8 +34,8 @@ AI エージェント向けに **2 種類のトランスポート** で同一の
 | `get_relations` | `id` | ドキュメント ID またはブロック ID の外向き/逆参照を取得 |
 | `query_specs` | `kind?`, `intent?`, `stability?`, `review?`, `realization?`, `suspect?`, `hasFeedback?`, `query?`, `full?` | セマンティックブロックを多軸フィルタ検索（既定は `docPath`・`startLine`・`endLine`・要約付き軽量サマリ、`full: true` で詳細配列込み） |
 | `get_spec_context` | `id`, `full?` | 指定 Spec の本文・`docPath`・`startLine`・`endLine`・上流 Goal 概要・未解決フィードバック・関連 Design/Contract・Decision `<Outcome>`・関連用語・`<SourceRef>` を一括集約（`full: true` で完全展開） |
-| `search_documents` | `query`, `type?`, `limit?` | ドキュメントとセマンティックブロックを BM25＋用語集同義語展開で横断全文検索 |
-| `retrieve_context` | `query`, `type?`, `limit?`, `budget?`, `includeGraph?` | 自然文から BM25＋用語集同義語展開＋明示グラフ展開（上流 Goal・Decision `<Outcome>`・関連 Contract/Design・用語・`<SourceRef>`）を文字数予算内で 1 発取得 |
+| `search_documents` | `query`, `type?`, `limit?`, `semantic?` | ドキュメントとセマンティックブロックを BM25＋用語集同義語展開（`semantic: true` または `rag.enabled` 時はローカル Embedding＋RRF）で横断全文検索 |
+| `retrieve_context` | `query`, `type?`, `limit?`, `budget?`, `includeGraph?`, `semantic?` | 自然文から BM25（＋任意でローカル Embedding RRF）＋明示グラフ展開（上流 Goal・Decision `<Outcome>`・関連 Contract/Design・用語・`<SourceRef>`）を文字数予算内で 1 発取得 |
 | `validate_docs` | なし | `orphan-spec`・参照切れ・循環・重複 ID・MDX 未対応構文・AST `<SourceRef>` / `<TermDef>` シンボル切れを一括検証 |
 
 ## 精密編集・構造操作ツール（Surgical Write）

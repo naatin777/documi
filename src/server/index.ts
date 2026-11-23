@@ -1,5 +1,6 @@
 import path from 'node:path'
 import { resolveProjectPaths } from '../core/config'
+import type { RagConfig } from '../core/config'
 import { createApp } from './app'
 import { DocsStore } from './store'
 
@@ -7,6 +8,7 @@ export interface ServerStartOptions {
   docsDir: string
   projectRoot?: string
   testReportPath?: string
+  ragConfig?: RagConfig
   port?: number
   hostname?: string
   clientDist?: string
@@ -25,7 +27,7 @@ export async function startServer(options: ServerStartOptions): Promise<{ stop: 
 
   const store = await DocsStore.open(docsDir, { projectRoot, testReportPath: options.testReportPath })
   const stopWatch = store.watch()
-  const app = createApp(store, { clientDist, projectRoot })
+  const app = createApp(store, { clientDist, projectRoot, ragConfig: options.ragConfig })
 
   const server = Bun.serve({
     port,
@@ -91,6 +93,7 @@ if (import.meta.main) {
     docsDir: resolved.docsDir,
     projectRoot: resolved.projectRoot,
     testReportPath: resolved.testReportPath,
+    ragConfig: resolved.config.rag,
     port: Number.isFinite(port) ? port : undefined,
     hostname: hostFlag,
   })

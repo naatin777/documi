@@ -4,6 +4,7 @@ import { serveStatic } from '@hono/bun'
 import { Hono } from 'hono'
 import { cors } from 'hono/cors'
 import { HTTPException } from 'hono/http-exception'
+import type { RagConfig } from '../core/config'
 import type { DocsIndex } from '../core/types'
 import { handleMcpRequest } from './mcp'
 import { createBlocksRoutes } from './routes/blocks'
@@ -20,13 +21,15 @@ export interface AppOptions {
   clientDist?: string
   /** SourceRef が参照できるプロジェクトルート。デフォルトは docs ディレクトリの親 */
   projectRoot?: string
+  /** ローカル Hybrid RAG 設定（任意） */
+  ragConfig?: RagConfig
 }
 
-function createApiApp(store: DocsStore, projectRoot: string) {
+function createApiApp(store: DocsStore, projectRoot: string, ragConfig?: RagConfig) {
   return new Hono()
     .basePath('/api')
     .route('/', createSystemRoutes(store, projectRoot))
-    .route('/', createDocumentsRoutes(store))
+    .route('/', createDocumentsRoutes(store, projectRoot, ragConfig))
     .route('/', createGraphRoutes(store))
     .route('/blocks', createBlocksRoutes(store))
     .route('/code', createCodeRoutes(store, projectRoot))
@@ -70,7 +73,7 @@ export function createApp(source: DocsIndex | DocsStore, options: AppOptions = {
     return c.json({ error: 'Internal Server Error' }, 500)
   })
 
-  app.route('/', createApiApp(store, projectRoot))
+  app.route('/', createApiApp(store, projectRoot, options.ragConfig))
 
   // ブラウザ由来のクロスオリジン要求は拒否する (DNS rebinding / CSRF 対策)
   app.all('/mcp', async (c) => {
@@ -78,7 +81,7 @@ export function createApp(source: DocsIndex | DocsStore, options: AppOptions = {
     if (origin && !isLocalOrigin(origin)) {
       return c.json({ error: 'この Origin からの MCP アクセスは許可されていません' }, 403)
     }
-    return handleMcpRequest(store, c.req.raw, projectRoot)
+    return handleMcpRequest(store, c.req.raw, projectRoot, options.ragConfig)
   })
 
   const dist = options.clientDist ? path.resolve(options.clientDist) : undefined

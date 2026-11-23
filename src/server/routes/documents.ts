@@ -1,7 +1,9 @@
 import { Hono } from 'hono'
 import { z } from 'zod'
 import { resolveBundleDocuments, searchIndex } from '../../core/bundle'
+import type { RagConfig } from '../../core/config'
 import { getDocumentHistory, getDocumentRevision, HistoryError } from '../../core/git'
+import { searchIndexHybrid } from '../../core/hybrid-retrieval'
 import { buildDocTree, getDocument, toDocumentSummary } from '../../core/loader'
 import { ARTIFACT_TYPES, REALIZATION_STATUSES, SPEC_INTENTS, STABILITIES } from '../../core/types'
 import type {
@@ -27,6 +29,7 @@ const searchQuerySchema = z.object({
   q: z.string().optional(),
   type: z.union([artifactTypeSchema, z.literal('')]).optional(),
   limit: z.string().optional(),
+  semantic: z.enum(['true', 'false']).optional(),
 })
 
 const bundleQuerySchema = z.object({
@@ -109,7 +112,7 @@ function collectTerms(index: DocsIndex): TermPayload[] {
   return terms
 }
 
-export function createDocumentsRoutes(store: DocsStore) {
+export function createDocumentsRoutes(store: DocsStore, projectRoot?: string, ragConfig?: RagConfig) {
   return (
     new Hono()
       .get('/overview', (c) => {
@@ -296,15 +299,34 @@ export function createDocumentsRoutes(store: DocsStore) {
       .get('/terms', (c) => {
         return c.json({ terms: collectTerms(store.getIndex()) }, 200)
       })
-      .get('/search', zValidator('query', searchQuerySchema), (c) => {
-        const { q = '', type: rawType, limit: rawLimitStr } = c.req.valid('query')
+      .get('/search', zValidator('query', searchQuerySchema), async (c) => {
+        const { q = '', type: rawType, limit: rawLimitStr, semantic } = c.req.valid('query')
         const rawLimit = Number(rawLimitStr ?? 30)
         const limit = Number.isFinite(rawLimit) && rawLimit > 0 ? Math.min(rawLimit, 100) : 30
+        const useSemantic = semantic === 'true' || (semantic !== 'false' && ragConfig?.enabled === true)
+        if (useSemantic) {
+          const hybrid = await searchIndexHybrid(store.rootDir, store.getIndex(), q, {
+            type: rawType ? rawType : undefined,
+            limit,
+            ragConfig,
+            projectRoot,
+          })
+          return c.json(
+            {
+              query: q,
+              results: hybrid.hits,
+              count: hybrid.hits.length,
+              mode: hybrid.mode,
+              ...(hybrid.modelId ? { modelId: hybrid.modelId } : {}),
+            },
+            200,
+          )
+        }
         const results = searchIndex(store.getIndex(), q, {
           type: rawType ? rawType : undefined,
           limit,
         })
-        return c.json({ query: q, results, count: results.length }, 200)
+        return c.json({ query: q, results, count: results.length, mode: 'bm25' as const }, 200)
       })
       .get('/bundle', zValidator('query', bundleQuerySchema), (c) => {
         const index = store.getIndex()

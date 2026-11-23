@@ -4,6 +4,7 @@ import { WebStandardStreamableHTTPServerTransport } from '@modelcontextprotocol/
 import type { CallToolResult } from '@modelcontextprotocol/sdk/types.js'
 import { z } from 'zod'
 import type { ZodTypeAny } from 'zod'
+import type { RagConfig } from '../core/config'
 import {
   addBlockToDoc,
   EditError,
@@ -12,6 +13,7 @@ import {
   updateBlockInDocs,
   upsertTermInDocs,
 } from '../core/editor'
+import { retrieveContextHybrid, searchIndexHybrid } from '../core/hybrid-retrieval'
 import {
   buildProjectMap,
   buildValidationPayload,
@@ -111,7 +113,7 @@ function errorResult(message: string): CallToolResult {
   return { isError: true, content: [{ type: 'text', text: message }] }
 }
 
-function createDocumiMcpServer(store: DocsStore, projectRoot?: string): McpServer {
+function createDocumiMcpServer(store: DocsStore, projectRoot?: string, ragConfig?: RagConfig): McpServer {
   const getIndex = () => store.getIndex()
   const server = new McpServer(
     {
@@ -228,28 +230,58 @@ function createDocumiMcpServer(store: DocsStore, projectRoot?: string): McpServe
     'search_documents',
     {
       description:
-        'ドキュメント本文・タイトル・タグおよびセマンティックブロックを BM25＋用語集同義語展開で横断検索します。',
+        'ドキュメント本文・タイトル・タグおよびセマンティックブロックを BM25＋用語集同義語展開（semantic: true または rag.enabled 設定時はローカル Embedding＋RRF ハイブリッド）で横断検索します。',
       inputSchema: {
         query: z.string().min(1).describe('検索キーワードまたは自然文'),
         type: optionalTypeSchema,
         limit: z.number().int().min(1).max(100).optional().describe('最大返却件数 (既定 20)'),
+        semantic: optionalBoolSchema('true のときローカル Embedding との RRF ハイブリッド検索を実行'),
       },
     },
-    async ({ query, type, limit }: { query: string; type?: ArtifactType; limit?: number }) =>
-      jsonResult(searchDocuments(getIndex(), query, { type, limit })),
+    async ({
+      query,
+      type,
+      limit,
+      semantic,
+    }: {
+      query: string
+      type?: ArtifactType
+      limit?: number
+      semantic?: boolean
+    }) => {
+      const useSemantic = semantic ?? ragConfig?.enabled === true
+      if (useSemantic) {
+        const res = await searchIndexHybrid(store.rootDir, getIndex(), query, {
+          type,
+          limit: limit ?? 20,
+          ragConfig,
+          projectRoot,
+        })
+        return jsonResult({
+          query,
+          results: res.hits,
+          count: res.hits.length,
+          mode: res.mode,
+          ...(res.modelId ? { modelId: res.modelId } : {}),
+          ...(res.fallbackReason ? { fallbackReason: res.fallbackReason } : {}),
+        })
+      }
+      return jsonResult(searchDocuments(getIndex(), query, { type, limit }))
+    },
   )
 
   registerTool(
     'retrieve_context',
     {
       description:
-        '自然文の質問・タスク記述から、BM25＋用語集同義語展開＋明示グラフ展開（上流 Goal・Decision Outcome・関連 Contract/Design・用語・SourceRef）を文字数予算内で 1 発取得します。',
+        '自然文の質問・タスク記述から、BM25＋用語集同義語展開（semantic: true または rag.enabled 設定時はローカル Embedding＋RRF）＋明示グラフ展開（上流 Goal・Decision Outcome・関連 Contract/Design・用語・SourceRef）を文字数予算内で 1 発取得します。',
       inputSchema: {
         query: z.string().min(1).describe('自然文の質問またはタスク内容 (例: "静的サイト書き出しの仕様と制約")'),
         type: optionalTypeSchema,
         limit: z.number().int().min(1).max(30).optional().describe('一次ヒットの最大件数 (既定 8)'),
         budget: z.number().int().min(500).max(40000).optional().describe('返却コンテキストの文字数予算 (既定 6000)'),
         includeGraph: optionalBoolSchema('グラフ近傍の関連文脈を含めるか (既定: true)'),
+        semantic: optionalBoolSchema('true のときローカル Embedding との RRF ハイブリッド検索を実行'),
       },
     },
     async ({
@@ -258,13 +290,30 @@ function createDocumiMcpServer(store: DocsStore, projectRoot?: string): McpServe
       limit,
       budget,
       includeGraph,
+      semantic,
     }: {
       query: string
       type?: ArtifactType
       limit?: number
       budget?: number
       includeGraph?: boolean
-    }) => jsonResult(retrieveContext(getIndex(), query, { type, limit, budget, includeGraph })),
+      semantic?: boolean
+    }) => {
+      const useSemantic = semantic ?? ragConfig?.enabled === true
+      if (useSemantic) {
+        return jsonResult(
+          await retrieveContextHybrid(store.rootDir, getIndex(), query, {
+            type,
+            limit,
+            budget,
+            includeGraph,
+            ragConfig,
+            projectRoot,
+          }),
+        )
+      }
+      return jsonResult(retrieveContext(getIndex(), query, { type, limit, budget, includeGraph }))
+    },
   )
 
   registerTool(
@@ -470,8 +519,13 @@ function createDocumiMcpServer(store: DocsStore, projectRoot?: string): McpServe
 /**
  * Stateless な Streamable HTTP として MCP リクエストを処理する。
  */
-export async function handleMcpRequest(store: DocsStore, request: Request, projectRoot?: string): Promise<Response> {
-  const server = createDocumiMcpServer(store, projectRoot)
+export async function handleMcpRequest(
+  store: DocsStore,
+  request: Request,
+  projectRoot?: string,
+  ragConfig?: RagConfig,
+): Promise<Response> {
+  const server = createDocumiMcpServer(store, projectRoot, ragConfig)
   const transport = new WebStandardStreamableHTTPServerTransport({ enableJsonResponse: true })
   await server.connect(transport)
   return transport.handleRequest(request)
@@ -481,8 +535,8 @@ export async function handleMcpRequest(store: DocsStore, request: Request, proje
  * stdio トランスポートで MCP サーバーを起動する（AI エディタ・CLI エージェント向け）。
  * DocsStore から毎回最新インデックスを読むため、起動中の docs/ 変更も即時反映される。
  */
-export async function startMcpStdio(store: DocsStore, projectRoot?: string): Promise<McpServer> {
-  const server = createDocumiMcpServer(store, projectRoot)
+export async function startMcpStdio(store: DocsStore, projectRoot?: string, ragConfig?: RagConfig): Promise<McpServer> {
+  const server = createDocumiMcpServer(store, projectRoot, ragConfig)
   const transport = new StdioServerTransport()
   await server.connect(transport)
   return server
