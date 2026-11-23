@@ -80,3 +80,10 @@ tags: [core, spec]
   **When** AI エージェントが MCP 経由で特定のセマンティックブロック・用語・新規文書雛形・ブロック ID リネームを操作するとき、
   **the** Document Core および MCP Server **shall** 読み取りツールで各ブロックの正確な `docPath`・`startLine`・`endLine` を提供するとともに、対象ブロックや対象ファイルのみを AST 位置ベースで安全に書き換えて即時再読込と検証結果を返す。`docs/` 外への脱出、MDX 危険構文（式・ESM・未許可コンポーネント）、ID 重複、および `docs/.documi/reviews.json` への書き込みは一切拒否する。
 </Spec>
+
+## ドキュメント鮮度・最新変更箇所・過去版参照
+
+<Spec id="core.doc-history" stability="evolving" derives="goals/human-comprehension">
+  **When** Document Core が `docs/` を読み込むか、指定ドキュメントの履歴・過去バージョンを要求されたとき、
+  **the** Document Core **shall** 読み取り専用の Git 連携（非 Git 環境ではファイル時刻へのフォールバック）により各文書の作成日時・最終更新日時・未コミット変更状態・コミット履歴・最新変更の本文基準行レンジを算出し、検証済みのコミット SHA に対して過去バージョンの文書本文を安全に返却する。Git リポジトリへの書き込み操作は一切行わない。
+</Spec>

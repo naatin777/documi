@@ -9,12 +9,14 @@ satisfies:
   - core.realization
   - core.bundle-export
   - core.full-text-search
+  - core.doc-history
   - ui.web-viewer
   - ui.live-reload
   - ui.graph-matrix
   - ui.bundle-export
   - ui.search-palette
   - ui.code-explorer
+  - ui.doc-history
 ---
 
 # REST API コントラクト
@@ -29,7 +31,9 @@ satisfies:
 | `GET /api/status` | `rootDir`, `loadedAt`, `documentCount`, `blockCount`, `issues` |
 | `GET /api/tree` | 階層ツリー (`DocTreeNode[]`) と全ドキュメントサマリ |
 | `GET /api/documents` | サマリ一覧 (`?type=` 絞り込み対応) |
-| `GET /api/documents/*path` | 任意階層パス ID による単一ドキュメント詳細 (ブロック・エッジ・Realization・問題込み) |
+| `GET /api/documents/*path` | 任意階層パス ID による単一ドキュメント詳細 (ブロック・エッジ・Realization・鮮度・問題込み) |
+| `GET /api/history` | 指定ドキュメント (`?id=&limit=`) の Git 鮮度・コミット履歴・最新変更の本文基準行レンジ一覧 |
+| `GET /api/history/revision` | 指定ドキュメント (`?id=&commit=`) の過去コミット時点の本文・メタデータ（読み取り専用） |
 | `GET /api/graph` | グラフノード＆エッジ一覧 (`?layers=trace\|all&granularity=docs\|blocks`) |
 | `GET /api/matrix` | 全 `<Spec>` のトレーサビリティマトリクス |
 | `GET /api/search` | ドキュメント＆セマンティックブロック横断検索 (`?q=&type=&limit=`) |

@@ -5,7 +5,7 @@ import 'katex/dist/katex.min.css'
 import { Fragment, type ReactNode } from 'react'
 import { Link } from 'react-router'
 import { parseMarkdownAst } from '../core/mdast-parser'
-import type { DocFormat } from '../core/types'
+import type { ChangedLineRange, DocFormat } from '../core/types'
 import { encodeDocId, type TermEntry } from './api'
 import CodeBlock from './components/CodeBlock'
 import { CalloutBlock, StepsBlock, TabsBlock, type TabItem } from './components/MdxBlocks'
@@ -33,6 +33,8 @@ export interface RenderOptions {
   headingPrefix?: string
   /** true のとき <Tabs> を全タブ縦展開する (印刷・PDF バンドル用) */
   expandAllTabs?: boolean
+  /** 最新変更箇所ハイライト対象の本文基準行レンジ一覧 */
+  changedRanges?: readonly ChangedLineRange[]
 }
 
 export function bundleDocAnchor(docId: string): string {
@@ -85,6 +87,24 @@ interface Ctx {
   bundleDocIds?: ReadonlySet<string>
   headingPrefix?: string
   expandAllTabs: boolean
+  changedRanges?: readonly ChangedLineRange[]
+}
+
+function matchChangedKind(
+  startLine: number | undefined,
+  endLine: number | undefined,
+  ranges?: readonly ChangedLineRange[],
+): ChangedLineRange['kind'] | null {
+  if (!ranges || ranges.length === 0 || startLine === undefined) return null
+  const end = endLine ?? startLine
+  let matched: ChangedLineRange['kind'] | null = null
+  for (const r of ranges) {
+    if (r.startLine <= end && r.endLine >= startLine) {
+      if (r.kind === 'added') return 'added'
+      matched = 'modified'
+    }
+  }
+  return matched
 }
 
 /** Markdown / MDX 本文を React ノードへ変換する。JSX は許可リストのみ描画する。 */
@@ -104,8 +124,9 @@ export function renderMarkdown(root: Root, options: RenderOptions = {}): ReactNo
     bundleDocIds: options.bundleDocIds,
     headingPrefix: options.headingPrefix,
     expandAllTabs: options.expandAllTabs === true,
+    changedRanges: options.changedRanges,
   }
-  return renderBlocks(root.children, ctx)
+  return renderTopLevelBlocks(root.children, ctx)
 }
 
 export type AnyNode =
@@ -115,6 +136,23 @@ export type AnyNode =
   | DefinitionContent
   | MdxJsxFlowElement
   | MdxJsxTextElement
+
+function renderTopLevelBlocks(nodes: readonly AnyNode[], ctx: Ctx): ReactNode {
+  if (!ctx.changedRanges || ctx.changedRanges.length === 0) {
+    return renderBlocks(nodes, ctx)
+  }
+  return nodes.map((node, i) => {
+    const rendered = renderBlock(node, ctx)
+    if (rendered === null || rendered === undefined) return <Fragment key={i} />
+    const kind = matchChangedKind(node.position?.start.line, node.position?.end.line, ctx.changedRanges)
+    if (!kind) return <Fragment key={i}>{rendered}</Fragment>
+    return (
+      <div key={i} className="md-changed-block" data-change-kind={kind}>
+        {rendered}
+      </div>
+    )
+  })
+}
 
 function renderBlocks(nodes: readonly AnyNode[], ctx: Ctx): ReactNode {
   return nodes.map((node, i) => <Fragment key={i}>{renderBlock(node, ctx)}</Fragment>)

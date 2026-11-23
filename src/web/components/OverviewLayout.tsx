@@ -3,6 +3,7 @@ import { Link } from 'react-router'
 import { ARTIFACT_TYPES } from '../../core/types'
 import { encodeDocId } from '../api'
 import { toErrorMessage, useOverviewQuery } from '../queries'
+import { formatDateTime, formatRelativeTime, formatShortDate } from '../time'
 import { ArtifactTypeIcon } from './BrandMark'
 
 function statCard(warn = false) {
@@ -11,7 +12,7 @@ function statCard(warn = false) {
 
 // @implements ui.web-viewer
 export default function OverviewLayout() {
-  const { t } = useTranslation()
+  const { t, i18n } = useTranslation()
   const { data, error: queryError } = useOverviewQuery()
   const error = toErrorMessage(queryError)
 
@@ -66,6 +67,58 @@ export default function OverviewLayout() {
                 <span className="text-xs text-fg-muted">{t('overview.stats.issues')}</span>
               </div>
             </section>
+
+            {data.recentDocuments.length > 0 && (
+              <section className="mb-7">
+                <div className="mb-3 flex items-center gap-2">
+                  <h2 className="m-0 text-[15px] font-bold text-fg">{t('overview.recentlyUpdated')}</h2>
+                  {data.uncommittedCount > 0 && (
+                    <span className="rounded-full bg-emerald-500/15 px-2 py-0.5 text-[11px] font-bold text-emerald-700 dark:text-emerald-400">
+                      {t('overview.uncommittedCount', { count: data.uncommittedCount })}
+                    </span>
+                  )}
+                </div>
+                <div className="grid gap-2">
+                  {data.recentDocuments.map((d) => (
+                    <Link key={d.id} to={`/docs/${encodeDocId(d.id)}`} className={`${cardClass} type-${d.type}`}>
+                      <div className="mb-0.5 flex flex-wrap items-center gap-2">
+                        <ArtifactTypeIcon type={d.type} size={13} className="shrink-0 text-[var(--tc)]" />
+                        <span className="text-[14px] font-bold text-fg">{d.title}</span>
+                        {d.freshness?.workingStatus && (
+                          <span className="rounded-full bg-emerald-500/15 px-1.5 py-px text-[10.5px] font-bold text-emerald-700 dark:text-emerald-400">
+                            {t('overview.uncommittedBadge')}
+                          </span>
+                        )}
+                        {d.freshness?.updatedAt && (
+                          <span
+                            className="ml-auto shrink-0 text-[11.5px] text-fg-muted"
+                            title={formatDateTime(d.freshness.updatedAt)}
+                          >
+                            {t('overview.updatedAtLabel', {
+                              time: formatRelativeTime(d.freshness.updatedAt, i18n.language),
+                            })}
+                          </span>
+                        )}
+                      </div>
+                      <div className="flex flex-wrap items-center gap-x-3 gap-y-0.5 text-[11.5px] text-fg-muted">
+                        <span className="mono">{d.path}</span>
+                        {d.freshness?.createdAt && (
+                          <span title={formatDateTime(d.freshness.createdAt)}>
+                            {t('overview.createdAtLabel', { date: formatShortDate(d.freshness.createdAt) })}
+                          </span>
+                        )}
+                        {d.freshness?.lastCommitSubject && (
+                          <span className="truncate">
+                            {d.freshness.lastCommitSha ? `${d.freshness.lastCommitSha} · ` : ''}
+                            {d.freshness.lastCommitSubject}
+                          </span>
+                        )}
+                      </div>
+                    </Link>
+                  ))}
+                </div>
+              </section>
+            )}
 
             {data.attentionBlocks.length > 0 && (
               <section className="mb-7">

@@ -73,6 +73,13 @@
     display: none !important;
   }
 
+  .md-changed-block {
+    margin-left: 0 !important;
+    padding-left: 0 !important;
+    border-left: none !important;
+    background: transparent !important;
+  }
+
   .page {
     max-width: none !important;
     padding: 14mm 0 !important;

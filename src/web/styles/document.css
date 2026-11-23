@@ -66,6 +66,32 @@
   color: var(--text-muted);
 }
 
+/* ---------- Latest Change Highlight ---------- */
+
+.md-changed-block {
+  position: relative;
+  margin-left: -14px;
+  padding-left: 11px;
+  border-left: 3px solid #0ea5e9;
+  border-radius: 2px;
+  background: rgba(14, 165, 233, 0.055);
+}
+
+.md-changed-block[data-change-kind='added'] {
+  border-left-color: #10b981;
+  background: rgba(16, 185, 129, 0.06);
+}
+
+:root[data-theme='dark'] .md-changed-block {
+  border-left-color: #38bdf8;
+  background: rgba(56, 189, 248, 0.075);
+}
+
+:root[data-theme='dark'] .md-changed-block[data-change-kind='added'] {
+  border-left-color: #34d399;
+  background: rgba(52, 211, 153, 0.08);
+}
+
 .mono {
   font-family: var(--font-mono);
   font-size: 12px;
