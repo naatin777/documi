@@ -74,6 +74,11 @@ describe('Bundle / Search / Traceability Matrix', () => {
     const byTag = searchIndex(idx, 'アカウント')
     expect(byTag.some((h) => h.id === 'Account')).toBe(true)
     expect(byTag.some((h) => h.docId === 'specs/auth/lockout')).toBe(true)
+
+    // description にクエリ語が含まれない場合でも、本文のヒット箇所前後をスニペット抽出する
+    const bodyOnly = searchIndex(idx, 'テスト方針')
+    const verDocHit = bodyOnly.find((h) => h.kind === 'doc' && h.id === 'verification/auth')
+    expect(verDocHit?.snippet).toContain('テスト方針')
   })
 
   test('buildTraceMatrix は Spec ごとに上流 Goal・下流 Design/Verification を集計する', async () => {

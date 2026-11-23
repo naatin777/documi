@@ -6,24 +6,32 @@ description: Documi CLI を使って Living Specification（仕様・設計・AD
 # Documi Living Specification 運用ワークフロー（CLI）
 
 このリポジトリは `docs/` 配下の Living Specification を **Documi** で管理しています。
-ファイルを 1 件ずつ丸ごと読む代わりに、`documi` CLI を使って必要な文脈だけを段階的に取得・精密編集してください（全読み取り・編集コマンドは `--json` に対応しています）。
+ファイルを 1 件ずつ丸ごと読む代わりに、`documi` CLI を使って必要な文脈だけを段階的に取得・精密編集してください。
+コンテキストを節約するため、**読み取りは既定のコンパクトなテキスト出力を優先**し、構造化データが必要なときだけ `--json`（さらに全文・詳細配列が必要なときだけ `--full`）を付けてください（全オプションは `documi --help` で確認できます）。
 
 ## 1. 段階的コンテキスト取得（実装前に読む）
 
-1. `documi map --json` — Goal・Architecture・Decision `<Outcome>`・ドメイン用語・Review / Realization 全体像を一括取得する。
-2. `documi query [--kind spec] [--review ...] [--realization ...] [--has-feedback] [--q <語>] --json` — 関連する `<Spec>` ブロックを絞り込む。キーワード横断検索には `documi search "<query>" --json` を使う。
-3. `documi context <spec-id> --json` — 対象 Spec に紐づく上流 Goal・未解決の人間フィードバック・関連 Design/Contract・Decision `<Outcome>`・用語・`<SourceRef>` をまとめて取得する。
-4. 全文や参照関係が必要なときだけ `documi show <doc-id> --json` や `documi relations <id> --json` を呼ぶ。
+1. `documi map` — Goal・Architecture・Decision `<Outcome>`・ドメイン用語・Review / Realization 全体像を一括取得する（機械処理時は `documi map --json`）。
+2. `documi query [--kind spec] [--review ...] [--realization ...] [--has-feedback] [--q <語>]` — 関連する `<Spec>` ブロックを絞り込む。キーワード横断検索には `documi search "<query>"` を使う。
+3. `documi context <spec-id>` — 対象 Spec に紐づく上流 Goal・未解決の人間フィードバック・関連 Design/Contract・Decision `<Outcome>`・用語・`<SourceRef>` をまとめて取得する（本文や詳細が必要なら `documi context <spec-id> --json`）。
+4. 全文や参照関係が必要なときだけ `documi show <doc-id>` や `documi relations <id>` を呼ぶ。
 
 ## 2. CLI による精密編集（差分を最小限に保つ）
 
-仕様を更新するときは、MDX ファイル全体を書き換える代わりに AST 位置ベースの CLI コマンドを優先してください（長文は `--body -` で標準入力または `--body-file <file>` で渡せます）：
+仕様を更新するときは、MDX ファイル全体を書き換える代わりに AST 位置ベースの CLI コマンドを優先してください。**複数行の Markdown やバッククォートを含む本文はクォート崩れを防ぐため `--body -` ＋ヒアドキュメント**（または `--body-file <file>`）を使ってください：
 
-- `documi block update <block-id> --body "..." [--stability ...] [--derives a,b] --json` — 既存ブロックの該当行範囲のみを安全に更新する。
-- `documi block add <doc-id> --kind spec --id <new-id> --derives <goal> --body "..." [--after-heading "<見出し>"] --json` — セマンティックブロックを 1 件追記する。
-- `documi term upsert <term-id> --definition "..." [--aliases a,b] [--symbols src/foo.ts#Foo] --json` — 用語集に `<TermDef>` を追加・更新する。
-- `documi scaffold <rel-path.mdx> --title "..." [--type spec] [--derives a,b] [--body "..."] --json` — 規約通りの frontmatter を持つ新規文書を作成する（既存ファイルの上書きは拒否）。
-- `documi block rename <old-id> <new-id> --dry-run --json` — 全 `docs/` とコード・テストの ID 参照を一括リネームする（必ず先に `--dry-run` で対象を確認）。
+```bash
+documi block update <block-id> --stability evolving --body - <<'EOF'
+**When** 条件が発生したとき、
+**the** システム **shall** 期待される振る舞いを行う。
+EOF
+```
+
+- `documi block update <block-id> --body - [--stability ...] [--derives a,b]` — 既存ブロックの該当行範囲のみを安全に更新する。
+- `documi block add <doc-id> --kind spec --id <new-id> --derives <goal> --body - [--after-heading "<見出し>"]` — セマンティックブロックを 1 件追記する。
+- `documi term upsert <term-id> --definition "..." [--aliases a,b] [--symbols src/foo.ts#Foo]` — 用語集に `<TermDef>` を追加・更新する。
+- `documi scaffold <rel-path.mdx> --title "..." [--type spec] [--derives a,b] [--body -]` — 規約通りの frontmatter を持つ新規文書を作成する（既存ファイルの上書きは拒否）。
+- `documi block rename <old-id> <new-id> --dry-run` — 全 `docs/` とコード・テストの ID 参照を一括リネームする（必ず先に `--dry-run` で対象を確認）。
 
 ## 3. コード・テストと仕様の同期
 

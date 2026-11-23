@@ -172,24 +172,32 @@ description: Documi CLI を使って Living Specification（仕様・設計・AD
 # Documi Living Specification 運用ワークフロー（CLI）
 
 このリポジトリは \`${relDocsDir}/\` 配下の Living Specification を **Documi** で管理しています。
-ファイルを 1 件ずつ丸ごと読む代わりに、\`documi\` CLI を使って必要な文脈だけを段階的に取得・精密編集してください（全読み取り・編集コマンドは \`--json\` に対応しています）。
+ファイルを 1 件ずつ丸ごと読む代わりに、\`documi\` CLI を使って必要な文脈だけを段階的に取得・精密編集してください。
+コンテキストを節約するため、**読み取りは既定のコンパクトなテキスト出力を優先**し、構造化データが必要なときだけ \`--json\`（さらに全文・詳細配列が必要なときだけ \`--full\`）を付けてください（全オプションは \`documi --help\` で確認できます）。
 
 ## 1. 段階的コンテキスト取得（実装前に読む）
 
-1. \`documi map --json\` — Goal・Architecture・Decision \`<Outcome>\`・ドメイン用語・Review / Realization 全体像を一括取得する。
-2. \`documi query [--kind spec] [--review ...] [--realization ...] [--has-feedback] [--q <語>] --json\` — 関連する \`<Spec>\` ブロックを絞り込む。キーワード横断検索には \`documi search "<query>" --json\` を使う。
-3. \`documi context <spec-id> --json\` — 対象 Spec に紐づく上流 Goal・未解決の人間フィードバック・関連 Design/Contract・Decision \`<Outcome>\`・用語・\`<SourceRef>\` をまとめて取得する。
-4. 全文や参照関係が必要なときだけ \`documi show <doc-id> --json\` や \`documi relations <id> --json\` を呼ぶ。
+1. \`documi map\` — Goal・Architecture・Decision \`<Outcome>\`・ドメイン用語・Review / Realization 全体像を一括取得する（機械処理時は \`documi map --json\`）。
+2. \`documi query [--kind spec] [--review ...] [--realization ...] [--has-feedback] [--q <語>]\` — 関連する \`<Spec>\` ブロックを絞り込む。キーワード横断検索には \`documi search "<query>"\` を使う。
+3. \`documi context <spec-id>\` — 対象 Spec に紐づく上流 Goal・未解決の人間フィードバック・関連 Design/Contract・Decision \`<Outcome>\`・用語・\`<SourceRef>\` をまとめて取得する（本文や詳細が必要なら \`documi context <spec-id> --json\`）。
+4. 全文や参照関係が必要なときだけ \`documi show <doc-id>\` や \`documi relations <id>\` を呼ぶ。
 
 ## 2. CLI による精密編集（差分を最小限に保つ）
 
-仕様を更新するときは、MDX ファイル全体を書き換える代わりに AST 位置ベースの CLI コマンドを優先してください（長文は \`--body -\` で標準入力または \`--body-file <file>\` で渡せます）：
+仕様を更新するときは、MDX ファイル全体を書き換える代わりに AST 位置ベースの CLI コマンドを優先してください。**複数行の Markdown やバッククォートを含む本文はクォート崩れを防ぐため \`--body -\` ＋ヒアドキュメント**（または \`--body-file <file>\`）を使ってください：
 
-- \`documi block update <block-id> --body "..." [--stability ...] [--derives a,b] --json\` — 既存ブロックの該当行範囲のみを安全に更新する。
-- \`documi block add <doc-id> --kind spec --id <new-id> --derives <goal> --body "..." [--after-heading "<見出し>"] --json\` — セマンティックブロックを 1 件追記する。
-- \`documi term upsert <term-id> --definition "..." [--aliases a,b] [--symbols src/foo.ts#Foo] --json\` — 用語集に \`<TermDef>\` を追加・更新する。
-- \`documi scaffold <rel-path.mdx> --title "..." [--type spec] [--derives a,b] [--body "..."] --json\` — 規約通りの frontmatter を持つ新規文書を作成する（既存ファイルの上書きは拒否）。
-- \`documi block rename <old-id> <new-id> --dry-run --json\` — 全 \`${relDocsDir}/\` とコード・テストの ID 参照を一括リネームする（必ず先に \`--dry-run\` で対象を確認）。
+\`\`\`bash
+documi block update <block-id> --stability evolving --body - <<'EOF'
+**When** 条件が発生したとき、
+**the** システム **shall** 期待される振る舞いを行う。
+EOF
+\`\`\`
+
+- \`documi block update <block-id> --body - [--stability ...] [--derives a,b]\` — 既存ブロックの該当行範囲のみを安全に更新する。
+- \`documi block add <doc-id> --kind spec --id <new-id> --derives <goal> --body - [--after-heading "<見出し>"]\` — セマンティックブロックを 1 件追記する。
+- \`documi term upsert <term-id> --definition "..." [--aliases a,b] [--symbols src/foo.ts#Foo]\` — 用語集に \`<TermDef>\` を追加・更新する。
+- \`documi scaffold <rel-path.mdx> --title "..." [--type spec] [--derives a,b] [--body -]\` — 規約通りの frontmatter を持つ新規文書を作成する（既存ファイルの上書きは拒否）。
+- \`documi block rename <old-id> <new-id> --dry-run\` — 全 \`${relDocsDir}/\` とコード・テストの ID 参照を一括リネームする（必ず先に \`--dry-run\` で対象を確認）。
 
 ## 3. コード・テストと仕様の同期
 
@@ -260,24 +268,32 @@ description: Read, search, surgically edit, and verify Living Specifications man
 # Documi Living Specification Workflow (CLI)
 
 This repository manages its Living Specifications in \`${relDocsDir}/\` using **Documi**.
-Use the \`documi\` CLI instead of reading raw spec files one by one so context stays minimal and structured (all read and edit commands support \`--json\`).
+Use the \`documi\` CLI instead of reading raw spec files one by one so context stays minimal and structured.
+Prefer the **default compact text output** for reading to minimize token usage; add \`--json\` only when structured fields are needed (and \`--full\` only when complete Goal/Architecture bodies or full trace arrays are required). Run \`documi --help\` for the full flag list.
 
 ## 1. Progressive Disclosure (Read Before Coding)
 
-1. Run \`documi map --json\` first to load Goals, Architecture summaries, Decision \`<Outcome>\` blocks, Domain Terms, and overall Review / Realization status.
-2. Run \`documi query [--kind spec] [--review ...] [--realization ...] [--has-feedback] [--q <text>] --json\` to filter relevant \`<Spec>\` blocks, or \`documi search "<query>" --json\` for full-text search.
-3. Run \`documi context <spec-id> --json\` for each target Spec ID to retrieve its upstream Goals, unresolved human feedback, related Design/Contract docs, Decision \`<Outcome>\` blocks, referenced Terms, and \`<SourceRef>\` anchors.
-4. Only run \`documi show <doc-id> --json\` or \`documi relations <id> --json\` when full surrounding prose or graph edges are needed.
+1. Run \`documi map\` first to load Goals, Architecture summaries, Decision \`<Outcome>\` blocks, Domain Terms, and overall Review / Realization status (use \`documi map --json\` for structured output).
+2. Run \`documi query [--kind spec] [--review ...] [--realization ...] [--has-feedback] [--q <text>]\` to filter relevant \`<Spec>\` blocks, or \`documi search "<query>"\` for full-text search.
+3. Run \`documi context <spec-id>\` for each target Spec ID to retrieve its upstream Goals, unresolved human feedback, related Design/Contract docs, Decision \`<Outcome>\` blocks, referenced Terms, and \`<SourceRef>\` anchors (use \`--json\` when you need the exact spec body & structured metadata).
+4. Only run \`documi show <doc-id>\` or \`documi relations <id>\` when full surrounding prose or graph edges are needed.
 
 ## 2. Surgical Editing via CLI (Keep Diffs Minimal)
 
-When updating specifications, prefer Documi's AST-aware CLI commands over rewriting whole MDX files (pass \`--body -\` to read multiline Markdown from stdin, or \`--body-file <file>\`):
+When updating specifications, prefer Documi's AST-aware CLI commands over rewriting whole MDX files. **For multiline Markdown or bodies containing backticks, pass \`--body -\` with a single-quoted heredoc** (or \`--body-file <file>\`) to avoid shell quoting issues:
 
-- \`documi block update <block-id> --body "..." [--stability ...] [--derives a,b] --json\` — replace the body or attributes of an existing semantic block in place.
-- \`documi block add <doc-id> --kind spec --id <new-id> --derives <goal> --body "..." [--after-heading "<heading>"] --json\` — append a new semantic block to an existing document.
-- \`documi term upsert <term-id> --definition "..." [--aliases a,b] [--symbols src/foo.ts#Foo] --json\` — add or update a \`<TermDef>\` in the glossary.
-- \`documi scaffold <rel-path.mdx> --title "..." [--type spec] [--derives a,b] [--body "..."] --json\` — create a new typed document with valid frontmatter (refuses to overwrite existing files).
-- \`documi block rename <old-id> <new-id> --dry-run --json\` — safely rename a block ID and all cross-references across \`${relDocsDir}/\` and code/tests (always preview with \`--dry-run\` first).
+\`\`\`bash
+documi block update <block-id> --stability evolving --body - <<'EOF'
+**When** the trigger condition occurs,
+**the** system **shall** produce the expected observable behavior.
+EOF
+\`\`\`
+
+- \`documi block update <block-id> --body - [--stability ...] [--derives a,b]\` — replace the body or attributes of an existing semantic block in place.
+- \`documi block add <doc-id> --kind spec --id <new-id> --derives <goal> --body - [--after-heading "<heading>"]\` — append a new semantic block to an existing document.
+- \`documi term upsert <term-id> --definition "..." [--aliases a,b] [--symbols src/foo.ts#Foo]\` — add or update a \`<TermDef>\` in the glossary.
+- \`documi scaffold <rel-path.mdx> --title "..." [--type spec] [--derives a,b] [--body -]\` — create a new typed document with valid frontmatter (refuses to overwrite existing files).
+- \`documi block rename <old-id> <new-id> --dry-run\` — safely rename a block ID and all cross-references across \`${relDocsDir}/\` and code/tests (always preview with \`--dry-run\` first).
 
 ## 3. Sync Code & Tests With Specs
 

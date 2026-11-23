@@ -83,8 +83,14 @@ describe('AI & Human CLI commands', () => {
     expect(mapRes.code).toBe(0)
     const mapData = mapRes.json()
     expect(mapData.documentCount).toBe(4)
-    expect((mapData.goals as unknown[]).length).toBe(1)
+    expect((mapData.goals as Array<{ body?: string }>).length).toBe(1)
+    // 既定はコンテキスト節約のため body を省略し、--full 指定時のみ展開する
+    expect((mapData.goals as Array<{ body?: string }>)[0]?.body).toBeUndefined()
     expect((mapData.terms as unknown[]).length).toBe(1)
+
+    const mapFullRes = await execCli(['map', '--project', projectDir, '--json', '--full'])
+    expect(mapFullRes.code).toBe(0)
+    expect((mapFullRes.json().goals as Array<{ body?: string }>)[0]?.body).toContain('# Core Goal')
 
     const listRes = await execCli(['list', '--project', projectDir, '--type', 'spec', '--json'])
     expect(listRes.code).toBe(0)
@@ -113,22 +119,44 @@ describe('AI & Human CLI commands', () => {
       '--json',
     ])
     expect(queryRes.code).toBe(0)
-    const blocks = queryRes.json().blocks as Array<{ id: string; docPath: string; startLine: number }>
+    const blocks = queryRes.json().blocks as Array<{
+      id: string
+      docPath: string
+      startLine: number
+      realizationStatus?: string
+      realization?: unknown
+    }>
     expect(blocks.map((b) => b.id)).toEqual(['auth.lockout'])
     expect(blocks[0]?.docPath).toBe('specs/auth.mdx')
     expect(blocks[0]?.startLine).toBeGreaterThan(1)
+    // 既定は軽量サマリ（realizationStatus のみで詳細配列を含まない）
+    expect(blocks[0]?.realizationStatus).toBeTruthy()
+    expect(blocks[0]?.realization).toBeUndefined()
+
+    const queryFullRes = await execCli(['query', '--project', projectDir, '--kind', 'spec', '--json', '--full'])
+    expect(queryFullRes.code).toBe(0)
+    expect((queryFullRes.json().blocks as Array<{ realization?: unknown }>)[0]?.realization).toBeTruthy()
 
     const ctxRes = await execCli(['context', 'auth.lockout', '--project', projectDir, '--json'])
     expect(ctxRes.code).toBe(0)
     const ctx = ctxRes.json()
     expect(ctx.docPath).toBe('specs/auth.mdx')
-    expect((ctx.upstreamGoals as Array<{ id: string }>).map((g) => g.id)).toEqual(['goals/core'])
+    expect((ctx.upstreamGoals as Array<{ id: string; body?: string }>).map((g) => g.id)).toEqual(['goals/core'])
+    expect((ctx.upstreamGoals as Array<{ body?: string }>)[0]?.body).toBeUndefined()
     expect((ctx.relatedDocuments as Array<{ id: string }>).map((d) => d.id)).toContain('designs/auth')
 
-    // 人間向けテキスト出力もエラーなく動作
+    const ctxFullRes = await execCli(['context', 'auth.lockout', '--project', projectDir, '--json', '--full'])
+    expect(ctxFullRes.code).toBe(0)
+    expect((ctxFullRes.json().upstreamGoals as Array<{ body?: string }>)[0]?.body).toContain('# Core Goal')
+
+    // 人間・AI 向けテキスト出力もエラーなく動作（context テキストに対象 Spec 本文が含まれる）
     const textMap = await execCli(['map', '--project', projectDir])
     expect(textMap.code).toBe(0)
     expect(textMap.stdout).toContain('Documi Project Map')
+
+    const textCtx = await execCli(['context', 'auth.lockout', '--project', projectDir])
+    expect(textCtx.code).toBe(0)
+    expect(textCtx.stdout).toContain('5回失敗でアカウントをロックする。')
   })
 
   test('[core.ai-cli] scaffold / block add / block update (stdin) / term upsert / block rename が精密編集と検証を行う', async () => {

@@ -50,9 +50,9 @@ const DOCUMI_MCP_INSTRUCTIONS = [
   '',
   'Recommended workflow:',
   '1. Progressive disclosure (read before editing):',
-  '   - Call get_project_map first to load Goals, Architecture, Decision <Outcome> blocks, Domain Terms, and Review/Realization summaries.',
-  '   - Call query_specs or search_documents to locate relevant <Spec> blocks or documents.',
-  '   - Call get_spec_context for each target Spec ID to fetch upstream Goals, unresolved human feedback, related Design/Contract/Decision docs, Terms, and <SourceRef> anchors.',
+  '   - Call get_project_map first to load compact Goal/Architecture summaries, Decision <Outcome> blocks, Domain Terms, and Review/Realization summaries (pass full: true only when full Goal/Architecture bodies are needed).',
+  '   - Call query_specs or search_documents to locate relevant <Spec> blocks or documents (query_specs returns compact summaries by default; pass full: true only when full trace arrays are needed).',
+  '   - Call get_spec_context for each target Spec ID to fetch the spec body, upstream Goal summaries, unresolved human feedback, related Design/Contract/Decision docs, Terms, and <SourceRef> anchors.',
   '   - Only call get_document or get_relations when full document prose or graph edges are needed.',
   '2. Surgical editing (prefer over full-file rewrites):',
   '   - Use update_block, add_block, upsert_term, scaffold_document, and rename_block_id (always preview with dryRun: true first).',
@@ -98,7 +98,7 @@ const optionalBlockIntentSchema = z
   .describe('採用意思 (normative / idea / rejected / informative)')
 
 function jsonResult(data: unknown): CallToolResult {
-  const text = JSON.stringify(data, null, 2)
+  const text = JSON.stringify(data)
   return {
     content: [{ type: 'text', text }],
     structuredContent: data as Record<string, unknown>,
@@ -131,10 +131,12 @@ function createDocumiMcpServer(store: DocsStore, projectRoot?: string): McpServe
     'get_project_map',
     {
       description:
-        'プロジェクトの初期コンテキスト (Goal 全文・Architecture 全文・Decision の Outcome 結論一覧・Domain 用語一覧・統計) を一括取得します。',
-      inputSchema: {},
+        'プロジェクトの初期コンテキスト (Goal / Architecture 概要・Decision の Outcome 結論一覧・Domain 用語一覧・統計) を一括取得します。full: true で Goal / Architecture 全文も含めます。',
+      inputSchema: {
+        full: optionalBoolSchema('true のとき Goal / Architecture 全文と長い説明も省略せず返却 (既定: false)'),
+      },
     },
-    async () => jsonResult(buildProjectMap(getIndex())),
+    async ({ full }: { full?: boolean }) => jsonResult(buildProjectMap(getIndex(), { full })),
   )
 
   registerTool(
@@ -187,6 +189,7 @@ function createDocumiMcpServer(store: DocsStore, projectRoot?: string): McpServe
         suspect: optionalBoolSchema('上流変更により Suspect になっているブロックのみ抽出'),
         hasFeedback: optionalBoolSchema('未解決の人間フィードバックがあるブロックのみ抽出'),
         query: optionalQuerySchema,
+        full: optionalBoolSchema('true のとき realization 詳細配列・本文全文まで含めて返却 (既定: false の軽量サマリ)'),
       },
     },
     async (args: {
@@ -198,6 +201,7 @@ function createDocumiMcpServer(store: DocsStore, projectRoot?: string): McpServe
       suspect?: boolean
       hasFeedback?: boolean
       query?: string
+      full?: boolean
     }) => jsonResult(querySpecs(getIndex(), args)),
   )
 
@@ -206,10 +210,13 @@ function createDocumiMcpServer(store: DocsStore, projectRoot?: string): McpServe
     {
       description:
         '指定した Spec ブロック ID (またはドキュメント ID) の実装・検証に必要な上流 Goal・関連 Design/Contract・関連 Decision Outcome・用語・SourceRef をまとめて返します。',
-      inputSchema: { id: nodeIdSchema },
+      inputSchema: {
+        id: nodeIdSchema,
+        full: optionalBoolSchema('true のとき上流 Goal 全文や realization 完全配列も含めて返却 (既定: false)'),
+      },
     },
-    async ({ id }: { id: string }) => {
-      const context = getSpecContext(getIndex(), id)
+    async ({ id, full }: { id: string; full?: boolean }) => {
+      const context = getSpecContext(getIndex(), id, { full })
       if (!context) return errorResult(`対象が見つかりません: ${id}`)
       return jsonResult(context)
     },

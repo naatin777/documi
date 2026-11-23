@@ -26,12 +26,12 @@ AI エージェント向けに **2 種類のトランスポート** で同一の
 
 | Tool | 入力 | 役割 |
 |---|---|---|
-| `get_project_map` | なし | Goal 全文・Architecture 全文・Decision `<Outcome>` 一覧・Domain 用語集・Review & Realization サマリを一括取得 |
+| `get_project_map` | `full?` | Goal / Architecture 概要・Decision `<Outcome>` 一覧・Domain 用語集・Review & Realization サマリを一括取得（`full: true` で全文展開） |
 | `list_documents` | `type?` | ドキュメントサマリ一覧を取得 |
 | `get_document` | `id` | パス ID から本文・セマンティックブロック（`startLine` / `endLine` 含む）・関係・問題一覧を取得 |
 | `get_relations` | `id` | ドキュメント ID またはブロック ID の外向き/逆参照を取得 |
-| `query_specs` | `kind?`, `intent?`, `stability?`, `review?`, `realization?`, `suspect?`, `hasFeedback?`, `query?` | セマンティックブロックを多軸フィルタ検索（各ブロックの `docPath`・`startLine`・`endLine` を返却） |
-| `get_spec_context` | `id` | 指定 Spec の `docPath`・`startLine`・`endLine`・上流 Goal・未解決フィードバック・関連 Design/Contract・Decision `<Outcome>`・関連用語・`<SourceRef>` を一括集約 |
+| `query_specs` | `kind?`, `intent?`, `stability?`, `review?`, `realization?`, `suspect?`, `hasFeedback?`, `query?`, `full?` | セマンティックブロックを多軸フィルタ検索（既定は `docPath`・`startLine`・`endLine`・要約付き軽量サマリ、`full: true` で詳細配列込み） |
+| `get_spec_context` | `id`, `full?` | 指定 Spec の本文・`docPath`・`startLine`・`endLine`・上流 Goal 概要・未解決フィードバック・関連 Design/Contract・Decision `<Outcome>`・関連用語・`<SourceRef>` を一括集約（`full: true` で完全展開） |
 | `search_documents` | `query`, `type?`, `limit?` | ドキュメントとセマンティックブロックを横断全文検索 |
 | `validate_docs` | なし | `orphan-spec`・参照切れ・循環・重複 ID・MDX 未対応構文・AST `<SourceRef>` / `<TermDef>` シンボル切れを一括検証 |
 

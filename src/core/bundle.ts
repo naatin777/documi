@@ -166,7 +166,7 @@ export function searchIndex(
         docId: doc.id,
         type: doc.type,
         title: doc.title,
-        snippet: extractSnippet(doc.description || doc.body, terms[0]!),
+        snippet: extractBestSnippet([doc.description, doc.body], terms),
         score,
       })
     }
@@ -199,7 +199,7 @@ export function searchIndex(
           type: doc.type,
           title: block.title ? `${block.id} — ${block.title}` : block.id,
           blockKind: block.kind,
-          snippet: extractSnippet(block.rawBody, terms[0]!),
+          snippet: extractBestSnippet([block.rawBody], terms),
           score: bScore + 1,
         })
       }
@@ -210,16 +210,37 @@ export function searchIndex(
   return hits.slice(0, options.limit ?? 30)
 }
 
-function extractSnippet(text: string, term: string): string {
-  const flat = text.replace(/\s+/g, ' ').trim()
-  if (!flat) return ''
-  const idx = flat.toLowerCase().indexOf(term)
-  if (idx < 0) return flat.slice(0, 120)
-  const start = Math.max(0, idx - 36)
-  const end = Math.min(flat.length, idx + term.length + 84)
-  const prefix = start > 0 ? '…' : ''
-  const suffix = end < flat.length ? '…' : ''
-  return `${prefix}${flat.slice(start, end)}${suffix}`
+function extractBestSnippet(sources: readonly string[], terms: readonly string[]): string {
+  const flats = sources.map((s) => s.replace(/\s+/g, ' ').trim()).filter(Boolean)
+  if (flats.length === 0) return ''
+
+  // まず全クエリ語を含むソースを優先し、次にいずれかのクエリ語を含むソースから該当箇所前後を抜粋する
+  for (const requireAll of [true, false]) {
+    for (const flat of flats) {
+      const low = flat.toLowerCase()
+      const matched = requireAll ? terms.every((t) => low.includes(t)) : terms.some((t) => low.includes(t))
+      if (!matched) continue
+      let bestIdx = -1
+      let bestLen = 0
+      for (const t of terms) {
+        const idx = low.indexOf(t)
+        if (idx >= 0 && (bestIdx < 0 || idx < bestIdx)) {
+          bestIdx = idx
+          bestLen = t.length
+        }
+      }
+      if (bestIdx >= 0) {
+        const start = Math.max(0, bestIdx - 36)
+        const end = Math.min(flat.length, bestIdx + bestLen + 84)
+        const prefix = start > 0 ? '…' : ''
+        const suffix = end < flat.length ? '…' : ''
+        return `${prefix}${flat.slice(start, end)}${suffix}`
+      }
+    }
+  }
+
+  const fallback = flats[0]!
+  return fallback.length > 120 ? `${fallback.slice(0, 119)}…` : fallback
 }
 
 /**
