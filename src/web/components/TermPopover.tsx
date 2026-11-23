@@ -46,7 +46,7 @@ export function TermInline({ name, term, children }: TermInlineProps) {
       {typeof document !== 'undefined' && (
         <PreviewCard.Portal>
           <PreviewCard.Positioner side="bottom" align="start" sideOffset={6} collisionPadding={12} className="z-60">
-            <PreviewCard.Popup className="flex w-[min(440px,85vw)] flex-col gap-2 rounded-[10px] border border-line bg-surface px-3.5 py-3 text-left text-[13px] leading-[1.55] text-fg shadow-[0_12px_32px_rgba(0,0,0,0.16)] outline-none transition-all duration-120 data-[starting-style]:scale-[0.98] data-[starting-style]:opacity-0 data-[ending-style]:scale-[0.98] data-[ending-style]:opacity-0 dark:shadow-[0_12px_34px_rgba(0,0,0,0.5)] print:hidden">
+            <PreviewCard.Popup className="flex w-[min(440px,85vw)] flex-col gap-2 rounded-[10px] border border-line bg-surface px-3.5 py-3 text-left text-[13px] leading-[1.55] text-fg shadow-[0_12px_32px_rgba(0,0,0,0.16)] transition-all duration-120 outline-none data-[ending-style]:scale-[0.98] data-[ending-style]:opacity-0 data-[starting-style]:scale-[0.98] data-[starting-style]:opacity-0 dark:shadow-[0_12px_34px_rgba(0,0,0,0.5)] print:hidden">
               <div className="flex flex-wrap items-baseline gap-2">
                 <strong className="text-sm text-fg">{term.id}</strong>
                 {term.aliases.length > 0 && (

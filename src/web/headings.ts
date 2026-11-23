@@ -20,10 +20,10 @@ export function extractHeadings(body: string, format: DocFormat = 'markdown'): H
         headings.push({ level: node.depth, text, id: uniqueHeadingId(text, seen) })
       }
       if ('children' in node && Array.isArray(node.children)) {
-        walk(node.children as AnyNode[])
+        walk(node.children)
       }
     }
   }
-  walk(root.children as AnyNode[])
+  walk(root.children)
   return headings
 }

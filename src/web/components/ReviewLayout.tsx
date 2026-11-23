@@ -10,6 +10,14 @@ type ReviewFilter = 'attention' | 'feedback' | 'unreviewed' | 'approved' | 'all'
 
 type ReviewBlockItem = ReviewBlocksResponse['blocks'][number]
 
+function filterTabClass(active: boolean) {
+  return `inline-flex cursor-pointer items-center gap-1.5 rounded-full border px-3 py-1.5 text-[12.5px] font-semibold ${
+    active
+      ? 'border-accent bg-accent text-surface'
+      : 'border-line bg-sidebar text-fg-muted hover:border-accent hover:text-fg'
+  }`
+}
+
 // @implements ui.human-review
 export default function ReviewLayout() {
   const { t } = useTranslation()
@@ -74,13 +82,6 @@ export default function ReviewLayout() {
       }
     }
   }
-
-  const filterTabClass = (active: boolean) =>
-    `inline-flex cursor-pointer items-center gap-1.5 rounded-full border px-3 py-1.5 text-[12.5px] font-semibold ${
-      active
-        ? 'border-accent bg-accent text-surface'
-        : 'border-line bg-sidebar text-fg-muted hover:border-accent hover:text-fg'
-    }`
 
   return (
     <>
@@ -267,7 +268,7 @@ function ReviewInboxCard({
         <span className="mono text-[11px] text-fg-muted">{block.docPath}</span>
       </div>
 
-      <p className="m-0 whitespace-pre-wrap text-[13.5px] leading-[1.65]">{block.rawBody}</p>
+      <p className="m-0 text-[13.5px] leading-[1.65] whitespace-pre-wrap">{block.rawBody}</p>
 
       {block.suspect && block.suspectSources.length > 0 && (
         <div className="sem-suspect-banner mt-2 rounded-md border">

@@ -18,17 +18,17 @@ export function toDocumentSummary(doc: Document): DocumentSummary {
   }
 }
 
+function findOrCreateDir(parent: DocTreeDir, name: string, fullPath: string): DocTreeDir {
+  const existing = parent.children.find((c): c is DocTreeDir => c.kind === 'dir' && c.name === name)
+  if (existing) return existing
+  const created: DocTreeDir = { kind: 'dir', name, path: fullPath, children: [] }
+  parent.children.push(created)
+  return created
+}
+
 /** ドキュメント一覧からディレクトリ階層ツリーを構築する */
 export function buildDocTree(documents: readonly Document[]): DocTreeNode[] {
   const root: DocTreeDir = { kind: 'dir', name: '', path: '', children: [] }
-
-  const findOrCreateDir = (parent: DocTreeDir, name: string, fullPath: string): DocTreeDir => {
-    const existing = parent.children.find((c): c is DocTreeDir => c.kind === 'dir' && c.name === name)
-    if (existing) return existing
-    const created: DocTreeDir = { kind: 'dir', name, path: fullPath, children: [] }
-    parent.children.push(created)
-    return created
-  }
 
   for (const doc of documents) {
     const segments = doc.id.split('/')

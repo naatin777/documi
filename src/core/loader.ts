@@ -1,6 +1,11 @@
-import { readdir, readFile } from 'node:fs/promises'
 import type { Dirent } from 'node:fs'
+import { readdir, readFile } from 'node:fs/promises'
 import path from 'node:path'
+import { FrontmatterError, parseYamlFrontmatter, splitFrontmatter } from './frontmatter'
+import { buildGraphAndValidate, stripDocExt, type RawDocEntry } from './graph'
+import { extractMdxArtifacts } from './mdx'
+import { applyReviewsAndSuspects, loadReviews } from './reviews'
+import { sortDocuments } from './tree'
 import { ARTIFACT_TYPE_ALIASES, TRACE_EDGE_KINDS, isArtifactType } from './types'
 import type {
   ArtifactType,
@@ -12,11 +17,6 @@ import type {
   SemanticBlock,
   TraceEdgeKind,
 } from './types'
-import { FrontmatterError, parseYamlFrontmatter, splitFrontmatter } from './frontmatter'
-import { buildGraphAndValidate, stripDocExt, type RawDocEntry } from './graph'
-import { extractMdxArtifacts } from './mdx'
-import { applyReviewsAndSuspects, loadReviews } from './reviews'
-import { sortDocuments } from './tree'
 
 export { buildDocTree, toDocumentSummary } from './tree'
 
@@ -241,7 +241,7 @@ function resolveArtifactType(
     }
     issues.push({
       code: 'invalid-type',
-      message: `不正な type です: ${String(rawType)} (パスから推論します)`,
+      message: `不正な type です: ${formatUnknown(rawType)} (パスから推論します)`,
     })
   }
 
@@ -277,6 +277,17 @@ function resolveTitle(rawTitle: unknown, firstHeading: string | undefined, docId
   return docId.split('/').pop() ?? docId
 }
 
+function formatUnknown(value: unknown): string {
+  if (typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean') {
+    return String(value)
+  }
+  try {
+    return JSON.stringify(value)
+  } catch {
+    return Object.prototype.toString.call(value)
+  }
+}
+
 function parseDateField(value: unknown, issues: DocIssue[]): string | undefined {
   if (value === undefined || value === null || value === '') return undefined
   let normalized: string | null = null
@@ -298,7 +309,7 @@ function parseDateField(value: unknown, issues: DocIssue[]): string | undefined 
   if (!normalized) {
     issues.push({
       code: 'invalid-date',
-      message: `date は YYYY-MM-DD (または YYYY-MM) 形式で指定してください: ${String(value)}`,
+      message: `date は YYYY-MM-DD (または YYYY-MM) 形式で指定してください: ${formatUnknown(value)}`,
     })
     return undefined
   }
@@ -312,7 +323,7 @@ function parseStringListField(value: unknown, field: string, issues: DocIssue[])
     return trimmed ? [trimmed] : []
   }
   if (Array.isArray(value) && value.every((v) => typeof v === 'string')) {
-    return (value as string[]).map((s) => s.trim()).filter(Boolean)
+    return value.map((s) => s.trim()).filter(Boolean)
   }
   issues.push({ code: 'invalid-field', message: `${field} は文字列または文字列の配列である必要があります` })
   return []

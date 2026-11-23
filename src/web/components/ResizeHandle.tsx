@@ -1,5 +1,6 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useState } from 'react'
 import { useTranslation } from 'react-i18next'
+import { useBodyClass } from '../hooks'
 
 interface UseResizableWidthOptions {
   storageKey: string
@@ -83,13 +84,7 @@ export default function ResizeHandle({
     return Math.max(minWidth, m)
   }, [maxWidth, minWidth])
 
-  useEffect(() => {
-    if (!dragging) return
-    document.body.classList.add('is-resizing')
-    return () => {
-      document.body.classList.remove('is-resizing')
-    }
-  }, [dragging])
+  useBodyClass('is-resizing', dragging)
 
   const handlePointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
     if (e.button !== 0) return

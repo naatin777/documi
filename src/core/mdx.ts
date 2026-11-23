@@ -1,5 +1,5 @@
 import { createHash } from 'node:crypto'
-import type { MdxJsxAttribute, MdxJsxFlowElement, MdxJsxTextElement } from 'mdast-util-mdx'
+import type { MdxJsxFlowElement, MdxJsxTextElement } from 'mdast-util-mdx'
 import { ALLOWED_MDX_COMPONENTS, parseMarkdownAst } from './mdast-parser'
 import { BLOCK_ID_PATTERN, isNoteIntent, isSpecIntent, isStability } from './types'
 import type {
@@ -146,7 +146,7 @@ export function extractMdxArtifacts(body: string, format: DocFormat, docId: stri
     }
   }
 
-  walk(tree as unknown as GenericNode)
+  walk(tree)
 
   if (hasEsm) {
     issues.push({ code: 'mdx-unsupported', message: 'ESM の import / export 文は未対応です' })
@@ -169,7 +169,7 @@ function parseStringAttributes(jsx: MdxJsxFlowElement | MdxJsxTextElement, issue
       issues.push({ code: 'mdx-unsupported', message: `<${jsx.name}> でスプレッド属性 {...} は未対応です` })
       continue
     }
-    const a = attr as MdxJsxAttribute
+    const a = attr
     if (a.value === null || a.value === undefined) {
       props[a.name] = 'true'
     } else if (typeof a.value === 'string') {

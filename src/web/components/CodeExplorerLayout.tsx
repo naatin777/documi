@@ -302,7 +302,7 @@ export default function CodeExplorerLayout() {
                 <header className="flex flex-wrap items-center justify-between gap-2.5 border-b border-line bg-sidebar px-3.5 py-2">
                   <div className="flex min-w-0 flex-wrap items-center gap-2">
                     <MaterialFileIcon name={selectedFile} size={16} />
-                    <span className="mono break-all text-[12.5px] font-semibold text-fg">{selectedFile}</span>
+                    <span className="mono text-[12.5px] font-semibold break-all text-fg">{selectedFile}</span>
                     {fileData && (
                       <>
                         <span className="badge badge-id">{fileData.language}</span>
@@ -481,7 +481,7 @@ export default function CodeExplorerLayout() {
                                 data-line={lineNo}
                                 className={isHighlighted ? 'bg-amber-500/16 dark:bg-amber-500/22' : 'hover:bg-hover'}
                               >
-                                <td className="w-[1%] min-w-12 select-none border-r border-line p-0 text-right align-top">
+                                <td className="w-[1%] min-w-12 border-r border-line p-0 text-right align-top select-none">
                                   <button
                                     type="button"
                                     className="mono block w-full cursor-pointer border-0 bg-transparent pr-2.5 pl-2 text-right text-[11.5px] text-fg-faint tabular-nums hover:text-accent"
@@ -491,7 +491,7 @@ export default function CodeExplorerLayout() {
                                     {lineNo}
                                   </button>
                                 </td>
-                                <td className="whitespace-pre px-3.5 py-0">
+                                <td className="px-3.5 py-0 whitespace-pre">
                                   <div className="flex items-baseline justify-between gap-3">
                                     {htmlLine !== null ? (
                                       <span

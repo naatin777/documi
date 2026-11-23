@@ -130,17 +130,14 @@ function loadTabs(initialPathname: string): WorkspaceTab[] {
 export function TabsProvider({ children }: { children: ReactNode }) {
   const navigate = useNavigate()
   const { pathname } = useLocation()
-  const [tabs, setTabs] = useState<WorkspaceTab[]>(() => loadTabs(pathname))
+  const [storedTabs, setStoredTabs] = useState<WorkspaceTab[]>(() => loadTabs(pathname))
 
-  // ルート遷移時に Home / Review Queue / Graph & Matrix タブを自動登録する
-  useEffect(() => {
+  // 現在のルートが Home / Review Queue / Graph & Matrix なら同期 setState せず派生タブに含める
+  const tabs = useMemo(() => {
     const viewTab = viewTabForPath(pathname)
-    if (!viewTab) return
-    setTabs((prev) => {
-      if (prev.some((t) => t.key === viewTab.key)) return prev
-      return [...prev, viewTab]
-    })
-  }, [pathname])
+    if (!viewTab || storedTabs.some((t) => t.key === viewTab.key)) return storedTabs
+    return [...storedTabs, viewTab]
+  }, [pathname, storedTabs])
 
   useEffect(() => {
     try {
@@ -160,7 +157,7 @@ export function TabsProvider({ children }: { children: ReactNode }) {
       type: input.type,
       title: input.title,
     }
-    setTabs((prev) => {
+    setStoredTabs((prev) => {
       const i = prev.findIndex((t) => t.key === key)
       const existing = i >= 0 ? prev[i] : undefined
       if (!existing) return [...prev, nextTab]
@@ -181,23 +178,23 @@ export function TabsProvider({ children }: { children: ReactNode }) {
       const activeKey = activeTabKeyFromPath(pathname)
 
       if (next.length === 0) {
-        setTabs([VIEW_TABS.home])
-        if (pathname !== '/') navigate('/')
+        setStoredTabs([VIEW_TABS.home])
+        if (pathname !== '/') void navigate('/')
         return
       }
 
-      setTabs(next)
+      setStoredTabs(next)
       if (activeKey === tab.key) {
         const neighbor = next[Math.min(idx, next.length - 1)]
-        navigate(neighbor ? neighbor.path : '/')
+        void navigate(neighbor ? neighbor.path : '/')
       }
     },
     [tabs, pathname, navigate],
   )
 
   const closeAllTabs = useCallback(() => {
-    setTabs([VIEW_TABS.home])
-    if (pathname !== '/') navigate('/')
+    setStoredTabs([VIEW_TABS.home])
+    if (pathname !== '/') void navigate('/')
   }, [pathname, navigate])
 
   const value = useMemo(() => ({ tabs, openTab, closeTab, closeAllTabs }), [tabs, openTab, closeTab, closeAllTabs])

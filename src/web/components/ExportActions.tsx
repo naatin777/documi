@@ -1,5 +1,5 @@
 import { Download, X } from 'lucide-react'
-import { useEffect, useMemo, useState } from 'react'
+import { useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useLocation } from 'react-router'
 import {
@@ -15,6 +15,12 @@ import { AppDialog, DialogClose } from './ui/Dialog'
 import { AppTooltip } from './ui/Tooltip'
 
 type ScopeMode = 'current' | 'all' | 'goal' | 'dir' | 'custom'
+
+function chipClass(active: boolean) {
+  return `cursor-pointer rounded-full border px-2.5 py-1 text-xs font-semibold ${
+    active ? 'border-accent bg-accent text-surface' : 'border-line bg-subtle text-fg-muted hover:text-fg'
+  }`
+}
 
 /** 単一文書および複数文書バンドルの Export モーダルを開くボタン */
 export default function ExportActions() {
@@ -33,28 +39,22 @@ export default function ExportActions() {
   const docsQuery = useDocumentsQuery(open)
   const docs = useMemo(() => docsQuery.data?.documents ?? [], [docsQuery.data])
 
-  useEffect(() => {
-    if (!open) return
+  const goals = useMemo(() => docs.filter((d) => d.type === 'goal'), [docs])
+  const dirs = useMemo(() => [...new Set(docs.map((d) => d.dir).filter(Boolean))].toSorted(), [docs])
+  const effectiveGoal = selectedGoal || goals[0]?.id || ''
+  const effectiveDir = selectedDir || dirs[0] || ''
+
+  const openModal = () => {
     setMessage(null)
     setMode(isDocPage ? 'current' : 'all')
-  }, [open, isDocPage])
-
-  useEffect(() => {
-    if (!open || docs.length === 0) return
-    const firstGoal = docs.find((d) => d.type === 'goal')
-    if (firstGoal && !selectedGoal) setSelectedGoal(firstGoal.id)
-    const dirList = [...new Set(docs.map((d) => d.dir).filter(Boolean))].sort()
-    if (dirList[0] && !selectedDir) setSelectedDir(dirList[0])
-  }, [open, docs, selectedGoal, selectedDir])
-
-  const goals = useMemo(() => docs.filter((d) => d.type === 'goal'), [docs])
-  const dirs = useMemo(() => [...new Set(docs.map((d) => d.dir).filter(Boolean))].sort(), [docs])
+    setOpen(true)
+  }
 
   const buildParams = (): BundleExportParams | null => {
     const title = customTitle.trim() || undefined
     if (mode === 'all') return { scope: 'all', title }
-    if (mode === 'goal') return selectedGoal ? { scope: `goal:${selectedGoal}`, title } : null
-    if (mode === 'dir') return selectedDir ? { scope: `dir:${selectedDir}`, title } : null
+    if (mode === 'goal') return effectiveGoal ? { scope: `goal:${effectiveGoal}`, title } : null
+    if (mode === 'dir') return effectiveDir ? { scope: `dir:${effectiveDir}`, title } : null
     if (mode === 'custom') return customIds.size > 0 ? { ids: [...customIds], title } : null
     return null
   }
@@ -130,18 +130,13 @@ export default function ExportActions() {
     })
   }
 
-  const chipClass = (active: boolean) =>
-    `cursor-pointer rounded-full border px-2.5 py-1 text-xs font-semibold ${
-      active ? 'border-accent bg-accent text-surface' : 'border-line bg-subtle text-fg-muted hover:text-fg'
-    }`
-
   return (
     <>
       <AppTooltip label={t('export.buttonTitle')}>
         <button
           type="button"
           className="flex h-7 w-7 cursor-pointer items-center justify-center rounded-md border-0 bg-transparent text-fg-muted hover:bg-hover hover:text-fg print:hidden"
-          onClick={() => setOpen(true)}
+          onClick={openModal}
           aria-label="Export"
         >
           <ExportIcon />
@@ -191,7 +186,7 @@ export default function ExportActions() {
               <select
                 id="export-goal-select"
                 className="w-full rounded-[7px] border border-line bg-surface px-2.5 py-[7px] text-[13px] text-fg"
-                value={selectedGoal}
+                value={effectiveGoal}
                 onChange={(e) => setSelectedGoal(e.target.value)}
               >
                 {goals.map((g) => (
@@ -211,7 +206,7 @@ export default function ExportActions() {
               <select
                 id="export-dir-select"
                 className="w-full rounded-[7px] border border-line bg-surface px-2.5 py-[7px] text-[13px] text-fg"
-                value={selectedDir}
+                value={effectiveDir}
                 onChange={(e) => setSelectedDir(e.target.value)}
               >
                 {dirs.map((d) => (

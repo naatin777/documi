@@ -2,7 +2,7 @@ import { Minus, Plus, RotateCcw, SlidersHorizontal, Sparkles } from 'lucide-reac
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useNavigate } from 'react-router'
-import Sigma from 'sigma'
+import { Sigma } from 'sigma'
 import { sdfCircle } from 'sigma/rendering'
 import type { ArtifactType } from '../../core/types'
 import { encodeDocId, type GraphResponse } from '../api'
@@ -30,6 +30,12 @@ interface SigmaGraphProps {
  * - ズームアウト / 大規模俯瞰時: 自動で小さい色付きドットへ縮退し、重なりを抑えて全体構造を俯瞰
  * - ホバー／選択時は他ノードを消さず、対象を全文タイトル＋太枠カード、隣接ノードを色枠カードで前面強調
  */
+function ctrlBtnClass(active = false) {
+  return `flex h-[30px] w-[30px] cursor-pointer items-center justify-center rounded-lg border text-[15px] font-bold shadow-[0_4px_12px_rgba(0,0,0,0.08)] ${
+    active ? 'border-accent bg-accent text-surface' : 'border-line bg-surface text-fg hover:bg-hover'
+  }`
+}
+
 export default function SigmaGraph({ data, selectedNodeId, onSelectNode }: SigmaGraphProps) {
   const { t } = useTranslation()
   const containerRef = useRef<HTMLDivElement>(null)
@@ -49,8 +55,13 @@ export default function SigmaGraph({ data, selectedNodeId, onSelectNode }: Sigma
   const [showForces, setShowForces] = useState(false)
   const [webglError, setWebglError] = useState<string | null>(null)
 
-  selectedRef.current = selectedNodeId
-  forcesRef.current = forces
+  useEffect(() => {
+    selectedRef.current = selectedNodeId
+  }, [selectedNodeId])
+
+  useEffect(() => {
+    forcesRef.current = forces
+  }, [forces])
 
   const matchingNodes = useMemo(() => {
     const q = query.trim().toLowerCase()
@@ -66,6 +77,7 @@ export default function SigmaGraph({ data, selectedNodeId, onSelectNode }: Sigma
   useEffect(() => {
     const container = containerRef.current
     if (!container) return
+    let disposed = false
 
     const { graph, simNodes, simEdges, worldRadius } = buildGraphAndSim(data, isDark)
     const simById = new Map(simNodes.map((n) => [n.id, n]))
@@ -216,10 +228,17 @@ export default function SigmaGraph({ data, selectedNodeId, onSelectNode }: Sigma
         },
       })
       renderer.setCustomBBox({ x: [-worldRadius, worldRadius], y: [-worldRadius, worldRadius] })
-      setWebglError(null)
+      queueMicrotask(() => {
+        if (!disposed) setWebglError(null)
+      })
     } catch (e) {
-      setWebglError(e instanceof Error ? e.message : t('graph.webglError'))
-      return
+      const message = e instanceof Error ? e.message : t('graph.webglError')
+      queueMicrotask(() => {
+        if (!disposed) setWebglError(message)
+      })
+      return () => {
+        disposed = true
+      }
     }
 
     sigmaRef.current = renderer
@@ -317,11 +336,11 @@ export default function SigmaGraph({ data, selectedNodeId, onSelectNode }: Sigma
       onSelectNode(selectedRef.current === node ? null : node)
     })
 
-    renderer.on('doubleClickNode', ({ node, preventSigmaDefault }) => {
-      preventSigmaDefault()
-      const attrs = graph.getNodeAttributes(node)
-      const hash = attrs.nodeKind === 'block' ? `#block-${encodeURIComponent(node)}` : ''
-      navigate(`/docs/${encodeDocId(attrs.docId)}${hash}`)
+    renderer.on('doubleClickNode', (event) => {
+      event.preventSigmaDefault()
+      const attrs = graph.getNodeAttributes(event.node)
+      const hash = attrs.nodeKind === 'block' ? `#block-${encodeURIComponent(event.node)}` : ''
+      void navigate(`/docs/${encodeDocId(attrs.docId)}${hash}`)
     })
 
     renderer.on('clickStage', () => {
@@ -329,6 +348,7 @@ export default function SigmaGraph({ data, selectedNodeId, onSelectNode }: Sigma
     })
 
     return () => {
+      disposed = true
       killed = true
       camera.off('updated', onCameraUpdated)
       if (rafId !== null) cancelAnimationFrame(rafId)
@@ -337,7 +357,7 @@ export default function SigmaGraph({ data, selectedNodeId, onSelectNode }: Sigma
       renderer.kill()
       sigmaRef.current = null
     }
-  }, [data, isDark, navigate, onSelectNode])
+  }, [data, isDark, navigate, onSelectNode, t])
 
   useEffect(() => {
     sigmaRef.current?.refresh()
@@ -353,11 +373,6 @@ export default function SigmaGraph({ data, selectedNodeId, onSelectNode }: Sigma
     }
     setQuery('')
   }
-
-  const ctrlBtnClass = (active = false) =>
-    `flex h-[30px] w-[30px] cursor-pointer items-center justify-center rounded-lg border text-[15px] font-bold shadow-[0_4px_12px_rgba(0,0,0,0.08)] ${
-      active ? 'border-accent bg-accent text-surface' : 'border-line bg-surface text-fg hover:bg-hover'
-    }`
 
   return (
     <div className="relative flex flex-1 flex-col overflow-hidden bg-sidebar">

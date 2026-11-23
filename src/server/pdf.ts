@@ -72,11 +72,11 @@ export async function renderPdf(html: string): Promise<Uint8Array> {
     const safeHtml = html.replace(/<script\b[^>]*>[\s\S]*?<\/script>/gi, '')
     await view.evaluate(`(() => { document.open(); document.write(${JSON.stringify(safeHtml)}); document.close(); })()`)
 
-    const result = (await view.cdp('Page.printToPDF', {
+    const result = await view.cdp<{ data?: string }>('Page.printToPDF', {
       printBackground: true,
       displayHeaderFooter: false,
       preferCSSPageSize: true,
-    })) as { data?: string }
+    })
     if (!result?.data) throw new PdfError('PDF データが取得できませんでした', 500)
     return new Uint8Array(Buffer.from(result.data, 'base64'))
   } catch (error) {
@@ -99,11 +99,11 @@ export async function renderPdfFromUrl(rawUrl: string, options: { timeoutMs?: nu
     await view.navigate(url.toString())
     await waitForBundleReady(view, options.timeoutMs ?? DEFAULT_BUNDLE_TIMEOUT_MS)
 
-    const result = (await view.cdp('Page.printToPDF', {
+    const result = await view.cdp<{ data?: string }>('Page.printToPDF', {
       printBackground: true,
       displayHeaderFooter: false,
       preferCSSPageSize: true,
-    })) as { data?: string }
+    })
     if (!result?.data) throw new PdfError('PDF データが取得できませんでした', 500)
     return new Uint8Array(Buffer.from(result.data, 'base64'))
   } catch (error) {

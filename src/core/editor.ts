@@ -1,7 +1,7 @@
 import type { Dirent } from 'node:fs'
 import { access, mkdir, readdir, readFile, realpath, stat, writeFile } from 'node:fs/promises'
 import path from 'node:path'
-import type { MdxJsxAttribute, MdxJsxFlowElement, MdxJsxTextElement } from 'mdast-util-mdx'
+import type { MdxJsxFlowElement, MdxJsxTextElement } from 'mdast-util-mdx'
 import { stringify } from 'yaml'
 import { splitFrontmatter } from './frontmatter'
 import { parseMarkdownAst } from './mdast-parser'
@@ -266,7 +266,7 @@ function findBlockJsxNode(
       const attrs: Record<string, string> = {}
       for (const attr of jsx.attributes) {
         if (attr.type === 'mdxJsxExpressionAttribute') continue
-        const a = attr as MdxJsxAttribute
+        const a = attr
         if (typeof a.value === 'string') attrs[a.name] = a.value
       }
       if (attrs.id?.trim() === blockId) {
@@ -281,7 +281,7 @@ function findBlockJsxNode(
     for (const child of node.children ?? []) walk(child)
   }
 
-  walk(tree as unknown as GenericMdxNode)
+  walk(tree)
   return found
 }
 
@@ -717,6 +717,6 @@ export async function renameBlockIdAcrossProject(
     newId: input.newId,
     changes: pendingWrites
       .map((w) => ({ path: w.displayPath, occurrences: w.occurrences }))
-      .sort((a, b) => a.path.localeCompare(b.path)),
+      .toSorted((a, b) => a.path.localeCompare(b.path)),
   }
 }

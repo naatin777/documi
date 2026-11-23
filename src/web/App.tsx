@@ -51,7 +51,10 @@ function AppRouter() {
 
 function AppShell() {
   const { t } = useTranslation()
-  const [navOpen, setNavOpen] = useState(false)
+  const location = useLocation()
+  const [navState, setNavState] = useState<{ open: boolean; path: string }>({ open: false, path: location.pathname })
+  const navOpen = navState.open && navState.path === location.pathname
+  const setNavOpen = (open: boolean) => setNavState({ open, path: location.pathname })
   const [searchOpen, setSearchOpen] = useState(false)
   const [sidebarOpen, setSidebarOpen] = useState(true)
   const {
@@ -64,14 +67,8 @@ function AppShell() {
     minWidth: 200,
     maxWidth: 480,
   })
-  const location = useLocation()
   const { data: overview } = useOverviewQuery()
   const reviewBadgeCount = overview ? overview.attentionBlocks.length + overview.openFeedbackItems.length : 0
-
-  // ルート遷移時にモバイルの Explorer ドロワーを閉じる
-  useEffect(() => {
-    setNavOpen(false)
-  }, [location.pathname])
 
   // Cmd+K / Ctrl+K (全文検索) および Cmd+B / Ctrl+B (サイドバー開閉)
   useEffect(() => {

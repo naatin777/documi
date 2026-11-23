@@ -20,7 +20,7 @@ export default function DocLayout() {
   const { openTab } = useTabs()
   const handleMutate = useInvalidateDocs()
   const [inspectorOpen, setInspectorOpen] = useState(true)
-  const [peekTarget, setPeekTarget] = useState<PeekTarget | null>(null)
+  const [peekState, setPeekState] = useState<{ ownerDocId: string; target: PeekTarget } | null>(null)
   const mainRef = useRef<HTMLElement>(null)
 
   const docQuery = useDocumentQuery(docId)
@@ -30,12 +30,9 @@ export default function DocLayout() {
   const error = toErrorMessage(docQuery.error)
   const loading = docQuery.isPending
 
-  // メイン画面がプレビュー中と同じ文書へ遷移したら重複表示を解消する
-  useEffect(() => {
-    if (peekTarget && peekTarget.docId === docId) {
-      setPeekTarget(null)
-    }
-  }, [docId, peekTarget])
+  // メイン画面が別文書へ遷移、またはプレビュー中と同じ文書を開いたら重複表示を解消する
+  const peekTarget =
+    peekState && peekState.ownerDocId === docId && peekState.target.docId !== docId ? peekState.target : null
 
   useEffect(() => {
     if (!doc) return
@@ -64,7 +61,7 @@ export default function DocLayout() {
         {!inspectorOpen && !peekTarget && doc && (
           <button
             type="button"
-            className="sticky top-3 float-right z-15 mt-2 mr-3.5 cursor-pointer rounded-md border border-line bg-sidebar px-2.5 py-1 text-[11.5px] font-semibold text-fg-muted hover:bg-hover hover:text-fg print:hidden"
+            className="sticky top-3 z-15 float-right mt-2 mr-3.5 cursor-pointer rounded-md border border-line bg-sidebar px-2.5 py-1 text-[11.5px] font-semibold text-fg-muted hover:bg-hover hover:text-fg print:hidden"
             onClick={() => setInspectorOpen(true)}
             title={t('doc.openInspectorTitle')}
             aria-label={t('doc.openInspectorAria')}
@@ -91,10 +88,10 @@ export default function DocLayout() {
           docId={peekTarget.docId}
           focusBlockId={peekTarget.focusBlockId}
           onBack={() => {
-            setPeekTarget(null)
+            setPeekState(null)
             setInspectorOpen(true)
           }}
-          onClose={() => setPeekTarget(null)}
+          onClose={() => setPeekState(null)}
         />
       ) : (
         inspectorOpen &&
@@ -102,7 +99,9 @@ export default function DocLayout() {
           <SidePanel
             doc={doc}
             headings={headings}
-            onPeek={(targetDocId, focusBlockId) => setPeekTarget({ docId: targetDocId, focusBlockId })}
+            onPeek={(targetDocId, focusBlockId) =>
+              setPeekState({ ownerDocId: docId, target: { docId: targetDocId, focusBlockId } })
+            }
             onCollapse={() => setInspectorOpen(false)}
           />
         )

@@ -2,9 +2,9 @@ import { afterEach, beforeEach, describe, expect, test } from 'bun:test'
 import { mkdtemp, mkdir, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
-import { stringify } from 'yaml'
 import { Hono } from 'hono'
 import { hc } from 'hono/client'
+import { stringify } from 'yaml'
 import { createApp, type ApiRoutes } from '../src/server/app'
 import { DocsStore } from '../src/server/store'
 
@@ -259,23 +259,23 @@ describe('REST API', () => {
   })
 })
 
-describe('MCP endpoint', () => {
-  function mcpRequest(body: unknown): Request {
-    return new Request('http://localhost/mcp', {
-      method: 'POST',
-      headers: {
-        'content-type': 'application/json',
-        accept: 'application/json, text/event-stream',
-      },
-      body: JSON.stringify(body),
-    })
-  }
+function mcpRequest(body: unknown): Request {
+  return new Request('http://localhost/mcp', {
+    method: 'POST',
+    headers: {
+      'content-type': 'application/json',
+      accept: 'application/json, text/event-stream',
+    },
+    body: JSON.stringify(body),
+  })
+}
 
+describe('MCP endpoint', () => {
   test('tools/list が全 13 ツールを返す', async () => {
     const res = await app.fetch(mcpRequest({ jsonrpc: '2.0', id: 1, method: 'tools/list', params: {} }))
     expect(res.status).toBe(200)
     const body = (await res.json()) as { result?: { tools: { name: string }[] } }
-    expect(body.result?.tools.map((t) => t.name).sort()).toEqual([
+    expect(body.result?.tools.map((t) => t.name).toSorted()).toEqual([
       'add_block',
       'get_document',
       'get_project_map',

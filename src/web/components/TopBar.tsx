@@ -12,7 +12,7 @@ interface TopBarProps {
 export default function TopBar({ onMenu }: TopBarProps) {
   const { t } = useTranslation()
   return (
-    <header className="hidden max-[900px]:flex h-[var(--topbar-height)] shrink-0 items-center gap-2 border-b border-line bg-sidebar px-2 print:hidden">
+    <header className="hidden h-[var(--topbar-height)] shrink-0 items-center gap-2 border-b border-line bg-sidebar px-2 max-[900px]:flex print:hidden">
       <button
         type="button"
         className="flex h-9 w-9 cursor-pointer items-center justify-center rounded-md border-0 bg-transparent text-fg hover:bg-hover"

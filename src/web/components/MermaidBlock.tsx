@@ -22,19 +22,20 @@ export default function MermaidBlock({ code }: MermaidBlockProps) {
   const { t } = useTranslation()
   const { resolved } = useTheme()
   const reactId = useId()
-  const [svg, setSvg] = useState<string | null>(null)
-  const [error, setError] = useState<string | null>(null)
-  const [loading, setLoading] = useState(true)
+  const renderKey = `${resolved}\0${code}`
+  const [rendered, setRendered] = useState<{ key: string; svg: string | null; error: string | null } | null>(null)
   const [showSource, setShowSource] = useState(false)
   const [zoomed, setZoomed] = useState(false)
 
+  const isCurrent = rendered?.key === renderKey
+  const loading = !isCurrent
+  const svg = isCurrent ? rendered.svg : null
+  const error = isCurrent ? rendered.error : null
+
   useEffect(() => {
     let cancelled = false
-    setLoading(true)
-    setError(null)
-    setSvg(null)
     const renderId = `mermaid-${reactId.replace(/[^a-zA-Z0-9]/g, '')}`
-    ;(async () => {
+    void (async () => {
       try {
         const mermaid = await getMermaid()
         mermaid.initialize({
@@ -43,17 +44,15 @@ export default function MermaidBlock({ code }: MermaidBlockProps) {
           theme: resolved === 'dark' ? 'dark' : 'default',
         })
         const { svg: out } = await mermaid.render(renderId, code)
-        if (!cancelled) setSvg(out)
+        if (!cancelled) setRendered({ key: renderKey, svg: out, error: null })
       } catch (e) {
-        if (!cancelled) setError(e instanceof Error ? e.message : String(e))
-      } finally {
-        if (!cancelled) setLoading(false)
+        if (!cancelled) setRendered({ key: renderKey, svg: null, error: e instanceof Error ? e.message : String(e) })
       }
     })()
     return () => {
       cancelled = true
     }
-  }, [code, resolved, reactId])
+  }, [renderKey, code, resolved, reactId])
 
   return (
     <div className="mermaid-block">
@@ -98,7 +97,7 @@ export default function MermaidBlock({ code }: MermaidBlockProps) {
           onOpenChange={setZoomed}
           ariaLabel={t('mermaid.zoomAria')}
           align="center"
-          className="relative max-h-[90vh] max-w-[90vw] w-auto overflow-auto p-8"
+          className="relative max-h-[90vh] w-auto max-w-[90vw] overflow-auto p-8"
         >
           <DialogClose
             className="absolute top-2.5 right-3 flex h-7 w-7 cursor-pointer items-center justify-center rounded-md border-0 bg-transparent text-fg-muted hover:bg-hover hover:text-fg"

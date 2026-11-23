@@ -1,9 +1,9 @@
-import { unified } from 'unified'
+import type { Root } from 'mdast'
 import remarkGfm from 'remark-gfm'
 import remarkMath from 'remark-math'
 import remarkMdx from 'remark-mdx'
 import remarkParse from 'remark-parse'
-import type { Root } from 'mdast'
+import { unified } from 'unified'
 import type { DocFormat } from './types'
 
 /**
@@ -40,11 +40,11 @@ const mdxProcessor = unified().use(remarkParse).use(remarkGfm).use(remarkMath).u
 export function parseMarkdownAst(body: string, format: DocFormat): { tree: Root; parseError?: string } {
   if (format === 'mdx') {
     try {
-      return { tree: mdxProcessor.parse(body) as Root }
+      return { tree: mdxProcessor.parse(body) }
     } catch (error) {
       const parseError = error instanceof Error ? error.message : String(error)
-      return { tree: mdProcessor.parse(body) as Root, parseError }
+      return { tree: mdProcessor.parse(body), parseError }
     }
   }
-  return { tree: mdProcessor.parse(body) as Root }
+  return { tree: mdProcessor.parse(body) }
 }

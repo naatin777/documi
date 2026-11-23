@@ -79,7 +79,7 @@ function parseCliArgs(argv: string[]): ParsedArgs {
   return {
     command: positionals[0],
     positionals: positionals.slice(1),
-    flags: values as CliFlags,
+    flags: values,
   }
 }
 

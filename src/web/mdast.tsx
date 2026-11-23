@@ -1,20 +1,20 @@
+import { renderToString as renderKatexToString } from 'katex'
+import type { BlockContent, DefinitionContent, List, ListItem, PhrasingContent, Root, RootContent, Table } from 'mdast'
+import type { MdxJsxFlowElement, MdxJsxTextElement } from 'mdast-util-mdx'
+import 'katex/dist/katex.min.css'
 import { Fragment, type ReactNode } from 'react'
 import { Link } from 'react-router'
-import katex from 'katex'
-import 'katex/dist/katex.min.css'
-import type { BlockContent, DefinitionContent, List, ListItem, PhrasingContent, Root, RootContent, Table } from 'mdast'
-import type { MdxJsxAttribute, MdxJsxFlowElement, MdxJsxTextElement } from 'mdast-util-mdx'
 import { parseMarkdownAst } from '../core/mdast-parser'
 import type { DocFormat } from '../core/types'
 import { encodeDocId, type TermEntry } from './api'
-import { uniqueHeadingId } from './headingIds'
-import i18n from './i18n'
 import CodeBlock from './components/CodeBlock'
-import MermaidBlock from './components/MermaidBlock'
 import { CalloutBlock, StepsBlock, TabsBlock, type TabItem } from './components/MdxBlocks'
+import MermaidBlock from './components/MermaidBlock'
 import { ConstraintBlock, NoteBlock, OutcomeBlock, SpecBlock, TermDefBlock } from './components/SemanticBlocks'
 import SourceRef from './components/SourceRef'
 import { TermInline } from './components/TermPopover'
+import { uniqueHeadingId } from './headingIds'
+import i18n from './i18n'
 
 export type { DocFormat } from '../core/types'
 
@@ -124,12 +124,14 @@ function renderInlines(nodes: readonly AnyNode[], ctx: Ctx): ReactNode {
   return nodes.map((node, i) => <Fragment key={i}>{renderInline(node, ctx)}</Fragment>)
 }
 
+const HEADING_TAGS = ['h1', 'h2', 'h3', 'h4', 'h5', 'h6'] as const
+
 function renderBlock(node: AnyNode, ctx: Ctx): ReactNode {
   switch (node.type) {
     case 'paragraph':
       return <p>{renderInlines(node.children, ctx)}</p>
     case 'heading': {
-      const Tag = `h${node.depth}` as 'h1' | 'h2' | 'h3' | 'h4' | 'h5' | 'h6'
+      const Tag = HEADING_TAGS[node.depth - 1] ?? 'h6'
       const rawId = uniqueHeadingId(textOfMdast(node.children), ctx.headingIds)
       const id = ctx.headingPrefix ? `${ctx.headingPrefix}-${rawId}` : rawId
       return <Tag id={id}>{renderInlines(node.children, { ...ctx, suppressAutoLink: true })}</Tag>
@@ -390,7 +392,7 @@ function parseJsxProps(node: JsxNode): ParsedProps {
     if (attr.type === 'mdxJsxExpressionAttribute') {
       return { ok: false, error: i18n.t('mdx.spreadUnsupported') }
     }
-    const a = attr as MdxJsxAttribute
+    const a = attr
     if (a.value == null) {
       props[a.name] = true
     } else if (typeof a.value === 'string') {
@@ -419,9 +421,7 @@ const ITEM_COMPONENTS = new Set(['Tabs.Tab', 'Tab', 'Steps.Step', 'Step'])
 function renderJsx(node: JsxNode, ctx: Ctx, level: 'flow' | 'text'): ReactNode {
   const name = node.name
   if (name === null) {
-    return level === 'flow'
-      ? renderBlocks(node.children as AnyNode[], ctx)
-      : renderInlines(node.children as AnyNode[], ctx)
+    return level === 'flow' ? renderBlocks(node.children, ctx) : renderInlines(node.children, ctx)
   }
 
   const parsed = parseJsxProps(node)
@@ -537,7 +537,7 @@ function collectJsxItems(node: JsxNode, names: ReadonlySet<string>): JsxNode[] {
     }
     for (const c of n.children ?? []) walk(c as { type: string; name?: string | null; children?: unknown[] })
   }
-  for (const c of node.children) walk(c as { type: string; name?: string | null; children?: unknown[] })
+  for (const c of node.children) walk(c)
   return found
 }
 
@@ -613,7 +613,7 @@ function renderSteps(node: JsxNode, ctx: Ctx): ReactNode {
 
 function renderKatex(tex: string, displayMode: boolean): string {
   try {
-    return katex.renderToString(tex, { displayMode, throwOnError: false, strict: 'ignore' })
+    return renderKatexToString(tex, { displayMode, throwOnError: false, strict: 'ignore' })
   } catch {
     return tex
   }
@@ -650,7 +650,7 @@ export function textOfMdast(nodes: readonly AnyNode[]): string {
         case 'linkReference':
         case 'mdxJsxFlowElement':
         case 'mdxJsxTextElement':
-          return textOfMdast(node.children as AnyNode[])
+          return textOfMdast(node.children)
         default:
           return ''
       }

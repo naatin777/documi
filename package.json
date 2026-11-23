@@ -16,7 +16,8 @@
     "documi:check": "bun src/cli.ts check",
     "documi:export": "bun src/cli.ts export",
     "check": "bun check",
-    "lint": "oxlint --deny-warnings",
+    "lint": "oxlint --type-aware --deny-warnings",
+    "lint:fix": "oxlint --type-aware --fix",
     "format": "oxfmt",
     "format:check": "oxfmt --check",
     "knip": "knip",
@@ -73,6 +74,7 @@
     "oxc-transform-react": "^0.156.0",
     "oxfmt": "^0.79.0",
     "oxlint": "^1.94.0",
+    "oxlint-tsgolint": "^7.0.2008",
     "tailwindcss": "^4.3.5",
     "typescript": "^7.0.2",
     "vite": "^8.3.8"

@@ -2,13 +2,22 @@ import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js'
 import { WebStandardStreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/webStandardStreamableHttp.js'
 import type { CallToolResult } from '@modelcontextprotocol/sdk/types.js'
-import type { DocsStore } from './store'
 import { z } from 'zod'
 import type { ZodTypeAny } from 'zod'
+import { searchIndex } from '../core/bundle'
+import {
+  addBlockToDoc,
+  EditError,
+  renameBlockIdAcrossProject,
+  scaffoldDocument,
+  updateBlockInDocs,
+  upsertTermInDocs,
+} from '../core/editor'
+import { getDocument, toDocumentSummary } from '../core/loader'
+import { validateSourceLinks } from '../core/trace'
 import {
   ARTIFACT_TYPES,
   BLOCK_KINDS,
-  NOTE_INTENTS,
   REALIZATION_STATUSES,
   REVIEW_STATUSES,
   SPEC_INTENTS,
@@ -25,54 +34,35 @@ import type {
   SpecIntent,
   Stability,
 } from '../core/types'
-import {
-  addBlockToDoc,
-  EditError,
-  renameBlockIdAcrossProject,
-  scaffoldDocument,
-  updateBlockInDocs,
-  upsertTermInDocs,
-} from '../core/editor'
-import { getDocument, toDocumentSummary } from '../core/loader'
-import { searchIndex } from '../core/bundle'
-import { validateSourceLinks } from '../core/trace'
+import type { DocsStore } from './store'
 
-const artifactTypeSchema: ZodTypeAny = z.enum(ARTIFACT_TYPES)
-const optionalTypeSchema: ZodTypeAny = artifactTypeSchema.optional().describe('絞り込む Artifact Type (省略時は全件)')
-const optionalKindSchema: ZodTypeAny = z
+const artifactTypeSchema = z.enum(ARTIFACT_TYPES)
+const optionalTypeSchema = artifactTypeSchema.optional().describe('絞り込む Artifact Type (省略時は全件)')
+const optionalKindSchema = z
   .enum(BLOCK_KINDS)
   .optional()
   .describe('ブロック種別 (spec / constraint / outcome / note / term)')
-const optionalIntentSchema: ZodTypeAny = z
-  .enum(SPEC_INTENTS)
-  .optional()
-  .describe('採用意思 (normative / idea / rejected)')
-const optionalStabilitySchema: ZodTypeAny = z
-  .enum(STABILITIES)
-  .optional()
-  .describe('安定度 (stable / evolving / volatile)')
-const optionalReviewSchema: ZodTypeAny = z
+const optionalIntentSchema = z.enum(SPEC_INTENTS).optional().describe('採用意思 (normative / idea / rejected)')
+const optionalStabilitySchema = z.enum(STABILITIES).optional().describe('安定度 (stable / evolving / volatile)')
+const optionalReviewSchema = z
   .enum(REVIEW_STATUSES)
   .optional()
   .describe('人間レビュー状態 (unreviewed / approved / stale)')
-const optionalRealizationSchema: ZodTypeAny = z
+const optionalRealizationSchema = z
   .enum(REALIZATION_STATUSES)
   .optional()
   .describe('実装・検証状態 (unimplemented / in-progress / implemented / verified / drifted)')
-const optionalBoolSchema = (desc: string): ZodTypeAny => z.boolean().optional().describe(desc)
-const optionalQuerySchema: ZodTypeAny = z.string().optional().describe('ID または本文に含まれるキーワード')
-const docIdSchema: ZodTypeAny = z
-  .string()
-  .min(1)
-  .describe('ドキュメント ID (例: "goals/document-centric", "specs/artifact-model")')
-const nodeIdSchema: ZodTypeAny = z
+const optionalBoolSchema = (desc: string) => z.boolean().optional().describe(desc)
+const optionalQuerySchema = z.string().optional().describe('ID または本文に含まれるキーワード')
+const docIdSchema = z.string().min(1).describe('ドキュメント ID (例: "goals/document-centric", "specs/artifact-model")')
+const nodeIdSchema = z
   .string()
   .min(1)
   .describe('ドキュメント ID またはブロック ID (例: "auth.lockout", "specs/artifact-model")')
 
-const optionalStringListSchema = (desc: string): ZodTypeAny => z.array(z.string().min(1)).optional().describe(desc)
-const optionalBlockIntentSchema: ZodTypeAny = z
-  .enum([...SPEC_INTENTS, ...NOTE_INTENTS.filter((i) => i === 'informative')] as [string, ...string[]])
+const optionalStringListSchema = (desc: string) => z.array(z.string().min(1)).optional().describe(desc)
+const optionalBlockIntentSchema = z
+  .enum(['normative', 'idea', 'rejected', 'informative'] as const)
   .optional()
   .describe('採用意思 (normative / idea / rejected / informative)')
 
@@ -116,10 +106,10 @@ function createDocumiMcpServer(store: DocsStore, projectRoot?: string): McpServe
     version: '0.1.0',
   })
 
-  const registerTool = server.registerTool.bind(server) as unknown as <Args>(
+  const registerTool = server.registerTool.bind(server) as unknown as <S extends Record<string, ZodTypeAny>>(
     name: string,
-    config: { description: string; inputSchema?: Record<string, ZodTypeAny> },
-    cb: (args: Args) => Promise<CallToolResult>,
+    config: { description: string; inputSchema: S },
+    cb: (args: z.infer<z.ZodObject<S>>) => Promise<CallToolResult>,
   ) => void
 
   registerTool(
@@ -141,13 +131,14 @@ function createDocumiMcpServer(store: DocsStore, projectRoot?: string): McpServe
         .filter((b) => b.kind === 'outcome')
         .map((b) => {
           const doc = index.byId.get(b.docId)
-          return {
+          const item: { id: string; docId: string; date?: string; stability?: string; body: string } = {
             id: b.id,
             docId: b.docId,
-            ...(doc?.date ? { date: doc.date } : {}),
             stability: b.stability,
             body: b.rawBody,
           }
+          if (doc?.date) item.date = doc.date
+          return item
         })
       const terms = [...index.blocksById.values()]
         .filter((b) => b.kind === 'term')
@@ -299,10 +290,7 @@ function createDocumiMcpServer(store: DocsStore, projectRoot?: string): McpServe
         if (q && !b.id.toLowerCase().includes(q) && !b.rawBody.toLowerCase().includes(q)) return false
         return true
       })
-      const withPaths = matched.map((b) => ({
-        ...b,
-        docPath: index.byId.get(b.docId)?.path ?? '',
-      }))
+      const withPaths = matched.map((b) => Object.assign({}, b, { docPath: index.byId.get(b.docId)?.path ?? '' }))
       return jsonResult({ blocks: withPaths, count: withPaths.length })
     },
   )
@@ -364,7 +352,7 @@ function createDocumiMcpServer(store: DocsStore, projectRoot?: string): McpServe
       )
 
       const openFeedback = (block ? [block] : doc.blocks).flatMap((b) =>
-        b.feedback.filter((f) => !f.resolved).map((f) => ({ blockId: b.id, ...f })),
+        b.feedback.filter((f) => !f.resolved).map((f) => Object.assign({ blockId: b.id }, f)),
       )
 
       return jsonResult({

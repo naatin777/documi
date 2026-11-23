@@ -1,5 +1,5 @@
 import { Monitor, Moon, Sun } from 'lucide-react'
-import { createContext, useContext, useEffect, useState, type ReactNode } from 'react'
+import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
 import { AppTooltip } from './components/ui/Tooltip'
 
@@ -53,7 +53,9 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     }
   }, [mode, resolved])
 
-  return <ThemeContext.Provider value={{ mode, resolved, setMode }}>{children}</ThemeContext.Provider>
+  const value = useMemo(() => ({ mode, resolved, setMode }), [mode, resolved])
+
+  return <ThemeContext.Provider value={value}>{children}</ThemeContext.Provider>
 }
 
 const FALLBACK_THEME: ThemeContextValue = { mode: 'system', resolved: 'light', setMode: () => {} }

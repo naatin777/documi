@@ -50,7 +50,7 @@ export function AppDialog({
   return (
     <Dialog.Root open={open} onOpenChange={onOpenChange}>
       <Dialog.Portal>
-        <Dialog.Backdrop className="fixed inset-0 z-80 bg-slate-900/45 transition-opacity duration-150 data-[starting-style]:opacity-0 data-[ending-style]:opacity-0 dark:bg-black/60" />
+        <Dialog.Backdrop className="fixed inset-0 z-80 bg-slate-900/45 transition-opacity duration-150 data-[ending-style]:opacity-0 data-[starting-style]:opacity-0 dark:bg-black/60" />
         <div className={positionClass}>
           <Dialog.Popup aria-label={ariaLabel} initialFocus={initialFocus} className={popupClass}>
             {children}

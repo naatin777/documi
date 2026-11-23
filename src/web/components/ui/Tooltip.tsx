@@ -21,7 +21,7 @@ export function AppTooltip({ label, side = 'bottom', sideOffset = 6, children }:
       {typeof document !== 'undefined' && (
         <Tooltip.Portal>
           <Tooltip.Positioner side={side} sideOffset={sideOffset} className="z-90">
-            <Tooltip.Popup className="max-w-64 rounded-md border border-line bg-fg px-2 py-1 text-[11.5px] leading-snug font-medium text-surface shadow-md transition-opacity duration-100 data-[starting-style]:opacity-0 data-[ending-style]:opacity-0 print:hidden">
+            <Tooltip.Popup className="max-w-64 rounded-md border border-line bg-fg px-2 py-1 text-[11.5px] leading-snug font-medium text-surface shadow-md transition-opacity duration-100 data-[ending-style]:opacity-0 data-[starting-style]:opacity-0 print:hidden">
               {label}
             </Tooltip.Popup>
           </Tooltip.Positioner>

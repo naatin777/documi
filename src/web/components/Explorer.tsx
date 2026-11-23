@@ -39,6 +39,12 @@ interface ExplorerProps {
   resizeHandle?: ReactNode
 }
 
+function primaryNavClass({ isActive }: { isActive: boolean }) {
+  return `flex items-center gap-2 rounded-md px-2.5 py-1.5 text-[13px] font-semibold no-underline ${
+    isActive ? 'bg-accent-soft text-fg' : 'text-fg-muted hover:bg-hover hover:text-fg'
+  }`
+}
+
 // @implements ui.explorer-modes
 export default function Explorer({
   reviewBadgeCount,
@@ -56,14 +62,14 @@ export default function Explorer({
   const treeQuery = useTreeQuery()
   const statusQuery = useStatusQuery()
   const tree = treeQuery.data?.tree ?? []
-  const documents = treeQuery.data?.documents ?? []
+  const documents = treeQuery.data?.documents
   const status = statusQuery.data ?? null
   const error = toErrorMessage(treeQuery.error ?? statusQuery.error)
 
   const grouped = useMemo(() => {
     const map = new Map<ArtifactType, DocumentSummary[]>()
     for (const type of ARTIFACT_TYPES) map.set(type, [])
-    for (const doc of documents) {
+    for (const doc of documents ?? []) {
       map.get(doc.type)?.push(doc)
     }
     return map
@@ -87,14 +93,9 @@ export default function Explorer({
     })
   }
 
-  const primaryNavClass = ({ isActive }: { isActive: boolean }) =>
-    `flex items-center gap-2 rounded-md px-2.5 py-1.5 text-[13px] font-semibold no-underline ${
-      isActive ? 'bg-accent-soft text-fg' : 'text-fg-muted hover:bg-hover hover:text-fg'
-    }`
-
   return (
     <aside
-      className={`relative flex min-h-0 flex-col border-r border-line bg-sidebar ${sidebarOpen ? '' : 'min-[901px]:hidden'} max-[900px]:fixed max-[900px]:inset-y-0 max-[900px]:left-0 max-[900px]:z-60 max-[900px]:w-[min(300px,85vw)] max-[900px]:shadow-[4px_0_16px_rgba(15,23,42,0.12)] max-[900px]:transition-transform max-[900px]:duration-150 motion-reduce:transition-none ${navOpen ? 'max-[900px]:translate-x-0' : 'max-[900px]:-translate-x-[105%]'} print:hidden`}
+      className={`relative flex min-h-0 flex-col border-r border-line bg-sidebar ${sidebarOpen ? '' : 'min-[901px]:hidden'} motion-reduce:transition-none max-[900px]:fixed max-[900px]:inset-y-0 max-[900px]:left-0 max-[900px]:z-60 max-[900px]:w-[min(300px,85vw)] max-[900px]:shadow-[4px_0_16px_rgba(15,23,42,0.12)] max-[900px]:transition-transform max-[900px]:duration-150 ${navOpen ? 'max-[900px]:translate-x-0' : 'max-[900px]:-translate-x-[105%]'} print:hidden`}
       aria-label={t('nav.navigation')}
     >
       <div className="flex h-[var(--tabs-height)] shrink-0 items-center justify-between border-b border-line pr-2.5 pl-3.5">
@@ -314,6 +315,8 @@ function TreeBranch({
   onToggleDir: (path: string) => void
   onClose: () => void
 }) {
+  const { t } = useTranslation()
+
   if (node.kind === 'dir') {
     const dir: DocTreeDir = node
     const isCollapsed = collapsedDirs.has(dir.path)
@@ -351,7 +354,6 @@ function TreeBranch({
     )
   }
 
-  const { t } = useTranslation()
   const { doc } = node
   return (
     <NavLink

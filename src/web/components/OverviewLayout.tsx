@@ -5,6 +5,10 @@ import { encodeDocId } from '../api'
 import { toErrorMessage, useOverviewQuery } from '../queries'
 import { ArtifactTypeIcon } from './BrandMark'
 
+function statCard(warn = false) {
+  return `flex flex-col gap-0.5 rounded-[10px] border bg-sidebar px-3.5 py-3 ${warn ? 'border-amber-600' : 'border-line'}`
+}
+
 // @implements ui.web-viewer
 export default function OverviewLayout() {
   const { t } = useTranslation()
@@ -12,9 +16,6 @@ export default function OverviewLayout() {
   const error = toErrorMessage(queryError)
 
   const totalIssues = data ? data.indexIssues.length + data.docIssues.length : 0
-
-  const statCard = (warn = false) =>
-    `flex flex-col gap-0.5 rounded-[10px] border bg-sidebar px-3.5 py-3 ${warn ? 'border-amber-600' : 'border-line'}`
 
   const cardClass =
     'block rounded-lg border border-line border-l-[3px] border-l-[var(--tc)] bg-surface px-3.5 py-3 text-inherit no-underline hover:bg-subtle'
