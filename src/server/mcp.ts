@@ -4,7 +4,6 @@ import { WebStandardStreamableHTTPServerTransport } from '@modelcontextprotocol/
 import type { CallToolResult } from '@modelcontextprotocol/sdk/types.js'
 import { z } from 'zod'
 import type { ZodTypeAny } from 'zod'
-import { searchIndex } from '../core/bundle'
 import {
   addBlockToDoc,
   EditError,
@@ -13,8 +12,16 @@ import {
   updateBlockInDocs,
   upsertTermInDocs,
 } from '../core/editor'
-import { getDocument, toDocumentSummary } from '../core/loader'
-import { validateSourceLinks } from '../core/trace'
+import {
+  buildProjectMap,
+  buildValidationPayload,
+  getDocumentDetail,
+  getNodeRelations,
+  getSpecContext,
+  listDocuments,
+  querySpecs,
+  searchDocuments,
+} from '../core/query'
 import {
   ARTIFACT_TYPES,
   BLOCK_KINDS,
@@ -26,15 +33,39 @@ import {
 import type {
   ArtifactType,
   BlockKind,
-  DocsIndex,
   NoteIntent,
   RealizationStatus,
   ReviewStatus,
-  SemanticBlock,
   SpecIntent,
   Stability,
 } from '../core/types'
 import type { DocsStore } from './store'
+
+/**
+ * MCP クライアント単体で Documi の運用手順・制約を完結させるためのサーバー instructions。
+ * Agent Skills を導入していない環境でも、MCP だけで適切な呼び順・外科的編集・不変ルールに従えるようにする。
+ */
+const DOCUMI_MCP_INSTRUCTIONS = [
+  'Documi manages Living Specifications in docs/ (or the configured docs directory).',
+  '',
+  'Recommended workflow:',
+  '1. Progressive disclosure (read before editing):',
+  '   - Call get_project_map first to load Goals, Architecture, Decision <Outcome> blocks, Domain Terms, and Review/Realization summaries.',
+  '   - Call query_specs or search_documents to locate relevant <Spec> blocks or documents.',
+  '   - Call get_spec_context for each target Spec ID to fetch upstream Goals, unresolved human feedback, related Design/Contract/Decision docs, Terms, and <SourceRef> anchors.',
+  '   - Only call get_document or get_relations when full document prose or graph edges are needed.',
+  '2. Surgical editing (prefer over full-file rewrites):',
+  '   - Use update_block, add_block, upsert_term, scaffold_document, and rename_block_id (always preview with dryRun: true first).',
+  '3. Code & test synchronization:',
+  '   - Link implementation code with `// @implements <spec.id>` (or `<SourceRef file="src/..." satisfies="<spec.id>" />`).',
+  "   - Link tests with `test('[<spec.id>] ...', ...)` (or `// @verifies <spec.id>`).",
+  '   - Always write `<SourceRef file="...">` and `<TermDef symbols="...">` as project-root-relative POSIX paths.',
+  '4. Strict invariants:',
+  '   - NEVER edit `docs/.documi/reviews.json` directly (human approvals and feedback only).',
+  '   - NEVER write executable JS in MDX (no ESM import/export, no JSX `{...}` expressions, no unapproved components).',
+  '   - NEVER create temporary `tasks.md` checklists inside docs/; realization is derived automatically from code, tests, and PRs.',
+  '5. Always call validate_docs before finishing and fix all reported issues.',
+].join('\n')
 
 const artifactTypeSchema = z.enum(ARTIFACT_TYPES)
 const optionalTypeSchema = artifactTypeSchema.optional().describe('絞り込む Artifact Type (省略時は全件)')
@@ -78,33 +109,17 @@ function errorResult(message: string): CallToolResult {
   return { isError: true, content: [{ type: 'text', text: message }] }
 }
 
-async function buildValidationPayload(index: DocsIndex, projectRoot?: string) {
-  const docIssues = index.documents.flatMap((d) =>
-    d.issues.map((issue) => ({
-      docId: d.id,
-      path: d.path,
-      code: issue.code,
-      message: issue.message,
-      blockId: issue.blockId,
-    })),
-  )
-  const sourceIssues = projectRoot ? (await validateSourceLinks(projectRoot, index)).issues : []
-  const totalIssues = index.issues.length + docIssues.length + sourceIssues.length
-  return {
-    ok: totalIssues === 0,
-    indexIssues: index.issues,
-    docIssues,
-    sourceIssues,
-    totalIssues,
-  }
-}
-
 function createDocumiMcpServer(store: DocsStore, projectRoot?: string): McpServer {
   const getIndex = () => store.getIndex()
-  const server = new McpServer({
-    name: 'documi',
-    version: '0.1.0',
-  })
+  const server = new McpServer(
+    {
+      name: 'documi',
+      version: '0.1.0',
+    },
+    {
+      instructions: DOCUMI_MCP_INSTRUCTIONS,
+    },
+  )
 
   const registerTool = server.registerTool.bind(server) as unknown as <S extends Record<string, ZodTypeAny>>(
     name: string,
@@ -119,66 +134,7 @@ function createDocumiMcpServer(store: DocsStore, projectRoot?: string): McpServe
         'プロジェクトの初期コンテキスト (Goal 全文・Architecture 全文・Decision の Outcome 結論一覧・Domain 用語一覧・統計) を一括取得します。',
       inputSchema: {},
     },
-    async () => {
-      const index = getIndex()
-      const goals = index.documents
-        .filter((d) => d.type === 'goal')
-        .map((d) => ({ id: d.id, title: d.title, description: d.description, body: d.body }))
-      const architecture = index.documents
-        .filter((d) => d.type === 'architecture')
-        .map((d) => ({ id: d.id, title: d.title, description: d.description, body: d.body }))
-      const outcomes = [...index.blocksById.values()]
-        .filter((b) => b.kind === 'outcome')
-        .map((b) => {
-          const doc = index.byId.get(b.docId)
-          const item: { id: string; docId: string; date?: string; stability?: string; body: string } = {
-            id: b.id,
-            docId: b.docId,
-            stability: b.stability,
-            body: b.rawBody,
-          }
-          if (doc?.date) item.date = doc.date
-          return item
-        })
-      const terms = [...index.blocksById.values()]
-        .filter((b) => b.kind === 'term')
-        .map((b) => ({
-          id: b.id,
-          docId: b.docId,
-          aliases: b.aliases ?? [],
-          symbols: b.symbols ?? [],
-          definition: b.rawBody,
-        }))
-
-      const reviewSummary = { approved: 0, unreviewed: 0, stale: 0, suspect: 0, openFeedback: 0 }
-      const realizationSummary: Record<RealizationStatus, number> = {
-        unimplemented: 0,
-        'in-progress': 0,
-        implemented: 0,
-        verified: 0,
-        drifted: 0,
-      }
-      for (const b of index.blocksById.values()) {
-        if (b.kind !== 'note') {
-          reviewSummary[b.review]++
-          if (b.suspect) reviewSummary.suspect++
-        }
-        if (b.realization) realizationSummary[b.realization.status]++
-        reviewSummary.openFeedback += b.feedback.filter((f) => !f.resolved).length
-      }
-
-      return jsonResult({
-        documentCount: index.documents.length,
-        blockCount: index.blocksById.size,
-        issueCount: index.issues.length + index.documents.reduce((acc, d) => acc + d.issues.length, 0),
-        reviewSummary,
-        realizationSummary,
-        goals,
-        architecture,
-        decisionOutcomes: outcomes,
-        terms,
-      })
-    },
+    async () => jsonResult(buildProjectMap(getIndex())),
   )
 
   registerTool(
@@ -187,11 +143,7 @@ function createDocumiMcpServer(store: DocsStore, projectRoot?: string): McpServe
       description: 'Documi のドキュメント一覧を取得します。type で絞り込み可能です。',
       inputSchema: { type: optionalTypeSchema },
     },
-    async ({ type }: { type?: ArtifactType }) => {
-      const index = getIndex()
-      const docs = index.documents.filter((d) => !type || d.type === type)
-      return jsonResult({ documents: docs.map(toDocumentSummary), count: docs.length })
-    },
+    async ({ type }: { type?: ArtifactType }) => jsonResult(listDocuments(getIndex(), type)),
   )
 
   registerTool(
@@ -202,18 +154,9 @@ function createDocumiMcpServer(store: DocsStore, projectRoot?: string): McpServe
       inputSchema: { id: docIdSchema },
     },
     async ({ id }: { id: string }) => {
-      const index = getIndex()
-      const doc = getDocument(index, id)
-      if (!doc) return errorResult(`ドキュメントが見つかりません: ${id}`)
-      return jsonResult({
-        ...toDocumentSummary(doc),
-        body: doc.body,
-        blocks: doc.blocks,
-        sourceRefs: doc.sourceRefs,
-        outgoing: doc.outgoing,
-        incoming: doc.incoming,
-        issues: doc.issues,
-      })
+      const detail = getDocumentDetail(getIndex(), id)
+      if (!detail) return errorResult(`ドキュメントが見つかりません: ${id}`)
+      return jsonResult(detail)
     },
   )
 
@@ -224,18 +167,9 @@ function createDocumiMcpServer(store: DocsStore, projectRoot?: string): McpServe
       inputSchema: { id: nodeIdSchema },
     },
     async ({ id }: { id: string }) => {
-      const index = getIndex()
-      const doc = getDocument(index, id)
-      if (doc) {
-        return jsonResult({ id: doc.id, kind: 'doc', outgoing: doc.outgoing, incoming: doc.incoming })
-      }
-      const block = index.blocksById.get(id)
-      if (block) {
-        const outgoing = index.edges.filter((e) => e.from === block.id)
-        const incoming = index.edges.filter((e) => e.to === block.id)
-        return jsonResult({ id: block.id, kind: 'block', docId: block.docId, outgoing, incoming })
-      }
-      return errorResult(`ドキュメントまたはブロックが見つかりません: ${id}`)
+      const relations = getNodeRelations(getIndex(), id)
+      if (!relations) return errorResult(`ドキュメントまたはブロックが見つかりません: ${id}`)
+      return jsonResult(relations)
     },
   )
 
@@ -255,16 +189,7 @@ function createDocumiMcpServer(store: DocsStore, projectRoot?: string): McpServe
         query: optionalQuerySchema,
       },
     },
-    async ({
-      kind,
-      intent,
-      stability,
-      review,
-      realization,
-      suspect,
-      hasFeedback,
-      query,
-    }: {
+    async (args: {
       kind?: BlockKind
       intent?: SpecIntent
       stability?: Stability
@@ -273,26 +198,7 @@ function createDocumiMcpServer(store: DocsStore, projectRoot?: string): McpServe
       suspect?: boolean
       hasFeedback?: boolean
       query?: string
-    }) => {
-      const index = getIndex()
-      const q = query?.trim().toLowerCase()
-      const matched = [...index.blocksById.values()].filter((b) => {
-        if (kind && b.kind !== kind) return false
-        if (intent && b.intent !== intent) return false
-        if (stability && b.stability !== stability) return false
-        if (review && b.review !== review) return false
-        if (realization && b.realization?.status !== realization) return false
-        if (suspect !== undefined && b.suspect !== suspect) return false
-        if (hasFeedback !== undefined) {
-          const open = b.feedback.some((f) => !f.resolved)
-          if (open !== hasFeedback) return false
-        }
-        if (q && !b.id.toLowerCase().includes(q) && !b.rawBody.toLowerCase().includes(q)) return false
-        return true
-      })
-      const withPaths = matched.map((b) => Object.assign({}, b, { docPath: index.byId.get(b.docId)?.path ?? '' }))
-      return jsonResult({ blocks: withPaths, count: withPaths.length })
-    },
+    }) => jsonResult(querySpecs(getIndex(), args)),
   )
 
   registerTool(
@@ -303,75 +209,9 @@ function createDocumiMcpServer(store: DocsStore, projectRoot?: string): McpServe
       inputSchema: { id: nodeIdSchema },
     },
     async ({ id }: { id: string }) => {
-      const index = getIndex()
-      const block = index.blocksById.get(id)
-      const doc = block ? index.byId.get(block.docId) : getDocument(index, id)
-      if (!doc) return errorResult(`対象が見つかりません: ${id}`)
-
-      const targetIds = new Set<string>([doc.id, ...(block ? [block.id] : doc.blocks.map((b) => b.id))])
-      const relatedDocIds = new Set<string>()
-
-      // 上流 (derives) を再帰的に辿る
-      const queue = [...targetIds]
-      const visited = new Set<string>()
-      const upstreamGoals: { id: string; title: string; body: string }[] = []
-      while (queue.length > 0) {
-        const cur = queue.shift()!
-        if (visited.has(cur)) continue
-        visited.add(cur)
-        for (const e of index.edges) {
-          if (e.kind !== 'derives' || e.from !== cur) continue
-          const targetDoc = index.byId.get(e.toDocId)
-          if (targetDoc?.type === 'goal' && !upstreamGoals.some((g) => g.id === targetDoc.id)) {
-            upstreamGoals.push({ id: targetDoc.id, title: targetDoc.title, body: targetDoc.body })
-          }
-          queue.push(e.to, e.toDocId)
-        }
-      }
-
-      // 直接繋がる Design / Contract / Verification / Decision を収集
-      for (const e of index.edges) {
-        if (targetIds.has(e.from) || targetIds.has(e.fromDocId)) relatedDocIds.add(e.toDocId)
-        if (targetIds.has(e.to) || targetIds.has(e.toDocId)) relatedDocIds.add(e.fromDocId)
-      }
-      relatedDocIds.delete(doc.id)
-
-      const relatedDocs = [...relatedDocIds]
-        .map((rid) => index.byId.get(rid))
-        .filter((d): d is NonNullable<typeof d> => Boolean(d))
-
-      const outcomes: SemanticBlock[] = relatedDocs
-        .filter((d) => d.type === 'decision')
-        .flatMap((d) => d.blocks.filter((b) => b.kind === 'outcome'))
-
-      const terms: SemanticBlock[] = [...index.blocksById.values()].filter(
-        (b) =>
-          b.kind === 'term' &&
-          (doc.body.toLowerCase().includes(b.id.toLowerCase()) ||
-            (b.aliases ?? []).some((a) => doc.body.toLowerCase().includes(a.toLowerCase()))),
-      )
-
-      const openFeedback = (block ? [block] : doc.blocks).flatMap((b) =>
-        b.feedback.filter((f) => !f.resolved).map((f) => Object.assign({ blockId: b.id }, f)),
-      )
-
-      return jsonResult({
-        target: block ? { ...block, docPath: doc.path } : toDocumentSummary(doc),
-        docPath: doc.path,
-        ...(block ? { startLine: block.startLine, endLine: block.endLine } : {}),
-        document: toDocumentSummary(doc),
-        openFeedback,
-        upstreamGoals,
-        relatedDocuments: relatedDocs.map(toDocumentSummary),
-        decisionOutcomes: outcomes.map((o) => ({ id: o.id, docId: o.docId, body: o.rawBody })),
-        relevantTerms: terms.map((t) => ({
-          id: t.id,
-          aliases: t.aliases ?? [],
-          symbols: t.symbols ?? [],
-          body: t.rawBody,
-        })),
-        sourceRefs: [...doc.sourceRefs, ...relatedDocs.flatMap((d) => d.sourceRefs)],
-      })
+      const context = getSpecContext(getIndex(), id)
+      if (!context) return errorResult(`対象が見つかりません: ${id}`)
+      return jsonResult(context)
     },
   )
 
@@ -385,11 +225,8 @@ function createDocumiMcpServer(store: DocsStore, projectRoot?: string): McpServe
         limit: z.number().int().min(1).max(100).optional().describe('最大返却件数 (既定 20)'),
       },
     },
-    async ({ query, type, limit }: { query: string; type?: ArtifactType; limit?: number }) => {
-      const index = getIndex()
-      const results = searchIndex(index, query, { type, limit: limit ?? 20 })
-      return jsonResult({ query, results, count: results.length })
-    },
+    async ({ query, type, limit }: { query: string; type?: ArtifactType; limit?: number }) =>
+      jsonResult(searchDocuments(getIndex(), query, { type, limit })),
   )
 
   registerTool(
@@ -399,10 +236,7 @@ function createDocumiMcpServer(store: DocsStore, projectRoot?: string): McpServe
         '全ドキュメントの整合性問題 (orphan-spec・参照切れ・循環・重複 ID・MDX 未対応構文など) を一括検証して返します。',
       inputSchema: {},
     },
-    async () => {
-      const index = getIndex()
-      return jsonResult(await buildValidationPayload(index, projectRoot))
-    },
+    async () => jsonResult(await buildValidationPayload(getIndex(), projectRoot)),
   )
 
   // ---------- 精密編集・構造操作ツール (Surgical Write) ----------

@@ -9,6 +9,7 @@ satisfies:
   - core.bundle-export
   - core.project-config
   - core.agent-skills-init
+  - core.ai-cli
 ---
 
 # CLI コントラクト
@@ -28,14 +29,42 @@ CLI・HTTP サーバー・stdio MCP はすべて `resolveProjectPaths()` によ�
 
 ## `documi init`
 
-新規・既存プロジェクト向けに、最小 `docs/` 雛形（`goals/project-goal.mdx`, `domain/glossary.mdx`, `decisions/first-decision.mdx`, `specs/example.mdx`）と **標準 Agent Skills**（`<project>/.agents/skills/documi/SKILL.md` および `documi-bootstrap/SKILL.md`）を生成し、MCP 接続設定スニペットを表示する。`AGENTS.md` 等の既存ファイルとは競合させず、既存ファイルは `--force-skills` 指定時の `SKILL.md` を除き一切上書きしない。
+新規・既存プロジェクト向けに、最小 `docs/` 雛形（`goals/project-goal.mdx`, `domain/glossary.mdx`, `decisions/first-decision.mdx`, `specs/example.mdx`）と **CLI ベースの標準 Agent Skills**（`<project>/.agents/skills/documi/SKILL.md` および `documi-bootstrap/SKILL.md`）を生成する。`AGENTS.md` 等の既存ファイルとは競合させず、既存ファイルは `--force-skills` 指定時の `SKILL.md` を除き一切上書きしない。
 
 | Option | 説明 |
 |---|---|
+| `--en` / `--ja` | 生成する Agent Skills および `docs/` 雛形の言語を指定（既定: `en`、`--lang <en\|ja>` も指定可） |
 | `--skills-dir <dir>` | Agent Skills の出力先ディレクトリ（既定: `<project>/.agents/skills`） |
 | `--skills-only` | `docs/` 雛形を作らず Agent Skills のみ生成（既存 `docs/` 導入・更新用） |
 | `--no-skills` | Agent Skills を生成せず `docs/` 雛形のみ生成 |
 | `--force-skills` | 既存の Documi `SKILL.md` を最新版テンプレートで上書き更新 |
+| `--json` | 生成結果を JSON 形式で出力 |
+
+## AI・人間向け 読み取り・検索コマンド（すべて `--json` 対応）
+
+MCP サーバーを接続しない環境（CLI + Agent Skills 運用やターミナル直接操作）でも、MCP と同一の Document Core クエリをそのまま利用できる。
+
+| Command | 主な Option | 役割 |
+|---|---|---|
+| `documi map` | `--json` | Goal 全文・Architecture 全文・Decision `<Outcome>`・用語・Review/Realization サマリを一括取得 |
+| `documi list` | `--type <type>`, `--json` | ドキュメント一覧を取得 |
+| `documi show <doc-id>` | `--json` | 本文・セマンティックブロック・関係・問題一覧を取得 |
+| `documi relations <id>` | `--json` | ドキュメントまたはブロックの外向き・逆参照を取得 |
+| `documi search <query...>` | `--type <type>`, `--limit <n>`, `--json` | ドキュメントとセマンティックブロックを横断全文検索 |
+| `documi query` | `--kind`, `--intent`, `--stability`, `--review`, `--realization`, `--suspect`/`--no-suspect`, `--has-feedback`/`--no-feedback`, `--q <text>`, `--json` | セマンティックブロックを多軸フィルタ検索 |
+| `documi context <id>` | `--json` | Spec の上流 Goal・未解決フィードバック・関連文書・Decision `<Outcome>`・関連用語・`<SourceRef>` を一括集約 |
+
+## AI・人間向け 精密編集コマンド（すべて `--json` 対応）
+
+AST 位置ベースで安全に局所編集し、再読込後の検証結果（`validation`）を返却する。`--body -`（または `--definition -`）で標準入力から複数行 Markdown を渡せ、`--body-file <file>` にも対応する。`docs/.documi/reviews.json` への書き込み・パストラバーサル・MDX 危険構文はすべて拒否される。
+
+| Command | 主な Option | 役割 |
+|---|---|---|
+| `documi block add <doc-id>` | `--kind`, `--id`, `--body`/`--body-file`, `--after-heading`, `--title`, `--stability`, `--intent`, `--derives`, `--supersedes`, `--scope`, `--aliases`, `--symbols`, `--json` | セマンティックブロックを 1 件追記 |
+| `documi block update <block-id>` | `--body`/`--body-file`, `--title`, `--stability`, `--intent`, `--derives`, `--supersedes`, `--scope`, `--aliases`, `--symbols`, `--json` | 既存ブロックの該当行範囲のみを安全に更新 |
+| `documi block rename <old-id> <new-id>` | `--dry-run`, `--json` | `docs/` とコード・テストのブロック ID 参照を一括リネーム |
+| `documi term upsert <term-id>` | `--definition`/`--body`/`--body-file`, `--aliases`, `--symbols`, `--doc`, `--json` | 用語集に `<TermDef>` を追加または更新 |
+| `documi scaffold <rel-path>` | `--title`, `--type`, `--description`, `--date`, `--tags`, `--derives`, `--satisfies`, `--verifies`, `--body`/`--body-file`, `--json` | 規約通りの frontmatter を持つ新規 `.mdx` を作成（上書き禁止） |
 
 ## `documi serve`
 

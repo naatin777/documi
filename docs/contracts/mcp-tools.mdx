@@ -12,11 +12,12 @@ satisfies:
   - core.ast-check
   - core.full-text-search
   - core.mcp-surgical-edit
+  - core.ai-cli
 ---
 
 # MCP ツールコントラクト
 
-AI エージェント向けに **2 種類のトランスポート** で同一のツール群を提供する（設計根拠: [同一リポジトリ原則・Code Explorer・MCP 精密編集ハイブリッド ADR](../decisions/2026-11-code-explorer-and-mcp-editing.mdx)）。
+AI エージェント向けに **2 種類のトランスポート** で同一のツール群を提供する（設計根拠: [同一リポジトリ原則・Code Explorer・MCP 精密編集ハイブリッド ADR](../decisions/2026-11-code-explorer-and-mcp-editing.mdx)）。`McpServer` は初期化レスポンスの `instructions` に段階的コンテキスト取得・精密編集・不変ルール（`reviews.json` 改変禁止・MDX 安全性）・`validate_docs` 実行手順を自己完結で内蔵するため、Agent Skills を併用しない MCP クライアント単体でもそのまま運用できる。
 
 - **Streamable HTTP (`POST /mcp`)**: `documi serve` 起動時に Stateless（`enableJsonResponse: true`）で提供
 - **stdio (`documi mcp`)**: サーバー常駐なしで Claude Code / Cursor / Antigravity 等から直接起動し、`fs.watch` で最新 `docs/` を自動反映

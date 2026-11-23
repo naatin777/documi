@@ -99,5 +99,12 @@ tags: [core, spec]
 
 <Spec id="core.agent-skills-init" stability="evolving" derives="goals/ai-reproducibility">
   **When** `documi init` が実行されたとき、
-  **the** Document Core および CLI **shall** 既存の `AGENTS.md` 等と競合させずに標準 Agent Skills 形式（既定 `<projectRoot>/.agents/skills/`）で日常運用スキル（`documi/SKILL.md`）および既存コードベース導入スキル（`documi-bootstrap/SKILL.md`）と `docs/` 雛形を冪等に生成し、MCP 接続設定スニペットを出力する。既存ファイルは明示フラグ（`--force-skills`）なしに上書きしない。
+  **the** Document Core および CLI **shall** 既存の `AGENTS.md` 等と競合させずに標準 Agent Skills 形式（既定 `<projectRoot>/.agents/skills/`）で CLI ベースの日常運用スキル（`documi/SKILL.md`）および既存コードベース導入スキル（`documi-bootstrap/SKILL.md`）と `docs/` 雛形を指定言語（`--en` / `--ja` / `--lang`、既定 `en`）で冪等に生成する。既存ファイルは明示フラグ（`--force-skills`）なしに上書きしない。
+</Spec>
+
+## AI・人間向け CLI クエリ・精密編集と MCP 自己完結
+
+<Spec id="core.ai-cli" stability="evolving" derives="goals/ai-reproducibility">
+  **When** AI エージェントまたは人間が CLI 経由でプロジェクトマップ・文書検索・Spec 文脈取得・ブロック精密編集を実行するとき、あるいは MCP クライアントが `documi mcp` / `/mcp` に接続するとき、
+  **the** Documi CLI および MCP Server **shall** 共通の Document Core を介して CLI 経路（`map` / `list` / `show` / `relations` / `search` / `query` / `context` / `block` / `term` / `scaffold`、`--json` 対応）と MCP 経路（`McpServer` の `instructions` 内蔵）の双方を互いに依存せず自己完結して提供する。
 </Spec>
