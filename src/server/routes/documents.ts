@@ -1,6 +1,7 @@
 import { Hono } from 'hono'
 import { z } from 'zod'
 import { resolveBundleDocuments, searchIndex } from '../../core/bundle'
+import { getDocumentHistory, getDocumentRevision, HistoryError } from '../../core/git'
 import { buildDocTree, getDocument, toDocumentSummary } from '../../core/loader'
 import { ARTIFACT_TYPES, REALIZATION_STATUSES, SPEC_INTENTS, STABILITIES } from '../../core/types'
 import type {
@@ -14,7 +15,7 @@ import type {
   Stability,
 } from '../../core/types'
 import type { DocsStore } from '../store'
-import { zValidator } from '../validator'
+import { zValidator, type ErrorStatusCode } from '../validator'
 
 const artifactTypeSchema = z.enum(ARTIFACT_TYPES)
 
@@ -32,6 +33,16 @@ const bundleQuerySchema = z.object({
   scope: z.string().optional(),
   ids: z.string().optional(),
   title: z.string().optional(),
+})
+
+const historyQuerySchema = z.object({
+  id: z.string().min(1),
+  limit: z.string().optional(),
+})
+
+const revisionQuerySchema = z.object({
+  id: z.string().min(1),
+  commit: z.string().min(1),
 })
 
 interface OverviewIssueEntry {
@@ -185,6 +196,13 @@ export function createDocumentsRoutes(store: DocsStore) {
           }
         }
 
+        const recentDocuments = index.documents
+          .filter((d) => Boolean(d.freshness?.updatedAt))
+          .toSorted((a, b) => (b.freshness?.updatedAt ?? '').localeCompare(a.freshness?.updatedAt ?? ''))
+          .slice(0, 8)
+          .map(toDocumentSummary)
+        const uncommittedCount = index.documents.filter((d) => Boolean(d.freshness?.workingStatus)).length
+
         return c.json(
           {
             rootDir: index.rootDir,
@@ -205,6 +223,8 @@ export function createDocumentsRoutes(store: DocsStore) {
             orphanSpecs,
             indexIssues: index.issues,
             docIssues,
+            recentDocuments,
+            uncommittedCount,
           },
           200,
         )
@@ -241,6 +261,37 @@ export function createDocumentsRoutes(store: DocsStore) {
         const doc = getDocument(index, docId)
         if (!doc) return c.json({ error: `ドキュメントが見つかりません: ${docId}` }, 404)
         return c.json({ document: doc }, 200)
+      })
+      .get('/history', zValidator('query', historyQuerySchema), async (c) => {
+        const index = store.getIndex()
+        const { id: docId, limit: rawLimitStr } = c.req.valid('query')
+        if (docId.includes('..')) {
+          return c.json({ error: `不正なドキュメント ID です: ${docId}` }, 400)
+        }
+        const doc = getDocument(index, docId)
+        if (!doc) return c.json({ error: `ドキュメントが見つかりません: ${docId}` }, 404)
+        const rawLimit = Number(rawLimitStr ?? 20)
+        const limit = Number.isFinite(rawLimit) && rawLimit > 0 ? Math.min(rawLimit, 50) : 20
+        const history = await getDocumentHistory(index.rootDir, doc, limit)
+        return c.json(history, 200)
+      })
+      .get('/history/revision', zValidator('query', revisionQuerySchema), (c) => {
+        const index = store.getIndex()
+        const { id: docId, commit } = c.req.valid('query')
+        if (docId.includes('..')) {
+          return c.json({ error: `不正なドキュメント ID です: ${docId}` }, 400)
+        }
+        const doc = getDocument(index, docId)
+        if (!doc) return c.json({ error: `ドキュメントが見つかりません: ${docId}` }, 404)
+        try {
+          const revision = getDocumentRevision(index.rootDir, doc, commit)
+          return c.json(revision, 200)
+        } catch (error) {
+          if (error instanceof HistoryError) {
+            return c.json({ error: error.message }, error.status as ErrorStatusCode)
+          }
+          return c.json({ error: error instanceof Error ? error.message : String(error) }, 500)
+        }
       })
       .get('/terms', (c) => {
         return c.json({ terms: collectTerms(store.getIndex()) }, 200)

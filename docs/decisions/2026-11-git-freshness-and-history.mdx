@@ -1,0 +1,29 @@
+---
+type: decision
+title: 読み取り専用 Git 連携による鮮度表示・最新変更箇所ハイライト・過去版 Side-by-Side 参照を採用する
+description: AI が編集したドキュメントの作成・更新時期と最新変更箇所の把握、および過去バージョンの参照を、リッチインライン Diff ではなく軽量な Git 読み取り連携で実現する判断
+date: 2026-11-23
+tags: [adr, git, history, ui, core]
+---
+
+# 読み取り専用 Git 連携による鮮度表示・最新変更箇所ハイライト・過去版 Side-by-Side 参照を採用する
+
+<Outcome id="dec.git-freshness-history" stability="stable">
+  Documi は `docs/` に対する **読み取り専用の Git 連携** を Document Core に備え、以下の 3 点に責務を絞ってドキュメント鮮度と変更追跡を提供する。（1）`git log` / `git status` の一括スキャンによる各文書の作成日時・最終更新日時・未コミット変更状態の自動取得（非 Git 環境は `fs.stat` へフォールバック）、（2）未コミット変更または最新コミットの変更行レンジと mdast 位置情報の突き合わせによる「最新変更箇所」の左バー強調・目次ドット表示、（3）Context Inspector の履歴一覧から任意の過去コミット時点の文書を Side-by-Side 右ペインでそのままレンダリング参照する体験。MDX 本文上の複雑なリッチインライン Diff や、Git への書き込み操作（commit / checkout / revert）は提供しない。
+</Outcome>
+
+## 背景と課題
+
+- AI エージェントが MCP やファイル編集で `docs/` を継続更新する運用では、人間が Web UI を開いたときに「この文書はいつ作られ、いつ最後に更新されたか」「文書内のどの部分が最新で書き換わったか」が分からないと、確認・判断の負荷が高くなる。
+- 既存の `reviews.json` ベースの Diff（`GET /api/blocks/:id/diff`）は「承認済みブロックが `stale` になった場合」に限定されており、新規作成文書・未承認ブロック・セマンティックタグ外の Markdown 本文の変更は追えない。
+- 一方で MDX のリッチプレビュー上でトークン単位・AST 単位のインライン Diff を描こうとすると実装複雑度が跳ね上がり、読む体験自体も損なわれやすい。
+
+## 設計方針
+
+1. **一括メタデータ取得とオンデマンド詳細取得の分離 (`src/core/git.ts`)**
+   - `loadDocuments()` 時に `docs/` 全体に対して `git log` と `git status` を各 1 回だけ実行し、`Document.freshness` / `DocumentSummary.freshness` を付与する（ファイル数に応じた `N` 回呼び出しを避ける）。
+   - 個別文書のコミット履歴・変更行レンジ（`git diff -U0` / `git show -U0`）および過去バージョンの本文取得（`git show <sha>:<path>`）は閲覧時オンデマンド API（`GET /api/history`・`GET /api/history/revision`）で解決する。
+2. **AST 位置ベースの最新変更ハイライト**
+   - `git diff -U0` / `git show -U0` のハンク行番号から frontmatter 行数を差し引いた本文基準の行レンジと、mdast トップレベル要素および見出しセクションの行範囲を照合し、該当箇所に控えめな左アクセントバーと目次ドットを付与する。
+3. **過去バージョンの Side-by-Side 参照**
+   - 右パネル（Context Inspector）の `History` タブからコミットを選ぶと、既存の Side-by-Side プレビュー領域にそのコミット時点の文書をそのままレンダリングし、現在の最新文書と並べて確認できるようにする。

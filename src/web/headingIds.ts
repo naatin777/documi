@@ -2,6 +2,10 @@ export interface Heading {
   level: number
   text: string
   id: string
+  /** 本文（frontmatter 除外後）基準の見出し開始行 (1-indexed) */
+  line?: number
+  /** この見出しが支配するセクションの終了行（次の同レベル以上の見出し直前行） */
+  sectionEndLine?: number
 }
 
 /** GitHub 風のスラッグ化。レンダラ側と Outline 側で同じ関数を使う。 */

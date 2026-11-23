@@ -21,6 +21,8 @@ const queryKeys = {
   status: ['status'] as const,
   documents: (type?: ArtifactType) => ['documents', type ?? 'all'] as const,
   document: (docId: string) => ['document', docId] as const,
+  documentHistory: (docId: string) => ['document', docId, 'history'] as const,
+  documentRevision: (docId: string, commit: string) => ['document', docId, 'revision', commit] as const,
   terms: ['terms'] as const,
   blocks: ['blocks'] as const,
   graph: (layers: 'all' | 'trace', granularity: 'docs' | 'blocks') => ['graph', layers, granularity] as const,
@@ -89,6 +91,23 @@ export function useDocumentQuery(docId: string) {
     queryKey: queryKeys.document(docId),
     queryFn: () => api.document(docId),
     enabled: Boolean(docId),
+  })
+}
+
+export function useDocumentHistoryQuery(docId: string) {
+  return useQuery({
+    queryKey: queryKeys.documentHistory(docId),
+    queryFn: () => api.documentHistory(docId),
+    enabled: Boolean(docId),
+  })
+}
+
+export function useDocumentRevisionQuery(docId: string, commit: string | null) {
+  return useQuery({
+    queryKey: queryKeys.documentRevision(docId, commit ?? ''),
+    queryFn: () => api.documentRevision(docId, commit ?? ''),
+    enabled: Boolean(docId && commit),
+    retry: false,
   })
 }
 

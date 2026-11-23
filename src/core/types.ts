@@ -139,6 +139,66 @@ export interface BlockDiffResult {
   lines: DiffLine[]
 }
 
+export type WorkingTreeStatus = 'modified' | 'added' | 'untracked'
+
+export interface DocumentFreshness {
+  /** 初回作成日時 (ISO 8601。Git 初回コミット日時、未追跡/非 Git はファイル作成・更新時刻) */
+  createdAt?: string
+  /** 最終更新日時 (ISO 8601。未コミット変更時は mtime、それ以外は最新コミット日時) */
+  updatedAt?: string
+  /** 作業ツリー上の未コミット変更状態 */
+  workingStatus?: WorkingTreeStatus
+  /** 最新コミットの短縮 SHA (7文字) */
+  lastCommitSha?: string
+  /** 最新コミットの件名 */
+  lastCommitSubject?: string
+  /** この文書の総コミット数 */
+  commitCount?: number
+}
+
+export interface GitCommitEntry {
+  sha: string
+  shortSha: string
+  date: string
+  author: string
+  subject: string
+  status: 'A' | 'M' | 'R' | 'D' | 'C'
+}
+
+export interface ChangedLineRange {
+  /** 本文（frontmatter 除外後）基準の 1-indexed 開始行 */
+  startLine: number
+  /** 本文（frontmatter 除外後）基準の 1-indexed 終了行 */
+  endLine: number
+  kind: 'added' | 'modified'
+}
+
+export interface DocumentHistory {
+  docId: string
+  path: string
+  gitAvailable: boolean
+  freshness: DocumentFreshness
+  /** 最新変更ハイライトの対象基準 */
+  highlightBasis: 'working' | 'last-commit' | 'none'
+  /** highlightBasis === 'last-commit' 時の対象コミット */
+  highlightCommit?: GitCommitEntry
+  /** 本文（frontmatter 除外後）基準の最新変更行レンジ一覧 */
+  changedRanges: ChangedLineRange[]
+  /** 対象文書のコミット履歴（新しい順） */
+  commits: GitCommitEntry[]
+}
+
+export interface DocumentRevision {
+  docId: string
+  path: string
+  commit: GitCommitEntry
+  title: string
+  description: string
+  format: DocFormat
+  dir: string
+  body: string
+}
+
 export interface CodeAnchor {
   kind: 'implements' | 'verifies'
   specId: string
@@ -285,6 +345,8 @@ export interface Document extends DocumentMeta {
   outgoing: ResolvedRelation[]
   /** 解決済みの逆参照 */
   incoming: ResolvedRelation[]
+  /** Git 履歴またはファイル時刻から算出した鮮度情報 */
+  freshness?: DocumentFreshness
   /** この文書に紐づく問題 (未解決リンク, orphan-spec, 循環, MDX未対応構文など) */
   issues: DocIssue[]
 }
@@ -303,6 +365,8 @@ export interface DocumentSummary {
   blockCount: number
   specCount: number
   issueCount: number
+  /** Git 履歴またはファイル時刻から算出した鮮度情報 */
+  freshness?: DocumentFreshness
 }
 
 export interface DocTreeDir {

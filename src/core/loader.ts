@@ -2,6 +2,7 @@ import type { Dirent } from 'node:fs'
 import { readdir, readFile } from 'node:fs/promises'
 import path from 'node:path'
 import { FrontmatterError, parseYamlFrontmatter, splitFrontmatter } from './frontmatter'
+import { applyGitFreshness } from './git'
 import { buildGraphAndValidate, stripDocExt, type RawDocEntry } from './graph'
 import { extractMdxArtifacts } from './mdx'
 import { applyReviewsAndSuspects, loadReviews } from './reviews'
@@ -99,6 +100,7 @@ export async function loadDocuments(rootDir: string): Promise<DocsIndex> {
 
   const reviews = await loadReviews(root, issues)
   applyReviewsAndSuspects(index, reviews)
+  await applyGitFreshness(index)
 
   return index
 }

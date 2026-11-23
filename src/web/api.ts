@@ -47,6 +47,10 @@ export const api = {
   },
   documents: (type?: ArtifactType) => unwrap(rpc.api.documents.$get({ query: type ? { type } : {} })),
   document: (docId: string) => unwrap(rpc.api.documents[':id{.+}'].$get({ param: { id: encodeDocId(docId) } })),
+  documentHistory: (docId: string, limit = 20) =>
+    unwrap(rpc.api.history.$get({ query: { id: docId, limit: String(limit) } })),
+  documentRevision: (docId: string, commit: string) =>
+    unwrap(rpc.api.history.revision.$get({ query: { id: docId, commit } })),
   graph: (layers: 'all' | 'trace' = 'all', granularity: 'docs' | 'blocks' = 'docs') =>
     unwrap(rpc.api.graph.$get({ query: { layers, granularity } })),
   terms: () => unwrap(rpc.api.terms.$get()),

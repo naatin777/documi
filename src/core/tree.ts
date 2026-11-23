@@ -15,6 +15,7 @@ export function toDocumentSummary(doc: Document): DocumentSummary {
     blockCount: doc.blocks.length,
     specCount: doc.blocks.filter((b) => b.kind === 'spec').length,
     issueCount: doc.issues.length,
+    ...(doc.freshness ? { freshness: doc.freshness } : {}),
   }
 }
 

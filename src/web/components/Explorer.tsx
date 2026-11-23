@@ -3,11 +3,12 @@ import { useMemo, useState, type CSSProperties, type ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
 import { NavLink } from 'react-router'
 import { ARTIFACT_TYPES } from '../../core/types'
-import type { ArtifactType, DocTreeDir, DocTreeNode, DocumentSummary } from '../../core/types'
+import type { ArtifactType, DocTreeDir, DocTreeNode, DocumentSummary, WorkingTreeStatus } from '../../core/types'
 import { encodeDocId } from '../api'
 import { LanguageToggle } from '../i18n'
 import { toErrorMessage, useStatusQuery, useTreeQuery } from '../queries'
 import { ThemeToggle } from '../theme'
+import { formatDateTime } from '../time'
 import { ArtifactTypeIcon, BrandMark } from './BrandMark'
 import ExportActions from './ExportActions'
 import { MaterialFileIcon, MaterialFolderIcon } from './MaterialIcon'
@@ -227,33 +228,44 @@ export default function Explorer({
                     {docs.length === 0 && (
                       <li className="py-1 pr-3 pl-[30px] text-xs text-fg-muted">{t('nav.noDocs')}</li>
                     )}
-                    {docs.map((doc) => (
-                      <li key={doc.id}>
-                        <NavLink
-                          to={`/docs/${encodeDocId(doc.id)}`}
-                          className={({ isActive }) =>
-                            `flex items-baseline gap-2 border-l-[3px] py-[5px] pr-3 pl-[30px] text-[13.5px] no-underline ${
-                              isActive
-                                ? 'border-l-[var(--tc)] bg-[var(--tc-soft)] font-semibold text-[var(--tc)]'
-                                : 'border-l-transparent text-fg hover:bg-hover'
-                            }`
-                          }
-                          title={`${doc.id} — ${doc.title}`}
-                          onClick={onClose}
-                        >
-                          <span className="truncate">{doc.title}</span>
-                          {doc.date && (
-                            <span className="mono ml-auto shrink-0 text-[10.5px] text-fg-muted">{doc.date}</span>
-                          )}
-                          {doc.issueCount > 0 && (
-                            <span
-                              className="h-[7px] w-[7px] shrink-0 self-center rounded-full bg-amber-600"
-                              title={t('nav.issueCountTitle', { count: doc.issueCount })}
-                            />
-                          )}
-                        </NavLink>
-                      </li>
-                    ))}
+                    {docs.map((doc) => {
+                      const updatedLabel = doc.freshness?.updatedAt
+                        ? t('nav.updatedTooltip', { time: formatDateTime(doc.freshness.updatedAt) })
+                        : ''
+                      const docTitleAttr = updatedLabel
+                        ? `${doc.id} — ${doc.title} (${updatedLabel})`
+                        : `${doc.id} — ${doc.title}`
+                      return (
+                        <li key={doc.id}>
+                          <NavLink
+                            to={`/docs/${encodeDocId(doc.id)}`}
+                            className={({ isActive }) =>
+                              `flex items-baseline gap-2 border-l-[3px] py-[5px] pr-3 pl-[30px] text-[13.5px] no-underline ${
+                                isActive
+                                  ? 'border-l-[var(--tc)] bg-[var(--tc-soft)] font-semibold text-[var(--tc)]'
+                                  : 'border-l-transparent text-fg hover:bg-hover'
+                              }`
+                            }
+                            title={docTitleAttr}
+                            onClick={onClose}
+                          >
+                            <span className="truncate">{doc.title}</span>
+                            {doc.date && (
+                              <span className="mono ml-auto shrink-0 text-[10.5px] text-fg-muted">{doc.date}</span>
+                            )}
+                            {doc.freshness?.workingStatus && (
+                              <WorkingStatusBadge status={doc.freshness.workingStatus} pushRight={!doc.date} />
+                            )}
+                            {doc.issueCount > 0 && (
+                              <span
+                                className="h-[7px] w-[7px] shrink-0 self-center rounded-full bg-amber-600"
+                                title={t('nav.issueCountTitle', { count: doc.issueCount })}
+                              />
+                            )}
+                          </NavLink>
+                        </li>
+                      )
+                    })}
                   </ul>
                 )}
               </section>
@@ -355,6 +367,10 @@ function TreeBranch({
   }
 
   const { doc } = node
+  const updatedLabel = doc.freshness?.updatedAt
+    ? t('nav.updatedTooltip', { time: formatDateTime(doc.freshness.updatedAt) })
+    : ''
+  const docTitleAttr = updatedLabel ? `${doc.id} — ${doc.title} (${updatedLabel})` : `${doc.id} — ${doc.title}`
   return (
     <NavLink
       to={`/docs/${encodeDocId(doc.id)}`}
@@ -366,11 +382,12 @@ function TreeBranch({
         }`
       }
       style={{ paddingLeft: `${23 + depth * 14}px` }}
-      title={`${doc.id} — ${doc.title}`}
+      title={docTitleAttr}
       onClick={onClose}
     >
       <MaterialFileIcon name={doc.path} size={15} />
       <span className="min-w-0 flex-1 truncate">{doc.title}</span>
+      {doc.freshness?.workingStatus && <WorkingStatusBadge status={doc.freshness.workingStatus} />}
       <span className="h-[7px] w-[7px] shrink-0 rounded-full bg-[var(--tc)]" aria-hidden="true" />
       {doc.issueCount > 0 && (
         <span
@@ -379,6 +396,27 @@ function TreeBranch({
         />
       )}
     </NavLink>
+  )
+}
+
+function WorkingStatusBadge({ status, pushRight = false }: { status: WorkingTreeStatus; pushRight?: boolean }) {
+  const { t } = useTranslation()
+  const code = status === 'modified' ? 'M' : status === 'added' ? 'A' : 'U'
+  const colorClass = status === 'modified' ? 'text-sky-600 dark:text-sky-400' : 'text-emerald-600 dark:text-emerald-400'
+  const label =
+    status === 'modified'
+      ? t('nav.uncommittedModified')
+      : status === 'added'
+        ? t('nav.uncommittedAdded')
+        : t('nav.uncommittedUntracked')
+  return (
+    <span
+      className={`mono shrink-0 self-center text-[10.5px] font-bold ${colorClass} ${pushRight ? 'ml-auto' : ''}`}
+      title={label}
+      aria-label={label}
+    >
+      {code}
+    </span>
   )
 }
 
