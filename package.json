@@ -15,6 +15,7 @@
     "start": "bun src/server/index.ts",
     "documi:check": "bun src/cli.ts check",
     "documi:export": "bun src/cli.ts export",
+    "documi:build-site": "bun src/cli.ts build-site",
     "check": "bun check",
     "lint": "oxlint --type-aware --deny-warnings",
     "lint:fix": "oxlint --type-aware --fix",
