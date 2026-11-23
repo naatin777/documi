@@ -94,3 +94,10 @@ tags: [core, spec]
   **When** CLI・HTTP サーバー・MCP サーバーが `projectRoot` と `docsDir` を解決するとき、
   **the** Document Core **shall** 既定を `<projectRoot>/docs` としつつプロジェクトルート直下の設定ファイル（`.documi.json` / `.documi.yml` / `.documi.yaml` / `documi.json`）から `docs` と `testReport` を自動読み込みし、`--project` のみ指定時は `<projectRoot>/<docs>` を、`--docs` のみ指定時はその親ディレクトリを `projectRoot` として双方向に自動解決する。不正な構文や未定義キーは `ConfigError` として拒否する。
 </Spec>
+
+## Agent Skills 配布と Brownfield 導入初期化
+
+<Spec id="core.agent-skills-init" stability="evolving" derives="goals/ai-reproducibility">
+  **When** `documi init` が実行されたとき、
+  **the** Document Core および CLI **shall** 既存の `AGENTS.md` 等と競合させずに標準 Agent Skills 形式（既定 `<projectRoot>/.agents/skills/`）で日常運用スキル（`documi/SKILL.md`）および既存コードベース導入スキル（`documi-bootstrap/SKILL.md`）と `docs/` 雛形を冪等に生成し、MCP 接続設定スニペットを出力する。既存ファイルは明示フラグ（`--force-skills`）なしに上書きしない。
+</Spec>

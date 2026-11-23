@@ -8,6 +8,7 @@ satisfies:
   - core.human-review
   - core.bundle-export
   - core.project-config
+  - core.agent-skills-init
 ---
 
 # CLI コントラクト
@@ -27,7 +28,14 @@ CLI・HTTP サーバー・stdio MCP はすべて `resolveProjectPaths()` によ�
 
 ## `documi init`
 
-新規プロジェクトに Living Specification 向けの最小 `docs/` 雛形（`goals/project-goal.mdx`, `domain/glossary.mdx`, `decisions/first-decision.mdx`, `specs/example.mdx`）を生成する。既存ファイルは上書きしない。
+新規・既存プロジェクト向けに、最小 `docs/` 雛形（`goals/project-goal.mdx`, `domain/glossary.mdx`, `decisions/first-decision.mdx`, `specs/example.mdx`）と **標準 Agent Skills**（`<project>/.agents/skills/documi/SKILL.md` および `documi-bootstrap/SKILL.md`）を生成し、MCP 接続設定スニペットを表示する。`AGENTS.md` 等の既存ファイルとは競合させず、既存ファイルは `--force-skills` 指定時の `SKILL.md` を除き一切上書きしない。
+
+| Option | 説明 |
+|---|---|
+| `--skills-dir <dir>` | Agent Skills の出力先ディレクトリ（既定: `<project>/.agents/skills`） |
+| `--skills-only` | `docs/` 雛形を作らず Agent Skills のみ生成（既存 `docs/` 導入・更新用） |
+| `--no-skills` | Agent Skills を生成せず `docs/` 雛形のみ生成 |
+| `--force-skills` | 既存の Documi `SKILL.md` を最新版テンプレートで上書き更新 |
 
 ## `documi serve`
 

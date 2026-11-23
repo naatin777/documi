@@ -5,6 +5,7 @@ import path from 'node:path'
 import { parseArgs as parseNodeArgs } from 'node:util'
 import { runDocsCheck } from './core/checker'
 import { ConfigError, resolveProjectPaths } from './core/config'
+import { initDocumiProject } from './core/init'
 import { loadDocuments } from './core/loader'
 import { approveBlock, ReviewError } from './core/reviews'
 import { createApp } from './server/app'
@@ -17,7 +18,7 @@ function usage(): void {
   console.log(`Documi CLI
 
 Usage:
-  documi init [options]                新規プロジェクト向け docs/ 雛形を生成
+  documi init [options]                新規・既存プロジェクト向け docs/ 雛形と Agent Skills を生成
   documi serve [options]               Web UI・REST API・MCP (HTTP) サーバーを起動
   documi mcp [options]                 MCP サーバーを stdio モードで起動 (AI エディタ連携用)
   documi check [options]               ドキュメント・グラフ・ASTシンボル・テスト結果を一括検証
@@ -27,6 +28,10 @@ Usage:
 Options:
   --project <dir>      プロジェクトルート (既定: cwd または DOCUMI_PROJECT_ROOT / --docs 指定時はその親)
   --docs <dir>         docs ディレクトリ (既定: 設定ファイルの docs または <project>/docs / DOCUMI_DOCS_DIR)
+  --skills-dir <dir>   Agent Skills 出力先 (init 用、既定: <project>/.agents/skills)
+  --skills-only        docs/ を作らず Agent Skills のみ生成 (init 用)
+  --no-skills          Agent Skills を生成しない (init 用)
+  --force-skills       既存の Documi SKILL.md を最新版で上書き更新 (init 用)
   --port <number>      待ち受けポート (serve 用、既定: 3000 または PORT)
   --host <addr>        バインドアドレス (serve 用、既定: 127.0.0.1 または HOST)
   --test-report <xml>  JUnit XML テストレポートのパス (check 用)
@@ -46,6 +51,10 @@ Options:
 const CLI_OPTIONS = {
   docs: { type: 'string' },
   project: { type: 'string' },
+  'skills-dir': { type: 'string' },
+  'skills-only': { type: 'boolean' },
+  'no-skills': { type: 'boolean' },
+  'force-skills': { type: 'boolean' },
   port: { type: 'string' },
   host: { type: 'string' },
   'test-report': { type: 'string' },
@@ -92,91 +101,48 @@ function resolveCliPaths(flags: CliFlags) {
   })
 }
 
-const INIT_TEMPLATES: Record<string, string> = {
-  'goals/project-goal.mdx': `---
-type: goal
-title: プロジェクト目標
-description: このプロジェクトが解決したい課題と達成したい状態
-tags: [goal]
----
-
-# プロジェクト目標
-
-ここに「なぜこのシステムを作るのか」「誰の何を解決するのか」を記述します。
-すべての \`normative\` な \`<Spec>\` は \`derives\` でこの Goal に接続します。
-`,
-  'domain/glossary.mdx': `---
-type: domain
-title: ドメイン用語集
-description: 人間と AI が共有するユビキタス言語とコードシンボルの対応表
-tags: [domain, glossary]
----
-
-# ドメイン用語集
-
-<TermDef id="ExampleTerm" aliases="サンプル用語">
-  プロジェクト内で繰り返し使う主要概念を定義します。\`symbols="src/example.ts#Example"\` を付けるとホバー時に実コードも表示されます。
-</TermDef>
-`,
-  'decisions/first-decision.mdx': `---
-type: decision
-title: 初期アーキテクチャ方針
-description: 主要な技術選定とトレードオフの記録
-date: ${new Date().toISOString().slice(0, 10)}
-tags: [adr]
----
-
-# 初期アーキテクチャ方針
-
-<Outcome id="dec.initial-architecture" stability="evolving">
-  決定した結論を 2〜3 行で簡潔に記述します。AI への常時コンテキストとして優先投入されます。
-</Outcome>
-
-## 背景・比較検討
-
-ここに選択肢の比較やトレードオフの詳細を残します。
-`,
-  'specs/example.mdx': `---
-type: spec
-title: サンプル機能仕様
-description: 最初の仕様テンプレート
-tags: [spec]
-derives:
-  - goals/project-goal
----
-
-# サンプル機能仕様
-
-<Spec id="example.behavior" stability="evolving">
-  **When** ユーザーが対象操作を行ったとき、
-  **the** システム **shall** 期待される結果を返す。
-</Spec>
-`,
-}
-
 async function cmdInit(flags: CliFlags): Promise<number> {
   const { docsDir, projectRoot } = resolveCliPaths(flags)
-  const created: string[] = []
-  const skipped: string[] = []
-
-  for (const [rel, content] of Object.entries(INIT_TEMPLATES)) {
-    const abs = path.join(docsDir, rel)
-    if (existsSync(abs)) {
-      skipped.push(rel)
-      continue
-    }
-    await mkdir(path.dirname(abs), { recursive: true })
-    await writeFile(abs, content, 'utf-8')
-    created.push(rel)
-  }
+  const skillsDir = typeof flags['skills-dir'] === 'string' ? path.resolve(flags['skills-dir']) : undefined
+  const result = await initDocumiProject({
+    docsDir,
+    projectRoot,
+    skillsDir,
+    skillsOnly: flags['skills-only'] === true,
+    noSkills: flags['no-skills'] === true,
+    forceSkills: flags['force-skills'] === true,
+  })
 
   const relDocs = path.relative(projectRoot, docsDir).split(path.sep).join('/') || 'docs'
-  console.log(`Documi Init: ${docsDir}`)
-  for (const rel of created) console.log(`  + created ${rel}`)
-  for (const rel of skipped) console.log(`  - skipped ${rel} (already exists)`)
+  if (flags['skills-only'] !== true) {
+    console.log(`Documi Init (docs): ${result.docsDir}`)
+    for (const rel of result.createdDocs) console.log(`  + created ${rel}`)
+    for (const rel of result.skippedDocs) console.log(`  - skipped ${rel} (already exists)`)
+  }
+  if (flags['no-skills'] !== true) {
+    console.log(`Documi Init (Agent Skills): ${result.skillsDir}`)
+    for (const rel of result.createdSkills) console.log(`  + created ${rel}`)
+    for (const rel of result.updatedSkills) console.log(`  ~ updated ${rel}`)
+    for (const rel of result.skippedSkills) console.log(`  - skipped ${rel} (already exists)`)
+  }
   console.log('\n推奨 .gitignore 設定:')
   console.log(`  ${relDocs}/.documi/cache/`)
   console.log(`  ${relDocs}/.documi/test-results.xml`)
+  console.log('\nMCP 設定例 (AI エディタの MCP 設定へ追加):')
+  console.log(
+    JSON.stringify(
+      {
+        mcpServers: {
+          documi: {
+            command: 'documi',
+            args: ['mcp', '--project', projectRoot],
+          },
+        },
+      },
+      null,
+      2,
+    ),
+  )
   console.log('\n次のステップ:')
   console.log('  documi check')
   console.log('  documi serve')
