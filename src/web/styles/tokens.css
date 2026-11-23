@@ -148,9 +148,9 @@ body {
 
 body.is-resizing {
   user-select: none;
-  cursor: col-resize !important;
+  cursor: col-resize;
 }
 
-body.is-resizing * {
-  cursor: col-resize !important;
+body.is-resizing > * {
+  pointer-events: none;
 }

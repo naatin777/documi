@@ -353,7 +353,7 @@
 
 .codeblock-body .shiki,
 .shiki-host .shiki {
-  background: transparent !important;
+  background: transparent;
   counter-reset: shiki-line;
   font-family: var(--font-mono);
   font-size: 13px;

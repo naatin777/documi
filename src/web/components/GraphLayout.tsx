@@ -168,7 +168,7 @@ export default function GraphLayout() {
         )}
 
         {tab === 'matrix' && (
-          <article className="page doc-page !max-w-[1120px]">
+          <article className="page doc-page max-w-[1120px] print:max-w-none">
             <section>
               <div className="mb-3.5 flex flex-wrap gap-1.5">
                 {(['all', 'verified', 'unimplemented', 'drifted', 'unreviewed', 'orphan'] as const).map((f) => (

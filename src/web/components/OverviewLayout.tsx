@@ -18,8 +18,9 @@ export default function OverviewLayout() {
 
   const totalIssues = data ? data.indexIssues.length + data.docIssues.length : 0
 
-  const cardClass =
-    'block rounded-lg border border-line border-l-[3px] border-l-[var(--tc)] bg-surface px-3.5 py-3 text-inherit no-underline hover:bg-subtle'
+  const baseCardClass =
+    'block rounded-lg border border-line border-l-[3px] bg-surface px-3.5 py-3 text-inherit no-underline hover:bg-subtle'
+  const cardClass = `${baseCardClass} border-l-[var(--tc)]`
 
   const kvListClass =
     'm-0 grid list-none gap-1.5 p-0 [&_li]:flex [&_li]:justify-between [&_li]:text-[13px] [&_li]:text-fg-muted [&_strong]:text-fg'
@@ -128,7 +129,7 @@ export default function OverviewLayout() {
                     <Link
                       key={b.id}
                       to={`/docs/${encodeDocId(b.docId)}#block-${encodeURIComponent(b.id)}`}
-                      className={`${cardClass} !border-l-amber-600`}
+                      className={`${baseCardClass} border-l-amber-600`}
                     >
                       <div className="mb-1 flex items-center gap-2">
                         <code className="sem-id">{b.id}</code>

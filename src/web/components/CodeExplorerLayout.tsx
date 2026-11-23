@@ -495,11 +495,11 @@ export default function CodeExplorerLayout() {
                                   <div className="flex items-baseline justify-between gap-3">
                                     {htmlLine !== null ? (
                                       <span
-                                        className="shiki !bg-transparent"
+                                        className="shiki bg-transparent"
                                         dangerouslySetInnerHTML={{ __html: htmlLine || ' ' }}
                                       />
                                     ) : (
-                                      <span className="!bg-transparent">{lineText || ' '}</span>
+                                      <span className="bg-transparent">{lineText || ' '}</span>
                                     )}
                                     {lineSpecs && (
                                       <span className="inline-flex shrink-0 gap-1">

@@ -610,7 +610,7 @@
   .sem-diff-close,
   .term-popover,
   .bundle-toolbar {
-    display: none !important;
+    display: none;
   }
 
   .bundle-cover,

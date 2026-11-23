@@ -1,5 +1,5 @@
 import { Columns2, History, PanelRightClose } from 'lucide-react'
-import { useMemo, useState } from 'react'
+import { useMemo, useState, type CSSProperties } from 'react'
 import { useTranslation } from 'react-i18next'
 import { NavLink } from 'react-router'
 import type { ChangedLineRange, Document, DocumentHistory, GitCommitEntry, ResolvedRelation } from '../../core/types'
@@ -138,8 +138,8 @@ export default function SidePanel({
         label={t('resize.inspector')}
       />
       <aside
-        className="flex min-h-0 min-w-0 shrink-0 grow-0 flex-col overflow-hidden border-l border-line bg-sidebar max-[900px]:flex-none max-[900px]:!basis-auto max-[900px]:overflow-visible max-[900px]:border-t max-[900px]:border-l-0 print:hidden"
-        style={{ flexBasis: `${panelWidth}px` }}
+        className="flex min-h-0 min-w-0 shrink-0 grow-0 flex-col overflow-hidden border-l border-line bg-sidebar max-[900px]:flex-none max-[900px]:basis-auto max-[900px]:overflow-visible max-[900px]:border-t max-[900px]:border-l-0 min-[901px]:basis-[var(--pane-width)] print:hidden"
+        style={{ '--pane-width': `${panelWidth}px` } as CSSProperties}
         aria-label={t('inspector.ariaLabel')}
       >
         <header className="flex shrink-0 items-center justify-between gap-1.5 border-b border-line px-2.5 py-1.5">
