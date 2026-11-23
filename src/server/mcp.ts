@@ -22,6 +22,7 @@ import {
   querySpecs,
   searchDocuments,
 } from '../core/query'
+import { retrieveContext } from '../core/retrieval'
 import {
   ARTIFACT_TYPES,
   BLOCK_KINDS,
@@ -50,9 +51,10 @@ const DOCUMI_MCP_INSTRUCTIONS = [
   '',
   'Recommended workflow:',
   '1. Progressive disclosure (read before editing):',
-  '   - Call get_project_map first to load compact Goal/Architecture summaries, Decision <Outcome> blocks, Domain Terms, and Review/Realization summaries (pass full: true only when full Goal/Architecture bodies are needed).',
-  '   - Call query_specs or search_documents to locate relevant <Spec> blocks or documents (query_specs returns compact summaries by default; pass full: true only when full trace arrays are needed).',
-  '   - Call get_spec_context for each target Spec ID to fetch the spec body, upstream Goal summaries, unresolved human feedback, related Design/Contract/Decision docs, Terms, and <SourceRef> anchors.',
+  '   - Call retrieve_context with a natural-language task or question when you do not know the exact Spec ID — it runs BM25 + glossary alias expansion + graph traversal (upstream Goals, Decision <Outcome>s, related docs, Terms, <SourceRef>s) within a character budget.',
+  '   - Call get_project_map for a project-wide overview (Goal/Architecture summaries, Decision <Outcome>s, Domain Terms, Review/Realization summaries; pass full: true only if full bodies are needed).',
+  '   - Call query_specs or search_documents to filter/search specific blocks or docs (query_specs returns compact summaries by default; pass full: true only when full trace arrays are needed).',
+  '   - Call get_spec_context for a known Spec ID to inspect its exact body, feedback, upstream Goals, and linked code/docs.',
   '   - Only call get_document or get_relations when full document prose or graph edges are needed.',
   '2. Surgical editing (prefer over full-file rewrites):',
   '   - Use update_block, add_block, upsert_term, scaffold_document, and rename_block_id (always preview with dryRun: true first).',
@@ -225,15 +227,44 @@ function createDocumiMcpServer(store: DocsStore, projectRoot?: string): McpServe
   registerTool(
     'search_documents',
     {
-      description: 'ドキュメント本文・タイトル・タグおよびセマンティックブロックを横断して全文検索します。',
+      description:
+        'ドキュメント本文・タイトル・タグおよびセマンティックブロックを BM25＋用語集同義語展開で横断検索します。',
       inputSchema: {
-        query: z.string().min(1).describe('検索キーワード (スペース区切りで AND 検索)'),
+        query: z.string().min(1).describe('検索キーワードまたは自然文'),
         type: optionalTypeSchema,
         limit: z.number().int().min(1).max(100).optional().describe('最大返却件数 (既定 20)'),
       },
     },
     async ({ query, type, limit }: { query: string; type?: ArtifactType; limit?: number }) =>
       jsonResult(searchDocuments(getIndex(), query, { type, limit })),
+  )
+
+  registerTool(
+    'retrieve_context',
+    {
+      description:
+        '自然文の質問・タスク記述から、BM25＋用語集同義語展開＋明示グラフ展開（上流 Goal・Decision Outcome・関連 Contract/Design・用語・SourceRef）を文字数予算内で 1 発取得します。',
+      inputSchema: {
+        query: z.string().min(1).describe('自然文の質問またはタスク内容 (例: "静的サイト書き出しの仕様と制約")'),
+        type: optionalTypeSchema,
+        limit: z.number().int().min(1).max(30).optional().describe('一次ヒットの最大件数 (既定 8)'),
+        budget: z.number().int().min(500).max(40000).optional().describe('返却コンテキストの文字数予算 (既定 6000)'),
+        includeGraph: optionalBoolSchema('グラフ近傍の関連文脈を含めるか (既定: true)'),
+      },
+    },
+    async ({
+      query,
+      type,
+      limit,
+      budget,
+      includeGraph,
+    }: {
+      query: string
+      type?: ArtifactType
+      limit?: number
+      budget?: number
+      includeGraph?: boolean
+    }) => jsonResult(retrieveContext(getIndex(), query, { type, limit, budget, includeGraph })),
   )
 
   registerTool(

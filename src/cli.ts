@@ -26,6 +26,7 @@ import {
   querySpecs,
   searchDocuments,
 } from './core/query'
+import { retrieveContext } from './core/retrieval'
 import { approveBlock, ReviewError } from './core/reviews'
 import {
   ARTIFACT_TYPES,
@@ -85,7 +86,8 @@ Usage:
   documi list [--type <type>] [options]          ドキュメント一覧を取得
   documi show <doc-id> [options]                 ドキュメント本文・ブロック・関係・問題一覧を取得
   documi relations <id> [options]                ドキュメントまたはブロックの外向き・逆参照を取得
-  documi search <query...> [options]             ドキュメントとセマンティックブロックを横断全文検索
+  documi search <query...> [options]             ドキュメントとセマンティックブロックを横断全文検索 (BM25 + 用語展開)
+  documi retrieve <query...> [options]           自然文から BM25 + グラフ展開で関連 Spec・Goal・ADR・SourceRef を 1 発取得
   documi query [filters] [options]               セマンティックブロックを多軸フィルタ検索
   documi context <id> [options]                  Spec の上流 Goal・未解決 FB・関連文書・用語・SourceRef を集約
 
@@ -112,7 +114,9 @@ Options:
   --prs                   gh CLI から PR 情報も取得して紐づける (check 用)
   --author <name>         承認者名 (approve 用)
   --type <type>           Artifact Type (list / search / scaffold 用)
-  --limit <n>             最大返却件数 (search 用、既定: 20)
+  --limit <n>             最大返却件数 (search 既定: 20 / retrieve 既定: 8)
+  --budget <chars>        retrieve の返却文字数予算 (既定: 6000)
+  --no-graph              retrieve でグラフ近傍の関連文脈を展開しない
   --kind <kind>           ブロック種別 spec|constraint|outcome|note|term (query / block add 用)
   --intent <intent>       採用意思 normative|idea|rejected|informative (query / block 用)
   --stability <level>     安定度 stable|evolving|volatile (query / block 用)
@@ -177,6 +181,8 @@ const CLI_OPTIONS = {
   prs: { type: 'boolean' },
   type: { type: 'string' },
   limit: { type: 'string' },
+  budget: { type: 'string' },
+  'no-graph': { type: 'boolean' },
   kind: { type: 'string' },
   intent: { type: 'string' },
   stability: { type: 'string' },
@@ -762,6 +768,91 @@ async function cmdSearch(positionals: string[], flags: CliFlags, io: CliIo): Pro
   return 0
 }
 
+async function cmdRetrieve(positionals: string[], flags: CliFlags, io: CliIo): Promise<number> {
+  const query = positionals.join(' ').trim()
+  if (!query) {
+    throw new CliArgError('検索する質問・タスク内容を指定してください (例: documi retrieve "静的サイト書き出しの仕様")')
+  }
+  const type = parseOptionalArtifactType(flags)
+  const limitRaw = getStringFlag(flags, 'limit')
+  let limit: number | undefined
+  if (limitRaw !== undefined) {
+    const parsed = Number(limitRaw)
+    if (!Number.isInteger(parsed) || parsed < 1 || parsed > 30) {
+      throw new CliArgError(`--limit は 1〜30 の整数で指定してください: "${limitRaw}"`)
+    }
+    limit = parsed
+  }
+  const budgetRaw = getStringFlag(flags, 'budget')
+  let budget: number | undefined
+  if (budgetRaw !== undefined) {
+    const parsed = Number(budgetRaw)
+    if (!Number.isInteger(parsed) || parsed < 500 || parsed > 40000) {
+      throw new CliArgError(`--budget は 500〜40000 の整数で指定してください: "${budgetRaw}"`)
+    }
+    budget = parsed
+  }
+
+  const { docsDir, projectRoot, testReportPath } = resolveCliPaths(flags)
+  const store = await DocsStore.open(docsDir, { projectRoot, testReportPath })
+  const res = retrieveContext(store.getIndex(), query, {
+    type,
+    limit,
+    budget,
+    includeGraph: flags['no-graph'] !== true,
+  })
+
+  if (flags.json === true) {
+    printJson(io, res)
+    return 0
+  }
+
+  io.out(`Retrieve "${res.query}" [${res.mode}] (${res.hits.length} hits, budget ${res.budgetUsed}/${res.budgetLimit})`)
+  if (res.expandedTerms.length > 0) {
+    io.out(`  glossary expanded: ${res.expandedTerms.join(', ')}`)
+  }
+  if (res.hits.length > 0) {
+    io.out(`\nPrimary Hits (${res.hits.length}):`)
+    for (const h of res.hits) {
+      const loc = h.startLine ? `${h.docPath}:${h.startLine}-${h.endLine}` : h.docPath
+      const status = h.realizationStatus ? ` ${h.realizationStatus}` : ''
+      io.out(
+        `  [${h.kind === 'block' ? (h.blockKind ?? 'block') : h.type}] ${h.id} (${loc}, score=${h.score}${status})`,
+      )
+      if (h.excerpt) io.out(`    ${h.excerpt}`)
+    }
+  }
+  if (res.upstreamGoals.length > 0) {
+    io.out(`\nUpstream Goals (${res.upstreamGoals.length}):`)
+    for (const g of res.upstreamGoals) io.out(`  - ${g.id}: ${g.title} — ${g.description}`)
+  }
+  if (res.decisionOutcomes.length > 0) {
+    io.out(`\nDecision Outcomes (${res.decisionOutcomes.length}):`)
+    for (const o of res.decisionOutcomes) {
+      io.out(`  - ${o.id} (${o.docId}${o.date ? `, ${o.date}` : ''}): ${o.body}`)
+    }
+  }
+  if (res.relatedDocuments.length > 0) {
+    io.out(`\nRelated Docs (${res.relatedDocuments.length}):`)
+    for (const d of res.relatedDocuments) io.out(`  - [${d.type}] ${d.id} (${d.relation}): ${d.title}`)
+  }
+  if (res.relevantTerms.length > 0) {
+    io.out(`\nTerms (${res.relevantTerms.length}):`)
+    for (const t of res.relevantTerms) {
+      const alias = t.aliases.length > 0 ? ` [${t.aliases.join(', ')}]` : ''
+      io.out(`  - ${t.id}${alias}: ${t.definition}`)
+    }
+  }
+  if (res.sourceRefs.length > 0) {
+    io.out(`\nSource Refs (${res.sourceRefs.length}):`)
+    for (const r of res.sourceRefs) {
+      const loc = r.symbol ? `#${r.symbol}` : r.lines ? `:${r.lines}` : ''
+      io.out(`  - ${r.file}${loc} (via ${r.fromDocId})`)
+    }
+  }
+  return 0
+}
+
 async function cmdQuery(flags: CliFlags, io: CliIo): Promise<number> {
   if (flags.suspect === true && flags['no-suspect'] === true) {
     throw new CliArgError('--suspect と --no-suspect は同時に指定できません')
@@ -1083,6 +1174,7 @@ export async function runCli(argv: string[], io: CliIo = DEFAULT_IO): Promise<nu
     if (command === 'show') return await cmdShow(positionals, flags, io)
     if (command === 'relations') return await cmdRelations(positionals, flags, io)
     if (command === 'search') return await cmdSearch(positionals, flags, io)
+    if (command === 'retrieve') return await cmdRetrieve(positionals, flags, io)
     if (command === 'query') return await cmdQuery(flags, io)
     if (command === 'context') return await cmdContext(positionals, flags, io)
     if (command === 'block') return await cmdBlock(positionals, flags, io)

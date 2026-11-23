@@ -177,10 +177,10 @@ description: Documi CLI を使って Living Specification（仕様・設計・AD
 
 ## 1. 段階的コンテキスト取得（実装前に読む）
 
-1. \`documi map\` — Goal・Architecture・Decision \`<Outcome>\`・ドメイン用語・Review / Realization 全体像を一括取得する（機械処理時は \`documi map --json\`）。
-2. \`documi query [--kind spec] [--review ...] [--realization ...] [--has-feedback] [--q <語>]\` — 関連する \`<Spec>\` ブロックを絞り込む。キーワード横断検索には \`documi search "<query>"\` を使う。
-3. \`documi context <spec-id>\` — 対象 Spec に紐づく上流 Goal・未解決の人間フィードバック・関連 Design/Contract・Decision \`<Outcome>\`・用語・\`<SourceRef>\` をまとめて取得する（本文や詳細が必要なら \`documi context <spec-id> --json\`）。
-4. 全文や参照関係が必要なときだけ \`documi show <doc-id>\` や \`documi relations <id>\` を呼ぶ。
+1. **Spec ID がまだ分からないタスク**: \`documi retrieve "<自然文のタスクや質問>"\` — BM25＋用語集同義語展開＋グラフ展開で関連 Spec・上流 Goal・Decision \`<Outcome>\`・用語・\`<SourceRef>\` を文字数予算内で 1 発取得する。
+2. **全体像の把握**: \`documi map\` — Goal・Architecture・Decision \`<Outcome>\`・ドメイン用語・Review / Realization 全体像を一括取得する（機械処理時は \`documi map --json\`）。
+3. **条件絞り込み・横断検索**: \`documi query [--kind spec] [--review ...] [--realization ...] [--has-feedback] [--q <語>]\` または \`documi search "<query>"\`。
+4. **特定 Spec の深掘り**: \`documi context <spec-id>\` — 対象 Spec 本文・上流 Goal・未解決フィードバック・関連文書・用語・\`<SourceRef>\` を取得する（全文や参照関係が必要なら \`documi show <doc-id>\` / \`documi relations <id>\`）。
 
 ## 2. CLI による精密編集（差分を最小限に保つ）
 
@@ -273,10 +273,10 @@ Prefer the **default compact text output** for reading to minimize token usage; 
 
 ## 1. Progressive Disclosure (Read Before Coding)
 
-1. Run \`documi map\` first to load Goals, Architecture summaries, Decision \`<Outcome>\` blocks, Domain Terms, and overall Review / Realization status (use \`documi map --json\` for structured output).
-2. Run \`documi query [--kind spec] [--review ...] [--realization ...] [--has-feedback] [--q <text>]\` to filter relevant \`<Spec>\` blocks, or \`documi search "<query>"\` for full-text search.
-3. Run \`documi context <spec-id>\` for each target Spec ID to retrieve its upstream Goals, unresolved human feedback, related Design/Contract docs, Decision \`<Outcome>\` blocks, referenced Terms, and \`<SourceRef>\` anchors (use \`--json\` when you need the exact spec body & structured metadata).
-4. Only run \`documi show <doc-id>\` or \`documi relations <id>\` when full surrounding prose or graph edges are needed.
+1. **Unknown Spec ID / natural-language task**: Run \`documi retrieve "<task or question>"\` — combines BM25, glossary alias expansion, and graph traversal (upstream Goals, Decision \`<Outcome>\`s, related docs, Terms, \`<SourceRef>\`s) within a character budget in one shot.
+2. **Project overview**: Run \`documi map\` to load Goals, Architecture summaries, Decision \`<Outcome>\` blocks, Domain Terms, and Review / Realization status (use \`documi map --json\` for structured output).
+3. **Filtering & search**: Run \`documi query [--kind spec] [--review ...] [--realization ...] [--has-feedback] [--q <text>]\` or \`documi search "<query>"\`.
+4. **Target Spec deep dive**: Run \`documi context <spec-id>\` for its spec body, upstream Goals, unresolved feedback, related Design/Contract docs, Terms, and \`<SourceRef>\` anchors (use \`documi show <doc-id>\` or \`documi relations <id>\` only when full prose or graph edges are needed).
 
 ## 2. Surgical Editing via CLI (Keep Diffs Minimal)
 
