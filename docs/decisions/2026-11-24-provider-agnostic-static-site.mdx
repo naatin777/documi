@@ -1,0 +1,36 @@
+---
+type: decision
+title: プロバイダ非依存・オプションの静的サイト書き出し（HashRouter + インメモリ事前計算）を採用する
+description: Cloudflare / Vercel / Netlify / GitHub Pages / S3 等にロックインせず、既存の動的 Web UI と同一コードで読み取り専用静的サイトを出力する判断
+date: 2026-11-24
+tags: [adr, static-site, web-ui, hosting]
+---
+
+# プロバイダ非依存・オプションの静的サイト書き出し（HashRouter + インメモリ事前計算）を採用する
+
+<Outcome id="dec.provider-agnostic-static-site" stability="stable">
+  Documi はオプション機能として `documi build-site`（`src/server/site.ts`）を提供し、既存の React SPA とインメモリ Hono アプリ（`createApp().request()`）をそのまま再利用して、**特定ホスティングに依存しない読み取り専用の静的ディレクトリ**を出力する。クライアント側は `window.__DOCUMI_STATIC__` の有無で自動的に `HashRouter` と静的 JSON 取得モードへ切り替わり、任意サブパス配信（GitHub Pages の `/<repo>/` 等）でもサーバー側のリライト設定なしで動作する。Code Explorer 用のファイル JSON は SHA-256 ハッシュ索引（`data/code/files/file-index.json`）経由で安全に配置し、`--no-code` でソース全文を除外できる。
+</Outcome>
+
+## 背景と課題
+
+- プロジェクトチームやステークホルダーへ Living Specification を共有する際、全員がローカルで `documi serve` を起動できるとは限らない。
+- 一方で、Documi の主軸はローカルでの執筆・承認・ライブ更新であり、特定のクラウドプロバイダ（GitHub Pages 専用や Cloudflare Workers 専用）にロックインしたビルド設定やランタイム依存を持ち込むべきではない。
+- また、静的配信では以下の落とし穴がある：（1）サブパス配置時のフォント・動的チャンク preload・favicon 解決崩れ、（2）ブラウザリロード時の SPA ルーティング 404、（3）`[id].tsx` や `.env.example` のような特殊ファイル名をそのまま静的パスに置くと CDN / ホスティングが拒否・誤解釈する問題。
+
+## 検討した選択肢と棄却理由
+
+- **採用: インメモリ Hono 事前計算 ＋ `HashRouter` ＋ 相対パス書き換え ＋ ハッシュ索引化**
+  - 既存の REST API レスポンス生成ロジックを 100% 再利用でき、動的モードと静的モードのデータ不整合が起きない。
+  - `HashRouter` により、サーバー側 SPA フォールバック設定を持たない S3 や GitHub Pages サブパスでも全リンク・リロードが確実に動く。
+  - CSS の `url(/assets/...)` や Vite `preload-helper` のベースパス、favicon を相対/指定 `--base` へ書き換え、さらに `_headers`・`.nojekyll`・`404.html` を同梱することで主要ホスティングすべてで追加設定なしに動く。
+  - ソースコード JSON を `data/code/files/<sha256>.json` + `file-index.json` へハッシュ化することで、ドットファイルや角括弧ファイル名でも CDN 制約を踏まない。
+- **棄却: 静的サイト専用の別フロントエンド（SSG / Astro 等）を別途構築する**
+  - Web UI（Graph・Matrix・Side-by-Side・Code Explorer・MDX レンダリング）を二重実装することになり、保守コストが破綻する。
+- **棄却: `BrowserRouter` のまま特定プロバイダの `_redirects` / `vercel.json` 前提にする**
+  - プロバイダごとに設定ファイルが増殖し、サブパス配信やローカル `file://` / 汎用 S3 静的ホスティングで破綻する。
+
+## 影響とガードレール
+
+- 静的モードは **完全読み取り専用** とし、承認・フィードバック投稿・SSE ライブ更新・サーバーサイド PDF Export など書き込み／サーバー依存操作は無効化（非表示または明示案内）する。
+- 公開サイトでソースコード全文を見せたくないリポジトリ向けに `--no-code` オプションを維持し、指定時はコード全文 JSON と `<SourceRef>` 生抜粋を出力しない。

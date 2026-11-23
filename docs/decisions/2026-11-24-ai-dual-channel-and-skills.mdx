@@ -1,0 +1,38 @@
+---
+type: decision
+title: AI 連携を MCP（instructions 自己完結）と CLI + Agent Skills の二本立てにし、AGENTS.md を生成しない
+description: AI エージェント向けインターフェースを MCP 単一依存にせず CLI + Agent Skills と並列提供し、既存プロジェクト設定との衝突を避ける設計判断
+date: 2026-11-24
+tags: [adr, ai, mcp, cli, skills]
+---
+
+# AI 連携を MCP（instructions 自己完結）と CLI + Agent Skills の二本立てにし、AGENTS.md を生成しない
+
+<Outcome id="dec.ai-dual-channel-skills" stability="stable">
+  Documi の AI 連携は、共通のクエリ・検索・編集コア（`src/core/query.ts` / `retrieval.ts` / `editor.ts`）を共有したうえで、**（1）`McpServer` の `instructions` に運用手順と不変ルールを内蔵した自己完結 MCP 経路**、および **（2）18+ コマンドの AI 向け CLI（既定コンパクト出力＋`--json`・`--full`・`--body -`）＋ `documi init` が生成する標準 Agent Skills（`.agents/skills/`、`--en` 既定 / `--ja`）** の二本立てで提供する。`documi init` は既存プロジェクトの `AGENTS.md` / `CLAUDE.md` を作成・書き換えしない。
+</Outcome>
+
+## 背景と課題
+
+- コーディングエージェント環境によって、MCP サーバーを常駐できる環境（IDE 等）と、シェル実行のみが可能な環境（CI・ターミナル・軽量エージェント）が混在する。
+- MCP のみに寄せると、MCP 未設定環境で AI が `docs/` の生ファイルを全件読み込む非効率な運用に逆戻りする。一方、Agent Skills が MCP ツールを前提にすると、スキル単独では動かない結合が生まれる。
+- また、既存リポジトリの多くはすでに独自の `AGENTS.md` / `CLAUDE.md` を持っており、`documi init` がそこへ自動追記するとコンフリクトや既存ルール汚染を引き起こす。
+- さらに、Dogfooding で `map` / `query` / `context` の出力を検証したところ、既定で全文・全トレース配列を JSON 整形して返すとコンテキストを 60% 以上無駄に消費することが判明した。
+
+## 検討した選択肢と棄却理由
+
+- **採用: 共通 Core の上に「自己完結 MCP」と「CLI + Agent Skills」を並列構築**
+  - MCP クライアントは接続するだけで `instructions` から推奨手順（段階的取得→精密編集→検証）を理解できる。
+  - CLI + Agent Skills は MCP 不要で動作し、`documi init` は `.agents/skills/documi/` と `.agents/skills/documi-bootstrap/` のみを冪等に生成するため既存 `AGENTS.md` と競合しない。
+  - `map` / `query` / `context` は既定でコンパクトなサマリを返し、詳細が必要な場合のみ `--full` / `full: true` で段階展開する。
+- **棄却: MCP 専用に統一し、CLI は管理コマンド（`serve` / `check`）のみに留める**
+  - MCP を接続できないエージェントや CI・シェルスクリプトから Documi の構造検索・精密編集を使えず、利用場面を狭める。
+- **棄却: `documi init` で `AGENTS.md` へルールを自動追記する**
+  - 既存のチーム規約との衝突・二重管理・言語混在を招き、アンインストールやアップデートも難しくなる。
+- **棄却: 既定の JSON / MCP レスポンスに常に全本文と全トレース配列を含める**
+  - トークン浪費とコンテキスト汚染を招き、段階的開示（Progressive Disclosure）の利点を損なう。
+
+## 影響とガードレール
+
+- CLI と MCP の仕様乖離を防ぐため、データ投影ロジックは必ず `src/core/query.ts` に集約し、エントリーポイント（`src/cli.ts` / `src/server/mcp.ts`）には薄い引数解釈と出力整形だけを置く。
+- Agent Skills の既定言語はグローバル導入を意識して英語（`--en`）とし、日本語リポジトリ向けに `--ja` を明示選択できるようにする。既存スキルは `--force-skills` なしでは上書きしない。

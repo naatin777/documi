@@ -11,6 +11,7 @@ satisfies:
   - ui.glossary-autolink
   - ui.search-palette
   - ui.code-explorer
+  - ui.doc-history
 ---
 
 # Web UI アーキテクチャと Side-by-Side 閲覧設計
@@ -65,3 +66,10 @@ satisfies:
 - `<SourceRef>`・`SidePanel` の `Source Refs`・`BlockReviewControls` の実装/テスト箇所リンクから `/code?file=...&line=...` へ双方向ジャンプできる。
 
 <SourceRef file="src/web/components/CodeExplorerLayout.tsx" symbol="CodeExplorerLayout" satisfies="ui.code-explorer" />
+
+## 6. ドキュメント鮮度・最新変更ハイライト・過去版 Side-by-Side 閲覧
+
+- Overview・Explorer・文書ヘッダーに `Document.freshness`（作成日時・最終更新日時・未コミット変更マーク）を表示する。
+- 文書閲覧時は `GET /api/history` から取得した本文基準の変更行レンジと mdast 要素の行範囲を照合し、最新変更箇所の左アクセントバーと目次ドットを強調表示する（ツールバーから ON/OFF 切替可能）。
+- `SidePanel` の `History` タブで過去コミットを選択すると `GET /api/history/revision` から該当版を取得し、共通の `DocPeekPane` 領域へ現在版と並べてレンダリングする。
+- 静的サイトモード（`window.__DOCUMI_STATIC__`）時は `HashRouter` と静的 JSON アダプタへ自動切替し、SSE ライブ更新や承認操作を無効化した読み取り専用ビューアとして動作する。
