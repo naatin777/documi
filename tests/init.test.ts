@@ -39,8 +39,9 @@ describe('documi init & Agent Skills', () => {
       }
 
       const mainSkill = await readFile(path.join(first.skillsDir, 'documi/SKILL.md'), 'utf-8')
-      expect(mainSkill).toContain('documi map --json')
-      expect(mainSkill).toContain('documi context <spec-id> --json')
+      expect(mainSkill).toContain('documi map')
+      expect(mainSkill).toContain('documi context <spec-id>')
+      expect(mainSkill).toContain("--body - <<'EOF'")
       expect(mainSkill).toContain('documi check --no-review-edit')
 
       // 生成された docs/ はそのまま documi check がエラー 0 件で通る
@@ -70,7 +71,8 @@ describe('documi init & Agent Skills', () => {
 
       const jaSkill = await readFile(path.join(forced.skillsDir, 'documi/SKILL.md'), 'utf-8')
       expect(jaSkill).toContain('Documi Living Specification 運用ワークフロー（CLI）')
-      expect(jaSkill).toContain('documi map --json')
+      expect(jaSkill).toContain('documi map')
+      expect(jaSkill).toContain("--body - <<'EOF'")
       expect(jaSkill).not.toContain('get_project_map')
     } finally {
       await rm(repo, { recursive: true, force: true })

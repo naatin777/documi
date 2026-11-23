@@ -47,13 +47,13 @@ MCP サーバーを接続しない環境（CLI + Agent Skills 運用やターミ
 
 | Command | 主な Option | 役割 |
 |---|---|---|
-| `documi map` | `--json` | Goal 全文・Architecture 全文・Decision `<Outcome>`・用語・Review/Realization サマリを一括取得 |
+| `documi map` | `--json`, `--full` | Goal / Architecture 概要・Decision `<Outcome>`・用語・Review/Realization サマリを一括取得（`--full` で全文展開） |
 | `documi list` | `--type <type>`, `--json` | ドキュメント一覧を取得 |
 | `documi show <doc-id>` | `--json` | 本文・セマンティックブロック・関係・問題一覧を取得 |
 | `documi relations <id>` | `--json` | ドキュメントまたはブロックの外向き・逆参照を取得 |
 | `documi search <query...>` | `--type <type>`, `--limit <n>`, `--json` | ドキュメントとセマンティックブロックを横断全文検索 |
-| `documi query` | `--kind`, `--intent`, `--stability`, `--review`, `--realization`, `--suspect`/`--no-suspect`, `--has-feedback`/`--no-feedback`, `--q <text>`, `--json` | セマンティックブロックを多軸フィルタ検索 |
-| `documi context <id>` | `--json` | Spec の上流 Goal・未解決フィードバック・関連文書・Decision `<Outcome>`・関連用語・`<SourceRef>` を一括集約 |
+| `documi query` | `--kind`, `--intent`, `--stability`, `--review`, `--realization`, `--suspect`/`--no-suspect`, `--has-feedback`/`--no-feedback`, `--q <text>`, `--json`, `--full` | セマンティックブロックを多軸フィルタ検索（既定は軽量サマリ、`--full` で完全展開） |
+| `documi context <id>` | `--json`, `--full` | Spec の本文・上流 Goal 概要・未解決フィードバック・関連文書・Decision `<Outcome>`・関連用語・`<SourceRef>` を一括集約（`--full` で完全展開） |
 
 ## AI・人間向け 精密編集コマンド（すべて `--json` 対応）
 

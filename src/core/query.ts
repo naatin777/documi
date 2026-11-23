@@ -21,19 +21,67 @@ export interface QuerySpecsFilter {
   suspect?: boolean
   hasFeedback?: boolean
   query?: string
+  /** true のとき各ブロックの全文および realization 詳細配列まで含める（既定: false の軽量サマリ） */
+  full?: boolean
+}
+
+function summarizeText(raw: string, maxChars: number): string {
+  const flat = raw.replace(/\s+/g, ' ').trim()
+  if (flat.length <= maxChars) return flat
+  return `${flat.slice(0, maxChars - 1)}…`
+}
+
+function extractHeadings(body: string, maxHeadings = 12): string[] {
+  const headings: string[] = []
+  for (const line of body.split('\n')) {
+    const m = /^#{1,3}\s+(.+?)\s*$/.exec(line)
+    if (!m) continue
+    headings.push(m[1]!.trim())
+    if (headings.length >= maxHeadings) break
+  }
+  return headings
+}
+
+function toCompactBlock(index: DocsIndex, b: SemanticBlock) {
+  return {
+    id: b.id,
+    kind: b.kind,
+    docId: b.docId,
+    docPath: index.byId.get(b.docId)?.path ?? '',
+    startLine: b.startLine,
+    endLine: b.endLine,
+    ...(b.title ? { title: b.title } : {}),
+    intent: b.intent,
+    stability: b.stability,
+    review: b.review,
+    suspect: b.suspect,
+    ...(b.realization ? { realizationStatus: b.realization.status } : {}),
+    openFeedbackCount: b.feedback.filter((f) => !f.resolved).length,
+    ...(b.derives.length > 0 ? { derives: b.derives } : {}),
+    summary: summarizeText(b.rawBody, 180),
+  }
+}
+
+function toMapDocEntry(d: DocsIndex['documents'][number], full: boolean) {
+  const item: { id: string; title: string; description: string; headings: string[]; body?: string } = {
+    id: d.id,
+    title: d.title,
+    description: d.description,
+    headings: extractHeadings(d.body),
+  }
+  if (full) item.body = d.body
+  return item
 }
 
 /**
  * プロジェクトの初期コンテキスト (Goal / Architecture / Decision Outcome / Domain 用語 / 統計) を構築する。
  * MCP (`get_project_map`) と CLI (`documi map`) が共通利用する。
+ * 既定では Goal / Architecture を概要＋見出し一覧に圧縮し、コンテキスト肥大化を防ぐ（`full: true` で全文を含める）。
  */
-export function buildProjectMap(index: DocsIndex) {
-  const goals = index.documents
-    .filter((d) => d.type === 'goal')
-    .map((d) => ({ id: d.id, title: d.title, description: d.description, body: d.body }))
-  const architecture = index.documents
-    .filter((d) => d.type === 'architecture')
-    .map((d) => ({ id: d.id, title: d.title, description: d.description, body: d.body }))
+export function buildProjectMap(index: DocsIndex, options: { full?: boolean } = {}) {
+  const full = options.full === true
+  const goals = index.documents.filter((d) => d.type === 'goal').map((d) => toMapDocEntry(d, full))
+  const architecture = index.documents.filter((d) => d.type === 'architecture').map((d) => toMapDocEntry(d, full))
   const outcomes = [...index.blocksById.values()]
     .filter((b) => b.kind === 'outcome')
     .map((b) => {
@@ -42,7 +90,7 @@ export function buildProjectMap(index: DocsIndex) {
         id: b.id,
         docId: b.docId,
         stability: b.stability,
-        body: b.rawBody,
+        body: full ? b.rawBody : summarizeText(b.rawBody, 240),
       }
       if (doc?.date) item.date = doc.date
       return item
@@ -54,7 +102,7 @@ export function buildProjectMap(index: DocsIndex) {
       docId: b.docId,
       aliases: b.aliases ?? [],
       symbols: b.symbols ?? [],
-      definition: b.rawBody,
+      definition: full ? b.rawBody : summarizeText(b.rawBody, 160),
     }))
 
   const reviewSummary = { approved: 0, unreviewed: 0, stale: 0, suspect: 0, openFeedback: 0 }
@@ -131,6 +179,7 @@ export function getNodeRelations(index: DocsIndex, id: string) {
 
 /**
  * セマンティックブロックを多軸フィルタ検索する。
+ * 既定では軽量サマリを返し、`full: true` 指定時のみ完全なブロック構造（realization 詳細配列含む）を返す。
  */
 export function querySpecs(index: DocsIndex, filters: QuerySpecsFilter = {}) {
   const q = filters.query?.trim().toLowerCase()
@@ -148,14 +197,22 @@ export function querySpecs(index: DocsIndex, filters: QuerySpecsFilter = {}) {
     if (q && !b.id.toLowerCase().includes(q) && !b.rawBody.toLowerCase().includes(q)) return false
     return true
   })
-  const withPaths = matched.map((b) => Object.assign({}, b, { docPath: index.byId.get(b.docId)?.path ?? '' }))
-  return { blocks: withPaths, count: withPaths.length }
+
+  if (filters.full === true) {
+    const withPaths = matched.map((b) => Object.assign({}, b, { docPath: index.byId.get(b.docId)?.path ?? '' }))
+    return { blocks: withPaths, count: withPaths.length }
+  }
+
+  const compact = matched.map((b) => toCompactBlock(index, b))
+  return { blocks: compact, count: compact.length }
 }
 
 /**
  * 指定した Spec ブロック ID またはドキュメント ID の実装・検証に必要な文脈を一括集約する。
+ * 既定では上流 Goal を概要のみに圧縮し、対象ブロックの realization も要約する（`full: true` で完全展開）。
  */
-export function getSpecContext(index: DocsIndex, id: string) {
+export function getSpecContext(index: DocsIndex, id: string, options: { full?: boolean } = {}) {
+  const full = options.full === true
   const block = index.blocksById.get(id)
   const doc = block ? index.byId.get(block.docId) : getDocument(index, id)
   if (!doc) return null
@@ -166,7 +223,7 @@ export function getSpecContext(index: DocsIndex, id: string) {
   // 上流 (derives) を再帰的に辿る
   const queue = [...targetIds]
   const visited = new Set<string>()
-  const upstreamGoals: { id: string; title: string; body: string }[] = []
+  const upstreamGoals: { id: string; title: string; description: string; body?: string }[] = []
   while (queue.length > 0) {
     const cur = queue.shift()!
     if (visited.has(cur)) continue
@@ -175,7 +232,12 @@ export function getSpecContext(index: DocsIndex, id: string) {
       if (e.kind !== 'derives' || e.from !== cur) continue
       const targetDoc = index.byId.get(e.toDocId)
       if (targetDoc?.type === 'goal' && !upstreamGoals.some((g) => g.id === targetDoc.id)) {
-        upstreamGoals.push({ id: targetDoc.id, title: targetDoc.title, body: targetDoc.body })
+        upstreamGoals.push({
+          id: targetDoc.id,
+          title: targetDoc.title,
+          description: targetDoc.description,
+          ...(full ? { body: targetDoc.body } : {}),
+        })
       }
       queue.push(e.to, e.toDocId)
     }
@@ -207,20 +269,56 @@ export function getSpecContext(index: DocsIndex, id: string) {
     b.feedback.filter((f) => !f.resolved).map((f) => Object.assign({ blockId: b.id }, f)),
   )
 
+  const compactTarget = block
+    ? {
+        id: block.id,
+        kind: block.kind,
+        docId: block.docId,
+        docPath: doc.path,
+        startLine: block.startLine,
+        endLine: block.endLine,
+        ...(block.title ? { title: block.title } : {}),
+        intent: block.intent,
+        stability: block.stability,
+        review: block.review,
+        suspect: block.suspect,
+        derives: block.derives,
+        rawBody: block.rawBody,
+        ...(block.realization
+          ? {
+              realization: {
+                status: block.realization.status,
+                implementations: [...new Set(block.realization.implementations.map((a) => `${a.file}:${a.line}`))],
+                verifications: [...new Set(block.realization.verifications.map((a) => `${a.file}:${a.line}`))],
+                testCounts: {
+                  passed: block.realization.testResults.filter((t) => t.status === 'passed').length,
+                  failed: block.realization.testResults.filter((t) => t.status === 'failed').length,
+                  skipped: block.realization.testResults.filter((t) => t.status === 'skipped').length,
+                },
+              },
+            }
+          : {}),
+      }
+    : { id: doc.id, type: doc.type, title: doc.title, description: doc.description }
+
   return {
-    target: block ? { ...block, docPath: doc.path } : toDocumentSummary(doc),
+    target: full ? (block ? { ...block, docPath: doc.path } : toDocumentSummary(doc)) : compactTarget,
     docPath: doc.path,
     ...(block ? { startLine: block.startLine, endLine: block.endLine } : {}),
-    document: toDocumentSummary(doc),
+    document: full
+      ? toDocumentSummary(doc)
+      : { id: doc.id, type: doc.type, title: doc.title, description: doc.description, path: doc.path },
     openFeedback,
     upstreamGoals,
-    relatedDocuments: relatedDocs.map(toDocumentSummary),
+    relatedDocuments: full
+      ? relatedDocs.map(toDocumentSummary)
+      : relatedDocs.map((d) => ({ id: d.id, type: d.type, title: d.title, description: d.description })),
     decisionOutcomes: outcomes.map((o) => ({ id: o.id, docId: o.docId, body: o.rawBody })),
     relevantTerms: terms.map((t) => ({
       id: t.id,
       aliases: t.aliases ?? [],
       symbols: t.symbols ?? [],
-      body: t.rawBody,
+      body: full ? t.rawBody : summarizeText(t.rawBody, 160),
     })),
     sourceRefs: [...doc.sourceRefs, ...relatedDocs.flatMap((d) => d.sourceRefs)],
   }

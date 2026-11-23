@@ -146,6 +146,7 @@ Options:
   --no-code               Code Explorer / ソーススニペットを含めずに書き出す (build-site 用)
   --revisions <n>         各文書で同梱する過去コミット版の最大件数 (build-site 用、既定: 5)
   --json                  JSON 形式で結果を出力
+  --full                  map / query / context の JSON 出力を全文・詳細配列込みで展開
   -h, --help              ヘルプを表示`)
 }
 
@@ -202,6 +203,7 @@ const CLI_OPTIONS = {
   symbols: { type: 'string' },
   doc: { type: 'string' },
   'dry-run': { type: 'boolean' },
+  full: { type: 'boolean' },
   json: { type: 'boolean' },
   help: { type: 'boolean', short: 'h' },
 } as const
@@ -605,7 +607,7 @@ async function cmdExport(flags: CliFlags, io: CliIo): Promise<number> {
 async function cmdMap(flags: CliFlags, io: CliIo): Promise<number> {
   const { docsDir, projectRoot, testReportPath } = resolveCliPaths(flags)
   const store = await DocsStore.open(docsDir, { projectRoot, testReportPath })
-  const map = buildProjectMap(store.getIndex())
+  const map = buildProjectMap(store.getIndex(), { full: flags.full === true })
 
   if (flags.json === true) {
     printJson(io, map)
@@ -777,6 +779,7 @@ async function cmdQuery(flags: CliFlags, io: CliIo): Promise<number> {
     suspect: flags.suspect === true ? true : flags['no-suspect'] === true ? false : undefined,
     hasFeedback: flags['has-feedback'] === true ? true : flags['no-feedback'] === true ? false : undefined,
     query: getStringFlag(flags, 'q'),
+    full: flags.full === true,
   }
 
   const { docsDir, projectRoot, testReportPath } = resolveCliPaths(flags)
@@ -790,9 +793,10 @@ async function cmdQuery(flags: CliFlags, io: CliIo): Promise<number> {
 
   io.out(`Blocks (${res.count}):`)
   for (const b of res.blocks) {
-    const real = b.realization ? ` realization=${b.realization.status}` : ''
+    const status = 'summary' in b ? b.realizationStatus : b.realization?.status
+    const real = status ? ` realization=${status}` : ''
     const suspect = b.suspect ? ' suspect' : ''
-    const openFb = b.feedback.filter((f) => !f.resolved).length
+    const openFb = 'summary' in b ? b.openFeedbackCount : b.feedback.filter((f) => !f.resolved).length
     const fb = openFb > 0 ? ` feedback=${openFb}` : ''
     io.out(`  [${b.kind}] ${b.id} (${b.docPath}:${b.startLine}-${b.endLine}) review=${b.review}${real}${suspect}${fb}`)
   }
@@ -807,7 +811,7 @@ async function cmdContext(positionals: string[], flags: CliFlags, io: CliIo): Pr
     )
   const { docsDir, projectRoot, testReportPath } = resolveCliPaths(flags)
   const store = await DocsStore.open(docsDir, { projectRoot, testReportPath })
-  const ctx = getSpecContext(store.getIndex(), id)
+  const ctx = getSpecContext(store.getIndex(), id, { full: flags.full === true })
   if (!ctx) {
     io.err(`✗ 対象が見つかりません: ${id}`)
     return 1
