@@ -110,7 +110,7 @@ function loadStaticCodeFileIndex(): Promise<Record<string, string>> {
 
 async function searchStatic(q: string, type: ArtifactType | '' | undefined, limit: number): Promise<SearchResponse> {
   const trimmed = q.trim()
-  if (!trimmed) return { query: q, results: [], count: 0 }
+  if (!trimmed) return { query: q, results: [], count: 0, mode: 'bm25' }
   const tokens = trimmed.toLowerCase().split(/\s+/).filter(Boolean)
   const entries = await loadStaticSearchIndex()
   const scored: SearchHit[] = []
@@ -157,7 +157,7 @@ async function searchStatic(q: string, type: ArtifactType | '' | undefined, limi
 
   scored.sort((a, b) => b.score - a.score || a.id.localeCompare(b.id))
   const results = scored.slice(0, limit)
-  return { query: q, results, count: results.length }
+  return { query: q, results, count: results.length, mode: 'bm25' }
 }
 
 async function bundleStatic(params: { scope?: string; ids?: string[]; title?: string }): Promise<BundleResponse> {

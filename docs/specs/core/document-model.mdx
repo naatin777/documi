@@ -122,3 +122,10 @@ tags: [core, spec]
   **When** 自然文の質問やタスク記述に対して全文検索または `documi retrieve` / MCP `retrieve_context` が実行されたとき、
   **the** Document Core **shall** 日本語（漢字・カタカナ・ひらがな）および英語・コード識別子トークナイザによる BM25 スコアリングと `<TermDef aliases>` を用いた自動同義語展開を実行し、一次ヒットから上流 Goal・関連 Decision `<Outcome>`・関連 Contract/Design・用語・`<SourceRef>` を明示グラフに沿って収集し指定文字数予算内で返却する。
 </Spec>
+
+## ローカル Hybrid RAG（`bun:sqlite` 差分キャッシュ・RRF・ONNX / Ollama / OpenAI 互換）
+
+<Spec id="core.hybrid-rag" stability="evolving" derives="goals/ai-reproducibility">
+  **When** `.documi.json` の `rag` 設定または `--semantic` / `documi index` によりローカル Hybrid RAG が有効化されたとき、
+  **the** Document Core および CLI / MCP / REST API **shall** 組み込み ONNX（既定 `onnx-community/embeddinggemma-300m-ONNX` `q4`）・Ollama・OpenAI 互換 HTTP のいずれかの Embedding プロバイダを用いて `contentHash` 差分のみを `bun:sqlite` キャッシュ（`docs/.documi/cache/embeddings.sqlite`）へ保存し、BM25 順位とベクトル類似度順位を RRF（Reciprocal Rank Fusion）で統合してグラフ展開結果を返却する。プロバイダが利用できない場合は BM25 結果へ安全にフォールバックする。
+</Spec>

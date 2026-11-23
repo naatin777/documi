@@ -9,6 +9,7 @@ satisfies:
   - core.realization
   - core.bundle-export
   - core.full-text-search
+  - core.hybrid-rag
   - core.doc-history
   - ui.web-viewer
   - ui.live-reload
@@ -36,7 +37,7 @@ satisfies:
 | `GET /api/history/revision` | 指定ドキュメント (`?id=&commit=`) の過去コミット時点の本文・メタデータ（読み取り専用） |
 | `GET /api/graph` | グラフノード＆エッジ一覧 (`?layers=trace\|all&granularity=docs\|blocks`) |
 | `GET /api/matrix` | 全 `<Spec>` のトレーサビリティマトリクス |
-| `GET /api/search` | ドキュメント＆セマンティックブロック横断検索 (`?q=&type=&limit=`) |
+| `GET /api/search` | ドキュメント＆セマンティックブロック横断検索 (`?q=&type=&limit=&semantic=true\|false`、BM25＋用語展開または `rag.enabled` 時 RRF ハイブリッド) |
 | `GET /api/terms` | 全 `<TermDef>` 用語定義一覧 |
 | `GET /api/check` | AST シンボル検証を含む一括整合性チェック (`?strict=true`) |
 | `GET /api/blocks` | レビュー対象セマンティックブロック一覧と Review 集計 (`/review` 受信箱用) |

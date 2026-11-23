@@ -4,7 +4,8 @@ import { mkdir, readFile, writeFile } from 'node:fs/promises'
 import path from 'node:path'
 import { parseArgs as parseNodeArgs } from 'node:util'
 import { runDocsCheck } from './core/checker'
-import { ConfigError, resolveProjectPaths } from './core/config'
+import { ConfigError, ONNX_DTYPES, RAG_PROVIDERS, resolveProjectPaths } from './core/config'
+import type { OnnxDtype, RagConfig, RagProvider } from './core/config'
 import {
   addBlockToDoc,
   EditError,
@@ -13,6 +14,8 @@ import {
   updateBlockInDocs,
   upsertTermInDocs,
 } from './core/editor'
+import { createEmbeddingProvider, EmbeddingError } from './core/embeddings'
+import { retrieveContextHybrid, searchIndexHybrid } from './core/hybrid-retrieval'
 import { initDocumiProject } from './core/init'
 import type { InitLanguage } from './core/init'
 import { loadDocuments } from './core/loader'
@@ -50,6 +53,7 @@ import type {
   SpecIntent,
   Stability,
 } from './core/types'
+import { syncVectorIndex } from './core/vector-store'
 import { createApp } from './server/app'
 import { startServer } from './server/index'
 import { startMcpStdio } from './server/mcp'
@@ -86,8 +90,9 @@ Usage:
   documi list [--type <type>] [options]          ドキュメント一覧を取得
   documi show <doc-id> [options]                 ドキュメント本文・ブロック・関係・問題一覧を取得
   documi relations <id> [options]                ドキュメントまたはブロックの外向き・逆参照を取得
-  documi search <query...> [options]             ドキュメントとセマンティックブロックを横断全文検索 (BM25 + 用語展開)
-  documi retrieve <query...> [options]           自然文から BM25 + グラフ展開で関連 Spec・Goal・ADR・SourceRef を 1 発取得
+  documi search <query...> [options]             ドキュメントとセマンティックブロックを横断全文検索 (BM25 + 用語展開 / --semantic)
+  documi retrieve <query...> [options]           自然文から BM25 (+ --semantic) + グラフ展開で関連 Spec・Goal・ADR・SourceRef を 1 発取得
+  documi index [options]                         ローカル Embedding キャッシュ (bun:sqlite) を contentHash 差分で構築・更新
   documi query [filters] [options]               セマンティックブロックを多軸フィルタ検索
   documi context <id> [options]                  Spec の上流 Goal・未解決 FB・関連文書・用語・SourceRef を集約
 
@@ -117,6 +122,12 @@ Options:
   --limit <n>             最大返却件数 (search 既定: 20 / retrieve 既定: 8)
   --budget <chars>        retrieve の返却文字数予算 (既定: 6000)
   --no-graph              retrieve でグラフ近傍の関連文脈を展開しない
+  --semantic              search / retrieve でローカル Embedding との RRF ハイブリッド検索を有効化 (--no-semantic で無効化)
+  --provider <name>       Embedding プロバイダ onnx|ollama|openai (index / search / retrieve 用、既定: onnx)
+  --model <id>            Embedding モデル ID (ONNX 既定: onnx-community/embeddinggemma-300m-ONNX)
+  --dtype <level>         ONNX 量子化精度 q4|q8|fp16|fp32 (既定: q4)
+  --endpoint <url>        Ollama / OpenAI 互換エンドポイント URL
+  --api-key-env <var>     OpenAI 互換 API キーを読み取る環境変数名 (既定: OPENAI_API_KEY)
   --kind <kind>           ブロック種別 spec|constraint|outcome|note|term (query / block add 用)
   --intent <intent>       採用意思 normative|idea|rejected|informative (query / block 用)
   --stability <level>     安定度 stable|evolving|volatile (query / block 用)
@@ -183,6 +194,13 @@ const CLI_OPTIONS = {
   limit: { type: 'string' },
   budget: { type: 'string' },
   'no-graph': { type: 'boolean' },
+  semantic: { type: 'boolean' },
+  'no-semantic': { type: 'boolean' },
+  provider: { type: 'string' },
+  model: { type: 'string' },
+  dtype: { type: 'string' },
+  endpoint: { type: 'string' },
+  'api-key-env': { type: 'string' },
   kind: { type: 'string' },
   intent: { type: 'string' },
   stability: { type: 'string' },
@@ -452,7 +470,7 @@ async function cmdInit(flags: CliFlags, io: CliIo): Promise<number> {
 }
 
 async function cmdServe(flags: CliFlags): Promise<number> {
-  const { docsDir, projectRoot, testReportPath } = resolveCliPaths(flags)
+  const { docsDir, projectRoot, testReportPath, config } = resolveCliPaths(flags)
   const port = typeof flags.port === 'string' ? Number(flags.port) : undefined
   const hostname = typeof flags.host === 'string' ? flags.host : undefined
 
@@ -460,6 +478,7 @@ async function cmdServe(flags: CliFlags): Promise<number> {
     docsDir,
     projectRoot,
     testReportPath,
+    ragConfig: config.rag,
     port: Number.isFinite(port) ? port : undefined,
     hostname,
   })
@@ -469,7 +488,7 @@ async function cmdServe(flags: CliFlags): Promise<number> {
 }
 
 async function cmdMcp(flags: CliFlags): Promise<number> {
-  const { docsDir, projectRoot, testReportPath } = resolveCliPaths(flags)
+  const { docsDir, projectRoot, testReportPath, config } = resolveCliPaths(flags)
   const store = await DocsStore.open(docsDir, { projectRoot, testReportPath })
   const stopWatch = store.watch()
 
@@ -482,7 +501,7 @@ async function cmdMcp(flags: CliFlags): Promise<number> {
     process.exit(0)
   })
 
-  await startMcpStdio(store, projectRoot)
+  await startMcpStdio(store, projectRoot, config.rag)
   // stdio 接続が閉じるまで待機
   await new Promise(() => {})
   return 0
@@ -736,6 +755,65 @@ async function cmdRelations(positionals: string[], flags: CliFlags, io: CliIo): 
   return 0
 }
 
+function resolveCliRagConfig(flags: CliFlags, baseConfig?: RagConfig): RagConfig {
+  const rawProvider = getStringFlag(flags, 'provider')
+  let provider: RagProvider | undefined = baseConfig?.provider
+  if (rawProvider !== undefined) {
+    if (!(RAG_PROVIDERS as readonly string[]).includes(rawProvider)) {
+      throw new CliArgError(`不正な --provider です: "${rawProvider}" (有効値: ${RAG_PROVIDERS.join(', ')})`)
+    }
+    provider = rawProvider as RagProvider
+  }
+
+  const rawDtype = getStringFlag(flags, 'dtype')
+  let dtype: OnnxDtype | undefined = baseConfig?.dtype
+  if (rawDtype !== undefined) {
+    if (!(ONNX_DTYPES as readonly string[]).includes(rawDtype)) {
+      throw new CliArgError(`不正な --dtype です: "${rawDtype}" (有効値: ${ONNX_DTYPES.join(', ')})`)
+    }
+    dtype = rawDtype as OnnxDtype
+  }
+
+  return {
+    ...baseConfig,
+    ...(provider ? { provider } : {}),
+    ...(getStringFlag(flags, 'model') ? { model: getStringFlag(flags, 'model') } : {}),
+    ...(dtype ? { dtype } : {}),
+    ...(getStringFlag(flags, 'endpoint') ? { endpoint: getStringFlag(flags, 'endpoint') } : {}),
+    ...(getStringFlag(flags, 'api-key-env') ? { apiKeyEnv: getStringFlag(flags, 'api-key-env') } : {}),
+  }
+}
+
+function shouldUseSemantic(flags: CliFlags, ragConfig?: RagConfig): boolean {
+  if (flags.semantic === true && flags['no-semantic'] === true) {
+    throw new CliArgError('--semantic と --no-semantic は同時に指定できません')
+  }
+  if (flags.semantic === true) return true
+  if (flags['no-semantic'] === true) return false
+  return ragConfig?.enabled === true
+}
+
+async function cmdIndex(flags: CliFlags, io: CliIo): Promise<number> {
+  const { docsDir, projectRoot, config } = resolveCliPaths(flags)
+  const ragConfig = resolveCliRagConfig(flags, config.rag)
+  const provider = createEmbeddingProvider(ragConfig)
+  const index = await loadDocuments(docsDir)
+  const res = await syncVectorIndex(docsDir, index, provider, {
+    cachePath: ragConfig.cachePath,
+    projectRoot,
+  })
+
+  if (flags.json === true) {
+    printJson(io, res)
+    return 0
+  }
+
+  io.out(`✓ Vector index synced (${res.modelId})`)
+  io.out(`  db:     ${res.dbPath}`)
+  io.out(`  chunks: total=${res.totalChunks} embedded=${res.embedded} cached=${res.cached} removed=${res.removed}`)
+  return 0
+}
+
 async function cmdSearch(positionals: string[], flags: CliFlags, io: CliIo): Promise<number> {
   const query = positionals.join(' ').trim()
   if (!query) throw new CliArgError('検索キーワードを指定してください (例: documi search "Rooted DAG")')
@@ -750,8 +828,42 @@ async function cmdSearch(positionals: string[], flags: CliFlags, io: CliIo): Pro
     limit = parsed
   }
 
-  const { docsDir } = resolveCliPaths(flags)
+  const { docsDir, projectRoot, config } = resolveCliPaths(flags)
   const index = await loadDocuments(docsDir)
+  const useSemantic = shouldUseSemantic(flags, config.rag)
+
+  if (useSemantic) {
+    const ragConfig = resolveCliRagConfig(flags, config.rag)
+    const hybrid = await searchIndexHybrid(docsDir, index, query, {
+      type,
+      limit: limit ?? 20,
+      ragConfig,
+      projectRoot,
+    })
+    const payload = {
+      query,
+      mode: hybrid.mode,
+      ...(hybrid.modelId ? { modelId: hybrid.modelId } : {}),
+      ...(hybrid.fallbackReason ? { fallbackReason: hybrid.fallbackReason } : {}),
+      results: hybrid.hits,
+      count: hybrid.hits.length,
+    }
+    if (flags.json === true) {
+      printJson(io, payload)
+      return 0
+    }
+    io.out(
+      `Search "${query}" [${hybrid.mode}${hybrid.modelId ? ` / ${hybrid.modelId}` : ''}] (${hybrid.hits.length} hits):`,
+    )
+    if (hybrid.fallbackReason) io.out(`  ⚠ fallback to BM25: ${hybrid.fallbackReason}`)
+    for (const hit of hybrid.hits) {
+      const blockPart = hit.kind === 'block' ? ` #${hit.id}` : ''
+      io.out(`  [${hit.type}] ${hit.docId}${blockPart} (score=${hit.score}) — ${hit.title}`)
+      if (hit.snippet) io.out(`    ${hit.snippet}`)
+    }
+    return 0
+  }
+
   const res = searchDocuments(index, query, { type, limit })
 
   if (flags.json === true) {
@@ -793,21 +905,37 @@ async function cmdRetrieve(positionals: string[], flags: CliFlags, io: CliIo): P
     budget = parsed
   }
 
-  const { docsDir, projectRoot, testReportPath } = resolveCliPaths(flags)
+  const { docsDir, projectRoot, testReportPath, config } = resolveCliPaths(flags)
   const store = await DocsStore.open(docsDir, { projectRoot, testReportPath })
-  const res = retrieveContext(store.getIndex(), query, {
-    type,
-    limit,
-    budget,
-    includeGraph: flags['no-graph'] !== true,
-  })
+  const useSemantic = shouldUseSemantic(flags, config.rag)
+  const res = useSemantic
+    ? await retrieveContextHybrid(docsDir, store.getIndex(), query, {
+        type,
+        limit,
+        budget,
+        includeGraph: flags['no-graph'] !== true,
+        ragConfig: resolveCliRagConfig(flags, config.rag),
+        projectRoot,
+      })
+    : retrieveContext(store.getIndex(), query, {
+        type,
+        limit,
+        budget,
+        includeGraph: flags['no-graph'] !== true,
+      })
 
   if (flags.json === true) {
     printJson(io, res)
     return 0
   }
 
-  io.out(`Retrieve "${res.query}" [${res.mode}] (${res.hits.length} hits, budget ${res.budgetUsed}/${res.budgetLimit})`)
+  const modelSuffix = res.modelId ? ` / ${res.modelId}` : ''
+  io.out(
+    `Retrieve "${res.query}" [${res.mode}${modelSuffix}] (${res.hits.length} hits, budget ${res.budgetUsed}/${res.budgetLimit})`,
+  )
+  if (res.fallbackReason) {
+    io.out(`  ⚠ fallback to BM25: ${res.fallbackReason}`)
+  }
   if (res.expandedTerms.length > 0) {
     io.out(`  glossary expanded: ${res.expandedTerms.join(', ')}`)
   }
@@ -1175,6 +1303,7 @@ export async function runCli(argv: string[], io: CliIo = DEFAULT_IO): Promise<nu
     if (command === 'relations') return await cmdRelations(positionals, flags, io)
     if (command === 'search') return await cmdSearch(positionals, flags, io)
     if (command === 'retrieve') return await cmdRetrieve(positionals, flags, io)
+    if (command === 'index') return await cmdIndex(flags, io)
     if (command === 'query') return await cmdQuery(flags, io)
     if (command === 'context') return await cmdContext(positionals, flags, io)
     if (command === 'block') return await cmdBlock(positionals, flags, io)
@@ -1185,7 +1314,12 @@ export async function runCli(argv: string[], io: CliIo = DEFAULT_IO): Promise<nu
     usage(io)
     return 1
   } catch (error) {
-    if (error instanceof ConfigError || error instanceof EditError || error instanceof CliArgError) {
+    if (
+      error instanceof ConfigError ||
+      error instanceof EditError ||
+      error instanceof CliArgError ||
+      error instanceof EmbeddingError
+    ) {
       io.err(`✗ ${error.message}`)
       return 1
     }

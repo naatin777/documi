@@ -88,6 +88,33 @@ bun run documi:export -- --scope goal:goals/living-specification --format pdf --
 bun run documi:export -- --scope all --format html --out spec.html
 ```
 
+## 検索・ローカル Hybrid RAG（BM25 + Embedding + グラフ展開）
+
+既定で **日本語・英語・コード識別子対応 BM25 ＋ `<TermDef aliases>` 同義語展開 ＋ 明示グラフ展開** がゼロ依存で動作します。Spec ID が分からない自然文の質問から、関連 Spec・上流 Goal・Decision `<Outcome>`・`<SourceRef>` を 1 発で取得できます。
+
+```bash
+documi retrieve "承認記録の改ざん防止ルール"           # ゼロ依存 BM25 + グラフ展開（既定）
+documi index                                         # ローカル ONNX (EmbeddingGemma 300M q4) で差分インデックス構築
+documi retrieve "アカウント凍結時の挙動" --semantic  # BM25 + ローカル Embedding の RRF ハイブリッド検索
+```
+
+プロジェクト全体で Hybrid RAG を既定有効化したり、Ollama / OpenAI 互換エンドポイントへ切り替える場合は `.documi.json` に `rag` を追加します（ベクトルキャッシュは `docs/.documi/cache/embeddings.sqlite` に `contentHash` 差分で保存されます）：
+
+```json
+{
+  "docs": "docs",
+  "rag": {
+    "enabled": true,
+    "provider": "onnx",
+    "model": "onnx-community/embeddinggemma-300m-ONNX",
+    "dtype": "q4"
+  }
+}
+```
+
+- Ollama を使う場合: `"provider": "ollama", "model": "embeddinggemma", "endpoint": "http://localhost:11434"`
+- OpenAI 互換 API / LM Studio を使う場合: `"provider": "openai", "model": "text-embedding-3-small", "endpoint": "https://api.openai.com/v1", "apiKeyEnv": "OPENAI_API_KEY"`
+
 ## 静的サイト書き出し（オプション）
 
 ローカル環境を持たないチームメンバーや非エンジニアとも読み取り専用で Web UI を共有したい場合、オプションとしてプロバイダ非依存の静的サイト（`dist-site/`）を生成できます。`HashRouter` と相対ベースパス（既定 `./`）を使うため、サーバー側のリライトルールなしで任意の静的ホスティングに配置できます。
