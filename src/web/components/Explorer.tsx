@@ -96,10 +96,10 @@ export default function Explorer({
 
   return (
     <aside
-      className={`relative flex min-h-0 flex-col border-r border-line bg-sidebar ${sidebarOpen ? '' : 'min-[901px]:hidden'} motion-reduce:transition-none max-[900px]:fixed max-[900px]:inset-y-0 max-[900px]:left-0 max-[900px]:z-60 max-[900px]:w-[min(300px,85vw)] max-[900px]:shadow-[4px_0_16px_rgba(15,23,42,0.12)] max-[900px]:transition-transform max-[900px]:duration-150 ${navOpen ? 'max-[900px]:translate-x-0' : 'max-[900px]:-translate-x-[105%]'} print:hidden`}
+      className={`relative flex min-h-0 flex-col border-r border-line bg-sidebar ${sidebarOpen ? '' : 'desktop:hidden'} motion-reduce:transition-none max-desktop:fixed max-desktop:inset-y-0 max-desktop:left-0 max-desktop:z-60 max-desktop:w-[min(300px,85vw)] max-desktop:shadow-[4px_0_16px_rgba(15,23,42,0.12)] max-desktop:transition-transform max-desktop:duration-150 ${navOpen ? 'max-desktop:translate-x-0' : 'max-desktop:-translate-x-[105%]'} print:hidden`}
       aria-label={t('nav.navigation')}
     >
-      <div className="flex h-[var(--tabs-height)] shrink-0 items-center justify-between border-b border-line pr-2.5 pl-3.5">
+      <div className="flex h-(--tabs-height) shrink-0 items-center justify-between border-b border-line pr-2.5 pl-3.5">
         <NavLink
           to="/"
           className="inline-flex items-center gap-2 text-[15.5px] font-bold tracking-[-0.01em] text-inherit no-underline"
@@ -114,7 +114,7 @@ export default function Explorer({
           <ThemeToggle />
           <button
             type="button"
-            className="hidden h-7 w-7 cursor-pointer items-center justify-center rounded-md border-0 bg-transparent text-fg-muted hover:bg-hover hover:text-fg max-[900px]:flex"
+            className="hidden h-7 w-7 cursor-pointer items-center justify-center rounded-md border-0 bg-transparent text-fg-muted hover:bg-hover hover:text-fg max-desktop:flex"
             onClick={onClose}
             aria-label={t('nav.closeMenu')}
           >
@@ -217,8 +217,8 @@ export default function Explorer({
                   onClick={() => toggleType(type)}
                 >
                   <Chevron collapsed={isCollapsed} />
-                  <ArtifactTypeIcon type={type} size={13} className="shrink-0 text-[var(--tc)]" />
-                  <span className="flex-1 text-[var(--tc)]">{t(`types.section.${type}`)}</span>
+                  <ArtifactTypeIcon type={type} size={13} className="shrink-0 text-tc" />
+                  <span className="flex-1 text-tc">{t(`types.section.${type}`)}</span>
                   <span className="rounded-full bg-subtle px-[7px] text-[10.5px] leading-[1.7] font-semibold text-fg-muted tabular-nums">
                     {docs.length}
                   </span>
@@ -242,7 +242,7 @@ export default function Explorer({
                             className={({ isActive }) =>
                               `flex items-baseline gap-2 border-l-[3px] py-[5px] pr-3 pl-[30px] text-[13.5px] no-underline ${
                                 isActive
-                                  ? 'border-l-[var(--tc)] bg-[var(--tc-soft)] font-semibold text-[var(--tc)]'
+                                  ? 'border-l-tc bg-tc-soft font-semibold text-tc'
                                   : 'border-l-transparent text-fg hover:bg-hover'
                               }`
                             }
@@ -376,9 +376,7 @@ function TreeBranch({
       to={`/docs/${encodeDocId(doc.id)}`}
       className={({ isActive }) =>
         `flex items-center gap-1.5 border-l-[3px] py-[5px] pr-3 text-[13.5px] no-underline type-${doc.type} ${
-          isActive
-            ? 'border-l-[var(--tc)] bg-[var(--tc-soft)] font-semibold text-[var(--tc)]'
-            : 'border-l-transparent text-fg hover:bg-hover'
+          isActive ? 'border-l-tc bg-tc-soft font-semibold text-tc' : 'border-l-transparent text-fg hover:bg-hover'
         }`
       }
       style={{ paddingLeft: `${23 + depth * 14}px` }}
@@ -388,7 +386,7 @@ function TreeBranch({
       <MaterialFileIcon name={doc.path} size={15} />
       <span className="min-w-0 flex-1 truncate">{doc.title}</span>
       {doc.freshness?.workingStatus && <WorkingStatusBadge status={doc.freshness.workingStatus} />}
-      <span className="h-[7px] w-[7px] shrink-0 rounded-full bg-[var(--tc)]" aria-hidden="true" />
+      <span className="h-[7px] w-[7px] shrink-0 rounded-full bg-tc" aria-hidden="true" />
       {doc.issueCount > 0 && (
         <span
           className="h-[7px] w-[7px] shrink-0 rounded-full bg-amber-600"

@@ -91,12 +91,12 @@ export default function GraphLayout() {
   }, [selectedNodeId, graph])
 
   const matrixChipClass =
-    'mr-1 mb-1 inline-block rounded-full bg-[var(--tc-soft)] px-[7px] py-px text-[11.5px] font-semibold text-[var(--tc)] no-underline'
+    'mr-1 mb-1 inline-block rounded-full bg-tc-soft px-[7px] py-px text-[11.5px] font-semibold text-tc no-underline'
 
   return (
     <>
       <main
-        className={`relative min-h-0 min-w-0 flex-1 bg-surface max-[900px]:flex-none max-[900px]:overflow-visible ${
+        className={`relative min-h-0 min-w-0 flex-1 bg-surface max-desktop:flex-none max-desktop:overflow-visible ${
           tab === 'graph' ? 'flex flex-col overflow-hidden' : 'overflow-y-auto'
         }`}
       >
@@ -168,7 +168,7 @@ export default function GraphLayout() {
         )}
 
         {tab === 'matrix' && (
-          <article className="page doc-page !max-w-[1120px]">
+          <article className="page doc-page max-w-[1120px] print:max-w-none">
             <section>
               <div className="mb-3.5 flex flex-wrap gap-1.5">
                 {(['all', 'verified', 'unimplemented', 'drifted', 'unreviewed', 'orphan'] as const).map((f) => (

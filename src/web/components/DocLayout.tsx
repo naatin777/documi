@@ -62,7 +62,7 @@ export default function DocLayout() {
     <>
       <main
         ref={mainRef}
-        className="relative min-h-0 min-w-0 flex-1 overflow-y-auto bg-surface max-[900px]:flex-none max-[900px]:overflow-visible print:block print:h-auto print:min-h-0 print:overflow-visible"
+        className="relative min-h-0 min-w-0 flex-1 overflow-y-auto bg-surface max-desktop:flex-none max-desktop:overflow-visible print:block print:h-auto print:min-h-0 print:overflow-visible"
       >
         {!inspectorOpen && !rightPane && doc && (
           <button

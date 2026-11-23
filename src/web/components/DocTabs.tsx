@@ -119,10 +119,10 @@ export default function DocTabs({ sidebarOpen, onToggleSidebar }: DocTabsProps) 
 
   return (
     <nav
-      className="doc-tabs relative z-20 flex h-[var(--tabs-height)] shrink-0 items-stretch border-b border-line bg-sidebar print:hidden"
+      className="doc-tabs relative z-20 flex h-(--tabs-height) shrink-0 items-stretch border-b border-line bg-sidebar print:hidden"
       aria-label={t('tabs.workspaceTabs')}
     >
-      <div className="flex shrink-0 items-center border-r border-line bg-sidebar px-[5px] max-[900px]:hidden">
+      <div className="flex shrink-0 items-center border-r border-line bg-sidebar px-[5px] max-desktop:hidden">
         <AppTooltip label={sidebarOpen ? t('tabs.closeSidebarTitle') : t('tabs.openSidebarTitle')}>
           <button
             type="button"
@@ -195,7 +195,7 @@ export default function DocTabs({ sidebarOpen, onToggleSidebar }: DocTabsProps) 
                   }}
                 >
                   {tab.kind === 'doc' ? (
-                    <span className="h-[7px] w-[7px] shrink-0 rounded-full bg-[var(--tc)]" aria-hidden="true" />
+                    <span className="h-[7px] w-[7px] shrink-0 rounded-full bg-tc" aria-hidden="true" />
                   ) : (
                     <ViewTabIcon viewId={tab.viewId} active={isActive} />
                   )}
@@ -257,7 +257,7 @@ export default function DocTabs({ sidebarOpen, onToggleSidebar }: DocTabsProps) 
                       return (
                         <li
                           key={tab.key}
-                          className={`flex items-center gap-1 rounded-md hover:bg-hover ${isActive ? 'bg-[var(--tc-soft)]' : ''} ${typeClass}`}
+                          className={`flex items-center gap-1 rounded-md hover:bg-hover ${isActive ? 'bg-tc-soft' : ''} ${typeClass}`}
                         >
                           <Link
                             to={tab.path}
@@ -265,10 +265,7 @@ export default function DocTabs({ sidebarOpen, onToggleSidebar }: DocTabsProps) 
                             onClick={() => setMenuOpen(false)}
                           >
                             {tab.kind === 'doc' ? (
-                              <span
-                                className="h-[7px] w-[7px] shrink-0 rounded-full bg-[var(--tc)]"
-                                aria-hidden="true"
-                              />
+                              <span className="h-[7px] w-[7px] shrink-0 rounded-full bg-tc" aria-hidden="true" />
                             ) : (
                               <ViewTabIcon viewId={tab.viewId} active={isActive} />
                             )}

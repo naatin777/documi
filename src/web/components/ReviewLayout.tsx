@@ -85,7 +85,7 @@ export default function ReviewLayout() {
 
   return (
     <>
-      <main className="relative min-h-0 min-w-0 flex-1 overflow-y-auto bg-surface max-[900px]:flex-none max-[900px]:overflow-visible">
+      <main className="relative min-h-0 min-w-0 flex-1 overflow-y-auto bg-surface max-desktop:flex-none max-desktop:overflow-visible">
         <article className="page">
           <header className="doc-header">
             <div className="doc-badges">

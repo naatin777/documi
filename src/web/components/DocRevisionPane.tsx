@@ -1,5 +1,5 @@
 import { ArrowLeft, History, X } from 'lucide-react'
-import { useCallback } from 'react'
+import { useCallback, type CSSProperties } from 'react'
 import { useTranslation } from 'react-i18next'
 import { toErrorMessage, useDocumentRevisionQuery, useTermsQuery } from '../queries'
 import { formatDateTime } from '../time'
@@ -57,8 +57,8 @@ export default function DocRevisionPane({ docId, commitSha, onBack, onClose }: D
         label={t('resize.peek')}
       />
       <aside
-        className="flex min-h-0 min-w-0 shrink-0 grow-0 flex-col overflow-hidden border-l border-line bg-surface max-[900px]:flex-none max-[900px]:!basis-auto max-[900px]:overflow-visible max-[900px]:border-t max-[900px]:border-l-0 print:hidden"
-        style={{ flexBasis: `${peekWidth}px` }}
+        className="flex min-h-0 min-w-0 shrink-0 grow-0 flex-col overflow-hidden border-l border-line bg-surface max-desktop:flex-none max-desktop:basis-auto max-desktop:overflow-visible max-desktop:border-t max-desktop:border-l-0 desktop:basis-(--pane-width) print:hidden"
+        style={{ '--pane-width': `${peekWidth}px` } as CSSProperties}
         aria-label={t('peek.revisionAriaLabel')}
       >
         <header className="flex shrink-0 flex-col gap-1.5 border-b border-line bg-sidebar px-3.5 py-2.5">

@@ -69,20 +69,33 @@
 
 @media print {
   .codeblock-toolbar,
-  .issues-panel {
-    display: none !important;
+  .issues-panel,
+  .sem-action-btn,
+  .sem-feedback-form,
+  .sem-diff-close,
+  .bundle-toolbar {
+    display: none;
   }
 
   .md-changed-block {
-    margin-left: 0 !important;
-    padding-left: 0 !important;
-    border-left: none !important;
-    background: transparent !important;
+    margin-left: 0;
+    padding-left: 0;
+    border-left: none;
+    background: transparent;
+  }
+
+  .bundle-cover,
+  .bundle-toc {
+    break-after: page;
+  }
+
+  .bundle-chapter {
+    break-before: page;
   }
 
   .page {
-    max-width: none !important;
-    padding: 14mm 0 !important;
+    max-width: none;
+    padding: 14mm 0;
   }
 
   /* fixed にするとヘッダー/フッターが全ページで繰り返される */

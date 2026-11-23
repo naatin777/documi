@@ -11,46 +11,46 @@
 }
 
 .sem-spec {
-  border-left-color: #2563eb;
+  border-left-color: light-dark(#2563eb, #6ea0f7);
 }
 
 .sem-spec.sem-intent-idea {
   border-style: dashed;
   border-left-style: dashed;
-  border-left-color: #64748b;
+  border-left-color: var(--status-neutral);
   background: transparent;
 }
 
 .sem-spec.sem-intent-rejected {
-  border-left-color: #b91c1c;
+  border-left-color: var(--status-danger);
   opacity: 0.78;
 }
 
 .sem-constraint {
-  border-left-color: #b45309;
+  border-left-color: light-dark(#b45309, #f0a04b);
 }
 
 .sem-outcome {
-  border-left-color: #be123c;
+  border-left-color: light-dark(#be123c, #f2708a);
 }
 
 .sem-term {
-  border-left-color: #0369a1;
+  border-left-color: light-dark(#0369a1, #56b6f0);
 }
 
 .sem-note {
-  border-left-color: #64748b;
+  border-left-color: var(--status-neutral);
 }
 
 .sem-note-idea {
   border-style: dashed;
   border-left-style: dashed;
-  border-left-color: #6366f1;
+  border-left-color: var(--status-idea);
   background: transparent;
 }
 
 .sem-note-rejected {
-  border-left-color: #b91c1c;
+  border-left-color: var(--status-danger);
   opacity: 0.78;
 }
 
@@ -76,39 +76,23 @@
 }
 
 .sem-kind-spec {
-  background: #d9e6fd;
-  color: #1d4ed8;
-}
-[data-theme='dark'] .sem-kind-spec {
-  background: rgba(110, 160, 247, 0.2);
-  color: #93c5fd;
+  background: var(--status-info-soft);
+  color: var(--status-info-fg);
 }
 
 .sem-kind-constraint {
-  background: #fbe3c2;
-  color: #b45309;
-}
-[data-theme='dark'] .sem-kind-constraint {
-  background: rgba(240, 160, 75, 0.2);
-  color: #fbbf24;
+  background: var(--status-warning-soft);
+  color: var(--status-warning-fg);
 }
 
 .sem-kind-outcome {
-  background: #fbdfe6;
-  color: #be123c;
-}
-[data-theme='dark'] .sem-kind-outcome {
-  background: rgba(242, 112, 138, 0.2);
-  color: #fda4af;
+  background: light-dark(#fbdfe6, rgba(242, 112, 138, 0.2));
+  color: light-dark(#be123c, #fda4af);
 }
 
 .sem-kind-term {
-  background: #d8effc;
-  color: #0369a1;
-}
-[data-theme='dark'] .sem-kind-term {
-  background: rgba(86, 182, 240, 0.2);
-  color: #7dd3fc;
+  background: light-dark(#d8effc, rgba(86, 182, 240, 0.2));
+  color: light-dark(#0369a1, #7dd3fc);
 }
 
 .sem-id {
@@ -144,31 +128,23 @@
 }
 
 .sem-pill-stable {
-  border-color: #15803d;
-  color: #15803d;
-}
-[data-theme='dark'] .sem-pill-stable {
-  border-color: #4ade80;
-  color: #86efac;
+  border-color: var(--status-success);
+  color: var(--status-success-fg);
 }
 
 .sem-pill-volatile {
-  border-color: #d97706;
-  color: #b45309;
-}
-[data-theme='dark'] .sem-pill-volatile {
-  border-color: #f59e0b;
-  color: #fcd34d;
+  border-color: var(--status-warning);
+  color: var(--status-warning-fg);
 }
 
 .sem-pill-idea {
-  border-color: #6366f1;
-  color: #4f46e5;
+  border-color: var(--status-idea);
+  color: var(--status-idea-fg);
 }
 
 .sem-pill-rejected {
-  border-color: #b91c1c;
-  color: #b91c1c;
+  border-color: var(--status-danger);
+  color: var(--status-danger-fg);
 }
 
 .sem-body {
@@ -211,7 +187,7 @@
 
 .sem-term-inline {
   color: inherit;
-  text-decoration: underline dotted #0369a1;
+  text-decoration: underline dotted light-dark(#0369a1, #56b6f0);
   text-underline-offset: 3px;
   font-weight: 500;
 }
@@ -221,23 +197,23 @@
   font-family: var(--font-mono);
   padding: 1px 6px;
   border-radius: 4px;
-  background: #d9e6fd;
-  color: #1d4ed8;
+  background: var(--status-info-soft);
+  color: var(--status-info-fg);
 }
 
 .source-ref-trace-verify {
-  background: #dcf2e2;
-  color: #15803d;
+  background: var(--status-success-soft);
+  color: var(--status-success-fg);
 }
 
-/* ---------- レビューバー・Diff・フィードバック・用語ポップオーバー ---------- */
+/* ---------- レビューバー・Diff・フィードバック ---------- */
 
 .sem-block.sem-state-stale {
-  border-left-color: #d97706;
+  border-left-color: var(--status-caution);
 }
 
 .sem-block.sem-state-suspect {
-  border-left-color: #c026d3;
+  border-left-color: var(--status-suspect);
 }
 
 .sem-review-bar {
@@ -262,39 +238,23 @@
 }
 
 .sem-review-approved {
-  background: #dcfce7;
-  color: #166534;
-}
-[data-theme='dark'] .sem-review-approved {
-  background: rgba(34, 197, 94, 0.18);
-  color: #86efac;
+  background: var(--status-success-soft);
+  color: var(--status-success-fg);
 }
 
 .sem-review-unreviewed {
-  background: #fef9c3;
-  color: #854d0e;
-}
-[data-theme='dark'] .sem-review-unreviewed {
-  background: rgba(234, 179, 8, 0.18);
-  color: #fde047;
+  background: var(--status-warning-soft);
+  color: var(--status-warning-fg);
 }
 
 .sem-review-stale {
-  background: #ffedd5;
-  color: #9a3412;
-}
-[data-theme='dark'] .sem-review-stale {
-  background: rgba(249, 115, 22, 0.2);
-  color: #fdba74;
+  background: var(--status-caution-soft);
+  color: var(--status-caution-fg);
 }
 
 .sem-review-suspect {
-  background: #fae8ff;
-  color: #86198f;
-}
-[data-theme='dark'] .sem-review-suspect {
-  background: rgba(217, 70, 239, 0.2);
-  color: #f0abfc;
+  background: var(--status-suspect-soft);
+  color: var(--status-suspect-fg);
 }
 
 .sem-action-btn {
@@ -318,8 +278,8 @@
 }
 
 .sem-action-btn.has-feedback {
-  border-color: #2563eb;
-  color: #2563eb;
+  border-color: var(--status-info);
+  color: var(--status-info-fg);
 }
 
 .sem-approve-btn {
@@ -335,19 +295,15 @@
 
 .sem-suspect-banner {
   padding: 6px 12px;
-  background: #fae8ff;
-  color: #701a75;
+  background: var(--status-suspect-soft);
+  color: var(--status-suspect-fg);
   font-size: 12px;
   border-bottom: 1px solid var(--border);
-}
-[data-theme='dark'] .sem-suspect-banner {
-  background: rgba(217, 70, 239, 0.14);
-  color: #f5d0fe;
 }
 
 .sem-review-error {
   padding: 6px 12px;
-  color: #b91c1c;
+  color: var(--status-danger-fg);
   font-size: 12px;
   border-bottom: 1px solid var(--border);
 }
@@ -398,19 +354,13 @@
 }
 
 .sem-diff-add {
-  background: rgba(34, 197, 94, 0.15);
-  color: #166534;
-}
-[data-theme='dark'] .sem-diff-add {
-  color: #86efac;
+  background: var(--status-success-soft);
+  color: var(--status-success-fg);
 }
 
 .sem-diff-del {
-  background: rgba(239, 68, 68, 0.15);
-  color: #991b1b;
-}
-[data-theme='dark'] .sem-diff-del {
-  color: #fca5a5;
+  background: var(--status-danger-soft);
+  color: var(--status-danger-fg);
 }
 
 .sem-diff-mark {
@@ -461,7 +411,7 @@
 .sem-feedback-toggle {
   border: none;
   background: transparent;
-  color: #2563eb;
+  color: var(--status-info-fg);
   cursor: pointer;
   font-size: 11px;
   padding: 0;
@@ -491,19 +441,19 @@
 }
 
 .rp-review-approved {
-  background: #22c55e;
+  background: var(--status-success);
 }
 
 .rp-review-unreviewed {
-  background: #eab308;
+  background: var(--status-warning);
 }
 
 .rp-review-stale {
-  background: #f97316;
+  background: var(--status-caution);
 }
 
 .rp-review-suspect {
-  background: #d946ef;
+  background: var(--status-suspect);
 }
 
 .rp-fb-count {
@@ -512,8 +462,8 @@
   font-weight: 700;
   padding: 0 5px;
   border-radius: 999px;
-  background: #d9e6fd;
-  color: #1d4ed8;
+  background: var(--status-info-soft);
+  color: var(--status-info-fg);
 }
 
 /* ---------- Realization バッジ & トレース詳細 ---------- */
@@ -531,30 +481,18 @@
 }
 
 .sem-real-verified {
-  background: #dcfce7;
-  color: #166534;
-}
-[data-theme='dark'] .sem-real-verified {
-  background: rgba(34, 197, 94, 0.2);
-  color: #86efac;
+  background: var(--status-success-soft);
+  color: var(--status-success-fg);
 }
 
 .sem-real-implemented {
-  background: #dbeafe;
-  color: #1e40af;
-}
-[data-theme='dark'] .sem-real-implemented {
-  background: rgba(59, 130, 246, 0.2);
-  color: #93c5fd;
+  background: var(--status-info-soft);
+  color: var(--status-info-fg);
 }
 
 .sem-real-in-progress {
-  background: #fef3c7;
-  color: #92400e;
-}
-[data-theme='dark'] .sem-real-in-progress {
-  background: rgba(245, 158, 11, 0.2);
-  color: #fcd34d;
+  background: var(--status-warning-soft);
+  color: var(--status-warning-fg);
 }
 
 .sem-real-unimplemented {
@@ -564,12 +502,8 @@
 }
 
 .sem-real-drifted {
-  background: #fee2e2;
-  color: #991b1b;
-}
-[data-theme='dark'] .sem-real-drifted {
-  background: rgba(239, 68, 68, 0.22);
-  color: #fca5a5;
+  background: var(--status-danger-soft);
+  color: var(--status-danger-fg);
 }
 
 .sem-trace-panel {
@@ -596,29 +530,10 @@
 }
 
 .sem-test-passed {
-  color: #15803d;
+  color: var(--status-success-fg);
 }
 
 .sem-test-failed {
-  color: #b91c1c;
+  color: var(--status-danger-fg);
   font-weight: 600;
-}
-
-@media print {
-  .sem-action-btn,
-  .sem-feedback-form,
-  .sem-diff-close,
-  .term-popover,
-  .bundle-toolbar {
-    display: none !important;
-  }
-
-  .bundle-cover,
-  .bundle-toc {
-    break-after: page;
-  }
-
-  .bundle-chapter {
-    break-before: page;
-  }
 }

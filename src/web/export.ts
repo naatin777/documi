@@ -22,9 +22,7 @@ function buildStandaloneHtml(selector: string, bodyClass: string, fallbackTitle:
   if (!source) return null
 
   const clone = source.cloneNode(true) as HTMLElement
-  for (const el of clone.querySelectorAll(
-    'button, .doc-tabs, .bundle-toolbar, .codeblock-toolbar, .sem-feedback-form, .term-popover',
-  )) {
+  for (const el of clone.querySelectorAll('button, .bundle-toolbar, .codeblock-toolbar, .sem-feedback-form')) {
     el.remove()
   }
 

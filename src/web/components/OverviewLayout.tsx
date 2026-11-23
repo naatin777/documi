@@ -18,14 +18,15 @@ export default function OverviewLayout() {
 
   const totalIssues = data ? data.indexIssues.length + data.docIssues.length : 0
 
-  const cardClass =
-    'block rounded-lg border border-line border-l-[3px] border-l-[var(--tc)] bg-surface px-3.5 py-3 text-inherit no-underline hover:bg-subtle'
+  const baseCardClass =
+    'block rounded-lg border border-line border-l-[3px] bg-surface px-3.5 py-3 text-inherit no-underline hover:bg-subtle'
+  const cardClass = `${baseCardClass} border-l-tc`
 
   const kvListClass =
     'm-0 grid list-none gap-1.5 p-0 [&_li]:flex [&_li]:justify-between [&_li]:text-[13px] [&_li]:text-fg-muted [&_strong]:text-fg'
 
   return (
-    <main className="relative min-h-0 min-w-0 flex-1 overflow-y-auto bg-surface max-[900px]:flex-none max-[900px]:overflow-visible">
+    <main className="relative min-h-0 min-w-0 flex-1 overflow-y-auto bg-surface max-desktop:flex-none max-desktop:overflow-visible">
       <article className="page doc-page">
         <header className="doc-header">
           <div className="doc-badges">
@@ -82,7 +83,7 @@ export default function OverviewLayout() {
                   {data.recentDocuments.map((d) => (
                     <Link key={d.id} to={`/docs/${encodeDocId(d.id)}`} className={`${cardClass} type-${d.type}`}>
                       <div className="mb-0.5 flex flex-wrap items-center gap-2">
-                        <ArtifactTypeIcon type={d.type} size={13} className="shrink-0 text-[var(--tc)]" />
+                        <ArtifactTypeIcon type={d.type} size={13} className="shrink-0 text-tc" />
                         <span className="text-[14px] font-bold text-fg">{d.title}</span>
                         {d.freshness?.workingStatus && (
                           <span className="rounded-full bg-emerald-500/15 px-1.5 py-px text-[10.5px] font-bold text-emerald-700 dark:text-emerald-400">
@@ -128,7 +129,7 @@ export default function OverviewLayout() {
                     <Link
                       key={b.id}
                       to={`/docs/${encodeDocId(b.docId)}#block-${encodeURIComponent(b.id)}`}
-                      className={`${cardClass} !border-l-amber-600`}
+                      className={`${baseCardClass} border-l-amber-600`}
                     >
                       <div className="mb-1 flex items-center gap-2">
                         <code className="sem-id">{b.id}</code>
@@ -184,7 +185,7 @@ export default function OverviewLayout() {
                     key={type}
                     className={`flex items-center gap-2 rounded-lg border border-line bg-surface px-2.5 py-2 text-[13px] type-${type}`}
                   >
-                    <ArtifactTypeIcon type={type} size={14} className="shrink-0 text-[var(--tc)]" />
+                    <ArtifactTypeIcon type={type} size={14} className="shrink-0 text-tc" />
                     <span>{t(`types.singular.${type}`)}</span>
                     <span className="ml-auto text-xs font-bold text-fg-muted">{data.byType[type]}</span>
                   </div>
