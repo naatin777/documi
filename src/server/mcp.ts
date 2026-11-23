@@ -225,7 +225,9 @@ function createDocumiMcpServer(store: DocsStore, projectRoot?: string, ragConfig
     async ({ id, full }: { id: string; full?: boolean }) => {
       const context = getSpecContext(getIndex(), id, { full })
       if (!context) return errorResult(`対象が見つかりません: ${id}`)
-      const exportedSymbols = projectRoot ? await collectSourceRefExports(projectRoot, context.sourceRefs) : []
+      // 既定は mode="exports" を明示した参照のみ展開し、full: true 時のみ全参照ファイルの公開シンボルを展開する
+      const exportRefs = full === true ? context.sourceRefs : context.sourceRefs.filter((r) => r.mode === 'exports')
+      const exportedSymbols = projectRoot ? await collectSourceRefExports(projectRoot, exportRefs) : []
       return jsonResult(exportedSymbols.length > 0 ? { ...context, exportedSymbols } : context)
     },
   )

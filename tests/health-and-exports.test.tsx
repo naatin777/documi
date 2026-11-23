@@ -209,7 +209,8 @@ pub fn run_engine() {}
       ].join('\n'),
       'docs/goals/root.mdx': `---\ntype: goal\ntitle: Root\n---\n\n# Root\n`,
       'docs/specs/service.mdx': `---\ntype: spec\ntitle: Service Spec\n---\n\n# Service Spec\n\n<Spec id="svc.greet" derives="goals/root">Service greets caller.</Spec>\n`,
-      'docs/designs/service.mdx': `---\ntype: design\ntitle: Service Design\nsatisfies:\n  - svc.greet\n---\n\n# Service Design\n\n<SourceRef file="src/service.ts" mode="exports" satisfies="svc.greet" />\n`,
+      'src/helper.ts': 'export function unrelatedHelper(): number { return 1 }\n',
+      'docs/designs/service.mdx': `---\ntype: design\ntitle: Service Design\nsatisfies:\n  - svc.greet\n---\n\n# Service Design\n\n<SourceRef file="src/service.ts" mode="exports" satisfies="svc.greet" />\n\n<SourceRef file="src/helper.ts" symbol="unrelatedHelper" />\n`,
       'docs/verification/service.mdx': `---\ntype: verification\ntitle: Service Verification\nverifies:\n  - svc.greet\n---\n\n# Service Verification\n`,
     })
 
@@ -262,6 +263,16 @@ pub fn run_engine() {}
     expect(ctxText).toContain('exported symbols')
     expect(ctxText).toContain('GreetingService')
     expect(ctxText).toContain('buildGreeting')
+    // 既定では mode="exports" 以外の参照ファイルの公開シンボルは展開しない（コンテキスト節約）
+    expect(ctxText).not.toContain('function unrelatedHelper')
+
+    const fullOut: string[] = []
+    await runCli(['context', 'svc.greet', '--full', '--project', projectRoot], {
+      out: (s) => fullOut.push(s),
+      err: () => {},
+      readStdin: async () => '',
+    })
+    expect(fullOut.join('\n')).toContain('function unrelatedHelper')
 
     // 4. 壊れた mode="exports" パスは documi check で broken-source-ref エラーになる
     await writeFile(

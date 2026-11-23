@@ -1051,7 +1051,9 @@ async function cmdContext(positionals: string[], flags: CliFlags, io: CliIo): Pr
     return 1
   }
 
-  const exportedSymbols = await collectSourceRefExports(projectRoot, ctx.sourceRefs)
+  // 既定は mode="exports" を明示した参照のみ展開し、--full 時のみ全参照ファイルの公開シンボルを展開する
+  const exportRefs = flags.full === true ? ctx.sourceRefs : ctx.sourceRefs.filter((r) => r.mode === 'exports')
+  const exportedSymbols = await collectSourceRefExports(projectRoot, exportRefs)
   const payload = exportedSymbols.length > 0 ? { ...ctx, exportedSymbols } : ctx
 
   if (flags.json === true) {
