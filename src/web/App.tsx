@@ -89,7 +89,7 @@ function AppShell() {
 
   return (
     <div
-      className={`grid h-screen ${sidebarOpen ? 'grid-cols-[var(--explorer-width)_minmax(0,1fr)]' : 'min-[901px]:grid-cols-[minmax(0,1fr)]'} max-[900px]:flex max-[900px]:flex-col print:block print:h-auto print:min-h-0 print:overflow-visible`}
+      className={`grid h-screen ${sidebarOpen ? 'grid-cols-[var(--explorer-width)_minmax(0,1fr)]' : 'desktop:grid-cols-[minmax(0,1fr)]'} max-desktop:flex max-desktop:flex-col print:block print:h-auto print:min-h-0 print:overflow-visible`}
       style={{ '--explorer-width': `${explorerWidth}px` } as CSSProperties}
     >
       <TopBar onMenu={() => setNavOpen(true)} />
@@ -121,7 +121,7 @@ function AppShell() {
       )}
       <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden print:block print:h-auto print:min-h-0 print:overflow-visible">
         <DocTabs sidebarOpen={sidebarOpen} onToggleSidebar={() => setSidebarOpen((v) => !v)} />
-        <div className="flex min-h-0 min-w-0 flex-1 overflow-hidden max-[900px]:flex-col max-[900px]:overflow-y-auto print:block print:h-auto print:min-h-0 print:overflow-visible">
+        <div className="flex min-h-0 min-w-0 flex-1 overflow-hidden max-desktop:flex-col max-desktop:overflow-y-auto print:block print:h-auto print:min-h-0 print:overflow-visible">
           <ErrorBoundary FallbackComponent={ErrorFallback} resetKeys={[location.pathname]}>
             <Suspense fallback={<RouteLoading />}>
               <Routes>
@@ -148,7 +148,7 @@ function AppShell() {
 function RouteLoading() {
   const { t } = useTranslation()
   return (
-    <main className="relative min-h-0 min-w-0 flex-1 overflow-y-auto bg-surface max-[900px]:flex-none max-[900px]:overflow-visible">
+    <main className="relative min-h-0 min-w-0 flex-1 overflow-y-auto bg-surface max-desktop:flex-none max-desktop:overflow-visible">
       <div className="page">
         <p className="muted">{t('common.loading')}</p>
       </div>
@@ -159,7 +159,7 @@ function RouteLoading() {
 function ErrorFallback({ error, resetErrorBoundary }: FallbackProps) {
   const { t } = useTranslation()
   return (
-    <main className="relative min-h-0 min-w-0 flex-1 overflow-y-auto bg-surface max-[900px]:flex-none max-[900px]:overflow-visible">
+    <main className="relative min-h-0 min-w-0 flex-1 overflow-y-auto bg-surface max-desktop:flex-none max-desktop:overflow-visible">
       <div className="page">
         <h1>{t('common.errorTitle')}</h1>
         <p className="error-text">{error instanceof Error ? error.message : String(error)}</p>
@@ -174,7 +174,7 @@ function ErrorFallback({ error, resetErrorBoundary }: FallbackProps) {
 function NotFoundLayout() {
   const { t } = useTranslation()
   return (
-    <main className="relative min-h-0 min-w-0 flex-1 overflow-y-auto bg-surface max-[900px]:flex-none max-[900px]:overflow-visible">
+    <main className="relative min-h-0 min-w-0 flex-1 overflow-y-auto bg-surface max-desktop:flex-none max-desktop:overflow-visible">
       <div className="page">
         <h1>{t('common.notFoundTitle')}</h1>
         <p>{t('common.notFoundBody')}</p>

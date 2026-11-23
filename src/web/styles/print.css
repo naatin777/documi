@@ -69,16 +69,28 @@
 
 @media print {
   .codeblock-toolbar,
-  .issues-panel {
+  .issues-panel,
+  .sem-action-btn,
+  .sem-feedback-form,
+  .sem-diff-close,
+  .bundle-toolbar {
     display: none;
   }
 
-  :root .md-changed-block,
-  :root[data-theme='dark'] .md-changed-block {
+  .md-changed-block {
     margin-left: 0;
     padding-left: 0;
     border-left: none;
     background: transparent;
+  }
+
+  .bundle-cover,
+  .bundle-toc {
+    break-after: page;
+  }
+
+  .bundle-chapter {
+    break-before: page;
   }
 
   .page {

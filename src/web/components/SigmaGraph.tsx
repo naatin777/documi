@@ -475,7 +475,7 @@ export default function SigmaGraph({ data, selectedNodeId, onSelectNode }: Sigma
             <span>Center force</span>
             <input
               type="range"
-              className="w-full accent-[var(--accent)]"
+              className="w-full accent-accent"
               min={0.01}
               max={0.25}
               step={0.005}
@@ -487,7 +487,7 @@ export default function SigmaGraph({ data, selectedNodeId, onSelectNode }: Sigma
             <span>Repel force</span>
             <input
               type="range"
-              className="w-full accent-[var(--accent)]"
+              className="w-full accent-accent"
               min={40}
               max={320}
               step={10}
@@ -499,7 +499,7 @@ export default function SigmaGraph({ data, selectedNodeId, onSelectNode }: Sigma
             <span>Link force</span>
             <input
               type="range"
-              className="w-full accent-[var(--accent)]"
+              className="w-full accent-accent"
               min={0.01}
               max={0.2}
               step={0.005}
@@ -511,7 +511,7 @@ export default function SigmaGraph({ data, selectedNodeId, onSelectNode }: Sigma
             <span>Link distance</span>
             <input
               type="range"
-              className="w-full accent-[var(--accent)]"
+              className="w-full accent-accent"
               min={14}
               max={70}
               step={2}

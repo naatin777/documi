@@ -181,7 +181,7 @@ export default function CodeExplorerLayout() {
 
   return (
     <>
-      <main className="relative flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden bg-surface p-0 max-[900px]:flex-none max-[900px]:overflow-visible">
+      <main className="relative flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden bg-surface p-0 max-desktop:flex-none max-desktop:overflow-visible">
         <div className="flex min-h-0 w-full flex-1 overflow-hidden">
           <aside
             className="flex min-w-0 shrink-0 flex-col border-r border-line bg-sidebar"
