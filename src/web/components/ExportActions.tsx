@@ -2,6 +2,7 @@ import { Download, X } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useLocation } from 'react-router'
+import { isStaticSite } from '../api'
 import {
   buildBundleUrl,
   exportBundlePdf,
@@ -262,14 +263,16 @@ export default function ExportActions() {
           <button type="button" className="sem-action-btn" disabled={busy} onClick={handleHtml}>
             {t('export.saveHtml')}
           </button>
-          <button
-            type="button"
-            className="sem-action-btn sem-approve-btn"
-            disabled={busy}
-            onClick={() => void handlePdf()}
-          >
-            {busy ? t('export.generating') : t('export.downloadPdf')}
-          </button>
+          {!isStaticSite() && (
+            <button
+              type="button"
+              className="sem-action-btn sem-approve-btn"
+              disabled={busy}
+              onClick={() => void handlePdf()}
+            >
+              {busy ? t('export.generating') : t('export.downloadPdf')}
+            </button>
+          )}
         </footer>
       </AppDialog>
     </>

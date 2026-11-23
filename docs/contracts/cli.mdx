@@ -10,6 +10,7 @@ satisfies:
   - core.project-config
   - core.agent-skills-init
   - core.ai-cli
+  - core.static-site
 ---
 
 # CLI コントラクト
@@ -110,6 +111,17 @@ AI エディタ・CLI エージェント向けに **stdio トランスポート*
 | `--ids <a,b,c>` | 含めるドキュメント ID をカンマ区切りで明示指定 |
 | `--title <text>` | 表紙タイトル |
 | `--out <file>` | 出力先ファイルパス（既定: `documi-bundle.pdf` / `.html`） |
+
+## `documi build-site`
+
+GitHub Pages 等の静的ホスティングへそのまま公開できる **読み取り専用の静的 Documi サイト** を生成する（事前に `bun run build` が必要）。`index.html`（`window.__DOCUMI_STATIC__` 注入済み）・`404.html`・`.nojekyll`・`assets/`・`data/*.json` を出力し、フロントエンドは `HashRouter` と静的 JSON フェッチへ自動切替する。
+
+| Option | 説明 |
+|---|---|
+| `--out <dir>` | 出力先ディレクトリ（既定: `./dist-site`） |
+| `--base <path>` | アセット参照のベースパス（既定: `./`） |
+| `--no-code` | Code Explorer 用ソース全文および `<SourceRef>` スニペットを含めない |
+| `--revisions <n>` | 各ドキュメントで同梱する過去コミット版の最大件数（既定: `5`） |
 
 ## 終了コードと副作用の規約
 
