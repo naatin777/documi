@@ -19,12 +19,21 @@ bun run start    # 本番サーバー起動 (http://localhost:3000)
 他プロジェクトへ導入する場合は CLI からそのまま初期化・起動・MCP 接続できます。
 
 ```bash
-documi init --docs ./docs                          # docs/ 雛形を生成
-documi serve --docs ./docs --project . --port 3000 # Web UI + API + HTTP MCP 起動
-documi mcp --docs ./docs --project .               # stdio MCP サーバー起動 (AI エディタ連携)
+documi init --project /path/to/repo           # <project>/docs 雛形を生成
+documi serve --project /path/to/repo          # Web UI + API + HTTP MCP 起動
+documi mcp --project /path/to/repo            # stdio MCP サーバー起動 (AI エディタ連携)
 ```
 
-> ソースコード参照（`<SourceRef file="src/..." />` / `<TermDef symbols="src/...#Sym">`）はすべて <Term name="ProjectRoot" />（既定: `docs/` の親ディレクトリ、`--project` または `DOCUMI_PROJECT_ROOT` で変更可）からの POSIX 相対パスで記述します。
+既定のドキュメントディレクトリは `<project>/docs` ですが、既存の `docs/` と分けたい場合はプロジェクトルート直下に `.documi.json`（または `.documi.yml`）を置くことで `--project` 1 つで自動認識されます。
+
+```json
+{
+  "docs": "documi",
+  "testReport": "documi/.documi/test-results.xml"
+}
+```
+
+> ソースコード参照（`<SourceRef file="src/..." />` / `<TermDef symbols="src/...#Sym">`）はすべて <Term name="ProjectRoot" />（既定: `cwd`、または `--docs` 指定時はその親ディレクトリ、`--project` / `DOCUMI_PROJECT_ROOT` で明示指定可）からの POSIX 相対パスで記述します。
 
 ## Web UI の読み方・レビューの進め方
 
