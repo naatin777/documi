@@ -1,4 +1,8 @@
+import { searchIndexBm25 } from './retrieval'
+import type { SearchHit } from './retrieval'
 import type { ArtifactType, DocsIndex, Document, RealizationSummary, ReviewStatus, SemanticBlock } from './types'
+
+export type { SearchHit }
 
 export interface BundleSelector {
   /** 'all' | 'dir:<prefix>' | 'goal:<docId>' | 'node:<id>' */
@@ -10,17 +14,6 @@ export interface BundleSelector {
 export interface ResolvedBundle {
   scopeLabel: string
   documents: Document[]
-}
-
-export interface SearchHit {
-  kind: 'doc' | 'block'
-  id: string
-  docId: string
-  type: ArtifactType
-  title: string
-  blockKind?: SemanticBlock['kind']
-  snippet: string
-  score: number
 }
 
 export interface TraceMatrixRow {
@@ -122,125 +115,14 @@ export function resolveBundleDocuments(index: DocsIndex, selector: BundleSelecto
 }
 
 /**
- * ドキュメントおよびセマンティックブロックを対象とした全文検索。
+ * ドキュメントおよびセマンティックブロックを対象とした全文検索（BM25 + 日英トークナイザ + 用語集同義語展開）。
  */
 export function searchIndex(
   index: DocsIndex,
   rawQuery: string,
   options: { type?: ArtifactType; limit?: number } = {},
 ): SearchHit[] {
-  const query = rawQuery.trim()
-  if (!query) return []
-  const terms = query.toLowerCase().split(/\s+/).filter(Boolean)
-  if (terms.length === 0) return []
-
-  const hits: SearchHit[] = []
-
-  for (const doc of index.documents) {
-    if (options.type && doc.type !== options.type) continue
-    const titleLow = doc.title.toLowerCase()
-    const idLow = doc.id.toLowerCase()
-    const descLow = doc.description.toLowerCase()
-    const tagsLow = doc.tags.join(' ').toLowerCase()
-    const bodyLow = doc.body.toLowerCase()
-
-    let score = 0
-    let matchedAll = true
-    for (const t of terms) {
-      let termScore = 0
-      if (titleLow.includes(t)) termScore += 10
-      if (idLow.includes(t)) termScore += 8
-      if (tagsLow.includes(t)) termScore += 6
-      if (descLow.includes(t)) termScore += 5
-      if (bodyLow.includes(t)) termScore += 2
-      if (termScore === 0) {
-        matchedAll = false
-        break
-      }
-      score += termScore
-    }
-    if (matchedAll && score > 0) {
-      hits.push({
-        kind: 'doc',
-        id: doc.id,
-        docId: doc.id,
-        type: doc.type,
-        title: doc.title,
-        snippet: extractBestSnippet([doc.description, doc.body], terms),
-        score,
-      })
-    }
-
-    for (const block of doc.blocks) {
-      const bIdLow = block.id.toLowerCase()
-      const bTitleLow = (block.title ?? '').toLowerCase()
-      const bBodyLow = block.rawBody.toLowerCase()
-      const bAliasLow = (block.aliases ?? []).join(' ').toLowerCase()
-
-      let bScore = 0
-      let bAll = true
-      for (const t of terms) {
-        let s = 0
-        if (bIdLow.includes(t)) s += 12
-        if (bAliasLow.includes(t)) s += 9
-        if (bTitleLow.includes(t)) s += 8
-        if (bBodyLow.includes(t)) s += 3
-        if (s === 0) {
-          bAll = false
-          break
-        }
-        bScore += s
-      }
-      if (bAll && bScore > 0) {
-        hits.push({
-          kind: 'block',
-          id: block.id,
-          docId: doc.id,
-          type: doc.type,
-          title: block.title ? `${block.id} — ${block.title}` : block.id,
-          blockKind: block.kind,
-          snippet: extractBestSnippet([block.rawBody], terms),
-          score: bScore + 1,
-        })
-      }
-    }
-  }
-
-  hits.sort((a, b) => b.score - a.score || a.id.localeCompare(b.id))
-  return hits.slice(0, options.limit ?? 30)
-}
-
-function extractBestSnippet(sources: readonly string[], terms: readonly string[]): string {
-  const flats = sources.map((s) => s.replace(/\s+/g, ' ').trim()).filter(Boolean)
-  if (flats.length === 0) return ''
-
-  // まず全クエリ語を含むソースを優先し、次にいずれかのクエリ語を含むソースから該当箇所前後を抜粋する
-  for (const requireAll of [true, false]) {
-    for (const flat of flats) {
-      const low = flat.toLowerCase()
-      const matched = requireAll ? terms.every((t) => low.includes(t)) : terms.some((t) => low.includes(t))
-      if (!matched) continue
-      let bestIdx = -1
-      let bestLen = 0
-      for (const t of terms) {
-        const idx = low.indexOf(t)
-        if (idx >= 0 && (bestIdx < 0 || idx < bestIdx)) {
-          bestIdx = idx
-          bestLen = t.length
-        }
-      }
-      if (bestIdx >= 0) {
-        const start = Math.max(0, bestIdx - 36)
-        const end = Math.min(flat.length, bestIdx + bestLen + 84)
-        const prefix = start > 0 ? '…' : ''
-        const suffix = end < flat.length ? '…' : ''
-        return `${prefix}${flat.slice(start, end)}${suffix}`
-      }
-    }
-  }
-
-  const fallback = flats[0]!
-  return fallback.length > 120 ? `${fallback.slice(0, 119)}…` : fallback
+  return searchIndexBm25(index, rawQuery, options).hits
 }
 
 /**

@@ -115,3 +115,10 @@ tags: [core, spec]
   **When** `documi build-site` が実行されたとき、
   **the** Documi CLI および Web UI **shall** ビルド済み Web UI アセット（CSS フォント URL・動的チャンク preload ベースパス・favicon を含む相対/任意ベースパス対応済み）と事前計算済みの全読み取り API JSON（Overview・ツリー・ドキュメント詳細・履歴・過去版・グラフ・マトリクス・検索インデックス・任意でハッシュ索引化したコード＆`<SourceRef>` スニペット・アイコン）およびホスティング補助ファイル（`_headers`・`.nojekyll`・`404.html`・`window.__DOCUMI_STATIC__` 注入済み `index.html`）を静的ディレクトリへ出力し、Cloudflare Pages / Workers Static Assets・Vercel・Netlify・GitHub Pages・S3 等の任意の静的ホスティング上でサーバーレス・読み取り専用に動作できるようにする。`--no-code` 指定時はソースコード全文を含めない。
 </Spec>
+
+## BM25・用語集同義語展開・グラフ連動コンテキスト検索
+
+<Spec id="core.graph-retrieval" stability="evolving" derives="goals/ai-reproducibility">
+  **When** 自然文の質問やタスク記述に対して全文検索または `documi retrieve` / MCP `retrieve_context` が実行されたとき、
+  **the** Document Core **shall** 日本語（漢字・カタカナ・ひらがな）および英語・コード識別子トークナイザによる BM25 スコアリングと `<TermDef aliases>` を用いた自動同義語展開を実行し、一次ヒットから上流 Goal・関連 Decision `<Outcome>`・関連 Contract/Design・用語・`<SourceRef>` を明示グラフに沿って収集し指定文字数予算内で返却する。
+</Spec>
