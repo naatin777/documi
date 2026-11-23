@@ -25,12 +25,12 @@ Documi の仕様・設計・ソースコードで共有される共通語彙を�
   ドキュメント内に実ソースコードの定義や行範囲を埋め込む仕組み。<Term name="ProjectRoot" /> からの相対パスを指定し、`@ast-grep/napi` (tree-sitter) でシンボルを動的に解決するため、コードを複製せず常に最新を反映する。
 </TermDef>
 
-<TermDef id="ProjectRoot" aliases="プロジェクトルート" symbols="src/server/store.ts#DocsStore">
-  ソースコード参照（`<SourceRef>`・`<TermDef symbols>`）および `@implements` / `@verifies` 走査の基準ディレクトリ。既定は `docs/` の親ディレクトリで、`--project` または `DOCUMI_PROJECT_ROOT` で上書きできる。ルート外参照やシンボリックリンク脱出は拒否される。
+<TermDef id="ProjectRoot" aliases="プロジェクトルート" symbols="src/server/store.ts#DocsStore, src/core/config.ts#resolveProjectPaths">
+  ソースコード参照（`<SourceRef>`・`<TermDef symbols>`）および `@implements` / `@verifies` 走査の基準ディレクトリ。既定は `docs/` の親ディレクトリで、`.documi.json`・`--project`・`DOCUMI_PROJECT_ROOT` で上書きできる。ルート外参照やシンボリックリンク脱出は拒否される。
 </TermDef>
 
 <TermDef id="DocsIndex" aliases="インデックス" symbols="src/core/types.ts#DocsIndex, src/core/loader.ts#loadDocuments">
-  `docs/` ディレクトリ全体を再帰走査して構築される共通データモデル。文書・ブロック・用語・グラフエッジ・問題一覧を一元管理する。
+  `docs/` ディレクトリ全体を再帰走査して構築される共通データモデル。文書・ブロック・用語・グラフエッジ・鮮度メタデータ・問題一覧を一元管理する。
 </TermDef>
 
 <TermDef id="ReviewRecord" aliases="承認記録, レビュー記録" symbols="src/core/types.ts#BlockReviewRecord, src/core/reviews.ts#approveBlock">
@@ -45,6 +45,18 @@ Documi の仕様・設計・ソースコードで共有される共通語彙を�
   複数ドキュメント（全文書・ディレクトリ配下・Goal 関連一式・任意選択）を表紙・自動目次・ページ内アンカー・全タブ展開付きの 1 冊の HTML / PDF として出力する仕組み。
 </TermDef>
 
+<TermDef id="HybridRAG" aliases="ローカル Hybrid RAG, セマンティック検索, グラフ検索" symbols="src/core/retrieval.ts#retrieveContext, src/core/hybrid-retrieval.ts#retrieveContextHybrid, src/core/vector-store.ts#syncVectorIndex">
+  日本語・英語・コード識別子トークナイザによる BM25 検索と `<TermDef aliases>` 自動同義語展開に、任意のローカル Embedding（組み込み ONNX / Ollama / OpenAI 互換 HTTP）と `bun:sqlite` `contentHash` 差分キャッシュを RRF で統合し、さらに明示グラフに沿って上流 Goal・Decision `<Outcome>`・`<SourceRef>` まで 1 発で収集する検索基盤。
+</TermDef>
+
+<TermDef id="AgentSkills" aliases="エージェントスキル, スキル" symbols="src/core/init.ts#initDocumiProject">
+  `documi init` で `<projectRoot>/.agents/skills/` に生成される AI エージェント向け標準手順書（日常運用用 `documi` と既存コードベース導入用 `documi-bootstrap`）。`AGENTS.md` と競合せず、CLI ベースで自己完結したワークフローを提供する。
+</TermDef>
+
+<TermDef id="StaticSite" aliases="静的サイト, 静的書き出し" symbols="src/server/site.ts#buildStaticSite">
+  `documi build-site` によって生成される、サーバー不要・読み取り専用の Web UI 配布物。事前計算した JSON・ハッシュ索引化コード・`HashRouter` 対応 SPA を含み、任意の静的ホスティングでそのまま配信できる。
+</TermDef>
+
 ## 混同しやすい言葉・使わない表現（Anti-Terms）
 
 AI や人間が語彙を混同して仕様・実装・レビューがブレるのを防ぐため、以下の使い分けを徹底する。
@@ -55,5 +67,6 @@ AI や人間が語彙を混同して仕様・実装・レビューがブレる�
 | `requirement`（Type 名として） | **`spec`** | Artifact Type は 9 種に固定し、別名や後方互換エイリアスを持たない |
 | `v1` / `v2` / `Phase X`（現行仕様内のラベル） | 現行の振る舞いとして直接記述（経緯は `decision` へ） | 未リリース期間中に世代ラベルを残すと、AI が古い挙動と現行挙動を取り違えるため |
 | `.mdx` からの相対パス（`<SourceRef>` 内） | <Term name="ProjectRoot" /> からの POSIX 相対パス | 文書ディレクトリを移動しても参照が壊れないようにするため |
+| コード全文のベクトル DB 化（RAG 対象として） | `docs/` のみを検索対象とし、コードは `<SourceRef>` と `@implements` で辿る | ソースコードを別ベクトル化すると二重管理と陳腐化を招くため |
 
 概念同士の関係・状態遷移・ドメイン不変条件は [ドメインモデル](./domain-model.mdx) を参照。

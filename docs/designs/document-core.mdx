@@ -1,21 +1,24 @@
 ---
 type: design
 title: Document Core の設計
-description: 再帰走査・mdast ブロック抽出・Rooted DAG 検証・AST ソース参照の内部設計
+description: 再帰走査・mdast ブロック抽出・Rooted DAG 検証・AST ソース参照・読み取り専用 Git 鮮度と履歴の内部設計
 tags: [core, design]
 satisfies:
   - core.document-model
   - core.type-inference
   - core.mdx-blocks
+  - core.mdx-safety
   - core.rooted-dag
+  - core.auto-mentions
   - core.mcp-surgical-edit
+  - core.doc-history
 ---
 
 # Document Core の設計
 
 Document Core (`src/core`) は React・Hono・MCP に一切依存せず、ファイルシステム上の文書群を <Term name="DocsIndex" /> へ変換する。
 
-## 処理フロー
+## 1. 読み込み・解析・グラフ構築フロー
 
 <Steps>
 <Steps.Step title="再帰走査と優先解決">
@@ -24,20 +27,32 @@ Document Core (`src/core`) は React・Hono・MCP に一切依存せず、ファ
 <Steps.Step title="Frontmatter 解析と Type・Date 推論">
 YAML frontmatter を分離し、省略時はディレクトリ名・ファイル名から Type、H1 見出しからタイトルを推論する。任意の `date`（ISO 8601 の `YYYY-MM-DD` / `YYYY-MM`、MADR 4.0 準拠）を検証し、`decision` 文書は新しい決定日順に降順ソートする。
 </Steps.Step>
-<Steps.Step title="mdast ブロック＆リンク抽出">
-`remark-mdx` の AST から `<Spec>` / `<Constraint>` / `<Outcome>` / `<Note>` / `<TermDef>` / `<SourceRef>` / 本文リンクを抽出し、正規化 SHA-256 ハッシュを算出する。
+<Steps.Step title="mdast ブロック＆リンク抽出・安全性検証">
+`remark-mdx` の AST から `<Spec>` / `<Constraint>` / `<Outcome>` / `<Note>` / `<TermDef>` / `<SourceRef>` / 本文リンクを抽出し、正規化 SHA-256 ハッシュを算出する。ESM import/export・JSX 式・未許可コンポーネントは実行せず `mdx-unsupported` として報告する。
 </Steps.Step>
 <Steps.Step title="グラフ構築と Rooted DAG 検証">
-5 種エッジを解決して双方向参照を構築し、循環参照および `normative` Spec の Goal 到達性 (`orphan-spec`) を検査する。`<SourceRef>` / `<TermDef symbols>` はすべて <Term name="ProjectRoot" /> からの相対パスとして安全検証する。
+5 種エッジ（本文リンク・`<Term>` 参照からの自動 `mentions` を含む）を解決して双方向参照を構築し、循環参照および `normative` Spec の Goal 到達性 (`orphan-spec`) を検査する。`<SourceRef>` / `<TermDef symbols>` はすべて <Term name="ProjectRoot" /> からの相対パスとして安全検証する。
+</Steps.Step>
+<Steps.Step title="読み取り専用 Git 鮮度付与">
+`loadDocuments()` 末尾で `applyGitFreshness()` が `docs/` 全体に対して `git log` / `git status` を各 1 回実行し、各文書の作成日時・最終更新日時・未コミット状態を付与する（非 Git 環境では `fs.stat` へフォールバック）。
 </Steps.Step>
 </Steps>
 
-## コア実装参照
+## 2. AST 精密編集とオンデマンド履歴参照
+
+- **AST 位置ベース編集 (`src/core/editor.ts`)**: ブロック更新・追記・用語登録・雛形生成・プロジェクト横断 ID リネームを AST の正確な行範囲で行い、書き換え前に MDX 安全性・パストラバーサル・`reviews.json` 書き込み禁止を検証する。
+- **オンデマンド履歴・過去版 (`src/core/git.ts`)**: 文書閲覧時のみ `getDocumentHistory()` と `getDocumentRevision()` でコミット履歴・本文基準の変更行レンジ（`git diff -U0` / `git show -U0`）・検証済み SHA の過去本文を取得する。Git 書き込み操作は一切行わない（[ADR](../decisions/2026-11-git-freshness-and-history.mdx)）。
+
+## 3. コア実装参照
 
 <SourceRef file="src/core/loader.ts" symbol="loadDocuments" satisfies="core.document-model" />
 
 <SourceRef file="src/core/mdx.ts" symbol="extractMdxArtifacts" satisfies="core.mdx-blocks" />
 
 <SourceRef file="src/core/editor.ts" symbol="updateBlockInDocs" satisfies="core.mcp-surgical-edit" />
+
+<SourceRef file="src/core/git.ts" symbol="applyGitFreshness" satisfies="core.doc-history" />
+
+<SourceRef file="src/core/git.ts" symbol="getDocumentHistory" satisfies="core.doc-history" />
 
 <SourceRef file="src/core/source.ts" symbol="resolveSourceSymbol" />
