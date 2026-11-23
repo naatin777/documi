@@ -88,15 +88,23 @@ bun run documi:export -- --scope goal:goals/living-specification --format pdf --
 bun run documi:export -- --scope all --format html --out spec.html
 ```
 
-## 静的サイト書き出し（GitHub Pages 公開）
+## 静的サイト書き出し（オプション）
 
-ローカル環境を持たないチームメンバーや非エンジニアとも Web UI を共有できるよう、読み取り専用の静的サイトを生成できます。`.github/workflows/pages.yml` を使えば `main` への push で GitHub Pages へ自動公開できます。
+ローカル環境を持たないチームメンバーや非エンジニアとも読み取り専用で Web UI を共有したい場合、オプションとしてプロバイダ非依存の静的サイト（`dist-site/`）を生成できます。`HashRouter` と相対ベースパス（既定 `./`）を使うため、サーバー側のリライトルールなしで任意の静的ホスティングに配置できます。
 
 ```bash
 bun run build
-bun run documi:build-site -- --out dist-site          # コード閲覧込みで静的サイト生成
+bun run documi:build-site -- --out dist-site           # コード閲覧込みで静的サイト生成
 bun run documi:build-site -- --out dist-site --no-code # ソースコードを除外して仕様書のみ公開
 ```
+
+生成された `dist-site/` はどの静的配信サービスにもそのままデプロイできます（サブパス配信する場合は `--base /docs/` を指定）：
+
+- **Cloudflare Pages**: `npx wrangler pages deploy dist-site --project-name <name>`（`_headers` により `/assets/*` は immutable キャッシュ、`/data/*` は毎回再検証）
+- **Cloudflare Workers Static Assets**: `wrangler.jsonc` に `"assets": { "directory": "./dist-site" }` を設定して `npx wrangler deploy`
+- **Vercel**: ビルド出力ディレクトリに `dist-site` を指定（または `npx vercel deploy dist-site --prod`）
+- **Netlify**: Publish directory に `dist-site` を指定（または `npx netlify deploy --dir=dist-site --prod`、`_headers` 自動認識）
+- **GitHub Pages / AWS S3 / GCS / Nginx**: `dist-site/` の中身をそのままアップロード（`.nojekyll`・`404.html` 同梱済み）
 
 ## リッチ表現コンポーネント
 

@@ -109,9 +109,9 @@ tags: [core, spec]
   **the** Documi CLI および MCP Server **shall** 共通の Document Core を介して CLI 経路（`map` / `list` / `show` / `relations` / `search` / `query` / `context` / `block` / `term` / `scaffold`、`--json` 対応）と MCP 経路（`McpServer` の `instructions` 内蔵）の双方を互いに依存せず自己完結して提供する。
 </Spec>
 
-## 静的サイト書き出し（GitHub Pages 等）
+## 静的サイト書き出し（オプション・プロバイダ非依存）
 
 <Spec id="core.static-site" stability="evolving" derives="goals/human-comprehension">
   **When** `documi build-site` が実行されたとき、
-  **the** Documi CLI および Web UI **shall** ビルド済み Web UI アセットと事前計算済みの全読み取り API JSON（Overview・ツリー・ドキュメント詳細・履歴・過去版・グラフ・マトリクス・検索インデックス・任意でコード＆`<SourceRef>` スニペット・アイコン）を静的ディレクトリ（`.nojekyll`・`404.html`・`window.__DOCUMI_STATIC__` 注入済み `index.html`）へ出力し、GitHub Pages 等の静的ホスティング上でサーバーレス・読み取り専用に動作できるようにする。`--no-code` 指定時はソースコード全文を含めない。
+  **the** Documi CLI および Web UI **shall** ビルド済み Web UI アセット（CSS フォント URL・動的チャンク preload ベースパス・favicon を含む相対/任意ベースパス対応済み）と事前計算済みの全読み取り API JSON（Overview・ツリー・ドキュメント詳細・履歴・過去版・グラフ・マトリクス・検索インデックス・任意でハッシュ索引化したコード＆`<SourceRef>` スニペット・アイコン）およびホスティング補助ファイル（`_headers`・`.nojekyll`・`404.html`・`window.__DOCUMI_STATIC__` 注入済み `index.html`）を静的ディレクトリへ出力し、Cloudflare Pages / Workers Static Assets・Vercel・Netlify・GitHub Pages・S3 等の任意の静的ホスティング上でサーバーレス・読み取り専用に動作できるようにする。`--no-code` 指定時はソースコード全文を含めない。
 </Spec>

@@ -78,7 +78,7 @@ Usage:
   documi check [options]                         ドキュメント・グラフ・ASTシンボル・テスト結果を一括検証
   documi approve <block-id...> [opts]            指定したセマンティックブロックを承認 (reviews.json を更新)
   documi export [options]                        複数ドキュメントを 1 冊の PDF / HTML にまとめて出力
-  documi build-site [options]                    GitHub Pages 等に公開できる読み取り専用静的サイトを生成
+  documi build-site [options]                    任意の静的ホスティング向けに読み取り専用静的サイトを生成
 
   [AI & 人間向け 読み取り・検索コマンド (すべて --json 対応)]
   documi map [options]                           Goal / Architecture / Outcome / 用語 / 統計を一括取得
