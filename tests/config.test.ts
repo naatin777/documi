@@ -71,12 +71,27 @@ describe('Project Config & Bidirectional Path Resolution', () => {
       expect(overridden.docsDir).toBe(path.join(path.resolve(repoJson), 'override-docs'))
       expect(overridden.testReportPath).toBe(path.join(path.resolve(repoJson), 'override.xml'))
 
-      // YAML (.documi.yml) の読み込み
-      await writeFile(path.join(repoYml, '.documi.yml'), 'docs: specs-root\ntestReport: out/test.xml\n')
+      // YAML (.documi.yml) の読み込み（rag 設定含む）
+      await writeFile(
+        path.join(repoYml, '.documi.yml'),
+        [
+          'docs: specs-root',
+          'testReport: out/test.xml',
+          'rag:',
+          '  enabled: true',
+          '  provider: onnx',
+          '  model: onnx-community/embeddinggemma-300m-ONNX',
+          '  dtype: q4',
+          '',
+        ].join('\n'),
+      )
       const fromYml = resolveProjectPaths({ cwd: repoYml, env: {} })
       expect(fromYml.docsDir).toBe(path.join(path.resolve(repoYml), 'specs-root'))
       expect(fromYml.testReportPath).toBe(path.join(path.resolve(repoYml), 'out/test.xml'))
       expect(fromYml.configPath).toBe(path.join(path.resolve(repoYml), '.documi.yml'))
+      expect(fromYml.config.rag?.enabled).toBe(true)
+      expect(fromYml.config.rag?.provider).toBe('onnx')
+      expect(fromYml.config.rag?.dtype).toBe('q4')
     } finally {
       await rm(work, { recursive: true, force: true })
       await rm(repoJson, { recursive: true, force: true })
