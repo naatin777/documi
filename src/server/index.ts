@@ -1,10 +1,12 @@
 import path from 'node:path'
+import { resolveProjectPaths } from '../core/config'
 import { createApp } from './app'
 import { DocsStore } from './store'
 
 export interface ServerStartOptions {
   docsDir: string
   projectRoot?: string
+  testReportPath?: string
   port?: number
   hostname?: string
   clientDist?: string
@@ -21,7 +23,7 @@ export async function startServer(options: ServerStartOptions): Promise<{ stop: 
   const hostname = options.hostname ?? process.env.HOST ?? '127.0.0.1'
   const clientDist = options.clientDist ?? path.resolve(import.meta.dir, '../../dist')
 
-  const store = await DocsStore.open(docsDir, { projectRoot })
+  const store = await DocsStore.open(docsDir, { projectRoot, testReportPath: options.testReportPath })
   const stopWatch = store.watch()
   const app = createApp(store, { clientDist, projectRoot })
 
@@ -74,24 +76,21 @@ if (import.meta.main) {
   const args = process.argv.slice(2)
   const docsFlag = parseFlag(args, 'docs')
   const projectFlag = parseFlag(args, 'project')
+  const testReportFlag = parseFlag(args, 'test-report')
   const portFlag = parseFlag(args, 'port')
   const hostFlag = parseFlag(args, 'host')
 
-  const docsDir = docsFlag
-    ? path.resolve(docsFlag)
-    : process.env.DOCUMI_DOCS_DIR
-      ? path.resolve(process.env.DOCUMI_DOCS_DIR)
-      : path.resolve(process.cwd(), 'docs')
-  const projectRoot = projectFlag
-    ? path.resolve(projectFlag)
-    : process.env.DOCUMI_PROJECT_ROOT
-      ? path.resolve(process.env.DOCUMI_PROJECT_ROOT)
-      : undefined
+  const resolved = resolveProjectPaths({
+    docs: docsFlag,
+    project: projectFlag,
+    testReport: testReportFlag,
+  })
   const port = portFlag ? Number(portFlag) : undefined
 
   await startServer({
-    docsDir,
-    projectRoot,
+    docsDir: resolved.docsDir,
+    projectRoot: resolved.projectRoot,
+    testReportPath: resolved.testReportPath,
     port: Number.isFinite(port) ? port : undefined,
     hostname: hostFlag,
   })

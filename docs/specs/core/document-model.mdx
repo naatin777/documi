@@ -87,3 +87,10 @@ tags: [core, spec]
   **When** Document Core が `docs/` を読み込むか、指定ドキュメントの履歴・過去バージョンを要求されたとき、
   **the** Document Core **shall** 読み取り専用の Git 連携（非 Git 環境ではファイル時刻へのフォールバック）により各文書の作成日時・最終更新日時・未コミット変更状態・コミット履歴・最新変更の本文基準行レンジを算出し、検証済みのコミット SHA に対して過去バージョンの文書本文を安全に返却する。Git リポジトリへの書き込み操作は一切行わない。
 </Spec>
+
+## プロジェクト設定ファイルと双方向パス解決
+
+<Spec id="core.project-config" stability="evolving" derives="goals/low-friction-governance">
+  **When** CLI・HTTP サーバー・MCP サーバーが `projectRoot` と `docsDir` を解決するとき、
+  **the** Document Core **shall** 既定を `<projectRoot>/docs` としつつプロジェクトルート直下の設定ファイル（`.documi.json` / `.documi.yml` / `.documi.yaml` / `documi.json`）から `docs` と `testReport` を自動読み込みし、`--project` のみ指定時は `<projectRoot>/<docs>` を、`--docs` のみ指定時はその親ディレクトリを `projectRoot` として双方向に自動解決する。不正な構文や未定義キーは `ConfigError` として拒否する。
+</Spec>

@@ -4,6 +4,7 @@ import { mkdir, writeFile } from 'node:fs/promises'
 import path from 'node:path'
 import { parseArgs as parseNodeArgs } from 'node:util'
 import { runDocsCheck } from './core/checker'
+import { ConfigError, resolveProjectPaths } from './core/config'
 import { loadDocuments } from './core/loader'
 import { approveBlock, ReviewError } from './core/reviews'
 import { createApp } from './server/app'
@@ -24,8 +25,8 @@ Usage:
   documi export [options]              複数ドキュメントを 1 冊の PDF / HTML にまとめて出力
 
 Options:
-  --docs <dir>         docs ディレクトリ (既定: ./docs または DOCUMI_DOCS_DIR)
-  --project <dir>      プロジェクトルート (既定: docs の親ディレクトリまたは DOCUMI_PROJECT_ROOT)
+  --project <dir>      プロジェクトルート (既定: cwd または DOCUMI_PROJECT_ROOT / --docs 指定時はその親)
+  --docs <dir>         docs ディレクトリ (既定: 設定ファイルの docs または <project>/docs / DOCUMI_DOCS_DIR)
   --port <number>      待ち受けポート (serve 用、既定: 3000 または PORT)
   --host <addr>        バインドアドレス (serve 用、既定: 127.0.0.1 または HOST)
   --test-report <xml>  JUnit XML テストレポートのパス (check 用)
@@ -83,16 +84,12 @@ function parseCliArgs(argv: string[]): ParsedArgs {
   }
 }
 
-function resolveDocsDir(flags: Record<string, string | boolean>): string {
-  if (typeof flags.docs === 'string') return path.resolve(flags.docs)
-  if (process.env.DOCUMI_DOCS_DIR) return path.resolve(process.env.DOCUMI_DOCS_DIR)
-  return path.resolve(process.cwd(), 'docs')
-}
-
-function resolveProjectRoot(flags: Record<string, string | boolean>, docsDir: string): string {
-  if (typeof flags.project === 'string') return path.resolve(flags.project)
-  if (process.env.DOCUMI_PROJECT_ROOT) return path.resolve(process.env.DOCUMI_PROJECT_ROOT)
-  return path.dirname(docsDir)
+function resolveCliPaths(flags: CliFlags) {
+  return resolveProjectPaths({
+    docs: typeof flags.docs === 'string' ? flags.docs : undefined,
+    project: typeof flags.project === 'string' ? flags.project : undefined,
+    testReport: typeof flags['test-report'] === 'string' ? flags['test-report'] : undefined,
+  })
 }
 
 const INIT_TEMPLATES: Record<string, string> = {
@@ -157,8 +154,8 @@ derives:
 `,
 }
 
-async function cmdInit(flags: Record<string, string | boolean>): Promise<number> {
-  const docsDir = resolveDocsDir(flags)
+async function cmdInit(flags: CliFlags): Promise<number> {
+  const { docsDir, projectRoot } = resolveCliPaths(flags)
   const created: string[] = []
   const skipped: string[] = []
 
@@ -173,27 +170,28 @@ async function cmdInit(flags: Record<string, string | boolean>): Promise<number>
     created.push(rel)
   }
 
+  const relDocs = path.relative(projectRoot, docsDir).split(path.sep).join('/') || 'docs'
   console.log(`Documi Init: ${docsDir}`)
   for (const rel of created) console.log(`  + created ${rel}`)
   for (const rel of skipped) console.log(`  - skipped ${rel} (already exists)`)
   console.log('\n推奨 .gitignore 設定:')
-  console.log('  docs/.documi/cache/')
-  console.log('  docs/.documi/test-results.xml')
+  console.log(`  ${relDocs}/.documi/cache/`)
+  console.log(`  ${relDocs}/.documi/test-results.xml`)
   console.log('\n次のステップ:')
   console.log('  documi check')
   console.log('  documi serve')
   return 0
 }
 
-async function cmdServe(flags: Record<string, string | boolean>): Promise<number> {
-  const docsDir = resolveDocsDir(flags)
-  const projectRoot = resolveProjectRoot(flags, docsDir)
+async function cmdServe(flags: CliFlags): Promise<number> {
+  const { docsDir, projectRoot, testReportPath } = resolveCliPaths(flags)
   const port = typeof flags.port === 'string' ? Number(flags.port) : undefined
   const hostname = typeof flags.host === 'string' ? flags.host : undefined
 
   await startServer({
     docsDir,
     projectRoot,
+    testReportPath,
     port: Number.isFinite(port) ? port : undefined,
     hostname,
   })
@@ -202,10 +200,9 @@ async function cmdServe(flags: Record<string, string | boolean>): Promise<number
   return 0
 }
 
-async function cmdMcp(flags: Record<string, string | boolean>): Promise<number> {
-  const docsDir = resolveDocsDir(flags)
-  const projectRoot = resolveProjectRoot(flags, docsDir)
-  const store = await DocsStore.open(docsDir, { projectRoot })
+async function cmdMcp(flags: CliFlags): Promise<number> {
+  const { docsDir, projectRoot, testReportPath } = resolveCliPaths(flags)
+  const store = await DocsStore.open(docsDir, { projectRoot, testReportPath })
   const stopWatch = store.watch()
 
   process.on('SIGINT', () => {
@@ -223,10 +220,8 @@ async function cmdMcp(flags: Record<string, string | boolean>): Promise<number> 
   return 0
 }
 
-async function cmdCheck(flags: Record<string, string | boolean>): Promise<number> {
-  const docsDir = resolveDocsDir(flags)
-  const projectRoot = resolveProjectRoot(flags, docsDir)
-  const testReportPath = typeof flags['test-report'] === 'string' ? flags['test-report'] : undefined
+async function cmdCheck(flags: CliFlags): Promise<number> {
+  const { docsDir, projectRoot, testReportPath } = resolveCliPaths(flags)
 
   const report = await runDocsCheck({
     docsDir,
@@ -284,12 +279,12 @@ async function cmdCheck(flags: Record<string, string | boolean>): Promise<number
   return report.ok ? 0 : 1
 }
 
-async function cmdApprove(ids: string[], flags: Record<string, string | boolean>): Promise<number> {
+async function cmdApprove(ids: string[], flags: CliFlags): Promise<number> {
   if (ids.length === 0) {
     console.error('承認するブロック ID を 1 つ以上指定してください (例: documi approve auth.lockout)')
     return 1
   }
-  const docsDir = resolveDocsDir(flags)
+  const { docsDir } = resolveCliPaths(flags)
   const author = typeof flags.author === 'string' ? flags.author : undefined
   const index = await loadDocuments(docsDir)
 
@@ -307,10 +302,9 @@ async function cmdApprove(ids: string[], flags: Record<string, string | boolean>
   return failed > 0 ? 1 : 0
 }
 
-async function cmdExport(flags: Record<string, string | boolean>): Promise<number> {
+async function cmdExport(flags: CliFlags): Promise<number> {
   const format = flags.format === 'html' ? 'html' : 'pdf'
-  const docsDir = resolveDocsDir(flags)
-  const projectRoot = resolveProjectRoot(flags, docsDir)
+  const { docsDir, projectRoot, testReportPath } = resolveCliPaths(flags)
   const clientDist = path.resolve(import.meta.dir, '../dist')
   if (!existsSync(clientDist)) {
     console.error(`ビルド済みフロントエンドが見つかりません (${clientDist})。先に "bun run build" を実行してください。`)
@@ -318,7 +312,7 @@ async function cmdExport(flags: Record<string, string | boolean>): Promise<numbe
   }
 
   const outPath = path.resolve(typeof flags.out === 'string' ? flags.out : `documi-bundle.${format}`)
-  const store = await DocsStore.open(docsDir, { projectRoot })
+  const store = await DocsStore.open(docsDir, { projectRoot, testReportPath })
   const app = createApp(store, { clientDist, projectRoot })
   const server = Bun.serve({ port: 0, hostname: '127.0.0.1', fetch: app.fetch })
 
@@ -358,28 +352,36 @@ async function main(): Promise<void> {
     process.exit(command ? 0 : 1)
   }
 
-  if (command === 'init') {
-    process.exit(await cmdInit(flags))
-  }
-  if (command === 'serve') {
-    process.exit(await cmdServe(flags))
-  }
-  if (command === 'mcp') {
-    process.exit(await cmdMcp(flags))
-  }
-  if (command === 'check') {
-    process.exit(await cmdCheck(flags))
-  }
-  if (command === 'approve') {
-    process.exit(await cmdApprove(positionals, flags))
-  }
-  if (command === 'export') {
-    process.exit(await cmdExport(flags))
-  }
+  try {
+    if (command === 'init') {
+      process.exit(await cmdInit(flags))
+    }
+    if (command === 'serve') {
+      process.exit(await cmdServe(flags))
+    }
+    if (command === 'mcp') {
+      process.exit(await cmdMcp(flags))
+    }
+    if (command === 'check') {
+      process.exit(await cmdCheck(flags))
+    }
+    if (command === 'approve') {
+      process.exit(await cmdApprove(positionals, flags))
+    }
+    if (command === 'export') {
+      process.exit(await cmdExport(flags))
+    }
 
-  console.error(`不明なコマンドです: ${command}`)
-  usage()
-  process.exit(1)
+    console.error(`不明なコマンドです: ${command}`)
+    usage()
+    process.exit(1)
+  } catch (error) {
+    if (error instanceof ConfigError) {
+      console.error(`✗ ${error.message}`)
+      process.exit(1)
+    }
+    throw error
+  }
 }
 
 void main()

@@ -7,16 +7,23 @@ satisfies:
   - core.ast-check
   - core.human-review
   - core.bundle-export
+  - core.project-config
 ---
 
 # CLI コントラクト
 
 `bun src/cli.ts <command>`（または `package.json` の `bin: documi` / `bun run documi:check` / `bun run documi:export`）で実行する。
 
-## パス解決の基準 (`--docs` / `--project`)
+## パス解決と設定ファイル (`--project` / `--docs` / `.documi.json`・`.documi.yml`)
 
-- `--docs <dir>`（既定: `./docs` または環境変数 `DOCUMI_DOCS_DIR`）: ドキュメントのルートディレクトリ
-- `--project <dir>`（既定: `docs` の親ディレクトリまたは環境変数 `DOCUMI_PROJECT_ROOT`）: **ソースコード参照の基準ディレクトリ**。`<SourceRef file="src/..." />`・`<TermDef symbols="src/...#Symbol">`・`@implements` / `@verifies` の走査はすべてこの `projectRoot` からの相対パスで解決され、ルート外参照（絶対パス・`..`・外部シンボリックリンク）は拒否される。
+CLI・HTTP サーバー・stdio MCP はすべて `resolveProjectPaths()` による双方向推論を共有する。
+
+- **既定**: `projectRoot = cwd`、`docsDir = <projectRoot>/docs`（両方省略可）
+- **`--project <dir>`（または `DOCUMI_PROJECT_ROOT`）のみ指定**: 指定したプロジェクトルート直下の設定ファイル（あれば）の `docs`、無ければ `<projectRoot>/docs` を自動参照する（MCP 連携では `--project /path/to/repo` の 1 引数だけで完結する）。
+- **`--docs <dir>`（または `DOCUMI_DOCS_DIR`）のみ指定**: `projectRoot` は `dirname(docsDir)` を自動推論する。
+- **両方指定**: モノレポ等で `docs/` が別階層にある場合に明示上書きできる。
+- **設定ファイル（任意）**: プロジェクトルート直下の `.documi.json` → `.documi.yml` → `.documi.yaml` → `documi.json` の順で自動探索し、`docs`（`projectRoot` からの相対パス、既定 `"docs"`）と `testReport`（JUnit XML の相対パス）を読み込む。
+- `<SourceRef file="src/..." />`・`<TermDef symbols="src/...#Symbol">`・`@implements` / `@verifies` の走査はすべて解決された `projectRoot` からの相対パスを基準とし、ルート外参照（絶対パス・`..`・外部シンボリックリンク）は拒否される。
 
 ## `documi init`
 
@@ -35,7 +42,7 @@ Web UI・Hono RPC REST API・SSE・Streamable HTTP MCP (`/mcp`) を起動し、`
 
 ## `documi mcp`
 
-AI エディタ・CLI エージェント向けに **stdio トランスポート** で MCP サーバーを起動する。HTTP サーバーを常駐させずに 8 ツールを利用でき、`fs.watch` により起動中の `docs/` 編集もリアルタイムに反映される。
+AI エディタ・CLI エージェント向けに **stdio トランスポート** で MCP サーバーを起動する。HTTP サーバーを常駐させずに全 MCP ツールを利用でき、`fs.watch` により起動中の `docs/` 編集もリアルタイムに反映される。`--project /path/to/repo` を 1 つ渡すだけで設定ファイルまたは `<project>/docs` を自動参照する。
 
 ## `documi check`
 
