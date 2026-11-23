@@ -11,6 +11,7 @@ satisfies:
   - core.agent-skills-init
   - core.ai-cli
   - core.static-site
+  - core.graph-retrieval
 ---
 
 # CLI コントラクト
@@ -51,7 +52,8 @@ MCP サーバーを接続しない環境（CLI + Agent Skills 運用やターミ
 | `documi list` | `--type <type>`, `--json` | ドキュメント一覧を取得 |
 | `documi show <doc-id>` | `--json` | 本文・セマンティックブロック・関係・問題一覧を取得 |
 | `documi relations <id>` | `--json` | ドキュメントまたはブロックの外向き・逆参照を取得 |
-| `documi search <query...>` | `--type <type>`, `--limit <n>`, `--json` | ドキュメントとセマンティックブロックを横断全文検索 |
+| `documi search <query...>` | `--type <type>`, `--limit <n>`, `--json` | ドキュメントとセマンティックブロックを BM25＋用語集同義語展開で横断全文検索 |
+| `documi retrieve <query...>` | `--type <type>`, `--limit <n>`, `--budget <chars>`, `--no-graph`, `--json` | 自然文から BM25＋用語集同義語展開＋明示グラフ展開で関連 Spec・上流 Goal・Decision `<Outcome>`・用語・`<SourceRef>` を予算内で 1 発取得 |
 | `documi query` | `--kind`, `--intent`, `--stability`, `--review`, `--realization`, `--suspect`/`--no-suspect`, `--has-feedback`/`--no-feedback`, `--q <text>`, `--json`, `--full` | セマンティックブロックを多軸フィルタ検索（既定は軽量サマリ、`--full` で完全展開） |
 | `documi context <id>` | `--json`, `--full` | Spec の本文・上流 Goal 概要・未解決フィードバック・関連文書・Decision `<Outcome>`・関連用語・`<SourceRef>` を一括集約（`--full` で完全展開） |
 
