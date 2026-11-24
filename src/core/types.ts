@@ -281,10 +281,13 @@ export interface SemanticBlock {
   symbols?: string[]
 }
 
+export type SourceRefMode = 'snippet' | 'exports'
+
 export interface SourceRefDecl {
   file: string
   symbol?: string
   lines?: string
+  mode?: SourceRefMode
   satisfies: string[]
   verifies: string[]
   startLine: number

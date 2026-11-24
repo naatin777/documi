@@ -264,6 +264,63 @@ export default function OverviewLayout() {
               </section>
             )}
 
+            {data.health && (
+              <section className="mb-7">
+                <div className="mb-3 flex flex-wrap items-center gap-2">
+                  <h2 className="m-0 text-[15px] font-bold text-fg">{t('overview.healthTitle')}</h2>
+                  {data.health.hints.length === 0 ? (
+                    <span className="rounded-full bg-emerald-500/15 px-2 py-0.5 text-[11px] font-bold text-emerald-700 dark:text-emerald-400">
+                      {t('overview.healthHealthy')}
+                    </span>
+                  ) : (
+                    <span className="rounded-full bg-amber-500/15 px-2 py-0.5 text-[11px] font-bold text-amber-700 dark:text-amber-400">
+                      {t('overview.healthHintsCount', { count: data.health.hints.length })}
+                    </span>
+                  )}
+                </div>
+                <div className="mb-3 grid grid-cols-[repeat(auto-fit,minmax(180px,1fr))] gap-2.5">
+                  <div className={statCard(data.health.uncoveredByDesign.length > 0)}>
+                    <span className="text-xl leading-[1.2] font-bold tabular-nums">
+                      {data.health.designCoveredSpecs} / {data.health.totalNormativeSpecs}
+                    </span>
+                    <span className="text-xs text-fg-muted">{t('overview.designCoverage')}</span>
+                  </div>
+                  <div className={statCard(data.health.uncoveredByVerification.length > 0)}>
+                    <span className="text-xl leading-[1.2] font-bold tabular-nums">
+                      {data.health.verificationCoveredSpecs} / {data.health.totalNormativeSpecs}
+                    </span>
+                    <span className="text-xs text-fg-muted">{t('overview.verificationCoverage')}</span>
+                  </div>
+                </div>
+                {data.health.hints.length > 0 && (
+                  <ul className="m-0 grid list-none gap-1.5 rounded-lg border border-amber-500/35 bg-amber-500/5 p-3 text-[12.5px]">
+                    {data.health.hints.slice(0, 12).map((hint, idx) => (
+                      <li
+                        key={`${hint.code}-${hint.blockId ?? hint.docId ?? idx}`}
+                        className="flex flex-wrap items-baseline gap-2"
+                      >
+                        <code className="text-[11px]">{hint.code}</code>
+                        {hint.docId ? (
+                          <Link
+                            to={
+                              hint.blockId
+                                ? `/docs/${encodeDocId(hint.docId)}#block-${encodeURIComponent(hint.blockId)}`
+                                : `/docs/${encodeDocId(hint.docId)}`
+                            }
+                            className="text-fg no-underline hover:text-accent hover:underline"
+                          >
+                            {hint.message}
+                          </Link>
+                        ) : (
+                          <span>{hint.message}</span>
+                        )}
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </section>
+            )}
+
             <section className="mb-7">
               <h2 className="m-0 mb-3 text-[15px] font-bold text-fg">{t('overview.realizationStability')}</h2>
               <div className="grid grid-cols-[repeat(auto-fit,minmax(180px,1fr))] gap-3">

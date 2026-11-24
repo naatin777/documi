@@ -1,5 +1,8 @@
 import { searchIndex } from './bundle'
+import { computeDocumentHealth } from './health'
 import { getDocument, toDocumentSummary } from './loader'
+import { extractExportedSymbols } from './source'
+import type { ExportedSymbolEntry } from './source'
 import { validateSourceLinks } from './trace'
 import type {
   ArtifactType,
@@ -8,6 +11,7 @@ import type {
   RealizationStatus,
   ReviewStatus,
   SemanticBlock,
+  SourceRefDecl,
   SpecIntent,
   Stability,
 } from './types'
@@ -122,12 +126,15 @@ export function buildProjectMap(index: DocsIndex, options: { full?: boolean } = 
     reviewSummary.openFeedback += b.feedback.filter((f) => !f.resolved).length
   }
 
+  const health = computeDocumentHealth(index)
+
   return {
     documentCount: index.documents.length,
     blockCount: index.blocksById.size,
     issueCount: index.issues.length + index.documents.reduce((acc, d) => acc + d.issues.length, 0),
     reviewSummary,
     realizationSummary,
+    health,
     goals,
     architecture,
     decisionOutcomes: outcomes,
@@ -337,6 +344,32 @@ export function searchDocuments(
 }
 
 /**
+ * 指定された SourceRef 一覧が参照するソースファイル群から、重複を除いて公開シンボル（class / interface / function 等）を AST 抽出する。
+ */
+export async function collectSourceRefExports(
+  projectRoot: string,
+  sourceRefs: SourceRefDecl[],
+): Promise<Array<{ file: string; language: string; symbols: ExportedSymbolEntry[] }>> {
+  const uniqueFiles = [...new Set(sourceRefs.map((r) => r.file))]
+  const results: Array<{ file: string; language: string; symbols: ExportedSymbolEntry[] }> = []
+  for (const file of uniqueFiles) {
+    try {
+      const extracted = await extractExportedSymbols(projectRoot, file)
+      if (extracted.symbols.length > 0) {
+        results.push({
+          file: extracted.file,
+          language: extracted.language,
+          symbols: extracted.symbols,
+        })
+      }
+    } catch {
+      // 未対応拡張子や存在しないファイルは文脈集約を失敗させずスキップ
+    }
+  }
+  return results
+}
+
+/**
  * ドキュメント構造・グラフ・MDX 安全性・ソース参照検証の結果ペイロードを構築する。
  */
 export async function buildValidationPayload(index: DocsIndex, projectRoot?: string) {
@@ -351,11 +384,13 @@ export async function buildValidationPayload(index: DocsIndex, projectRoot?: str
   )
   const sourceIssues = projectRoot ? (await validateSourceLinks(projectRoot, index)).issues : []
   const totalIssues = index.issues.length + docIssues.length + sourceIssues.length
+  const health = computeDocumentHealth(index)
   return {
     ok: totalIssues === 0,
     indexIssues: index.issues,
     docIssues,
     sourceIssues,
     totalIssues,
+    health,
   }
 }

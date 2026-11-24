@@ -1,7 +1,14 @@
 import type { Dirent } from 'node:fs'
 import { readdir } from 'node:fs/promises'
 import path from 'node:path'
-import { detectSourceLanguage, loadSourceFile, SourceError, TEXT_EXTS } from './source'
+import {
+  detectSourceLanguage,
+  extractExportedSymbolsFromSource,
+  loadSourceFile,
+  SourceError,
+  TEXT_EXTS,
+} from './source'
+import type { ExportedSymbolEntry } from './source'
 import type { ArtifactType, DocsIndex } from './types'
 
 const IGNORED_DIRS = new Set([
@@ -87,6 +94,7 @@ export interface CodeFileResult {
   specLinks: CodeSpecLink[]
   docRefs: CodeDocRef[]
   termLinks: CodeTermLink[]
+  exportedSymbols: ExportedSymbolEntry[]
 }
 
 interface FileReverseIndex {
@@ -372,6 +380,8 @@ export async function readCodeFile(projectRoot: string, index: DocsIndex, filePa
         ? loaded.source.split('\n').length - 1
         : loaded.source.split('\n').length
 
+  const { symbols: exportedSymbols } = extractExportedSymbolsFromSource(loaded.relPath, loaded.ext, loaded.source)
+
   return {
     path: loaded.relPath,
     language: detectSourceLanguage(loaded.ext),
@@ -380,5 +390,6 @@ export async function readCodeFile(projectRoot: string, index: DocsIndex, filePa
     specLinks,
     docRefs,
     termLinks,
+    exportedSymbols,
   }
 }

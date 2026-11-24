@@ -52,6 +52,7 @@ type MatrixResponse = InferResponseType<typeof rpc.api.matrix.$get, 200>
 type BundleResponse = InferResponseType<typeof rpc.api.bundle.$get, 200>
 type BlockDiffResponse = InferResponseType<(typeof rpc.api.blocks)[':id']['diff']['$get'], 200>
 type SourceResponse = InferResponseType<typeof rpc.api.source.$get, 200>
+type SourceExportsResponse = InferResponseType<typeof rpc.api.source.exports.$get, 200>
 type CodeFileResponse = InferResponseType<typeof rpc.api.code.file.$get, 200>
 type IconManifestResponse = InferResponseType<typeof rpc.api.icons.manifest.$get, 200>
 
@@ -89,6 +90,7 @@ export function encodeDocId(docId: string): string {
 
 let cachedSearchIndex: Promise<StaticSearchEntry[]> | null = null
 let cachedSourceIndex: Promise<Record<string, string>> | null = null
+let cachedSourceExportsIndex: Promise<Record<string, string>> | null = null
 let cachedCodeFileIndex: Promise<Record<string, string>> | null = null
 
 function loadStaticSearchIndex(): Promise<StaticSearchEntry[]> {
@@ -101,6 +103,11 @@ function loadStaticSearchIndex(): Promise<StaticSearchEntry[]> {
 function loadStaticSourceIndex(): Promise<Record<string, string>> {
   cachedSourceIndex ??= fetchStaticJson<Record<string, string>>('data/source-index.json')
   return cachedSourceIndex
+}
+
+function loadStaticSourceExportsIndex(): Promise<Record<string, string>> {
+  cachedSourceExportsIndex ??= fetchStaticJson<Record<string, string>>('data/source-exports-index.json')
+  return cachedSourceExportsIndex
 }
 
 function loadStaticCodeFileIndex(): Promise<Record<string, string>> {
@@ -363,6 +370,17 @@ export const api = {
         },
       }),
     )
+  },
+  sourceExports: async (file: string): Promise<SourceExportsResponse> => {
+    if (isStaticSite()) {
+      const idx = await loadStaticSourceExportsIndex()
+      const hash = idx[file]
+      if (!hash) {
+        throw new Error(`公開シンボル一覧は静的サイトに同梱されていません: ${file}`)
+      }
+      return fetchStaticJson<SourceExportsResponse>(`data/source-exports/${hash}.json`)
+    }
+    return unwrap(rpc.api.source.exports.$get({ query: { file } }))
   },
   codeTree: async (): Promise<CodeTreeResponse> => {
     if (isStaticSite()) {
