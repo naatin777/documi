@@ -254,6 +254,45 @@ export default function SigmaGraph({ data, selectedNodeId, onSelectNode }: Sigma
     }
     camera.on('updated', onCameraUpdated)
 
+    // Figma / Miro 方式のトラックパッド＆マウス操作:
+    // - 通常 wheel (2本指スワイプ): 上下左右パン
+    // - ctrlKey / metaKey 付き wheel (トラックパッドのピンチ / ⌘・Ctrl+ホイール): カーソル中心ズーム
+    const onWheel = (e: WheelEvent) => {
+      e.preventDefault()
+      e.stopPropagation()
+
+      const modeScale = e.deltaMode === 1 ? 16 : e.deltaMode === 2 ? 100 : 1
+      const dx = e.deltaX * modeScale
+      const dy = e.deltaY * modeScale
+
+      if (e.ctrlKey || e.metaKey) {
+        if (dy === 0) return
+        const rect = container.getBoundingClientRect()
+        const cursor = { x: e.clientX - rect.left, y: e.clientY - rect.top }
+        const clampedDy = Math.max(-120, Math.min(120, dy))
+        const zoomFactor = Math.exp(clampedDy * 0.008)
+        const currentRatio = camera.getState().ratio
+        const nextRatio = camera.getBoundedRatio(currentRatio * zoomFactor)
+        if (nextRatio === currentRatio) return
+        camera.setState(renderer.getViewportZoomedState(cursor, nextRatio))
+      } else {
+        if (dx === 0 && dy === 0) return
+        const p0 = renderer.viewportToFramedGraph({ x: 0, y: 0 })
+        const p1 = renderer.viewportToFramedGraph({ x: dx, y: dy })
+        const state = camera.getState()
+        camera.setState({
+          x: state.x + (p1.x - p0.x),
+          y: state.y + (p1.y - p0.y),
+        })
+      }
+    }
+    const preventSafariGesture = (e: Event) => {
+      e.preventDefault()
+    }
+    container.addEventListener('wheel', onWheel, { passive: false, capture: true })
+    container.addEventListener('gesturestart', preventSafariGesture, { passive: false })
+    container.addEventListener('gesturechange', preventSafariGesture, { passive: false })
+
     // リアルタイム Force-Directed 物理エンジン (Obsidian Graph View スタイル)
     let draggedNodeId: string | null = null
     let alpha = 1.0
@@ -350,6 +389,9 @@ export default function SigmaGraph({ data, selectedNodeId, onSelectNode }: Sigma
     return () => {
       disposed = true
       killed = true
+      container.removeEventListener('wheel', onWheel, { capture: true })
+      container.removeEventListener('gesturestart', preventSafariGesture)
+      container.removeEventListener('gesturechange', preventSafariGesture)
       camera.off('updated', onCameraUpdated)
       if (rafId !== null) cancelAnimationFrame(rafId)
       wakeRef.current = null

@@ -250,7 +250,7 @@
     "forcesSettings": "Adjust physics (Forces)",
     "forcesLabel": "Physics parameters",
     "webglError": "Failed to initialize WebGL graph",
-    "hint": "Zoom to switch cards/dots · Drag to pull · Click to preview · Double-click to open"
+    "hint": "Swipe to pan · Pinch or ⌘/Ctrl+Scroll to zoom · Drag to pull · Click to preview · Double-click to open"
   },
   "search": {
     "dialogAria": "Full-text search",
