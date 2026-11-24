@@ -32,6 +32,7 @@ const queryKeys = {
   search: (q: string) => ['search', q] as const,
   source: (params: { file: string; symbol?: string; lines?: string }) =>
     ['source', params.file, params.symbol ?? '', params.lines ?? ''] as const,
+  sourceExports: (file: string) => ['source', 'exports', file] as const,
   codeTree: ['code', 'tree'] as const,
   codeFile: (filePath: string) => ['code', 'file', filePath] as const,
   iconManifest: ['icons', 'manifest'] as const,
@@ -162,6 +163,16 @@ export function useSourceQuery(params: { file?: string; symbol?: string; lines?:
     queryKey: queryKeys.source({ file, symbol: params.symbol, lines: params.lines }),
     queryFn: () => api.source({ file, symbol: params.symbol, lines: params.lines }),
     enabled: enabled && Boolean(file),
+    retry: false,
+  })
+}
+
+export function useSourceExportsQuery(file: string | undefined, enabled: boolean) {
+  const target = file ?? ''
+  return useQuery({
+    queryKey: queryKeys.sourceExports(target),
+    queryFn: () => api.sourceExports(target),
+    enabled: enabled && Boolean(target),
     retry: false,
   })
 }

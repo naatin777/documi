@@ -7,6 +7,7 @@ satisfies:
   - core.human-review
   - core.realization
   - core.ast-check
+  - core.doc-health
   - core.bundle-export
   - ui.bundle-export
 ---
@@ -31,6 +32,12 @@ satisfies:
 <SourceRef file="src/core/trace.ts" symbol="enrichWithRealization" satisfies="core.realization" />
 
 <SourceRef file="src/core/checker.ts" symbol="runDocsCheck" satisfies="core.ast-check" />
+
+### ドキュメント健全性・カバレッジ算出 (`src/core/health.ts`)
+
+- `computeDocumentHealth()` が `normative` `<Spec>` の Design / Verification カバレッジ・Spec ファイル肥大化（既定 10 件超）・`architecture` 鮮度ギャップを純粋計算し、CI を落とさない Advisory ヒントとして CLI・MCP・Overview UI へ供給する
+
+<SourceRef file="src/core/health.ts" mode="exports" satisfies="core.doc-health" />
 
 ## 3. `/bundle` × `Bun.WebView.navigate()` による複数まとめ Export
 

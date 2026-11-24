@@ -137,6 +137,11 @@
     "orphanSpecs": "Orphan Specs ({{count}})",
     "allIssues": "All Issues ({{count}})",
     "realizationStability": "Realization & Stability",
+    "healthTitle": "Documentation Health & Coverage",
+    "designCoverage": "Specs Covered by Design",
+    "verificationCoverage": "Specs Covered by Verification",
+    "healthHealthy": "Healthy",
+    "healthHintsCount": "{{count}} advisory hint(s)",
     "realization": "Realization",
     "specsByIntent": "Specs by Intent",
     "specsByStability": "Specs by Stability"
@@ -369,6 +374,7 @@
     "linkedSpecs": "Specs ({{count}})",
     "linkedDocs": "Docs ({{count}})",
     "linkedTerms": "Terms ({{count}})",
+    "exportedSymbols": "Exports ({{count}})",
     "lineSelectHint": "Click to highlight line {{line}} (Shift+Click for range)"
   },
   "code": {
@@ -385,9 +391,12 @@
     "zoomAria": "Mermaid diagram (enlarged)"
   },
   "sourceRef": {
-    "invalidProps": "SourceRef requires file along with either symbol or lines",
+    "invalidProps": "SourceRef requires file along with mode=\"exports\", symbol, or lines",
     "truncated": " (truncated)",
-    "loading": "Loading source…"
+    "loading": "Loading source…",
+    "exportsBadge": "Public Exports",
+    "exportsCount": "{{count}} symbols",
+    "noExports": "No exported symbols found in this file."
   },
   "term": {
     "loadingSymbol": "Loading code definition…",

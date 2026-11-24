@@ -1,7 +1,7 @@
 ---
 type: verification
 title: Core・Reviews・Trace・Bundle・API・MCP・UI の検証方針
-description: 証拠主義のテスト戦略・JUnit XML 連携・品質ゲート・意図的対象外（Out of Scope）と 18 スイート一覧
+description: 証拠主義のテスト戦略・JUnit XML 連携・品質ゲート・意図的対象外（Out of Scope）と 19 スイート一覧
 tags: [testing, verification]
 verifies:
   - core.document-model
@@ -14,6 +14,8 @@ verifies:
   - core.human-review
   - core.realization
   - core.ast-check
+  - core.doc-health
+  - core.ast-exports
   - core.bundle-export
   - core.static-site
   - core.project-config
@@ -61,7 +63,7 @@ bun run build
 bun run documi:check
 ```
 
-## 3. テストスイート一覧（18 スイート）
+## 3. テストスイート一覧（19 スイート）
 
 | テストスイート | 検証対象 |
 |---|---|
@@ -83,6 +85,7 @@ bun run documi:check
 | `tests/site.test.ts` | `documi build-site` 静的書き出し・全読み取り JSON 事前計算・コードファイルハッシュ索引・CSS/preload 相対パス書き換え・`--no-code`・`_headers`/`.nojekyll`/`404.html` |
 | `tests/retrieval.test.ts` | 日本語・英語・コード識別子トークナイザ・BM25 スコアリング・`<TermDef aliases>` 同義語展開・RRF・`documi retrieve` / MCP `retrieve_context` のグラフ展開と文字数予算制御 |
 | `tests/hybrid-rag.test.ts` | `bun:sqlite` `contentHash` 差分ベクトルキャッシュ・モデル別プロンプト接頭辞・Hybrid RRF 検索・Ollama/OpenAI プロバイダ境界・プロバイダ障害時の BM25 安全フォールバック |
+| `tests/health-and-exports.test.tsx` | ドキュメント健全性（Design / Verification カバレッジ・Spec 肥大化・Architecture 鮮度ヒント）、AST 公開シンボル自動抽出（TS/Go/Python/Rust）、`<SourceRef mode="exports">`・`/api/source/exports`・`/api/overview`・CLI `check`/`map`/`context` 連携 |
 
 ## 4. 意図的な対象外（Out of Scope）
 

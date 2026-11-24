@@ -1,7 +1,7 @@
 import { Hono } from 'hono'
 import { z } from 'zod'
 import { runDocsCheck } from '../../core/checker'
-import { resolveSourceLines, resolveSourceSymbol, SourceError } from '../../core/source'
+import { extractExportedSymbols, resolveSourceLines, resolveSourceSymbol, SourceError } from '../../core/source'
 import { PdfError, renderPdf, renderPdfFromUrl } from '../pdf'
 import type { DocsStore } from '../store'
 import { isLocalOrigin, zValidator, type ErrorStatusCode } from '../validator'
@@ -19,6 +19,10 @@ const sourceQuerySchema = z
   .refine((v) => Boolean(v.symbol) !== Boolean(v.lines), {
     message: 'symbol または lines のどちらか一方を指定してください',
   })
+
+const sourceExportsQuerySchema = z.object({
+  file: z.string().min(1, 'file パラメータが必要です'),
+})
 
 const exportPdfBodySchema = z.object({
   html: z.string().refine((v) => v.trim().length > 0, { message: 'html パラメータが必要です' }),
@@ -56,6 +60,7 @@ export function createSystemRoutes(store: DocsStore, projectRoot: string) {
             blockCount: report.blockCount,
             reviewCounts: report.reviewCounts,
             realizationCounts: report.realizationCounts,
+            health: report.health,
             errors: report.errors,
             warnings: report.warnings,
           },
@@ -81,6 +86,16 @@ export function createSystemRoutes(store: DocsStore, projectRoot: string) {
           const result = symbol
             ? await resolveSourceSymbol(projectRoot, file, symbol)
             : await resolveSourceLines(projectRoot, file, lines!)
+          return c.json(result, 200)
+        } catch (e) {
+          if (e instanceof SourceError) return c.json({ error: e.message }, e.status as ErrorStatusCode)
+          throw e
+        }
+      })
+      .get('/source/exports', zValidator('query', sourceExportsQuerySchema), async (c) => {
+        const { file } = c.req.valid('query')
+        try {
+          const result = await extractExportedSymbols(projectRoot, file)
           return c.json(result, 200)
         } catch (e) {
           if (e instanceof SourceError) return c.json({ error: e.message }, e.status as ErrorStatusCode)

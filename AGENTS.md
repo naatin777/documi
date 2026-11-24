@@ -31,7 +31,12 @@
 
 - 仕様 (`<Spec id="...">`) を実装したら、コードに `// @implements <spec.id>`（または設計書に `<SourceRef ... satisfies="<spec.id>" />`）を付与してください。
 - 仕様を検証するテストには `test('[<spec.id>] ...', ...)` 形式で Spec ID を含めてください。
-- 振る舞いや API / CLI / アーキテクチャを変更したら、対応する `docs/`（`specs/`, `contracts/`, `designs/`, `decisions/`）も同時に更新してください。
+- 公開境界のシンボル（export された `class` / `interface` / `type` / 公開関数）は手書きコピペせず、`<SourceRef file="..." mode="exports" />` や `<SourceRef symbol="..." />` で AST 紐づけしてください（非公開ヘルパーや関数内 `if`/`for` 擬似コードは書きません）。
+- 以下の変更を行ったら、対応する `docs/` を同じ PR で同期し、`documi check` の健全性ヒント（Design / Verification カバレッジ・Spec 肥大化）も確認してください：
+  - 新サブシステム・主要モジュール追加 → `architecture` ＋ `design`（`satisfies`＋`<SourceRef>`）
+  - 後戻りコストが高い構造・技術判断 → `decision`（ADR＋`<Outcome>`）
+  - 新 `<Spec>`・新テストスイート追加 → `verification`（`verifies`＋スイート一覧）
+  - 1 つの `spec` ファイルが 10 件超の `<Spec>` を超えた → 領域ごとに分割
 
 ## 4. 完了前の検証コマンド
 

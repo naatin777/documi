@@ -7,6 +7,8 @@ satisfies:
   - core.document-model
   - core.human-review
   - core.realization
+  - core.doc-health
+  - core.ast-exports
   - core.bundle-export
   - core.full-text-search
   - core.hybrid-rag
@@ -28,7 +30,7 @@ satisfies:
 | Endpoint | 役割 |
 |---|---|
 | `GET /api/health` | ヘルスチェック (`{ ok: true }`) |
-| `GET /api/overview` | 全体統計・Type 別件数・Review & Realization 内訳・要確認ブロック・未解決フィードバック・Goals・Outcomes・Orphan Specs |
+| `GET /api/overview` | 全体統計・Type 別件数・Review & Realization 内訳・ドキュメント健全性 (`health`)・要確認ブロック・未解決フィードバック・Goals・Outcomes・Orphan Specs |
 | `GET /api/status` | `rootDir`, `loadedAt`, `documentCount`, `blockCount`, `issues` |
 | `GET /api/tree` | 階層ツリー (`DocTreeNode[]`) と全ドキュメントサマリ |
 | `GET /api/documents` | サマリ一覧 (`?type=` 絞り込み対応) |
@@ -39,7 +41,7 @@ satisfies:
 | `GET /api/matrix` | 全 `<Spec>` のトレーサビリティマトリクス |
 | `GET /api/search` | ドキュメント＆セマンティックブロック横断検索 (`?q=&type=&limit=&semantic=true\|false`、BM25＋用語展開または `rag.enabled` 時 RRF ハイブリッド) |
 | `GET /api/terms` | 全 `<TermDef>` 用語定義一覧 |
-| `GET /api/check` | AST シンボル検証を含む一括整合性チェック (`?strict=true`) |
+| `GET /api/check` | AST シンボル検証・ドキュメント健全性 (`health`) を含む一括整合性チェック (`?strict=true`) |
 | `GET /api/blocks` | レビュー対象セマンティックブロック一覧と Review 集計 (`/review` 受信箱用) |
 | `GET /api/blocks/:id/diff` | 承認時点コミット (またはローカルキャッシュ) と現在本文の行 diff |
 | `POST /api/blocks/:id/approve` | ブロックを承認し `docs/.documi/reviews.json` を更新 |
@@ -48,8 +50,9 @@ satisfies:
 | `PATCH /api/blocks/:id/stability` | Stability 上書き設定 (`stable` / `evolving` / `volatile` / `null`) |
 | `GET /api/events` | SSE ライブ更新ストリーム (`connected` / `reload` イベント) |
 | `GET /api/source` | `<SourceRef>` 用の AST シンボル / 行範囲コード取得 |
+| `GET /api/source/exports` | `<SourceRef mode="exports">` 用の AST 公開シンボル（class / interface / type / function 等）自動抽出 (`?file=src/...`) |
 | `GET /api/code/tree` | Code Explorer 用：`projectRoot` 配下のソースファイルツリーと各ファイルの紐づき `<Spec>` / `<SourceRef>` / `<TermDef>` 件数サマリ（`node_modules`・`.git`・`dist`・`docs/`・隠しディレクトリ除外） |
-| `GET /api/code/file` | Code Explorer 用：POSIX 相対パス (`?path=src/...`) の読み取り専用ソース全文・言語・総行数・紐づき `<Spec>` / ドキュメント / `<TermDef>` 逆リンク一覧（`projectRoot` 外は `403`、未存在は `404`、バイナリ・サイズ上限超過は `400`） |
+| `GET /api/code/file` | Code Explorer 用：POSIX 相対パス (`?path=src/...`) の読み取り専用ソース全文・言語・総行数・公開シンボル (`exportedSymbols`)・紐づき `<Spec>` / ドキュメント / `<TermDef>` 逆リンク一覧（`projectRoot` 外は `403`、未存在は `404`、バイナリ・サイズ上限超過は `400`） |
 | `GET /api/icons/manifest` | Material Icon Theme のファイル・フォルダ名／拡張子マッピング（ライトテーマ上書き込み）を返す |
 | `GET /api/icons/:name` | Material Icon Theme の SVG アイコン（allowlist 登録済みアイコン ID のみ配信・長期キャッシュ付き） |
 | `GET /api/bundle` | 複数ドキュメントバンドル解決 (`?scope=all\|dir:...\|goal:...` または `?ids=...`) |

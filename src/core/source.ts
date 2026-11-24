@@ -45,6 +45,22 @@ export interface SourceResult {
   truncated?: boolean
 }
 
+export interface ExportedSymbolEntry {
+  name: string
+  qualifiedName?: string
+  kind: string
+  signature: string
+  startLine: number
+  endLine: number
+}
+
+export interface SourceExportsResult {
+  file: string
+  language: string
+  totalLines: number
+  symbols: ExportedSymbolEntry[]
+}
+
 const MAX_FILE_BYTES = 1024 * 1024
 const MAX_EXTRACT_LINES = 400
 const MAX_RANGE_LINES = 2000
@@ -548,4 +564,165 @@ function capCode(code: string): { code: string; truncated: boolean } {
   const lines = code.split('\n')
   if (lines.length <= MAX_EXTRACT_LINES) return { code, truncated: false }
   return { code: lines.slice(0, MAX_EXTRACT_LINES).join('\n'), truncated: true }
+}
+
+const MAX_SIGNATURE_CHARS = 140
+
+/** 宣言ノードのヘッダ行から 1 行のコンパクトなシグネチャを抽出する */
+function extractSignatureHeader(source: string, node: SgNode, kind: string): string {
+  const target = effectiveNode(node)
+  const range = target.range()
+  const raw = source.slice(range.start.index, range.end.index).trim()
+
+  // class / interface / enum / function / method / struct / trait 等は `{` 手前までをヘッダとして抜く
+  let header = raw
+  if (kind === 'type' || kind === 'constant' || kind === 'static' || kind === 'property') {
+    const firstLine = raw.split('\n')[0] ?? raw
+    header = firstLine.replace(/\s*=\s*\{[\s\S]*$/, ' = { … }').trim()
+  } else {
+    // 関数・クラス等は最初のトップレベル `{` または `:` (Python) の手前を切り出す
+    let parenDepth = 0
+    let angleDepth = 0
+    let cutAt = -1
+    for (let i = 0; i < raw.length; i++) {
+      const ch = raw[i]!
+      if (ch === '(') parenDepth++
+      else if (ch === ')' && parenDepth > 0) parenDepth--
+      else if (ch === '<') angleDepth++
+      else if (ch === '>' && angleDepth > 0) angleDepth--
+      else if (ch === '{' && parenDepth === 0 && angleDepth === 0) {
+        cutAt = i
+        break
+      } else if (ch === '\n' && parenDepth === 0 && angleDepth === 0 && raw.slice(0, i).trimEnd().endsWith(':')) {
+        cutAt = i
+        break
+      }
+    }
+    if (cutAt > 0) {
+      header = raw.slice(0, cutAt).trim()
+    }
+  }
+
+  const singleLine = header.replace(/\s+/g, ' ').trim()
+  if (singleLine.length <= MAX_SIGNATURE_CHARS) return singleLine
+  return `${singleLine.slice(0, MAX_SIGNATURE_CHARS - 1)}…`
+}
+
+function isExportedCandidate(c: Candidate, def: LangDef, source: string): boolean {
+  const ancestors = c.node.ancestors()
+  const parent = ancestors[0]
+  const display = def.display
+
+  if (display === 'typescript' || display === 'tsx' || display === 'javascript') {
+    // クラスメソッドはトップレベルの公開シンボル一覧から除外し、class 宣言自体を 1 件として見せる
+    if (c.kind === 'method') return false
+    return parent?.kind() === 'export_statement'
+  }
+  if (display === 'go') {
+    return /^[A-Z]/.test(c.name)
+  }
+  if (display === 'rust') {
+    const text = source.slice(c.node.range().start.index, c.node.range().end.index).trimStart()
+    return text.startsWith('pub ') || text.startsWith('pub(')
+  }
+  if (display === 'python') {
+    if (c.name.startsWith('_')) return false
+    // トップレベル定義のみ
+    return ancestors.every((a) => a.kind() !== 'class_definition' && a.kind() !== 'function_definition')
+  }
+  if (display === 'java') {
+    const text = source.slice(c.node.range().start.index, c.node.range().end.index).trimStart()
+    return /\bpublic\b/.test(text.split('{')[0] ?? '')
+  }
+  // Kotlin / Swift: private / internal でないトップレベル定義
+  const head = source.slice(c.node.range().start.index, c.node.range().end.index).split('{')[0] ?? ''
+  if (/\b(?:private|fileprivate|internal|protected)\b/.test(head)) return false
+  return true
+}
+
+/**
+ * 読み込み済みソース文字列から export / 公開シンボル（class / interface / type / enum / function / const 等）を
+ * `@ast-grep/napi` で自動抽出する。非対応拡張子や解析不能時は空配列を返す。
+ * @implements core.ast-exports
+ */
+export function extractExportedSymbolsFromSource(relPath: string, ext: string, source: string): SourceExportsResult {
+  const def = EXT_TO_LANG.get(ext)
+  const lines = totalLines(source)
+  if (!def) {
+    return { file: relPath, language: detectSourceLanguage(ext), totalLines: lines, symbols: [] }
+  }
+
+  let root: ReturnType<typeof parse>
+  try {
+    root = parse(def.astLang as never, source)
+  } catch {
+    return { file: relPath, language: def.display, totalLines: lines, symbols: [] }
+  }
+
+  const seen = new Map<number, ExportedSymbolEntry>()
+  const candidates = collectCandidates(root, def)
+  for (const c of candidates) {
+    if (!isExportedCandidate(c, def, source)) continue
+    const target = effectiveNode(c.node)
+    const range = target.range()
+    const startIdx = range.start.index
+    if (seen.has(startIdx)) continue
+    seen.set(startIdx, {
+      name: c.name,
+      ...(c.qualifiedName !== c.name ? { qualifiedName: c.qualifiedName } : {}),
+      kind: c.kind,
+      signature: extractSignatureHeader(source, c.node, c.kind),
+      startLine: range.start.line + 1,
+      endLine: range.end.line + 1,
+    })
+  }
+
+  // TS/JS の `export const foo = ...` (アロー関数や公開定数) も拾う
+  if (def.display === 'typescript' || def.display === 'tsx' || def.display === 'javascript') {
+    const rootNode = (root as unknown as { root(): SgNode }).root()
+    const exportStmts = (rootNode as unknown as { findAll(m: unknown): SgNode[] }).findAll({
+      rule: { kind: 'export_statement' },
+    })
+    for (const stmt of exportStmts) {
+      const range = stmt.range()
+      if (seen.has(range.start.index)) continue
+      const lex = stmt.children().find((ch) => ch.kind() === 'lexical_declaration')
+      if (!lex) continue
+      const declarator = lex.children().find((ch) => ch.kind() === 'variable_declarator')
+      if (!declarator) continue
+      const name = scopeNameText(declarator, 'name')
+      if (!name) continue
+      const valNode = (declarator as unknown as { field(n: string): SgNode | null }).field('value')
+      const isFn = valNode?.kind() === 'arrow_function' || valNode?.kind() === 'function_expression'
+      const kind = isFn ? 'function' : 'constant'
+      seen.set(range.start.index, {
+        name,
+        kind,
+        signature: extractSignatureHeader(source, lex, kind),
+        startLine: range.start.line + 1,
+        endLine: range.end.line + 1,
+      })
+    }
+  }
+
+  const symbols = [...seen.values()].toSorted((a, b) => a.startLine - b.startLine || a.name.localeCompare(b.name))
+  return {
+    file: relPath,
+    language: def.display,
+    totalLines: lines,
+    symbols,
+  }
+}
+
+/**
+ * プロジェクトルート内のソースファイルから公開シンボル（class / interface / type / function 等）を AST 抽出する。
+ * @implements core.ast-exports
+ */
+export async function extractExportedSymbols(projectRoot: string, file: string): Promise<SourceExportsResult> {
+  const loaded = await loadSourceFile(projectRoot, file)
+  if (!EXT_TO_LANG.has(loaded.ext)) {
+    const supported = [...new Set(EXT_TO_LANG.keys())].toSorted().join(', ')
+    throw new SourceError(`シンボル抽出に対応していない拡張子です: .${loaded.ext} (対応: ${supported})`, 400)
+  }
+  return extractExportedSymbolsFromSource(loaded.relPath, loaded.ext, loaded.source)
 }

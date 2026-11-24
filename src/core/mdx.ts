@@ -127,7 +127,7 @@ export function extractMdxArtifacts(body: string, format: DocFormat, docId: stri
         } else if (name !== null) {
           const parsed = parseStringAttributes(jsx, issues)
           if (name === 'SourceRef') {
-            extractSourceRef(parsed, node, sourceRefs, lineOffset)
+            extractSourceRef(parsed, node, sourceRefs, issues, lineOffset)
           } else if (name === 'Term') {
             const termName = parsed.name?.trim()
             if (termName) termRefs.push(termName)
@@ -310,14 +310,28 @@ function extractSourceRef(
   props: Record<string, string>,
   node: GenericNode,
   out: SourceRefDecl[],
+  issues: DocIssue[],
   lineOffset: number,
 ): void {
   const file = props.file?.trim()
   if (!file) return
+  const rawMode = props.mode?.trim()
+  let mode: SourceRefDecl['mode']
+  if (rawMode !== undefined && rawMode !== '') {
+    if (rawMode === 'snippet' || rawMode === 'exports') {
+      mode = rawMode
+    } else {
+      issues.push({
+        code: 'invalid-block-attr',
+        message: `<SourceRef> の mode が不正です: ${rawMode} (snippet / exports)`,
+      })
+    }
+  }
   out.push({
     file,
     symbol: props.symbol?.trim() || undefined,
     lines: props.lines?.trim() || undefined,
+    ...(mode ? { mode } : {}),
     satisfies: splitCsv(props.satisfies),
     verifies: splitCsv(props.verifies),
     startLine: (node.position?.start?.line ?? 1) + lineOffset,
