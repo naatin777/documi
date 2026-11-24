@@ -332,7 +332,8 @@
     "sidebar": "サイドバー幅を調整",
     "inspector": "右インスペクタ幅を調整",
     "peek": "プレビューペイン幅を調整",
-    "codeTree": "ファイルツリー幅を調整"
+    "codeTree": "ファイルツリー幅を調整",
+    "codeInspector": "コード右パネル幅を調整"
   },
   "codeExplorer": {
     "filterPlaceholder": "ファイル名で絞り込み…",
@@ -356,6 +357,14 @@
     "linkedDocs": "文書 ({{count}})",
     "linkedTerms": "用語 ({{count}})",
     "exportedSymbols": "公開シンボル ({{count}})",
+    "toggleTreeOpen": "ファイルツリーを開く",
+    "toggleTreeClose": "ファイルツリーを閉じる",
+    "toggleInspectorOpen": "公開シンボル・関連パネルを開く",
+    "toggleInspectorClose": "公開シンボル・関連パネルを閉じる",
+    "inspectorAria": "公開シンボル・関連リンクパネル",
+    "inspectorSymbolsTab": "シンボル ({{count}})",
+    "inspectorLinksTab": "関連 ({{count}})",
+    "noExports": "このファイルに公開シンボルはありません。",
     "lineSelectHint": "クリックで {{line}} 行目を強調（Shift+クリックで範囲選択）"
   },
   "code": {

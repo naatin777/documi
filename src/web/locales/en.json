@@ -332,7 +332,8 @@
     "sidebar": "Resize sidebar width",
     "inspector": "Resize right inspector width",
     "peek": "Resize preview pane width",
-    "codeTree": "Resize source tree width"
+    "codeTree": "Resize source tree width",
+    "codeInspector": "Resize code inspector width"
   },
   "codeExplorer": {
     "filterPlaceholder": "Filter files…",
@@ -356,6 +357,14 @@
     "linkedDocs": "Docs ({{count}})",
     "linkedTerms": "Terms ({{count}})",
     "exportedSymbols": "Exports ({{count}})",
+    "toggleTreeOpen": "Show file tree",
+    "toggleTreeClose": "Hide file tree",
+    "toggleInspectorOpen": "Show symbols & links panel",
+    "toggleInspectorClose": "Hide symbols & links panel",
+    "inspectorAria": "Code symbols and links inspector",
+    "inspectorSymbolsTab": "Exports ({{count}})",
+    "inspectorLinksTab": "Links ({{count}})",
+    "noExports": "No exported symbols found in this file.",
     "lineSelectHint": "Click to highlight line {{line}} (Shift+Click for range)"
   },
   "code": {
