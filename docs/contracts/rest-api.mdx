@@ -38,7 +38,6 @@ satisfies:
 | `GET /api/history` | 指定ドキュメント (`?id=&limit=`) の Git 鮮度・コミット履歴・最新変更の本文基準行レンジ一覧 |
 | `GET /api/history/revision` | 指定ドキュメント (`?id=&commit=`) の過去コミット時点の本文・メタデータ（読み取り専用） |
 | `GET /api/graph` | グラフノード＆エッジ一覧 (`?layers=trace\|all&granularity=docs\|blocks`) |
-| `GET /api/matrix` | 全 `<Spec>` のトレーサビリティマトリクス |
 | `GET /api/search` | ドキュメント＆セマンティックブロック横断検索 (`?q=&type=&limit=&semantic=true\|false`、BM25＋用語展開または `rag.enabled` 時 RRF ハイブリッド) |
 | `GET /api/terms` | 全 `<TermDef>` 用語定義一覧 |
 | `GET /api/check` | AST シンボル検証・ドキュメント健全性 (`health`) を含む一括整合性チェック (`?strict=true`) |

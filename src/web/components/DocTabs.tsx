@@ -114,7 +114,7 @@ export default function DocTabs({ sidebarOpen, onToggleSidebar }: DocTabsProps) 
     if (tab.viewId === 'home') return t('nav.home')
     if (tab.viewId === 'review') return t('nav.reviewQueue')
     if (tab.viewId === 'code') return t('nav.codeExplorer')
-    return t('nav.graphMatrix')
+    return t('nav.graph')
   }
 
   return (

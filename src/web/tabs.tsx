@@ -43,7 +43,7 @@ const STORAGE_KEY = 'documi:workspace-tabs'
 const VIEW_TABS: Record<ViewTabId, Extract<WorkspaceTab, { kind: 'view' }>> = {
   home: { kind: 'view', key: 'view:home', viewId: 'home', path: '/', title: 'Home' },
   review: { kind: 'view', key: 'view:review', viewId: 'review', path: '/review', title: 'Review Queue' },
-  graph: { kind: 'view', key: 'view:graph', viewId: 'graph', path: '/graph', title: 'Graph & Matrix' },
+  graph: { kind: 'view', key: 'view:graph', viewId: 'graph', path: '/graph', title: 'Graph' },
   code: { kind: 'view', key: 'view:code', viewId: 'code', path: '/code', title: 'Code Explorer' },
 }
 
@@ -132,7 +132,7 @@ export function TabsProvider({ children }: { children: ReactNode }) {
   const { pathname } = useLocation()
   const [storedTabs, setStoredTabs] = useState<WorkspaceTab[]>(() => loadTabs(pathname))
 
-  // 現在のルートが Home / Review Queue / Graph & Matrix なら同期 setState せず派生タブに含める
+  // 現在のルートが Home / Review Queue / Graph なら同期 setState せず派生タブに含める
   const tabs = useMemo(() => {
     const viewTab = viewTabForPath(pathname)
     if (!viewTab || storedTabs.some((t) => t.key === viewTab.key)) return storedTabs

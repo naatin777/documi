@@ -67,7 +67,7 @@
     "primaryViews": "Primary views",
     "home": "Home",
     "reviewQueue": "Review Queue",
-    "graphMatrix": "Graph & Matrix",
+    "graph": "Graph",
     "codeExplorer": "Code Explorer",
     "documents": "Documents",
     "searchPlaceholder": "Search…",
@@ -237,8 +237,7 @@
     "backToHistory": "Back to History"
   },
   "graph": {
-    "graphViewTab": "Graph View ({{count}})",
-    "matrixTab": "Traceability Matrix ({{count}})",
+    "graphViewTab": "Graph ({{count}})",
     "documents": "Documents",
     "docsAndBlocks": "Docs + Blocks",
     "allLinks": "All Links",
@@ -252,24 +251,6 @@
     "forcesLabel": "Physics parameters",
     "webglError": "Failed to initialize WebGL graph",
     "hint": "Zoom to switch cards/dots · Drag to pull · Click to preview · Double-click to open"
-  },
-  "matrix": {
-    "empty": "No matching Specs.",
-    "spec": "Spec",
-    "goals": "Goals (Upstream)",
-    "designContract": "Design / Contract",
-    "verification": "Verification",
-    "review": "Review",
-    "realization": "Realization",
-    "orphan": "Orphan",
-    "filters": {
-      "all": "All",
-      "verified": "Verified",
-      "unimplemented": "Unimplemented",
-      "drifted": "Drifted",
-      "unreviewed": "Unreviewed",
-      "orphan": "Orphan"
-    }
   },
   "search": {
     "dialogAria": "Full-text search",

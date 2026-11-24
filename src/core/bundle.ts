@@ -1,6 +1,6 @@
 import { searchIndexBm25 } from './retrieval'
 import type { SearchHit } from './retrieval'
-import type { ArtifactType, DocsIndex, Document, RealizationSummary, ReviewStatus, SemanticBlock } from './types'
+import type { ArtifactType, DocsIndex, Document } from './types'
 
 export type { SearchHit }
 
@@ -14,21 +14,6 @@ export interface BundleSelector {
 export interface ResolvedBundle {
   scopeLabel: string
   documents: Document[]
-}
-
-export interface TraceMatrixRow {
-  specId: string
-  docId: string
-  docTitle: string
-  intent: SemanticBlock['intent']
-  stability: SemanticBlock['stability']
-  review: ReviewStatus
-  suspect: boolean
-  orphan: boolean
-  goals: Array<{ id: string; title: string }>
-  designs: Array<{ id: string; type: ArtifactType; title: string }>
-  verifications: Array<{ id: string; title: string }>
-  realization?: RealizationSummary
 }
 
 /**
@@ -123,74 +108,4 @@ export function searchIndex(
   options: { type?: ArtifactType; limit?: number } = {},
 ): SearchHit[] {
   return searchIndexBm25(index, rawQuery, options).hits
-}
-
-/**
- * 全 <Spec> ブロックのトレーサビリティマトリクスを構築する。
- */
-export function buildTraceMatrix(index: DocsIndex): TraceMatrixRow[] {
-  const rows: TraceMatrixRow[] = []
-
-  for (const doc of index.documents) {
-    const orphanIds = new Set(doc.issues.filter((i) => i.code === 'orphan-spec' && i.blockId).map((i) => i.blockId!))
-
-    for (const block of doc.blocks) {
-      if (block.kind !== 'spec') continue
-
-      // 上流 Goal を探索
-      const goals = new Map<string, { id: string; title: string }>()
-      const queue = [block.id, doc.id]
-      const visited = new Set<string>()
-      while (queue.length > 0) {
-        const cur = queue.shift()!
-        if (visited.has(cur)) continue
-        visited.add(cur)
-        for (const e of index.edges) {
-          if (e.kind !== 'derives' || e.from !== cur) continue
-          const targetDoc = index.byId.get(e.toDocId)
-          if (targetDoc?.type === 'goal') {
-            goals.set(targetDoc.id, { id: targetDoc.id, title: targetDoc.title })
-          }
-          queue.push(e.to, e.toDocId)
-        }
-      }
-
-      // 下流の Design / Contract (satisfies) と Verification (verifies) を収集
-      const designs = new Map<string, { id: string; type: ArtifactType; title: string }>()
-      const verifications = new Map<string, { id: string; title: string }>()
-
-      for (const e of index.edges) {
-        if (e.to !== block.id && e.to !== doc.id) continue
-        const fromDoc = index.byId.get(e.fromDocId)
-        if (!fromDoc) continue
-        if (
-          e.kind === 'satisfies' &&
-          (fromDoc.type === 'design' || fromDoc.type === 'contract' || fromDoc.type === 'architecture')
-        ) {
-          designs.set(fromDoc.id, { id: fromDoc.id, type: fromDoc.type, title: fromDoc.title })
-        }
-        if (e.kind === 'verifies' && fromDoc.type === 'verification') {
-          verifications.set(fromDoc.id, { id: fromDoc.id, title: fromDoc.title })
-        }
-      }
-
-      rows.push({
-        specId: block.id,
-        docId: doc.id,
-        docTitle: doc.title,
-        intent: block.intent,
-        stability: block.stability,
-        review: block.review,
-        suspect: block.suspect,
-        orphan: orphanIds.has(block.id),
-        goals: [...goals.values()],
-        designs: [...designs.values()],
-        verifications: [...verifications.values()],
-        realization: block.realization,
-      })
-    }
-  }
-
-  rows.sort((a, b) => a.specId.localeCompare(b.specId))
-  return rows
 }

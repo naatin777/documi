@@ -19,9 +19,9 @@ satisfies:
 ## 1. レイアウト構造と遅延ロード（Code Splitting）
 
 - 画面全体は左サイドバー（`Explorer`・既定 280px、`⌘B` またはタブバー左端トグルで開閉。折りたたみ時はワークスペースが画面幅 100% へ広がる）と右側ワークスペース（`.workspace`：上部に常設の統合 `<DocTabs />`、下部に `.doccols` Flex 横並び）の 2 領域で構成する。
-- `<DocTabs />` は `Home`・`Review Queue`・`Graph & Matrix`・各ドキュメントをすべて対等なワークスペースタブとして統一管理し、左端にサイドバー開閉ボタンを常設する。タブ幅は縮めない（`flex-shrink: 0`）設計のまま、横スクロールバーを非表示にしてホイール横スクロール・左右端フェード＆`‹`/`›`ボタン・右端の開いているタブ一覧ドロップダウンで操作性を確保する。
+- `<DocTabs />` は `Home`・`Review Queue`・`Graph`・`Code Explorer`・各ドキュメントをすべて対等なワークスペースタブとして統一管理し、左端にサイドバー開閉ボタンを常設する。タブ幅は縮めない（`flex-shrink: 0`）設計のまま、横スクロールバーを非表示にしてホイール横スクロール・左右端フェード＆`‹`/`›`ボタン・右端の開いているタブ一覧ドロップダウンで操作性を確保する。
 - 左サイドバー・右 Context Inspector (`SidePanel`)・Side-by-Side プレビュー (`DocPeekPane`) の各境界には共通の `ResizeHandle` を配置し、ドラッグ伸縮（ダブルクリックで既定幅リセット、`localStorage` 永続化）に対応する。
-- `.doccols` 内に `<main className="content">` と条件付きの `<aside className="side-panel">` を並べることで、右ペインが不要な画面（Home / Review 未選択 / Matrix / Graph 未選択）では中央が自動的に全幅へ広がる。
+- `.doccols` 内に `<main className="content">` と条件付きの `<aside className="side-panel">` を並べることで、右ペインが不要な画面（Home / Review 未選択 / Graph 未選択）では中央が自動的に全幅へ広がる。
 - `OverviewLayout` / `ReviewLayout` / `DocLayout` / `GraphLayout` / `BundleLayout` / `SearchModal` は `React.lazy()` + `Suspense` でルート単位に Code Splitting し、Sigma.js や Markdown/KaTeX パーサーを該当画面でのみ読み込むことで初期メインバンドルを約 80% 削減している。
 
 - **アイコンとタイポグラフィ**: 全画面の UI アイコンおよび 9 種 Artifact Type アイコンを `lucide-react`（均一ストローク）へ統一し、オリジナル幾何学マーク（`BrandMark` / `public/favicon.svg`）を配置する。Code Explorer および Docs Explorer（Files モード）・`<SourceRef>` のファイル／フォルダ一覧には `material-icon-theme`（VS Code Material Icon Theme 公式 SVG）を `/api/icons/manifest`・`/api/icons/:name` 経由でオンデマンド配信して表示し、クライアントバンドル肥大を防ぎつつライト／ダーク自動切替に対応する。本文は `@fontsource/ibm-plex-sans` + `@fontsource/ibm-plex-sans-jp`、コード・Spec ID・数値は `@fontsource-variable/jetbrains-mono` をローカル同梱し、オフラインおよび PDF Export でも同一の組版品質（見出し詰め組み `palt`・等幅数値 `tabular-nums`）を保つ。
@@ -32,7 +32,7 @@ satisfies:
 
 ## 2. 1 本サイドバー（Flow / Files）と専用 Review Inbox (`/review`)
 
-- `Explorer` の上部に 3 大ビュー（`Home` / `Review Queue`（要確認件数バッジ付き）/ `Graph & Matrix`）を固定配置し、下部にドキュメント一覧の **Flow（上流→下流の読み順）** と **Files（フォルダ階層）** 切替を置く。
+- `Explorer` の上部に 4 大ビュー（`Home` / `Review Queue`（要確認件数バッジ付き）/ `Graph` / `Code Explorer`）を固定配置し、下部にドキュメント一覧の **Flow（上流→下流の読み順）** と **Files（フォルダ階層）** 切替を置く。
 - `ReviewLayout` (`/review`) は `GET /api/blocks` から全レビュー対象ブロックを取得し、`要確認 (Stale / Suspect)`・`未解決フィードバック`・`未承認`・`承認済み`・`すべて` のタブで絞り込みながら、インライン Diff 表示・ワンクリック承認・右側「並べて確認」を提供する。
 
 <SourceRef file="src/web/components/Explorer.tsx" symbol="Explorer" satisfies="ui.explorer-modes" />

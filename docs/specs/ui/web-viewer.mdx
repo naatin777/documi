@@ -1,7 +1,7 @@
 ---
 type: spec
 title: Web UI ビューア・可視化・バンドル出力
-description: Overview・Flow/Files サイドバー・Review Inbox・用語ホバー・Graph & Matrix・複数まとめ Export・Cmd+K 全文検索の仕様
+description: Overview・Flow/Files サイドバー・Review Inbox・用語ホバー・Graph・複数まとめ Export・Cmd+K 全文検索の仕様
 tags: [ui, frontend]
 ---
 
@@ -14,7 +14,7 @@ tags: [ui, frontend]
 
 <Spec id="ui.explorer-modes" stability="stable" derives="goals/human-comprehension">
   **When** ユーザーが左サイドバーを操作するとき、
-  **the** Web UI **shall** 読む・レビューする体験に統一した 1 本の開閉式サイドバー（`Cmd+B` / `Ctrl+B` 開閉）を提供し、上部に 3 大ビュー（Home / Review Queue（要確認バッジ付き）/ Graph & Matrix）、下部にドキュメント一覧（上流→下流の読み順で並ぶ **Flow** とフォルダ階層そのままの **Files** 切替）を配置する。
+  **the** Web UI **shall** 読む・レビューする体験に統一した 1 本の開閉式サイドバー（`Cmd+B` / `Ctrl+B` 開閉）を提供し、上部に 4 大ビュー（Home / Review Queue（要確認バッジ付き）/ Graph / Code Explorer）、下部にドキュメント一覧（上流→下流の読み順で並ぶ **Flow** とフォルダ階層そのままの **Files** 切替）を配置する。
 </Spec>
 
 <Spec id="ui.live-reload" stability="stable" derives="goals/low-friction-governance">
@@ -34,7 +34,7 @@ tags: [ui, frontend]
 
 <Spec id="ui.graph-matrix" stability="evolving" derives="goals/human-comprehension">
   **When** ユーザーが `/graph` を開いたとき、
-  **the** Web UI **shall** **Sigma.js (WebGL) + Graphology** によるフルビューポートのリアルタイム力学ネットワークグラフ（円形展開・ノードドラッグ時の弾性追従・Forces スライダー・パン/ズーム・ホバー枠ハイライト・クリック時の右側ドキュメント即時プレビュー＆繋がりタブ・検索フォーカス・粒度切替 `Documents` / `Docs + Blocks`）と、全幅表示の **Traceability Matrix** を提供する。
+  **the** Web UI **shall** **Sigma.js (WebGL) + Graphology** によるフルビューポートのリアルタイム力学ネットワークグラフ（円形展開・ノードドラッグ時の弾性追従・Forces スライダー・パン/ズーム・ホバー枠ハイライト・クリック時の右側ドキュメント即時プレビュー＆繋がりタブ・検索フォーカス・粒度切替 `Documents` / `Docs + Blocks`・リンク層切替 `All Links` / `Traceability Only`）を提供する。
 </Spec>
 
 <Spec id="ui.bundle-export" stability="evolving" derives="goals/human-comprehension">
