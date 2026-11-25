@@ -70,9 +70,9 @@ bun run documi:check
 | `tests/core.test.ts` | 再帰走査・Type/Date 推論・MDX ブロック AST 抽出・ハッシュ算出・5 種エッジ・`orphan-spec`・循環検出・階層ツリー構築 |
 | `tests/reviews.test.ts` | サイドカー `reviews.json` 承認・`stale`・Suspect Links 波及・Git/キャッシュ行 diff・フィードバック・Stability 上書き |
 | `tests/trace.test.ts` | `@implements` / `@verifies` / `test("[id]")` 走査・JUnit XML 取り込み・PR 連携・AST 壊れ検知・`documi check` CLI (`--strict` / `--no-review-edit`) |
-| `tests/bundle.test.tsx` | バンドル解決 (`all`/`dir`/`goal`/`ids`)・全文検索・トレーサビリティマトリクス・バンドル描画（ページ内アンカー・見出し名前空間・全タブ展開）・関連 API/MCP |
+| `tests/bundle.test.tsx` | バンドル解決 (`all`/`dir`/`goal`/`ids`)・全文検索・バンドル描画（ページ内アンカー・見出し名前空間・全タブ展開）・関連 API/MCP |
 | `tests/api.test.ts` | Hono RPC + Zod REST API 全エンドポイント・`DocsStore.reload`・MCP ツール全種・`instructions` 自己完結性 |
-| `tests/ui.test.tsx` | Overview・1 本サイドバー (`Flow` / `Files`)・Review Queue・Side-by-Side プレビュー・SSE ライブ更新・用語自動リンク・Graph/Matrix API・Cmd+K 検索 |
+| `tests/ui.test.tsx` | Overview・1 本サイドバー (`Flow` / `Files`)・Review Queue・Side-by-Side プレビュー・SSE ライブ更新・用語自動リンク・Graph API・Cmd+K 検索 |
 | `tests/mdx.test.tsx` | GFM・KaTeX・Shiki・Mermaid・セマンティックタグ 6 種・Living Glossary 自動リンク・相対パス内部リンク・危険構文無効化 |
 | `tests/source.test.ts` | 9 言語の AST シンボル解決・行範囲抽出・パストラバーサル／シンボリックリンク／バイナリ防御 |
 | `tests/i18n.test.ts` | Web UI ロケールカタログ (`en` マスター / `ja` 等) のキー・プレースホルダ完全一致と `setAppLocale` 切替 |

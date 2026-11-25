@@ -1,13 +1,8 @@
 import { useCallback, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Link } from 'react-router'
-import { encodeDocId } from '../api'
-import { toErrorMessage, useGraphQuery, useMatrixQuery } from '../queries'
+import { toErrorMessage, useGraphQuery } from '../queries'
 import DocPeekPane from './DocPeekPane'
 import SigmaGraph from './SigmaGraph'
-
-type PageTab = 'graph' | 'matrix'
-type MatrixFilter = 'all' | 'verified' | 'unimplemented' | 'drifted' | 'unreviewed' | 'orphan'
 
 const EDGE_KIND_STYLES: Record<string, string> = {
   derives: 'border-amber-500 text-amber-700 dark:text-amber-400',
@@ -22,16 +17,8 @@ function chipClass(active: boolean) {
   }`
 }
 
-function pageTabClass(active: boolean) {
-  return `cursor-pointer border-0 border-b-2 bg-transparent px-3 py-2 text-[13.5px] font-semibold ${
-    active ? 'border-b-accent text-fg' : 'border-b-transparent text-fg-muted hover:text-fg'
-  }`
-}
-
 export default function GraphLayout() {
   const { t } = useTranslation()
-  const [tab, setTab] = useState<PageTab>('graph')
-  const [matrixFilter, setMatrixFilter] = useState<MatrixFilter>('all')
   const [edgeLayer, setEdgeLayer] = useState<'trace' | 'all'>('all')
   const [granularity, setGranularity] = useState<'docs' | 'blocks'>('docs')
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null)
@@ -40,20 +27,9 @@ export default function GraphLayout() {
     setSelectedNodeId(id)
   }, [])
 
-  const matrixQuery = useMatrixQuery()
   const graphQuery = useGraphQuery(edgeLayer, granularity)
-  const rows = useMemo(() => matrixQuery.data?.rows ?? [], [matrixQuery.data])
   const graph = graphQuery.data ?? null
-  const error = toErrorMessage(matrixQuery.error ?? graphQuery.error)
-
-  const filteredRows = useMemo(() => {
-    return rows.filter((r) => {
-      if (matrixFilter === 'all') return true
-      if (matrixFilter === 'orphan') return r.orphan
-      if (matrixFilter === 'unreviewed') return r.review !== 'approved' || r.suspect
-      return r.realization?.status === matrixFilter
-    })
-  }, [rows, matrixFilter])
+  const error = toErrorMessage(graphQuery.error)
 
   const selectedNode = useMemo(
     () => (selectedNodeId && graph ? (graph.nodes.find((n) => n.id === selectedNodeId) ?? null) : null),
@@ -90,69 +66,43 @@ export default function GraphLayout() {
     return { out, inc }
   }, [selectedNodeId, graph])
 
-  const matrixChipClass =
-    'mr-1 mb-1 inline-block rounded-full bg-tc-soft px-[7px] py-px text-[11.5px] font-semibold text-tc no-underline'
-
   return (
     <>
-      <main
-        className={`relative min-h-0 min-w-0 flex-1 bg-surface max-desktop:flex-none max-desktop:overflow-visible ${
-          tab === 'graph' ? 'flex flex-col overflow-hidden' : 'overflow-y-auto'
-        }`}
-      >
-        <div className="flex shrink-0 flex-wrap items-center justify-between gap-x-3.5 gap-y-2 border-b border-line bg-surface px-4 pt-1.5">
-          <div className="flex gap-2" role="tablist">
-            <button
-              type="button"
-              role="tab"
-              aria-selected={tab === 'graph'}
-              className={pageTabClass(tab === 'graph')}
-              onClick={() => setTab('graph')}
-            >
-              {t('graph.graphViewTab', { count: graph?.nodes.length ?? 0 })}
-            </button>
-            <button
-              type="button"
-              role="tab"
-              aria-selected={tab === 'matrix'}
-              className={pageTabClass(tab === 'matrix')}
-              onClick={() => setTab('matrix')}
-            >
-              {t('graph.matrixTab', { count: rows.length })}
-            </button>
+      <main className="relative flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden bg-surface max-desktop:flex-none max-desktop:overflow-visible">
+        <div className="flex shrink-0 flex-wrap items-center justify-between gap-x-3.5 gap-y-2 border-b border-line bg-surface px-4 py-2">
+          <div className="flex items-center gap-2 text-[13.5px] font-semibold text-fg">
+            <span>{t('graph.graphViewTab', { count: graph?.nodes.length ?? 0 })}</span>
           </div>
 
-          {tab === 'graph' && (
-            <div className="flex flex-wrap items-center gap-1.5 pb-1.5">
-              <button
-                type="button"
-                className={chipClass(granularity === 'docs')}
-                onClick={() => {
-                  setSelectedNodeId(null)
-                  setGranularity('docs')
-                }}
-              >
-                {t('graph.documents')}
-              </button>
-              <button
-                type="button"
-                className={chipClass(granularity === 'blocks')}
-                onClick={() => {
-                  setSelectedNodeId(null)
-                  setGranularity('blocks')
-                }}
-              >
-                {t('graph.docsAndBlocks')}
-              </button>
-              <span className="mx-0.5 h-4 w-px bg-line" aria-hidden="true" />
-              <button type="button" className={chipClass(edgeLayer === 'all')} onClick={() => setEdgeLayer('all')}>
-                {t('graph.allLinks')}
-              </button>
-              <button type="button" className={chipClass(edgeLayer === 'trace')} onClick={() => setEdgeLayer('trace')}>
-                {t('graph.traceabilityOnly')}
-              </button>
-            </div>
-          )}
+          <div className="flex flex-wrap items-center gap-1.5">
+            <button
+              type="button"
+              className={chipClass(granularity === 'docs')}
+              onClick={() => {
+                setSelectedNodeId(null)
+                setGranularity('docs')
+              }}
+            >
+              {t('graph.documents')}
+            </button>
+            <button
+              type="button"
+              className={chipClass(granularity === 'blocks')}
+              onClick={() => {
+                setSelectedNodeId(null)
+                setGranularity('blocks')
+              }}
+            >
+              {t('graph.docsAndBlocks')}
+            </button>
+            <span className="mx-0.5 h-4 w-px bg-line" aria-hidden="true" />
+            <button type="button" className={chipClass(edgeLayer === 'all')} onClick={() => setEdgeLayer('all')}>
+              {t('graph.allLinks')}
+            </button>
+            <button type="button" className={chipClass(edgeLayer === 'trace')} onClick={() => setEdgeLayer('trace')}>
+              {t('graph.traceabilityOnly')}
+            </button>
+          </div>
         </div>
 
         {error && (
@@ -161,125 +111,13 @@ export default function GraphLayout() {
           </div>
         )}
 
-        {tab === 'graph' && graph && (
+        {graph && (
           <section className="flex min-h-0 flex-1">
             <SigmaGraph data={graph} selectedNodeId={selectedNodeId} onSelectNode={handleSelectNode} />
           </section>
         )}
-
-        {tab === 'matrix' && (
-          <article className="page doc-page max-w-[1120px] print:max-w-none">
-            <section>
-              <div className="mb-3.5 flex flex-wrap gap-1.5">
-                {(['all', 'verified', 'unimplemented', 'drifted', 'unreviewed', 'orphan'] as const).map((f) => (
-                  <button
-                    key={f}
-                    type="button"
-                    className={chipClass(matrixFilter === f)}
-                    onClick={() => setMatrixFilter(f)}
-                  >
-                    {t(`matrix.filters.${f}`)}
-                  </button>
-                ))}
-              </div>
-
-              {filteredRows.length === 0 ? (
-                <p className="muted">{t('matrix.empty')}</p>
-              ) : (
-                <div className="overflow-x-auto">
-                  <table className="w-full border-collapse text-[13px] [&_td]:border-b [&_td]:border-line [&_td]:px-2.5 [&_td]:py-[9px] [&_td]:text-left [&_td]:align-top [&_th]:border-b [&_th]:border-line [&_th]:bg-sidebar [&_th]:px-2.5 [&_th]:py-[9px] [&_th]:text-left [&_th]:text-[11.5px] [&_th]:tracking-[0.03em] [&_th]:text-fg-muted [&_th]:uppercase">
-                    <thead>
-                      <tr>
-                        <th>{t('matrix.spec')}</th>
-                        <th>{t('matrix.goals')}</th>
-                        <th>{t('matrix.designContract')}</th>
-                        <th>{t('matrix.verification')}</th>
-                        <th>{t('matrix.review')}</th>
-                        <th>{t('matrix.realization')}</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {filteredRows.map((row) => (
-                        <tr key={row.specId} className={row.orphan ? 'bg-amber-500/8' : ''}>
-                          <td>
-                            <Link
-                              to={`/docs/${encodeDocId(row.docId)}#block-${encodeURIComponent(row.specId)}`}
-                              className="mono font-bold text-fg no-underline hover:underline"
-                            >
-                              {row.specId}
-                            </Link>
-                            <div className="text-[11.5px] text-fg-muted">{row.docTitle}</div>
-                          </td>
-                          <td>
-                            {row.orphan ? (
-                              <span className="sem-review-badge sem-review-stale">{t('matrix.orphan')}</span>
-                            ) : (
-                              row.goals.map((g) => (
-                                <Link
-                                  key={g.id}
-                                  to={`/docs/${encodeDocId(g.id)}`}
-                                  className={`${matrixChipClass} type-goal`}
-                                >
-                                  {g.title}
-                                </Link>
-                              ))
-                            )}
-                          </td>
-                          <td>
-                            {row.designs.length === 0 ? (
-                              <span className="muted">—</span>
-                            ) : (
-                              row.designs.map((d) => (
-                                <Link
-                                  key={d.id}
-                                  to={`/docs/${encodeDocId(d.id)}`}
-                                  className={`${matrixChipClass} type-${d.type}`}
-                                >
-                                  {d.title}
-                                </Link>
-                              ))
-                            )}
-                          </td>
-                          <td>
-                            {row.verifications.length === 0 ? (
-                              <span className="muted">—</span>
-                            ) : (
-                              row.verifications.map((v) => (
-                                <Link
-                                  key={v.id}
-                                  to={`/docs/${encodeDocId(v.id)}`}
-                                  className={`${matrixChipClass} type-verification`}
-                                >
-                                  {v.title}
-                                </Link>
-                              ))
-                            )}
-                          </td>
-                          <td>
-                            <span className={`sem-review-badge sem-review-${row.suspect ? 'suspect' : row.review}`}>
-                              {row.suspect ? t('status.review.suspect') : t(`status.review.${row.review}`)}
-                            </span>
-                          </td>
-                          <td>
-                            {row.realization ? (
-                              <span className={`sem-realization-badge sem-real-${row.realization.status}`}>
-                                {t(`status.realization.${row.realization.status}`)}
-                              </span>
-                            ) : (
-                              <span className="muted">—</span>
-                            )}
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              )}
-            </section>
-          </article>
-        )}
       </main>
-      {tab === 'graph' && selectedNode && (
+      {selectedNode && (
         <DocPeekPane
           docId={selectedNode.docId}
           focusBlockId={selectedNode.kind === 'block' ? selectedNode.id : undefined}

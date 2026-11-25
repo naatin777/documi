@@ -1,6 +1,5 @@
 import { Hono } from 'hono'
 import { z } from 'zod'
-import { buildTraceMatrix } from '../../core/bundle'
 import { TRACE_EDGE_KINDS } from '../../core/types'
 import type { ArtifactType, BlockKind, GraphEdge, RealizationStatus, ReviewStatus } from '../../core/types'
 import type { DocsStore } from '../store'
@@ -35,69 +34,64 @@ interface GraphEdgePayload {
 }
 
 export function createGraphRoutes(store: DocsStore) {
-  return new Hono()
-    .get('/graph', zValidator('query', graphQuerySchema), (c) => {
-      const index = store.getIndex()
-      const { layers = 'all', granularity = 'docs' } = c.req.valid('query')
-      const traceSet = new Set<string>(TRACE_EDGE_KINDS)
-      const filteredEdges: GraphEdgePayload[] =
-        layers === 'trace' ? index.edges.filter((e) => traceSet.has(e.kind)) : index.edges
+  return new Hono().get('/graph', zValidator('query', graphQuerySchema), (c) => {
+    const index = store.getIndex()
+    const { layers = 'all', granularity = 'docs' } = c.req.valid('query')
+    const traceSet = new Set<string>(TRACE_EDGE_KINDS)
+    const filteredEdges: GraphEdgePayload[] =
+      layers === 'trace' ? index.edges.filter((e) => traceSet.has(e.kind)) : index.edges
 
-      const docNodes: GraphNodePayload[] = index.documents.map((d) => ({
-        id: d.id,
-        kind: 'doc',
-        docId: d.id,
-        type: d.type,
-        title: d.title,
-        path: d.path,
-        blockCount: d.blocks.length,
-        issueCount: d.issues.length,
-      }))
+    const docNodes: GraphNodePayload[] = index.documents.map((d) => ({
+      id: d.id,
+      kind: 'doc',
+      docId: d.id,
+      type: d.type,
+      title: d.title,
+      path: d.path,
+      blockCount: d.blocks.length,
+      issueCount: d.issues.length,
+    }))
 
-      if (granularity === 'docs') {
-        return c.json({ granularity, nodes: docNodes, edges: filteredEdges }, 200)
+    if (granularity === 'docs') {
+      return c.json({ granularity, nodes: docNodes, edges: filteredEdges }, 200)
+    }
+
+    const blockNodes: GraphNodePayload[] = []
+    const containsEdges: GraphEdgePayload[] = []
+    for (const doc of index.documents) {
+      for (const b of doc.blocks) {
+        if (b.kind === 'note') continue
+        blockNodes.push({
+          id: b.id,
+          kind: 'block',
+          docId: doc.id,
+          type: doc.type,
+          title: b.title ? `${b.id} — ${b.title}` : b.id,
+          path: doc.path,
+          blockKind: b.kind,
+          review: b.review,
+          realization: b.realization?.status,
+          blockCount: 0,
+          issueCount: 0,
+        })
+        containsEdges.push({
+          from: doc.id,
+          fromDocId: doc.id,
+          to: b.id,
+          toDocId: doc.id,
+          toKind: 'block',
+          kind: 'contains',
+        })
       }
+    }
 
-      const blockNodes: GraphNodePayload[] = []
-      const containsEdges: GraphEdgePayload[] = []
-      for (const doc of index.documents) {
-        for (const b of doc.blocks) {
-          if (b.kind === 'note') continue
-          blockNodes.push({
-            id: b.id,
-            kind: 'block',
-            docId: doc.id,
-            type: doc.type,
-            title: b.title ? `${b.id} — ${b.title}` : b.id,
-            path: doc.path,
-            blockKind: b.kind,
-            review: b.review,
-            realization: b.realization?.status,
-            blockCount: 0,
-            issueCount: 0,
-          })
-          containsEdges.push({
-            from: doc.id,
-            fromDocId: doc.id,
-            to: b.id,
-            toDocId: doc.id,
-            toKind: 'block',
-            kind: 'contains',
-          })
-        }
-      }
-
-      return c.json(
-        {
-          granularity,
-          nodes: [...docNodes, ...blockNodes],
-          edges: [...containsEdges, ...filteredEdges],
-        },
-        200,
-      )
-    })
-    .get('/matrix', (c) => {
-      const rows = buildTraceMatrix(store.getIndex())
-      return c.json({ rows, count: rows.length }, 200)
-    })
+    return c.json(
+      {
+        granularity,
+        nodes: [...docNodes, ...blockNodes],
+        edges: [...containsEdges, ...filteredEdges],
+      },
+      200,
+    )
+  })
 }

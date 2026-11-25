@@ -233,7 +233,6 @@ export async function buildStaticSite(options: BuildStaticSiteOptions): Promise<
     ['/api/documents', 'documents.json'],
     ['/api/terms', 'terms.json'],
     ['/api/blocks', 'blocks.json'],
-    ['/api/matrix', 'matrix.json'],
     ['/api/graph?layers=all&granularity=docs', 'graph-all-docs.json'],
     ['/api/graph?layers=all&granularity=blocks', 'graph-all-blocks.json'],
     ['/api/graph?layers=trace&granularity=docs', 'graph-trace-docs.json'],

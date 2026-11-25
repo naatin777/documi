@@ -26,5 +26,5 @@ export {
 } from './trace'
 export { runDocsCheck } from './checker'
 export type { CheckFinding, CheckOptions, CheckReport } from './checker'
-export { resolveBundleDocuments, searchIndex, buildTraceMatrix } from './bundle'
-export type { BundleSelector, ResolvedBundle, SearchHit, TraceMatrixRow } from './bundle'
+export { resolveBundleDocuments, searchIndex } from './bundle'
+export type { BundleSelector, ResolvedBundle, SearchHit } from './bundle'

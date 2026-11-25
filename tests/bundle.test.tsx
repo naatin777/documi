@@ -5,7 +5,7 @@ import path from 'node:path'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { MemoryRouter } from 'react-router'
 import { stringify } from 'yaml'
-import { buildTraceMatrix, resolveBundleDocuments, searchIndex } from '../src/core/bundle'
+import { resolveBundleDocuments, searchIndex } from '../src/core/bundle'
 import { loadDocuments } from '../src/core/loader'
 import { createApp } from '../src/server/app'
 import { DocsStore } from '../src/server/store'
@@ -42,7 +42,7 @@ afterEach(async () => {
   await rm(root, { recursive: true, force: true })
 })
 
-describe('Bundle / Search / Traceability Matrix', () => {
+describe('Bundle / Search', () => {
   test('[core.bundle-export] resolveBundleDocuments は all / dir / goal / ids スコープで正しく解決する', async () => {
     const idx = await loadDocuments(root)
 
@@ -81,17 +81,7 @@ describe('Bundle / Search / Traceability Matrix', () => {
     expect(verDocHit?.snippet).toContain('テスト方針')
   })
 
-  test('buildTraceMatrix は Spec ごとに上流 Goal・下流 Design/Verification を集計する', async () => {
-    const idx = await loadDocuments(root)
-    const rows = buildTraceMatrix(idx)
-    expect(rows).toHaveLength(1)
-    expect(rows[0]?.specId).toBe('auth.lockout')
-    expect(rows[0]?.goals.map((g) => g.id)).toEqual(['goals/security'])
-    expect(rows[0]?.designs.map((d) => d.id)).toEqual(['designs/auth'])
-    expect(rows[0]?.verifications.map((v) => v.id)).toEqual(['verification/auth'])
-  })
-
-  test('REST API (/api/search, /api/matrix, /api/bundle) と MCP search_documents が動作する', async () => {
+  test('REST API (/api/search, /api/bundle) と MCP search_documents が動作する', async () => {
     const store = await DocsStore.open(root, { enrichTrace: false })
     const app = createApp(store)
 
@@ -99,11 +89,6 @@ describe('Bundle / Search / Traceability Matrix', () => {
     expect(searchRes.status).toBe(200)
     const searchBody = (await searchRes.json()) as { count: number }
     expect(searchBody.count).toBeGreaterThan(0)
-
-    const matrixRes = await app.fetch(new Request('http://localhost/api/matrix'))
-    expect(matrixRes.status).toBe(200)
-    const matrixBody = (await matrixRes.json()) as { rows: { specId: string }[] }
-    expect(matrixBody.rows.map((r) => r.specId)).toEqual(['auth.lockout'])
 
     const bundleRes = await app.fetch(new Request('http://localhost/api/bundle?scope=goal:goals/security'))
     expect(bundleRes.status).toBe(200)

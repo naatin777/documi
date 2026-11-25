@@ -103,7 +103,7 @@ describe('Web UI & Live Spec Dogfooding', () => {
     expect(html).toContain('ホーム')
     expect(html).toContain('レビュー')
     expect(html).toContain('>3<')
-    expect(html).toContain('グラフ・関連表')
+    expect(html).toContain('グラフ')
     expect(html).toContain('流れ順')
     expect(html).toContain('フォルダ順')
     expect(html).toContain('目標')
@@ -151,7 +151,7 @@ describe('Web UI & Live Spec Dogfooding', () => {
         </TabsProvider>
       </MemoryRouter>,
     )
-    expect(tabsHtml).toContain('グラフ・関連表')
+    expect(tabsHtml).toContain('グラフ')
     expect(tabsHtml).toContain('サイドバーを閉じる')
   })
 
@@ -260,7 +260,7 @@ describe('Web UI & Live Spec Dogfooding', () => {
     expect(html).toContain('>仕様ブロックの見出し</h1>')
   })
 
-  test('[ui.graph-matrix] /api/graph (docs/blocks) と /api/matrix がネットワークと追跡表データを返す', async () => {
+  test('[ui.graph-matrix] /api/graph (docs/blocks) がネットワークデータを返す', async () => {
     const store = await DocsStore.open(root, { enrichTrace: false })
     const app = createApp(store)
     const client = hc<ApiRoutes>('http://localhost', {
@@ -274,11 +274,6 @@ describe('Web UI & Live Spec Dogfooding', () => {
       expect(g.granularity).toBe('blocks')
       expect(g.nodes.some((n) => n.kind === 'block' && n.id === 'sample.rule')).toBe(true)
     }
-
-    const mRes = await client.api.matrix.$get()
-    expect(mRes.status).toBe(200)
-    const m = await mRes.json()
-    expect(m.rows.map((r) => r.specId)).toEqual(['sample.rule'])
   })
 
   test('[ui.search-palette] SearchModal が検索ダイアログを描画し /api/search と連携する', async () => {
