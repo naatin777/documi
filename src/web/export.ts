@@ -115,7 +115,6 @@ export async function exportBundlePdf(params: BundleExportParams): Promise<boole
         ids: params.ids,
         title: params.title,
         filename: params.filename ?? params.title ?? 'documi-bundle',
-        baseUrl: window.location.origin,
       }),
     })
     if (!res.ok) {

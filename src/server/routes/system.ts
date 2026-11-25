@@ -5,7 +5,7 @@ import { extractExportedSymbols, resolveSourceLines, resolveSourceSymbol } from 
 import { sourceErrorToHttp } from '../errors'
 import { PdfError, renderPdf, renderPdfFromUrl } from '../pdf'
 import type { DocsStore } from '../store'
-import { isLocalOrigin, zValidator, type ErrorStatusCode } from '../validator'
+import { zValidator, type ErrorStatusCode } from '../validator'
 
 const checkQuerySchema = z.object({
   strict: z.enum(['true', 'false']).optional(),
@@ -35,7 +35,6 @@ const exportBundlePdfBodySchema = z.object({
   ids: z.array(z.string()).optional(),
   title: z.string().optional(),
   filename: z.string().optional(),
-  baseUrl: z.string().optional(),
 })
 
 /** Content-Disposition に使うファイル名を安全な ASCII に制限する */
@@ -153,15 +152,9 @@ export function createSystemRoutes(store: DocsStore, projectRoot: string) {
         }
       })
       .post('/export/bundle-pdf', zValidator('json', exportBundlePdfBodySchema), async (c) => {
-        const { scope, ids, title, filename, baseUrl: requestedBaseUrl } = c.req.valid('json')
-        const originHeader = c.req.header('origin')
-        const reqOrigin = new URL(c.req.url).origin
-        const baseUrl =
-          requestedBaseUrl && isLocalOrigin(requestedBaseUrl)
-            ? requestedBaseUrl
-            : originHeader && isLocalOrigin(originHeader)
-              ? originHeader
-              : reqOrigin
+        const { scope, ids, title, filename } = c.req.valid('json')
+        // 任意ローカルポートへ Chrome を誘導されないよう、必ず自サーバー自身の Origin を使う
+        const baseUrl = new URL(c.req.url).origin
 
         const qs = new URLSearchParams()
         if (ids && ids.length > 0) qs.set('ids', ids.join(','))

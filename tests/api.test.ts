@@ -5,7 +5,9 @@ import path from 'node:path'
 import { Hono } from 'hono'
 import { hc } from 'hono/client'
 import { stringify } from 'yaml'
+import { resolveSourceLines } from '../src/core/source'
 import { createApp, type ApiRoutes } from '../src/server/app'
+import { renderPdfFromUrl } from '../src/server/pdf'
 import { DocsStore } from '../src/server/store'
 
 let root: string
@@ -266,6 +268,43 @@ describe('REST API', () => {
     expect(malformedJson.status).toBe(400)
     const jsonErr = (await malformedJson.json()) as { error?: string }
     expect(typeof jsonErr.error).toBe('string')
+  })
+
+  test('[core.human-review] 非ローカル Origin の /api リクエストは読み書きとも 403 で拒否し承認を書き込まない', async () => {
+    const evil = { origin: 'https://evil.example' }
+    const readRes = await app.fetch(new Request('http://localhost/api/health', { headers: evil }))
+    expect(readRes.status).toBe(403)
+
+    const writeRes = await app.fetch(
+      new Request('http://localhost/api/blocks/auth.lockout/approve', {
+        method: 'POST',
+        headers: { ...evil, 'content-type': 'text/plain' },
+        body: '{}',
+      }),
+    )
+    expect(writeRes.status).toBe(403)
+    const blocks = (await (await app.fetch(new Request('http://localhost/api/blocks'))).json()) as {
+      counts: { approved: number }
+    }
+    expect(blocks.counts.approved).toBe(0)
+
+    const localRes = await app.fetch(
+      new Request('http://localhost/api/health', { headers: { origin: 'http://localhost:5173' } }),
+    )
+    expect(localRes.status).toBe(200)
+  })
+
+  test('[core.bundle-export] PDF 生成は自サーバーのループバック /bundle のみ許可し、他パス・外部ホストを拒否する', async () => {
+    await expect(renderPdfFromUrl('http://localhost:3000/bundle-evil?scope=all')).rejects.toThrow('/bundle')
+    await expect(renderPdfFromUrl('http://localhost:3000/api/health')).rejects.toThrow('/bundle')
+    await expect(renderPdfFromUrl('https://example.com/bundle?scope=all')).rejects.toThrow('localhost')
+    await expect(renderPdfFromUrl('file:///etc/passwd')).rejects.toThrow('http')
+  })
+
+  test('[core.ast-check] .env ファイルはソース取得 API の対象外として拒否する', async () => {
+    await writeFile(path.join(root, '.env'), 'SECRET=hunter2\n')
+    const res = await resolveSourceLines(root, '.env', '1')
+    expect(res.isErr()).toBe(true)
   })
 })
 

@@ -1,5 +1,7 @@
 const MAX_HTML_BYTES = 5 * 1024 * 1024
 const DEFAULT_BUNDLE_TIMEOUT_MS = 15000
+/** 単体文書 PDF 用: スクリプト実行・外部/ローカルネットワークアクセスを禁止し、インラインスタイルと data: のみ許可する */
+const PDF_CSP = "default-src 'none'; style-src 'unsafe-inline'; img-src data:; font-src data:"
 
 export class PdfError extends Error {
   constructor(
@@ -36,8 +38,8 @@ function assertLoopbackBundleUrl(rawUrl: string): URL {
   if (!['localhost', '127.0.0.1', '[::1]', '::1'].includes(parsed.hostname)) {
     throw new PdfError('PDF generation is only allowed for localhost /bundle URLs', 403)
   }
-  if (!parsed.pathname.startsWith('/bundle')) {
-    throw new PdfError('Only /bundle paths are allowed', 400)
+  if (parsed.pathname !== '/bundle') {
+    throw new PdfError('Only the /bundle path is allowed', 400)
   }
   return parsed
 }
@@ -66,8 +68,11 @@ export async function renderPdf(html: string): Promise<Uint8Array> {
   const view = createChromeWebView()
   try {
     await view.navigate('about:blank')
+    // 防御の主軸は先頭に置く CSP meta（スクリプト・インラインイベント・外部通信をすべて遮断）。script 除去は多層防御
     const safeHtml = html.replace(/<script\b[^>]*>[\s\S]*?<\/script>/gi, '')
-    await view.evaluate(`(() => { document.open(); document.write(${JSON.stringify(safeHtml)}); document.close(); })()`)
+    await view.evaluate(
+      `(() => { document.open(); document.write(${JSON.stringify(`<!doctype html><meta http-equiv="Content-Security-Policy" content="${PDF_CSP}">`)}); document.write(${JSON.stringify(safeHtml)}); document.close(); })()`,
+    )
 
     const result = await view.cdp<{ data?: string }>('Page.printToPDF', {
       printBackground: true,
