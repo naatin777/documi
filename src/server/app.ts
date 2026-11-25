@@ -44,7 +44,14 @@ export function createApp(source: DocsIndex | DocsStore, options: AppOptions = {
   const store = source instanceof DocsStore ? source : DocsStore.fromIndex(source)
   const projectRoot = options.projectRoot ?? path.dirname(store.rootDir)
 
-  // /api はローカルツール前提。ブラウザからのクロスオリジン要求は Origin を検証する
+  // /api はローカルツール前提。非ローカル Origin (CSRF / DNS rebinding 経由の外部ページ) はリクエスト自体を拒否する
+  app.use('/api/*', async (c, next) => {
+    const origin = c.req.header('origin')
+    if (origin && !isLocalOrigin(origin)) {
+      return c.json({ error: 'API access from this Origin is forbidden' }, 403)
+    }
+    await next()
+  })
   app.use(
     '/api/*',
     cors({

@@ -23,6 +23,7 @@ export class DocsStore {
   private index: DocsIndex
   private listeners = new Set<IndexListener>()
   private reloading: Promise<DocsIndex> | null = null
+  private pendingReload: Promise<DocsIndex> | null = null
   public readonly projectRoot: string
 
   private constructor(
@@ -57,7 +58,16 @@ export class DocsStore {
   }
 
   async reload(): Promise<DocsIndex> {
-    if (this.reloading) return this.reloading
+    if (this.reloading) {
+      // リロード中に起きた変更を取りこぼさないよう、実行中の完了後にもう 1 回だけ追従リロードする
+      this.pendingReload ??= this.reloading
+        .catch(() => undefined)
+        .then(() => {
+          this.pendingReload = null
+          return this.reload()
+        })
+      return this.pendingReload
+    }
     const task = (async () => {
       try {
         const next = await loadDocuments(this.rootDir)
@@ -108,18 +118,31 @@ export class DocsStore {
       }, debounceMs)
     }
 
+    let reportWatcher: FSWatcher | null = null
+
     try {
       watcher = watch(this.rootDir, { recursive: true }, (_event, filename) => {
         if (filename && shouldIgnorePath(filename)) return
         scheduleReload()
       })
+    } catch (error) {
+      // recursive watch 非対応環境でもサーバー起動は継続するが、自動リロードされない旨は通知する
+      console.warn(`File watching is unavailable; documents will not reload automatically: ${String(error)}`)
+    }
+
+    // プロジェクトルート直下の .documi/test-results.xml (docs/ の外) 更新も追従する
+    try {
+      reportWatcher = watch(path.join(this.projectRoot, '.documi'), (_event, filename) => {
+        if (filename === 'test-results.xml') scheduleReload()
+      })
     } catch {
-      // recursive watch 非対応環境でもサーバー起動は継続する
+      // .documi/ がまだ存在しない場合は監視しない
     }
 
     return () => {
       if (timer) clearTimeout(timer)
       watcher?.close()
+      reportWatcher?.close()
     }
   }
 }

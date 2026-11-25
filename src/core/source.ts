@@ -272,7 +272,6 @@ export const TEXT_EXTS = new Set([
   'zsh',
   'fish',
   'txt',
-  'env',
   'ini',
   'cfg',
   'conf',
