@@ -352,7 +352,7 @@ export async function readCodeFile(
         new UnsupportedExtensionError({
           file: loaded.relPath,
           ext: loaded.ext,
-          message: `対応していない拡張子です: .${loaded.ext || '(none)'}`,
+          message: `Unsupported file extension: .${loaded.ext || '(none)'}`,
         }),
       )
     }

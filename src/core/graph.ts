@@ -40,7 +40,7 @@ export function buildGraphAndValidate(
   ): void => {
     if (from === target.ref || (kind === 'mentions' && fromDoc.id === target.doc.id && target.kind === 'doc')) {
       if (reportSelf) {
-        fromDoc.issues.push({ code: 'self-relation', message: `自己参照は許可されていません: ${target.ref}` })
+        fromDoc.issues.push({ code: 'self-relation', message: `Self-reference is not allowed: ${target.ref}` })
       }
       return
     }
@@ -64,7 +64,7 @@ export function buildGraphAndValidate(
       for (const rawTarget of doc.declaredEdges[kind] ?? []) {
         const target = resolveTarget(rawTarget, doc, byId, blocksById)
         if (!target) {
-          doc.issues.push({ code: 'missing-relation', message: `参照先が存在しません (${kind}): ${rawTarget}` })
+          doc.issues.push({ code: 'missing-relation', message: `Broken reference (${kind}): ${rawTarget}` })
           continue
         }
         addEdge(doc.id, doc, target, kind, true)
@@ -78,7 +78,7 @@ export function buildGraphAndValidate(
         if (!target) {
           doc.issues.push({
             code: 'missing-relation',
-            message: `参照先が存在しません (derives): ${rawTarget}`,
+            message: `Broken reference (derives): ${rawTarget}`,
             blockId: block.id,
           })
           continue
@@ -90,7 +90,7 @@ export function buildGraphAndValidate(
         if (!target) {
           doc.issues.push({
             code: 'missing-relation',
-            message: `参照先が存在しません (supersedes): ${rawTarget}`,
+            message: `Broken reference (supersedes): ${rawTarget}`,
             blockId: block.id,
           })
           continue
@@ -106,7 +106,7 @@ export function buildGraphAndValidate(
         if (!target) {
           doc.issues.push({
             code: 'missing-relation',
-            message: `SourceRef の satisfies 先が存在しません: ${rawTarget}`,
+            message: `Broken SourceRef satisfies target: ${rawTarget}`,
           })
           continue
         }
@@ -115,7 +115,7 @@ export function buildGraphAndValidate(
       for (const rawTarget of ref.verifies) {
         const target = resolveTarget(rawTarget, doc, byId, blocksById)
         if (!target) {
-          doc.issues.push({ code: 'missing-relation', message: `SourceRef の verifies 先が存在しません: ${rawTarget}` })
+          doc.issues.push({ code: 'missing-relation', message: `Broken SourceRef verifies target: ${rawTarget}` })
           continue
         }
         addEdge(doc.id, doc, target, 'verifies', true)
@@ -129,7 +129,7 @@ export function buildGraphAndValidate(
       if (target) {
         addEdge(doc.id, doc, target, 'mentions', false)
       } else if (looksLikeInternalDocLink(href)) {
-        doc.issues.push({ code: 'missing-relation', message: `本文リンクの参照先が存在しません: ${href}` })
+        doc.issues.push({ code: 'missing-relation', message: `Broken internal link: ${href}` })
       }
     }
 
@@ -139,7 +139,7 @@ export function buildGraphAndValidate(
       if (!term) {
         doc.issues.push({
           code: 'missing-term',
-          message: `未定義の用語が参照されています: <Term name="${termName}" />`,
+          message: `Undefined term referenced: <Term name="${termName}" />`,
         })
         continue
       }
@@ -244,7 +244,7 @@ function detectCycles(edges: GraphEdge[], kind: 'derives' | 'supersedes', byId: 
           reported.add(key)
           byId.get(next.fromDocId)?.issues.push({
             code: 'cycle-detected',
-            message: `${kind} に循環参照が検出されました: ${node} → ${next.to}`,
+            message: `Cycle detected in ${kind}: ${node} -> ${next.to}`,
           })
         }
       } else if (!s) {
@@ -301,7 +301,7 @@ function validateGoalReachability(entries: RawDocEntry[], edges: GraphEdge[], by
         if (!canReachGoal([block.id, doc.id])) {
           doc.issues.push({
             code: 'orphan-spec',
-            message: `<Spec id="${block.id}"> が derives 経由で Goal に接続されていません`,
+            message: `<Spec id="${block.id}"> is not connected to any Goal via derives`,
             blockId: block.id,
           })
         }
@@ -310,7 +310,7 @@ function validateGoalReachability(entries: RawDocEntry[], edges: GraphEdge[], by
       if (!canReachGoal([doc.id])) {
         doc.issues.push({
           code: 'orphan-spec',
-          message: `Spec 文書 "${doc.id}" が derives 経由で Goal に接続されていません`,
+          message: `Spec document "${doc.id}" is not connected to any Goal via derives`,
         })
       }
     }

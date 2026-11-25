@@ -13,16 +13,13 @@ export class PdfError extends Error {
 
 function createChromeWebView(): InstanceType<typeof Bun.WebView> {
   if (typeof Bun.WebView === 'undefined') {
-    throw new PdfError('Bun.WebView が利用できません (Bun 1.3.12 以上が必要です)', 501)
+    throw new PdfError('Bun.WebView is not available (requires Bun 1.3.12 or later)', 501)
   }
   try {
     return new Bun.WebView({ backend: 'chrome' })
   } catch (error) {
     const detail = error instanceof Error ? error.message : String(error)
-    throw new PdfError(
-      `Chrome backend を起動できません: ${detail} (BUN_CHROME_PATH または Chrome のインストールが必要です)`,
-      501,
-    )
+    throw new PdfError(`Failed to launch Chrome backend: ${detail} (requires BUN_CHROME_PATH or Chrome installed)`, 501)
   }
 }
 
@@ -31,16 +28,16 @@ function assertLoopbackBundleUrl(rawUrl: string): URL {
   try {
     parsed = new URL(rawUrl)
   } catch {
-    throw new PdfError(`不正な URL です: ${rawUrl}`, 400)
+    throw new PdfError(`Invalid URL: ${rawUrl}`, 400)
   }
   if (!['http:', 'https:'].includes(parsed.protocol)) {
-    throw new PdfError('http / https のみ許可されています', 400)
+    throw new PdfError('Only http / https URLs are allowed', 400)
   }
   if (!['localhost', '127.0.0.1', '[::1]', '::1'].includes(parsed.hostname)) {
-    throw new PdfError('PDF 生成はローカルホストの /bundle URL のみ許可されています', 403)
+    throw new PdfError('PDF generation is only allowed for localhost /bundle URLs', 403)
   }
   if (!parsed.pathname.startsWith('/bundle')) {
-    throw new PdfError('/bundle パスのみ許可されています', 400)
+    throw new PdfError('Only /bundle paths are allowed', 400)
   }
   return parsed
 }
@@ -52,7 +49,7 @@ async function waitForBundleReady(view: InstanceType<typeof Bun.WebView>, timeou
     if (ready === true) return
     await new Promise((resolve) => setTimeout(resolve, 100))
   }
-  throw new PdfError('バンドルの描画完了待機がタイムアウトしました', 504)
+  throw new PdfError('Timed out waiting for bundle render completion', 504)
 }
 
 /**
@@ -60,10 +57,10 @@ async function waitForBundleReady(view: InstanceType<typeof Bun.WebView>, timeou
  */
 export async function renderPdf(html: string): Promise<Uint8Array> {
   if (typeof html !== 'string' || html.trim() === '') {
-    throw new PdfError('html が必要です', 400)
+    throw new PdfError('html is required', 400)
   }
   if (Buffer.byteLength(html, 'utf8') > MAX_HTML_BYTES) {
-    throw new PdfError(`HTML が大きすぎます (上限 ${MAX_HTML_BYTES / 1024 / 1024}MB)`, 413)
+    throw new PdfError(`HTML exceeds size limit (max ${MAX_HTML_BYTES / 1024 / 1024}MB)`, 413)
   }
 
   const view = createChromeWebView()
@@ -77,12 +74,12 @@ export async function renderPdf(html: string): Promise<Uint8Array> {
       displayHeaderFooter: false,
       preferCSSPageSize: true,
     })
-    if (!result?.data) throw new PdfError('PDF データが取得できませんでした', 500)
+    if (!result?.data) throw new PdfError('Failed to obtain PDF data', 500)
     return new Uint8Array(Buffer.from(result.data, 'base64'))
   } catch (error) {
     if (error instanceof PdfError) throw error
     const detail = error instanceof Error ? error.message : String(error)
-    throw new PdfError(`PDF の生成に失敗しました: ${detail}`, 500)
+    throw new PdfError(`Failed to generate PDF: ${detail}`, 500)
   } finally {
     view.close()
   }
@@ -104,12 +101,12 @@ export async function renderPdfFromUrl(rawUrl: string, options: { timeoutMs?: nu
       displayHeaderFooter: false,
       preferCSSPageSize: true,
     })
-    if (!result?.data) throw new PdfError('PDF データが取得できませんでした', 500)
+    if (!result?.data) throw new PdfError('Failed to obtain PDF data', 500)
     return new Uint8Array(Buffer.from(result.data, 'base64'))
   } catch (error) {
     if (error instanceof PdfError) throw error
     const detail = error instanceof Error ? error.message : String(error)
-    throw new PdfError(`バンドル PDF の生成に失敗しました: ${detail}`, 500)
+    throw new PdfError(`Failed to generate bundle PDF: ${detail}`, 500)
   } finally {
     view.close()
   }
@@ -146,13 +143,13 @@ export async function renderStandaloneHtmlFromUrl(
     })()`)
 
     if (typeof html !== 'string' || !html) {
-      throw new PdfError('バンドル HTML の抽出に失敗しました', 500)
+      throw new PdfError('Failed to extract bundle HTML', 500)
     }
     return html
   } catch (error) {
     if (error instanceof PdfError) throw error
     const detail = error instanceof Error ? error.message : String(error)
-    throw new PdfError(`バンドル HTML の生成に失敗しました: ${detail}`, 500)
+    throw new PdfError(`Failed to generate bundle HTML: ${detail}`, 500)
   } finally {
     view.close()
   }

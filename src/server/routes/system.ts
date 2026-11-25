@@ -13,20 +13,20 @@ const checkQuerySchema = z.object({
 
 const sourceQuerySchema = z
   .object({
-    file: z.string().min(1, 'file パラメータが必要です'),
+    file: z.string().min(1, 'file parameter is required'),
     symbol: z.string().min(1).optional(),
     lines: z.string().min(1).optional(),
   })
   .refine((v) => Boolean(v.symbol) !== Boolean(v.lines), {
-    message: 'symbol または lines のどちらか一方を指定してください',
+    message: 'Specify exactly one of symbol or lines',
   })
 
 const sourceExportsQuerySchema = z.object({
-  file: z.string().min(1, 'file パラメータが必要です'),
+  file: z.string().min(1, 'file parameter is required'),
 })
 
 const exportPdfBodySchema = z.object({
-  html: z.string().refine((v) => v.trim().length > 0, { message: 'html パラメータが必要です' }),
+  html: z.string().refine((v) => v.trim().length > 0, { message: 'html parameter is required' }),
   filename: z.string().optional(),
 })
 

@@ -333,7 +333,7 @@ export async function loadSourceFile(
 ): Promise<Result<LoadedSource, LoadSourceError>> {
   if (typeof file !== 'string' || file.trim() === '' || file.includes('\0')) {
     return Result.err(
-      new InvalidSourcePathError({ file: typeof file === 'string' ? file : '', message: 'file パラメータが不正です' }),
+      new InvalidSourcePathError({ file: typeof file === 'string' ? file : '', message: 'Invalid file parameter' }),
     )
   }
   if (path.isAbsolute(file) || file.split(/[\\/]/).includes('..')) {
@@ -341,7 +341,7 @@ export async function loadSourceFile(
       new PathOutsideRootError({
         file,
         reason: 'traversal',
-        message: 'パスがプロジェクトルート外を指しています',
+        message: 'Path resolves outside project root',
       }),
     )
   }
@@ -352,7 +352,7 @@ export async function loadSourceFile(
       new PathOutsideRootError({
         file,
         reason: 'traversal',
-        message: 'パスがプロジェクトルート外を指しています',
+        message: 'Path resolves outside project root',
       }),
     )
   }
@@ -360,21 +360,21 @@ export async function loadSourceFile(
   try {
     real = await fs.realpath(abs)
   } catch {
-    return Result.err(new SourceFileNotFoundError({ file, message: `ファイルが見つかりません: ${file}` }))
+    return Result.err(new SourceFileNotFoundError({ file, message: `File not found: ${file}` }))
   }
   if (real !== rootReal && !real.startsWith(rootReal + path.sep)) {
     return Result.err(
       new PathOutsideRootError({
         file,
         reason: 'symlink',
-        message: 'シンボリックリンクがプロジェクトルート外を指しています',
+        message: 'Symlink resolves outside project root',
       }),
     )
   }
 
   const stat = await fs.stat(real)
   if (!stat.isFile()) {
-    return Result.err(new NotAFileError({ file, message: `ファイルではありません: ${file}` }))
+    return Result.err(new NotAFileError({ file, message: `Not a regular file: ${file}` }))
   }
   if (stat.size > MAX_FILE_BYTES) {
     return Result.err(
@@ -382,7 +382,7 @@ export async function loadSourceFile(
         file,
         maxBytes: MAX_FILE_BYTES,
         actualBytes: stat.size,
-        message: `ファイルが大きすぎます (上限 ${MAX_FILE_BYTES / 1024}KB)`,
+        message: `File exceeds size limit (${MAX_FILE_BYTES / 1024}KB)`,
       }),
     )
   }
@@ -390,7 +390,7 @@ export async function loadSourceFile(
   const buf = await fs.readFile(real)
   const head = buf.subarray(0, BINARY_SNIFF_BYTES)
   if (head.includes(0)) {
-    return Result.err(new BinaryFileError({ file, message: 'バイナリファイルは読み込めません' }))
+    return Result.err(new BinaryFileError({ file, message: 'Binary files are not supported' }))
   }
 
   return Result.ok({
@@ -430,7 +430,7 @@ export async function resolveSourceLines(
         new UnsupportedExtensionError({
           file: loaded.relPath,
           ext: loaded.ext,
-          message: `対応していない拡張子です: .${loaded.ext}`,
+          message: `Unsupported file extension: .${loaded.ext}`,
         }),
       )
     }
@@ -440,7 +440,7 @@ export async function resolveSourceLines(
         new InvalidLineRangeError({
           file: loaded.relPath,
           lines: linesParam,
-          message: `lines の形式が不正です: ${linesParam}`,
+          message: `Invalid lines format: ${linesParam}`,
         }),
       )
     }
@@ -451,7 +451,7 @@ export async function resolveSourceLines(
         new InvalidLineRangeError({
           file: loaded.relPath,
           lines: linesParam,
-          message: `lines の範囲が不正です (1〜${MAX_RANGE_LINES} 行): ${linesParam}`,
+          message: `Invalid line range (1-${MAX_RANGE_LINES} lines): ${linesParam}`,
         }),
       )
     }
@@ -461,7 +461,7 @@ export async function resolveSourceLines(
         new InvalidLineRangeError({
           file: loaded.relPath,
           lines: linesParam,
-          message: `行範囲がファイルを超えています (全 ${total} 行): ${linesParam}`,
+          message: `Line range exceeds file length (${total} lines): ${linesParam}`,
         }),
       )
     }
@@ -612,12 +612,12 @@ export async function resolveSourceSymbol(
         new UnsupportedExtensionError({
           file: loaded.relPath,
           ext: loaded.ext,
-          message: `シンボル検索に対応していない拡張子です: .${loaded.ext} (対応: ${supported})`,
+          message: `Unsupported extension for symbol lookup: .${loaded.ext} (supported: ${supported})`,
         }),
       )
     }
     if (!symbol || !symbol.trim()) {
-      return Result.err(new InvalidSymbolQueryError({ file: loaded.relPath, message: 'symbol パラメータが必要です' }))
+      return Result.err(new InvalidSymbolQueryError({ file: loaded.relPath, message: 'symbol parameter is required' }))
     }
 
     let root: ReturnType<typeof parse>
@@ -628,7 +628,7 @@ export async function resolveSourceSymbol(
         new AstParseError({
           file: loaded.relPath,
           language: def.display,
-          message: `AST の解析に失敗しました: ${e instanceof Error ? e.message : String(e)}`,
+          message: `Failed to parse AST: ${e instanceof Error ? e.message : String(e)}`,
         }),
       )
     }
@@ -640,13 +640,13 @@ export async function resolveSourceSymbol(
         .filter((c) => c.name === symbol.split('.').pop())
         .slice(0, 5)
         .map((c) => c.qualifiedName)
-      const hint = similar.length ? ` 候補: ${similar.join(', ')}` : ''
+      const hint = similar.length ? ` (candidates: ${similar.join(', ')})` : ''
       return Result.err(
         new SymbolNotFoundError({
           file: loaded.relPath,
           symbol,
           candidates: similar,
-          message: `シンボルが見つかりません: ${symbol}${hint}`,
+          message: `Symbol not found: ${symbol}${hint}`,
         }),
       )
     }
@@ -657,7 +657,7 @@ export async function resolveSourceSymbol(
           file: loaded.relPath,
           symbol,
           matches,
-          message: `シンボルが曖昧です: ${symbol} — ${matches.join('; ')}`,
+          message: `Ambiguous symbol: ${symbol} — ${matches.join('; ')}`,
         }),
       )
     }
@@ -848,7 +848,7 @@ export async function extractExportedSymbols(
         new UnsupportedExtensionError({
           file: loaded.relPath,
           ext: loaded.ext,
-          message: `シンボル抽出に対応していない拡張子です: .${loaded.ext} (対応: ${supported})`,
+          message: `Unsupported extension for symbol export extraction: .${loaded.ext} (supported: ${supported})`,
         }),
       )
     }

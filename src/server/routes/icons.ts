@@ -89,25 +89,25 @@ export function createIconsRoutes() {
     .get('/:name', async (c) => {
       const rawName = c.req.param('name')
       if (!rawName || rawName.includes('/') || rawName.includes('\\') || rawName.includes('..')) {
-        return c.json({ error: '不正なアイコン名です' }, 404)
+        return c.json({ error: 'Invalid icon name' }, 404)
       }
       const iconId = rawName.endsWith('.svg') ? rawName.slice(0, -4) : rawName
       const { iconFileMap, iconsDir } = loadMaterialIcons()
       const svgFile = iconFileMap.get(iconId)
       if (!svgFile) {
-        return c.json({ error: `アイコンが見つかりません: ${rawName}` }, 404)
+        return c.json({ error: `Icon not found: ${rawName}` }, 404)
       }
 
       let svg = svgCache.get(svgFile)
       if (!svg) {
         const abs = path.resolve(iconsDir, svgFile)
         if (!abs.startsWith(iconsDir + path.sep)) {
-          return c.json({ error: '不正なアイコンパスです' }, 404)
+          return c.json({ error: 'Invalid icon path' }, 404)
         }
         try {
           svg = await readFile(abs, 'utf-8')
         } catch {
-          return c.json({ error: `アイコンの読み込みに失敗しました: ${rawName}` }, 404)
+          return c.json({ error: `Failed to load icon: ${rawName}` }, 404)
         }
         svgCache.set(svgFile, svg)
       }
