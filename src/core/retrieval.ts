@@ -108,13 +108,14 @@ const EN_STOPWORDS = new Set([
   'would',
 ])
 
-const KANJI_RE = /[\u4E00-\u9FFF\u3400-\u4DBF]+/g
-const KATAKANA_RE = /[\u30A0-\u30FFー]+/g
-const HIRAGANA_RE = /[\u3040-\u309F]+/g
+const JA_SEGMENTER = new Intl.Segmenter('ja', { granularity: 'word' })
+const CJK_OR_KANA_RE = /[\u3040-\u309F\u30A0-\u30FF\u4E00-\u9FFF\u3400-\u4DBFー]+/g
+const HIRAGANA_ONLY_RE = /^[\u3040-\u309F]+$/
+const KANJI_ONLY_RE = /^[\u4E00-\u9FFF\u3400-\u4DBF]+$/
 const IDENT_RE = /[A-Za-z0-9][A-Za-z0-9._/-]*/g
 
 /**
- * 日本語（漢字・カタカナ・ひらがな）および英語・コード識別子（camelCase / kebab-case / dot.id）を
+ * 日本語（`Intl.Segmenter` による単語分割）および英語・コード識別子（camelCase / kebab-case / dot.id）を
  * 外部形態素解析器なしで高精度に分解する軽量トークナイザ。
  */
 export function tokenizeForSearch(raw: string): string[] {
@@ -135,32 +136,22 @@ export function tokenizeForSearch(raw: string): string[] {
     }
   }
 
-  // 2. 漢字列（全体＋3文字以上はバイグラム展開で複合語の部分一致を拾う）
-  for (const match of normalized.matchAll(KANJI_RE)) {
-    const run = match[0]
-    if (JP_STOPWORDS.has(run)) continue
-    tokens.push(run)
-    if (run.length >= 3) {
-      for (let i = 0; i < run.length - 1; i++) {
-        const bg = run.slice(i, i + 2)
-        if (!JP_STOPWORDS.has(bg)) tokens.push(bg)
+  // 2. 日本語・CJK 文字列（Intl.Segmenter で複合カタカナや送り仮名付き和語を自然な単語へ分割）
+  for (const match of normalized.matchAll(CJK_OR_KANA_RE)) {
+    for (const part of JA_SEGMENTER.segment(match[0])) {
+      if (!part.isWordLike) continue
+      const seg = part.segment.replace(/^ー+|ー+$/g, '')
+      if (!seg || JP_STOPWORDS.has(seg)) continue
+      if (seg.length === 1 && HIRAGANA_ONLY_RE.test(seg)) continue
+      tokens.push(seg)
+
+      // 分割されなかった 4 文字以上の長い漢字複合語のみ 2-gram で部分一致を補助
+      if (seg.length >= 4 && KANJI_ONLY_RE.test(seg)) {
+        for (let i = 0; i < seg.length - 1; i++) {
+          const bg = seg.slice(i, i + 2)
+          if (!JP_STOPWORDS.has(bg)) tokens.push(bg)
+        }
       }
-    }
-  }
-
-  // 3. カタカナ列（2文字以上、長い複合カタカナ語は 3-gram も補助）
-  for (const match of normalized.matchAll(KATAKANA_RE)) {
-    const run = match[0].replace(/^ー+|ー+$/g, '')
-    if (run.length >= 2) {
-      tokens.push(run)
-    }
-  }
-
-  // 4. ひらがな列（助詞・定型語を除いた意味のある 2 文字以上）
-  for (const match of normalized.matchAll(HIRAGANA_RE)) {
-    const run = match[0]
-    if (run.length >= 2 && !JP_STOPWORDS.has(run)) {
-      tokens.push(run)
     }
   }
 
