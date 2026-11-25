@@ -7,23 +7,53 @@ tags: [core, spec, search, rag]
 
 # 全文検索・グラフ文脈検索・ローカル Hybrid RAG 仕様
 
-## 横断全文検索
+## 1. 横断全文検索
 
 <Spec id="core.full-text-search" stability="evolving" derives="goals/human-comprehension">
   **When** 検索クエリが与えられたとき、
   **the** Document Core **shall** ドキュメントのタイトル・ID・タグ・本文および全セマンティックブロックを横断してスコアリング検索し、スニペット付きで返却する。
 </Spec>
 
-## BM25・用語集同義語展開・グラフ連動コンテキスト検索
+- **検索対象と返却形式**: `kind: "doc" | "block"` 混在の `SearchHit[]`（`id`, `docId`, `type`, `title`, `blockKind?`, `snippet`, `score`）をスコア降順で返す。
+- **空クエリ・上限**: 空白のみのクエリは空配列を返す。`limit` は既定 `20`（REST API は既定 `30`・最大 `100`）、任意の `type` で絞り込み可能。
+
+## 2. BM25・用語集同義語展開・グラフ連動コンテキスト検索
 
 <Spec id="core.graph-retrieval" stability="evolving" derives="goals/ai-reproducibility">
   **When** 自然文の質問やタスク記述に対して全文検索または `documi retrieve` / MCP `retrieve_context` が実行されたとき、
   **the** Document Core **shall** 日本語（漢字・カタカナ・ひらがな）および英語・コード識別子トークナイザによる BM25 スコアリングと `<TermDef aliases>` を用いた自動同義語展開を実行し、一次ヒットから上流 Goal・関連 Decision `<Outcome>`・関連 Contract/Design・用語・`<SourceRef>` を明示グラフに沿って収集し指定文字数予算内で返却する。
 </Spec>
 
-## ローカル Hybrid RAG（`bun:sqlite` 差分キャッシュ・RRF・ONNX / Ollama / OpenAI 互換）
+- **ゼロ依存トークナイザ規則 (`tokenizeForSearch`)**:
+  - 漢字列・カタカナ列・ひらがな列を文字種境界で分割し、CJK 連続文字列にはバイグラム展開を加えてスペースなし日本語自然文にマッチさせる。
+  - 英数字識別子は元の結合トークン（`core.human-review` 等）に加え、`camelCase` / `snake_case` / `kebab-case` / `.` / `/` で分解したサブトークンも生成する。
+  - 日英ストップワード（助詞・一般的機能語）はノイズ抑制のため除外する。
+- **用語集同義語展開**: クエリ中に登録済み `<TermDef>` の `id` または `aliases` が含まれる場合、対応する正規 ID と別名トークンをクエリへ自動追加する。
+- **グラフ文脈展開と予算制御 (`retrieveContext`)**:
+  - 既定ヒット上限 `limit = 8`、既定文字数予算 `budget = 6000` 文字（`includeGraph: false` / `--no-graph` で一次ヒットのみ返却）。
+  - 一次ヒットのブロック／文書から明示エッジを辿り、上流 `goal`、関連 `decision` `<Outcome>`、関連 `contract` / `design`、関連 `<TermDef>`、および `<SourceRef>` を優先順に予算内で梱包する。
+
+## 3. ローカル Hybrid RAG（`bun:sqlite` 差分キャッシュ・RRF・ONNX / Ollama / OpenAI 互換）
 
 <Spec id="core.hybrid-rag" stability="evolving" derives="goals/ai-reproducibility">
   **When** `.documi.json` の `rag` 設定または `--semantic` / `documi index` によりローカル Hybrid RAG が有効化されたとき、
   **the** Document Core および CLI / MCP / REST API **shall** 組み込み ONNX（既定 `onnx-community/embeddinggemma-300m-ONNX` `q4`）・Ollama・OpenAI 互換 HTTP のいずれかの Embedding プロバイダを用いて `contentHash` 差分のみを `bun:sqlite` キャッシュ（`.documi/cache/embeddings.sqlite`）へ保存し、BM25 順位とベクトル類似度順位を RRF（Reciprocal Rank Fusion）で統合してグラフ展開結果を返却する。プロバイダが利用できない場合は BM25 結果へ安全にフォールバックする。
 </Spec>
+
+- **有効化優先順位**: 明示 `--semantic` / `--no-semantic`（API/MCP は `semantic: true | false`）→ `.documi.json` の `rag.enabled`（既定 `false`）。
+- **プロバイダ別既定値とモデル接頭辞**:
+
+| Provider | 既定モデル | 既定エンドポイント / 認証 | 備考 |
+|---|---|---|---|
+| `onnx`（既定） | `onnx-community/embeddinggemma-300m-ONNX`（`dtype: q4`） | ローカル遅延 import（API キー不要） | `q4` / `q8` / `fp16` / `fp32` 選択可 |
+| `ollama` | `embeddinggemma` | `http://localhost:11434` | ローカル Ollama HTTP API |
+| `openai` | `text-embedding-3-small` | `https://api.openai.com/v1` / 環境変数 `OPENAI_API_KEY`（`apiKeyEnv` で変更可） | OpenAI 互換 API / LM Studio 等 |
+
+- **モデル系列別プロンプト接頭辞 (`formatEmbeddingPrompt`)**:
+  - `embeddinggemma` 系: query は `task: search result | query: <q>`、document は `title: <title|none> | text: <text>`
+  - `qwen3-embedding` 系: query は `Instruct: ... \nQuery: <q>`
+  - `ruri` 系: query は `検索クエリ: <q>`、document は `検索文書: <title>\n<text>`
+- **差分同期・RRF・障害フォールバック**:
+  - チャンク（`doc:<id>` / `block:<id>`）は `contentHash` と `model_id` でキャッシュ照合し、変更分のみバッチ埋め込み・削除済みチャンクを自動掃除する（スキーマ詳細は [永続ファイル契約](../../contracts/storage-formats.mdx)）。
+  - BM25 順位とベクトル順位（正規化済み `Float32Array` 内積）を RRF（定数 `k = 60`）で統合する。
+  - プロバイダ未接続・API キー欠如・タイムアウト・ランタイム例外発生時は、既定（`fallbackOnError: true`）でエラー終了せず BM25＋用語展開＋グラフ展開の結果へ安全にフォールバックし、`mode: "bm25"`（またはフォールバック通知付き）で返す。

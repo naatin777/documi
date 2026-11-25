@@ -7,45 +7,97 @@ tags: [core, spec]
 
 # ドキュメントモデル・MDX 安全解析・グラフ・鮮度履歴仕様
 
-## ファイル構造と識別
+## 1. ファイル構造・識別・並び順
 
 <Spec id="core.document-model" stability="stable" derives="goals/ai-reproducibility">
   **When** Documi が `docs/` ディレクトリを読み込むとき、
   **the** Document Core **shall** 任意階層の `.mdx` / `.md` ファイルを連番なしで再帰走査し、拡張子を除いた POSIX 相対パスをドキュメント ID として割り当てるとともに、任意の `date`（`YYYY-MM-DD` / `YYYY-MM`）メタデータを解析して `decision` 文書を新しい決定日順に整列する。
 </Spec>
 
+- **走査除外対象**: ドット始まりエントリ（`.git`, `.documi` 等）、`node_modules`、およびルート直下の `guard/` ディレクトリ（人間承認ガード領域）。
+- **拡張子衝突時の優先順位**: 同一ドキュメント ID で `.mdx` と `.md` が両方存在する場合は **`.mdx` を採用**し、後続の `.md` は `duplicate-doc-id` issue として記録する。
+- **タイトル補完優先順位**: frontmatter `title` → 本文最初の H1 見出し → ファイル名（`missing-title` 警告を記録）。
+- **`date` メタデータ規則**: `YYYY-MM-DD` または `YYYY-MM`（月 1〜12・日 1〜31）を受理し、不正形式は `invalid-date` issue を記録する。`decision` 文書は `date` 降順（未設定は末尾）で整列する。
+- **耐障害性**: 個別ファイルの読み込み・frontmatter 解析失敗時は処理を中断せず `issues` に記録して残りの文書読み込みを継続する。
+
 <Spec id="core.type-inference" stability="stable" derives="goals/low-friction-governance">
   **When** ドキュメントの frontmatter に `type` が省略されたとき、
   **the** Document Core **shall** 最上位ディレクトリ名 → ファイル名の順に 9 種類の Artifact Type を自動推論し、判別できない場合は警告を記録しつつ `guide` として読み込む。
 </Spec>
 
-## セマンティックブロックと安全解析
+| 推論キー（大文字小文字無視） | Artifact Type | Layer |
+|---|---|---|
+| `goal`, `goals` | `goal` | `boundary` |
+| `decision`, `decisions`, `adr`, `adrs` | `decision` | `boundary` |
+| `domain`, `domains`, `glossary` | `domain` | `domain` |
+| `spec`, `specs` | `spec` | `normative` |
+| `contract`, `contracts` | `contract` | `normative` |
+| `architecture`, `arch` | `architecture` | `realization` |
+| `design`, `designs` | `design` | `realization` |
+| `verification`, `verifications` | `verification` | `realization` |
+| `guide`, `guides` | `guide` | `informative` |
+
+- frontmatter に未定義の `type` が明示指定された場合は `invalid-type` issue を記録して自動推論へフォールバックする。
+- 最上位ディレクトリ名・ファイル名のいずれにも一致しない場合は `inferred-default-type` 警告を記録し `guide` とする。
+
+## 2. セマンティックブロックと安全解析
 
 <Spec id="core.mdx-blocks" stability="stable" derives="goals/ai-reproducibility">
   **When** MDX 本文に `<Spec>` / `<Constraint>` / `<Outcome>` / `<Note>` / `<TermDef>` が記述されているとき、
   **the** Document Core **shall** mdast からブロック構造と正規化 SHA-256 `contentHash` を抽出し、プロジェクト全体でのブロック ID 重複を検出する。
 </Spec>
 
+- **ID 規約**: `^[a-zA-Z][a-zA-Z0-9._-]*$` に一致必須（`<Note>` のみ `id` 省略可、省略時は `<docId>#note-<連番>` を自動付与）。欠落は `missing-block-id`、形式違反は `invalid-block-id`、プロジェクト横断の重複は `duplicate-block-id` として記録する。
+- **ハッシュ正規化**: ブロック内部本文の改行を `\n` へ統一して前後空白をトリムし、`sha256:<hex>` を算出する（行番号や周囲の空白移動だけでは `stale` にならない）。
+- **属性既定値と検証**:
+  - `intent`: `<Note>` は `informative` 既定（許可: `idea` / `informative` / `rejected`）、その他ブロックは `normative` 既定（許可: `normative` / `idea` / `rejected`）。違反時は `invalid-block-attr`。
+  - `stability`: 既定 `evolving`（許可: `stable` / `evolving` / `volatile`）。違反時は `invalid-block-attr`。
+  - `<TermDef>`: `id` と `aliases` の大文字小文字無視での重複を `duplicate-term` として検出する。
+  - `startLine` / `endLine`: frontmatter 行オフセット加算済みの 1 始まりファイル行番号を保持する。
+
 <Spec id="core.mdx-safety" stability="stable" derives="goals/low-friction-governance">
   **If** MDX 本文に ESM import/export・JSX 式 `{...}`・スプレッド属性・未許可コンポーネントが含まれる場合、
   **then the** Document Core **shall** コードを実行せず `mdx-unsupported` 問題として報告する。
 </Spec>
 
-## Rooted DAG と脱線防止
+- **許可コンポーネント一覧（計 14 種・サーバーとブラウザで共有）**:
+  - リッチ表現: `Callout`, `Tabs`, `Tabs.Tab`, `Tab`, `Steps`, `Steps.Step`, `Step`, `SourceRef`
+  - セマンティックタグ: `Spec`, `Constraint`, `Outcome`, `Note`, `TermDef`, `Term`
+- **禁止構文**: `mdxjsEsm`（`import` / `export`）、`mdxFlowExpression` / `mdxTextExpression`（`{...}`）、属性値式（`prop={...}`）、スプレッド属性（`{...props}`）、上記 14 種以外の JSX コンポーネント。コードブロック／インラインコード内は対象外。
+- **パース失敗時**: MDX パースエラー時は Markdown パーサーへフォールバックし、`mdx-parse-error` issue を記録する。
+
+## 3. Rooted DAG と自動参照
 
 <Spec id="core.rooted-dag" stability="stable" derives="goals/low-friction-governance">
   **When** `intent="normative"` の `<Spec>`（または `<Spec>` を持たない `spec` 文書）が存在するとき、
   **the** Document Core **shall** `derives` 辺を辿って 1 つ以上の `goal` に到達できることを検証し、到達できない場合は `orphan-spec` として報告する。`intent="idea"` のブロックは対象外とする。
 </Spec>
 
+- **トレーサビリティ辺種別**: `derives`, `satisfies`, `verifies`, `supersedes`（frontmatter およびブロック属性から抽出）。
+- **整合性検証**:
+  - 参照先ドキュメント／ブロックが存在しない場合は `broken-ref` issue を記録。
+  - `derives` / `satisfies` / `verifies` / `supersedes` の有向グラフに循環がある場合は `trace-cycle` issue を記録。
+  - `intent="normative"` の `<Spec>` から `derives` を辿って `type === "goal"` に到達できない場合は `orphan-spec` issue を記録。
+
 <Spec id="core.auto-mentions" stability="stable" derives="goals/human-comprehension">
   **When** 本文中に他ドキュメントへの相対 Markdown リンクまたは `<Term>` 参照が存在するとき、
   **the** Document Core **shall** `mentions` エッジを自動構築し、参照先と逆参照 (`incoming`) の双方に反映する。
 </Spec>
 
-## ドキュメント鮮度・最新変更箇所・過去版参照
+- 外部 URL（`http:` / `https:` / `mailto:` 等）やアンカーのみの `#...` リンクは対象外とし、存在しない相対 Markdown リンクは `broken-link` issue を記録する。
+- `<Term name="..." />` は登録済み `<TermDef>` の `id` または `aliases`（大文字小文字無視）を解決して `mentions` 辺を張り、未登録用語は `unknown-term` issue を記録する。
+
+## 4. ドキュメント鮮度・変更範囲・過去版参照
 
 <Spec id="core.doc-history" stability="evolving" derives="goals/human-comprehension">
   **When** Document Core が `docs/` を読み込むか、指定ドキュメントの履歴・過去バージョンを要求されたとき、
   **the** Document Core **shall** 読み取り専用の Git 連携（非 Git 環境ではファイル時刻へのフォールバック）により各文書の作成日時・最終更新日時・未コミット変更状態・コミット履歴・最新変更の本文基準行レンジを算出し、検証済みのコミット SHA に対して過去バージョンの文書本文を安全に返却する。Git リポジトリへの書き込み操作は一切行わない。
 </Spec>
+
+- **鮮度算出の優先順位**:
+  1. Git リポジトリ内: 単一 `git log --name-status -M`（リネーム追跡込み）と `git status --porcelain -uall` で全文書の `createdAt`・`updatedAt`・`lastCommitSha`・`lastCommitSubject`・`commitCount`・`workingStatus`（`modified` / `added` / `untracked`）を一括付与する。未コミット変更がある場合は `updatedAt` に FS `mtime` を反映する。
+  2. 非 Git 環境: FS の `birthtime` / `mtime` へ安全にフォールバックし、`gitAvailable: false` を返す。
+- **変更箇所ハイライト基準 (`getDocumentHistory`)**: 未コミット変更あり → 作業ツリー差分（`highlightBasis: "working"`）、未コミットなし → 最新コミット差分（`highlightBasis: "last-commit"`）、履歴なし → `none`。frontmatter のみの変更は本文ハイライト対象から除外する。
+- **Git 変更ブロック抽出 (`getChangedBlockIds`)**:
+  - `main` / `master` 以外のブランチ上では `origin/main` → `main` → `origin/master` → `master` の順で `merge-base` を探索し、`git diff -U0 <base>` と作業ツリー新規ファイル（`untracked` / `added`）を統合して変更行が重なるブロック ID のみを抽出する。
+- **過去版参照の安全性 (`getDocumentRevision`)**: コミット SHA は `^[0-9a-f]{7,40}$` で検証（違反時は HTTP `400`）、未存在コミット／対象文書未存在は HTTP `404`、非 Git 環境は `404` を返す。

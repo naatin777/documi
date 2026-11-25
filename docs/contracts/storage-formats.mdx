@@ -1,0 +1,96 @@
+---
+type: contract
+title: 永続ファイル・設定・キャッシュ・静的出力スキーマ契約
+description: docs/guard/reviews.json・.documi.json/.yml・SQLite ベクトルキャッシュ・dist-site 静的出力の正確なパスとフィールド契約
+tags: [contract, storage, config, schema]
+satisfies:
+  - core.human-review
+  - core.project-config
+  - core.hybrid-rag
+  - core.static-site
+---
+
+# 永続ファイル・設定・キャッシュ・静的出力スキーマ契約
+
+Documi がファイルシステム上で読み書きする永続ファイル・設定ファイル・派生キャッシュ・静的サイト出力の厳密なスキーマと配置ルールを定義する。
+
+## 1. 人間承認ガードファイル (`docs/guard/reviews.json`)
+
+- **配置**: `<docsDir>/guard/reviews.json`（Git コミット対象・非隠しフォルダ・AI 編集禁止）
+- **決定論的フォーマット**: `blocks` キーおよび各ブロック内の `upstreamHashes` キーは常に昇順ソート＋2 スペース JSON＋末尾改行で保存し、Git diff ノイズを防ぐ。
+- **検証と耐障害性**: ファイル未存在時は `{ "version": 1, "blocks": {} }` として正常読み込みする。JSON 破損やルート型不正時は `invalid-reviews` issue を記録し、存在しないブロック ID のレコードは `orphan-review` issue を記録する。
+
+| フィールド | 型 | 必須 | 説明 |
+|---|---|---|---|
+| `version` | `1` | 必須 | スキーマバージョン（固定 `1`） |
+| `blocks.<blockId>.docPath` | `string` | 必須 | `<docsDir>` からの POSIX 相対パス |
+| `blocks.<blockId>.hash` | `string` | 必須 | 承認時点の正規化本文ハッシュ (`sha256:<hex>`) |
+| `blocks.<blockId>.approvedCommit` | `string` | 任意 | 承認時点の Git 短縮 SHA（非 Git 環境では省略） |
+| `blocks.<blockId>.approvedAt` | `string` | 任意 | 承認日時（ISO 8601 UTC） |
+| `blocks.<blockId>.approvedBy` | `string` | 任意 | 承認者名（明示 `author` → `git config user.name` → `USER` → `"human"`） |
+| `blocks.<blockId>.note` | `string` | 任意 | 人間が確認・承認時に残した確認メモ（空文字は省略） |
+| `blocks.<blockId>.upstreamHashes` | `Record<string, string>` | 任意 | 承認時点の上流対象（`derives` / `satisfies` / `verifies` 先）のハッシュ辞書 |
+
+```json
+{
+  "version": 1,
+  "blocks": {
+    "core.human-review": {
+      "docPath": "specs/core/governance-and-export.mdx",
+      "hash": "sha256:...",
+      "approvedCommit": "46d6d2f",
+      "approvedAt": "2026-11-25T06:00:00.000Z",
+      "approvedBy": "alice",
+      "note": "suspect軽量化とDiffフォールバックを確認",
+      "upstreamHashes": {
+        "goals/low-friction-governance": "sha256:..."
+      }
+    }
+  }
+}
+```
+
+## 2. プロジェクト設定ファイル (`.documi.json` / `.documi.yml`)
+
+- **探索優先順（プロジェクトルート直下）**:
+  1. `.documi.json`
+  2. `.documi.yml`
+  3. `.documi.yaml`
+  4. `documi.json`
+  （最初に見つかった 1 ファイルのみを採用し、未存在時は空設定として続行する）
+- **厳格スキーマ検証**: ルートおよび `rag` オブジェクトは Zod `.strict()` で検証し、JSON/YAML 構文エラー・型違反・**未知キー（タイポ含む）** は即座に `ConfigError` として拒否する。
+
+| キー | 型 | 既定値 | 説明 |
+|---|---|---|---|
+| `docs` | `string` (非空) | `"docs"` | `projectRoot` からの相対パス |
+| `testReport` | `string` (非空) | 未指定時は自動探索 | JUnit XML テストレポートの相対パス |
+| `rag.enabled` | `boolean` | `false` | `true` で `search` / `retrieve` の既定をハイブリッド検索化 |
+| `rag.provider` | `"onnx" \| "ollama" \| "openai"` | `"onnx"` | Embedding プロバイダ種別 |
+| `rag.model` | `string` | プロバイダ別既定 | ONNX: `onnx-community/embeddinggemma-300m-ONNX` / Ollama: `embeddinggemma` / OpenAI: `text-embedding-3-small` |
+| `rag.dtype` | `"q4" \| "q8" \| "fp16" \| "fp32"` | `"q4"` | ONNX 量子化精度 |
+| `rag.endpoint` | `string` | Ollama: `http://localhost:11434` / OpenAI: `https://api.openai.com/v1` | HTTP エンドポイント URL |
+| `rag.apiKeyEnv` | `string` | `"OPENAI_API_KEY"` | OpenAI 互換 API キーを読み取る環境変数名 |
+| `rag.cacheDir` | `string` | OS キャッシュディレクトリ | ONNX モデルダウンロード先 |
+| `rag.cachePath` | `string` | `.documi/cache/embeddings.sqlite` | SQLite キャッシュパス（`projectRoot` 相対または絶対） |
+
+## 3. 派生キャッシュ・一時ファイル (`.documi/`・`.gitignore` 対象)
+
+すべて再生成可能な派生データであり、`.gitignore` に `**/.documi/` を設定して Git 管理外とする。
+
+| パス (`projectRoot` 基準) | 形式 | 用途と更新タイミング |
+|---|---|---|
+| `.documi/test-results.xml` | JUnit XML | テストランナーが出力。`loadTestResults()` は `<projectRoot>/.documi/test-results.xml` → `<docsDir>/.documi/test-results.xml` の順で自動探索する |
+| `.documi/cache/approved-bodies.json` | `Record<blockId, string>` | 未コミット承認時の行 Diff 算出用ローカルスナップショット。承認時に書き込み、承認取り消し時に該当キーを削除 |
+| `.documi/cache/embeddings.sqlite` | SQLite (`WAL`) | `embeddings(chunk_key, model_id, content_hash, dim, vector BLOB, updated_at)` テーブル。`PRIMARY KEY (chunk_key, model_id)` と `idx_embeddings_model` でモデル別キャッシュを分離し、`contentHash` 差分のみ増分更新・削除済みチャンクを掃除する |
+
+## 4. 静的サイト書き出し構造 (`documi build-site`)
+
+- **出力ディレクトリ（既定 `./dist-site`）**:
+  - `index.html`: `window.__DOCUMI_STATIC__`（`mode: "static"`, `basePath`, `includeCode`, `generatedAt`）を注入し、アセット参照を指定 `--base`（既定 `./`）へ書き換え済み
+  - `404.html`: `index.html` のコピー（SPA フォールバック用）
+  - `.nojekyll`: GitHub Pages 向け空ファイル
+  - `_headers`: `/assets/*` に `public, max-age=31536000, immutable`、`/data/*` と `index.html` に `no-cache` を指定
+  - `assets/*`: ビルド済み SPA アセット（CSS フォント URL・動的チャンク preload パスをベースパス対応化）
+  - `data/*.json`: `overview.json`, `tree.json`, `blocks.json`, `terms.json`, `search-index.json`, `graph-*.json`, `documents/<docId>.json`, `history/<docId>.json`, `revisions/<docId>/<sha>.json`, `block-diffs/<blockId>.json`, `icons/manifest.json`, `icons/<name>.svg`
+  - コード関連（`--no-code` 未指定時のみ）: `data/code/tree.json`, `data/code/file-index.json`, `data/code/files/<sha>.json`, `data/source-index.json`, `data/sources/<sha>.json`, `data/source-exports-index.json`, `data/source-exports/<sha>.json`（ドットファイルや特殊文字衝突を避けるためハッシュ索引化）
+- **`--no-code` 保証**: 指定時は `includeCode: false` となり、ソースコード全文・`<SourceRef>` スニペット JSON を一切出力しない。

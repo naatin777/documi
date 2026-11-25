@@ -57,6 +57,29 @@ satisfies:
 | `POST /api/export/pdf` | 単一文書の描画済み HTML から PDF 生成 |
 | `POST /api/export/bundle-pdf` | ローカル `/bundle` URL を `Bun.WebView` で開いて複数文書 PDF 生成 |
 
+## 主要エンドポイントの入出力スキーマ契約
+
+- **Origin / CORS ガード**: `Origin` ヘッダがあるリクエストは `http://localhost:*`・`http://127.0.0.1:*`・`http://[::1]:*` のみ許可し、それ以外の外部 Origin は `403` で拒否する。
+- **`GET /api/blocks`**:
+  - レスポンス: `{ blocks: ReviewBlockSummary[], counts: { approved, unreviewed, stale, suspect, changed } }`
+  - 各要素は `id`, `kind`, `docId`, `docTitle`, `docPath`, `docDir`, `docFormat`, `rawBody`, `stability`, `review`, `suspect`, `suspectSources`, `changed`（作業ツリー／ブランチ差分で変更されたブロックか）, `approvedAt?`, `approvedBy?`, `approvedNote?`, `realization?` を返す。
+- **`POST /api/blocks/:id/approve`**:
+  - リクエスト JSON: `{ author?: string, note?: string }`（省略可）
+  - レスポンス `200`: `{ block: SemanticBlock }`（未存在ブロックは `404`）
+- **`POST /api/blocks/approve-batch`**:
+  - リクエスト JSON: `{ ids: string[] (1件以上), author?: string, note?: string }`
+  - 事前検証: `ids` に未存在ブロックが 1 件でも含まれる場合は書き込まず `404` を返す。
+  - レスポンス `200`: `{ approvedIds: string[], count: number }`
+- **`GET /api/blocks/:id/diff`**:
+  - レスポンス `200`: `{ blockId, hasBase, baseSource: "git" | "cache" | "none", baseCommit?, changed, lines: { type: "context" | "add" | "del", text }[] }`
+- **`GET /api/search`**:
+  - クエリ: `q?`, `type?`, `limit?`（既定 `30`・最大 `100`）, `semantic?: "true" | "false"`
+  - レスポンス `200`: `{ query, results: SearchHit[], count, mode: "bm25" | "hybrid", modelId? }`
+- **`GET /api/code/file`**:
+  - クエリ: `path`（`projectRoot` 相対 POSIX パス）
+  - レスポンス `200`: `{ path, language, totalLines, content, exportedSymbols: ExportedSymbolEntry[], specs, docs, terms, covered }`
+  - エラー: ルート外／シンボリックリンク脱出は `403`、未存在は `404`、バイナリまたは 1 MiB 超は `400`。
+
 ## 共通エラー規約と副作用の範囲
 
 - **エラーレスポンス形式**: エラー時は JSON `{ error: string }` を返し、用途別に以下の HTTP ステータスを用いる。

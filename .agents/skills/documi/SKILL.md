@@ -38,7 +38,11 @@ EOF
 - 実装コードには `// @implements <spec.id>`（または設計書に `<SourceRef file="src/..." satisfies="<spec.id>" />`）を付与する。
 - 検証テストには `test('[<spec.id>] ...', ...)`（または `// @verifies <spec.id>`）を含め、設定されていれば JUnit XML を出力する。
 - `<SourceRef file="...">` と `<TermDef symbols="...">` は必ずプロジェクトルートからの POSIX 相対パスで記述する。
-- **書く／書かないの境界**: 公開シンボル（export された `class` / `interface` / `type` / 公開関数）は手書きコピペせず `<SourceRef file="src/..." mode="exports" />` や `<SourceRef symbol="..." />` で AST 紐づけして把握できるようにする。一方、非公開ヘルパーや関数内の `if`/`for` 擬似コードは書かず、外部から観測できる条件・エラー・フォールバックのみを `spec` / `contract` に書く。
+- **書く／書かないの境界（再現性 4 チェック）**: 機能追加・仕様変更を書いたときは「別 AI が `docs/` だけで同じ挙動を再現できるか」を確認する。
+  1. **境界条件・エラー拒否**（不正入力・パス脱出・空状態・エラーコード）を明記したか？
+  2. **優先順位・フォールバック・競合解決**の順序を明記したか？
+  3. **入出力・永続ファイルのスキーマ変更**を `contract` に同期したか？
+  4. **公開シンボル**（export された `class`/`interface`/`type`/公開関数）は手書きコピペせず `<SourceRef file="src/..." mode="exports" />` や `<SourceRef symbol="..." />` で AST 紐づけし、非公開ヘルパーや関数内の `if`/`for` 擬似コードは書いていないか？
 - **更新トリガー（PR 完了前セルフチェック）**:
   - 新サブシステム・主要モジュール追加 → `architecture` 更新 ＋ `design`（`satisfies`・`<SourceRef>`）追加・更新
   - 後戻りコストが高い構造・技術判断 → `decision`（ADR＋`<Outcome>`）を追加
