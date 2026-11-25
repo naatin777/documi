@@ -24,10 +24,11 @@ documi serve --project /path/to/repo          # Web UI + API + HTTP MCP 起動
 documi mcp --project /path/to/repo            # stdio MCP サーバー起動 (MCP 派向け・Skill 不要)
 ```
 
-`documi init` は `AGENTS.md` 等と競合させないよう、標準 **Agent Skills** 形式（`.agents/skills/`）で CLI ベースの以下 2 つのスキルを自動配置します：
+`documi init` は `AGENTS.md` 等と競合させないよう、標準 **Agent Skills** 形式（`.agents/skills/`）で CLI ベースの以下 3 つのスキルを自動配置します：
 
-- **`documi/SKILL.md`**: 日常開発で `documi map` → `documi query` / `search` → `documi context` → 精密編集（`documi block` / `term` / `scaffold`）→ `documi check` を使う運用スキル
+- **`documi/SKILL.md`**: 日常開発で `documi map` → `documi query` / `search` / `retrieve` → `documi context` → 精密編集（`documi block` / `term` / `scaffold`）→ `documi check` を使う運用スキル
 - **`documi-bootstrap/SKILL.md`**: 既存コードベース（Brownfield）を棚卸しし、初期 Goal・Architecture・用語集・コア仕様を段階的に立ち上げるスキル
+- **`documi-review/SKILL.md`**: 未承認・`stale`・`suspect` な仕様を 2〜3 件ずつ取り上げ、エッジケースの選択式クイズで人間と AI の認識ズレを炙り出し、合意後に人間専用の承認コマンドを引き継ぐ対話レビュースキル
 
 言語は `--en`（既定）または `--ja`（`--lang ja`）で切り替えられます。既存の `docs/` があるプロジェクトやスキルだけ更新したい場合は `--skills-only` / `--force-skills` を利用できます。また既存の `docs/` と分けたい場合はプロジェクトルート直下に `.documi.json`（または `.documi.yml`）を置くことで `--project` 1 つで自動認識されます。
 
@@ -40,10 +41,21 @@ documi mcp --project /path/to/repo            # stdio MCP サーバー起動 (MC
 
 > ソースコード参照（`<SourceRef file="src/..." />` / `<TermDef symbols="src/...#Sym">`）はすべて <Term name="ProjectRoot" />（既定: `cwd`、または `--docs` 指定時はその親ディレクトリ、`--project` / `DOCUMI_PROJECT_ROOT` で明示指定可）からの POSIX 相対パスで記述します。
 
+## 人間と AI の標準フロー（Web UI ↔ AI チャット）
+
+Documi は **AI が CLI / MCP で仕様・設計・コード・テストを書き、人間が Web UI（閲覧・Diff 確認・フィードバック・承認）と AI チャット（修正依頼・認識合わせクイズ）で判断する** 役割分担を前提にしています。
+
+1. **AI に依頼する（AI チャット）**: 機能追加や仕様変更を伝えると、AI が `docs/`・コード・テストを同期更新し、`documi check --no-review-edit` まで通します。
+2. **変更分を確認する（Web UI `/review`）**: `documi serve` で開いたブラウザは SSE で自動更新され、**`変更あり` タブ**（現在の作業ツリー・ブランチ差分で変更されたブロックのみ）や **`要再確認` タブ**（`stale` の自動展開 Diff・上流変更の軽量な `suspect` 参考通知）から差分をすぐ確認できます。AI が出した `/review?ids=id1,id2` リンクからも該当ブロックだけを開けます。
+3. **ズレを直す・理解を深める（Web UI → AI チャット）**:
+   - 直したい箇所はブロックの **フィードバック欄** に書き溜め、**「未解決コメントを AI へ渡す」** ボタンでプロンプトを 1 クリックコピーして AI チャットへ貼ります。
+   - 重要な仕様や未承認ブロックはカードを選択して **「AI クイズでレビュー」** をコピーし、`documi-review` スキルで 2〜3 件ずつエッジケースを確認できます。
+4. **承認・取消する（人間専用）**: 納得したブロックだけ Web UI の「承認」ボタン、またはターミナルから `documi approve <id...>` で承認します（誤承認や見直し時は「承認を取り消す」 / `documi unapprove <id...>`）。AI が `docs/.documi/reviews.json` を触ることは CI の `documi check --no-review-edit` で防ぎます。
+
 ## Web UI の読み方・レビューの進め方
 
 - **1 本サイドバー (`Flow` / `Files`)**: 既定の `Flow` モードでは `Goals → Architecture → Domain → Specs → Contracts → Designs → Decisions → Verification → Guides` の読み順で並びます。フォルダ構造で見たいときは `Files` へ切り替えます。
-- **Review Queue (`/review`)**: AI が新規作成・変更したブロックを `要確認 (Stale/Suspect)`・`未解決フィードバック`・`未承認` で絞り込み、行 Diff 確認やワンクリック承認、元文書の「並べて確認」が行えます。
+- **Review Queue (`/review`)**: AI が新規作成・変更したブロックを `変更あり`・`要再確認 (Stale/Suspect)`・`未解決コメント`・`未承認`・`承認済み` やブロック種別、`?ids=` URL で絞り込み、Markdown 本文・自動展開 Diff の確認、その場でのフィードバック投稿＆解決、ワンクリック承認／承認取消、AI 向けプロンプトコピーが行えます。
 - **並べて読む（Side-by-Side プレビュー）**:
   - ドキュメント閲覧中、右パネルの `Links` タブにある分割ボタン（またはリンクを **`Shift+クリック`**）で関連文書を右側に並べて比較できます。
   - `/graph` でノードをクリックすると、グラフを離れずに右側にその文書・ブロック本文が即時表示されます。
@@ -71,8 +83,9 @@ bun run documi:check
 # AI 作業ブランチで reviews.json の改変を禁止する CI チェック
 bun src/cli.ts check --no-review-edit
 
-# CLI からブロックを承認
+# CLI からブロックを承認・承認取り消し（人間専用）
 bun src/cli.ts approve core.document-model
+bun src/cli.ts unapprove core.document-model
 ```
 
 - `.github/workflows/ci.yml` で PR ごとにテスト・型・lint・ビルド・`documi:check` を自動検証します。

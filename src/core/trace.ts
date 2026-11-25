@@ -535,9 +535,6 @@ export async function enrichWithRealization(
     } else if (hasCodeOrTest && block.review === 'stale') {
       status = 'drifted'
       reasons.push('仕様が承認後に変更されており、実装との再確認が必要です')
-    } else if (hasCodeOrTest && block.suspect) {
-      status = 'drifted'
-      reasons.push(`上流の変更により Suspect 状態です (${block.suspectSources.join(', ')})`)
     } else if (hasPassedTest && !hasFailedTest) {
       status = 'verified'
     } else if (hasOpenPr) {

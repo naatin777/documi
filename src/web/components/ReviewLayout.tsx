@@ -1,16 +1,17 @@
-import { useMemo, useState, type FormEvent } from 'react'
+import { useMemo, useRef, useState, type FormEvent } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Link } from 'react-router'
+import { Link, useSearchParams } from 'react-router'
 import type { BlockKind } from '../../core/types'
 import { api, encodeDocId, isStaticSite, type ReviewBlocksResponse, type TermEntry } from '../api'
 import { toErrorMessage, useBlockDiffQuery, useBlocksQuery, useInvalidateDocs, useTermsQuery } from '../queries'
 import DocPeekPane from './DocPeekPane'
 import Markdown from './Markdown'
 
-type ReviewFilter = 'attention' | 'feedback' | 'unreviewed' | 'approved' | 'all'
+type ReviewFilter = 'changed' | 'attention' | 'feedback' | 'unreviewed' | 'approved' | 'all'
 type KindFilter = 'all' | Exclude<BlockKind, 'note'>
 
 const REVIEWABLE_KINDS: readonly Exclude<BlockKind, 'note'>[] = ['spec', 'outcome', 'constraint', 'term']
+const VALID_FILTERS = new Set<ReviewFilter>(['changed', 'attention', 'feedback', 'unreviewed', 'approved', 'all'])
 
 type ReviewBlockItem = ReviewBlocksResponse['blocks'][number]
 
@@ -30,9 +31,45 @@ function kindChipClass(active: boolean) {
   }`
 }
 
+export function buildFeedbackAiPrompt(blocks: readonly ReviewBlockItem[], lang: string): string {
+  const isJa = lang.startsWith('ja')
+  const lines: string[] = isJa
+    ? [
+        'Documi の未解決フィードバックを確認し、仕様・設計・コード・テストを修正してください。',
+        '（`documi context <id>` または `documi query --has-feedback` で文脈を確認し、`docs/.documi/reviews.json` は編集しないでください）',
+        '',
+      ]
+    : [
+        'Please address the following open Documi review feedback and update specs, code, and tests accordingly.',
+        '(Inspect context with `documi context <id>` or `documi query --has-feedback`, and do NOT edit `docs/.documi/reviews.json`.)',
+        '',
+      ]
+
+  for (const b of blocks) {
+    const open = b.feedback.filter((f) => !f.resolved)
+    if (open.length === 0) continue
+    lines.push(`- ${b.id} (${b.docPath})`)
+    for (const fb of open) {
+      lines.push(`  - ${fb.body}`)
+    }
+  }
+  return lines.join('\n')
+}
+
+export function buildQuizAiPrompt(blocks: readonly ReviewBlockItem[], lang: string): string {
+  const isJa = lang.startsWith('ja')
+  const header = isJa
+    ? 'documi-review スキルを使って、以下のブロックの仕様レビュー・認識合わせクイズを実施してください:'
+    : 'Use the documi-review skill to run an interactive specification review & alignment quiz for these blocks:'
+  const items = blocks.map((b) => `- ${b.id} (${b.docPath})`)
+  return [header, ...items].join('\n')
+}
+
 // @implements ui.human-review
 export default function ReviewLayout() {
-  const { t } = useTranslation()
+  const { t, i18n } = useTranslation()
+  const readOnly = isStaticSite()
+  const [searchParams, setSearchParams] = useSearchParams()
   const invalidateDocs = useInvalidateDocs()
   const { data, error: queryError } = useBlocksQuery()
   const termsQuery = useTermsQuery()
@@ -43,32 +80,77 @@ export default function ReviewLayout() {
   const [kindFilter, setKindFilter] = useState<KindFilter>('all')
   const [busyId, setBusyId] = useState<string | null>(null)
   const [closedDiffIds, setClosedDiffIds] = useState<ReadonlySet<string>>(new Set())
+  const [selectedIds, setSelectedIds] = useState<ReadonlySet<string>>(new Set())
+  const [copiedKey, setCopiedKey] = useState<string | null>(null)
+  const copyTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const [peekTarget, setPeekTarget] = useState<{ docId: string; focusBlockId: string } | null>(null)
   const error = actionError ?? toErrorMessage(queryError)
 
+  const urlIds = useMemo(() => {
+    const raw = searchParams.get('ids')
+    if (!raw) return []
+    return raw
+      .split(',')
+      .map((s) => s.trim())
+      .filter(Boolean)
+  }, [searchParams])
+  const urlIdSet = useMemo(() => new Set(urlIds), [urlIds])
+
+  const urlFilter = useMemo<ReviewFilter | null>(() => {
+    const raw = searchParams.get('filter')
+    return raw && VALID_FILTERS.has(raw as ReviewFilter) ? (raw as ReviewFilter) : null
+  }, [searchParams])
+
+  const changedCount = useMemo(() => (data ? data.blocks.filter((b) => b.changed).length : 0), [data])
   const attentionCount = useMemo(
     () => (data ? data.blocks.filter((b) => b.review === 'stale' || b.suspect).length : 0),
     [data],
   )
-  const feedbackBlockCount = useMemo(
-    () => (data ? data.blocks.filter((b) => b.openFeedbackCount > 0).length : 0),
-    [data],
-  )
+  const feedbackBlocks = useMemo(() => (data ? data.blocks.filter((b) => b.openFeedbackCount > 0) : []), [data])
+  const feedbackBlockCount = feedbackBlocks.length
 
-  // 要確認が 0 件で未承認がある初期状態では、空画面にせず自動で未承認タブを開く
+  // 初期状態では Git 変更分 > 要再確認 > 未承認 の優先順で空画面を避けて開く
   const filter: ReviewFilter =
-    selectedFilter ?? (attentionCount === 0 && (data?.counts.unreviewed ?? 0) > 0 ? 'unreviewed' : 'attention')
+    selectedFilter ??
+    urlFilter ??
+    (changedCount > 0
+      ? 'changed'
+      : attentionCount > 0
+        ? 'attention'
+        : (data?.counts.unreviewed ?? 0) > 0
+          ? 'unreviewed'
+          : 'attention')
+
+  const selectFilter = (next: ReviewFilter) => {
+    setSelectedFilter(next)
+    if (searchParams.has('ids') || searchParams.has('filter')) {
+      const updated = new URLSearchParams(searchParams)
+      updated.delete('ids')
+      updated.delete('filter')
+      setSearchParams(updated, { replace: true })
+    }
+  }
+
+  const clearUrlIds = () => {
+    const updated = new URLSearchParams(searchParams)
+    updated.delete('ids')
+    setSearchParams(updated, { replace: true })
+  }
 
   const statusFiltered = useMemo(() => {
     if (!data) return []
+    if (urlIdSet.size > 0) {
+      return data.blocks.filter((b) => urlIdSet.has(b.id))
+    }
     return data.blocks.filter((b) => {
+      if (filter === 'changed') return b.changed
       if (filter === 'attention') return b.review === 'stale' || b.suspect
       if (filter === 'feedback') return b.openFeedbackCount > 0
       if (filter === 'unreviewed') return b.review === 'unreviewed'
       if (filter === 'approved') return b.review === 'approved' && !b.suspect
       return true
     })
-  }, [data, filter])
+  }, [data, filter, urlIdSet])
 
   const kindCounts = useMemo(() => {
     const counts: Record<KindFilter, number> = {
@@ -88,6 +170,29 @@ export default function ReviewLayout() {
     () => (kindFilter === 'all' ? statusFiltered : statusFiltered.filter((b) => b.kind === kindFilter)),
     [statusFiltered, kindFilter],
   )
+
+  const selectedBlocks = useMemo(() => {
+    if (!data || selectedIds.size === 0) return []
+    return data.blocks.filter((b) => selectedIds.has(b.id))
+  }, [data, selectedIds])
+
+  const copyText = async (key: string, text: string) => {
+    try {
+      await navigator.clipboard.writeText(text)
+      setCopiedKey(key)
+      if (copyTimerRef.current) clearTimeout(copyTimerRef.current)
+      copyTimerRef.current = setTimeout(() => setCopiedKey(null), 2000)
+    } catch (e) {
+      setActionError(e instanceof Error ? e.message : String(e))
+    }
+  }
+
+  const toggleSelect = (blockId: string) => {
+    const next = new Set(selectedIds)
+    if (next.has(blockId)) next.delete(blockId)
+    else next.add(blockId)
+    setSelectedIds(next)
+  }
 
   const runAction = async (blockId: string, fn: () => Promise<unknown>) => {
     setBusyId(blockId)
@@ -125,54 +230,118 @@ export default function ReviewLayout() {
 
           {data && (
             <>
-              <div className="my-4 mb-3 flex flex-wrap gap-1.5" role="tablist" aria-label={t('review.filterAria')}>
-                <button
-                  type="button"
-                  role="tab"
-                  aria-selected={filter === 'attention'}
-                  className={filterTabClass(filter === 'attention')}
-                  onClick={() => setSelectedFilter('attention')}
-                >
-                  {t('review.filters.attention')} <span className="text-[11px] opacity-80">{attentionCount}</span>
-                </button>
-                <button
-                  type="button"
-                  role="tab"
-                  aria-selected={filter === 'feedback'}
-                  className={filterTabClass(filter === 'feedback')}
-                  onClick={() => setSelectedFilter('feedback')}
-                >
-                  {t('review.filters.feedback')} <span className="text-[11px] opacity-80">{feedbackBlockCount}</span>
-                </button>
-                <button
-                  type="button"
-                  role="tab"
-                  aria-selected={filter === 'unreviewed'}
-                  className={filterTabClass(filter === 'unreviewed')}
-                  onClick={() => setSelectedFilter('unreviewed')}
-                >
-                  {t('review.filters.unreviewed')}{' '}
-                  <span className="text-[11px] opacity-80">{data.counts.unreviewed}</span>
-                </button>
-                <button
-                  type="button"
-                  role="tab"
-                  aria-selected={filter === 'approved'}
-                  className={filterTabClass(filter === 'approved')}
-                  onClick={() => setSelectedFilter('approved')}
-                >
-                  {t('review.filters.approved')} <span className="text-[11px] opacity-80">{data.counts.approved}</span>
-                </button>
-                <button
-                  type="button"
-                  role="tab"
-                  aria-selected={filter === 'all'}
-                  className={filterTabClass(filter === 'all')}
-                  onClick={() => setSelectedFilter('all')}
-                >
-                  {t('review.filters.all')} <span className="text-[11px] opacity-80">{data.blocks.length}</span>
-                </button>
+              {urlIds.length > 0 && (
+                <div className="my-3 flex flex-wrap items-center justify-between gap-2 rounded-lg border border-accent/40 bg-accent-soft px-3.5 py-2 text-[12.5px]">
+                  <span className="font-semibold text-fg">
+                    {t('review.urlFilterBanner', { count: statusFiltered.length })}
+                  </span>
+                  <button type="button" className="sem-action-btn" onClick={clearUrlIds}>
+                    {t('review.clearUrlFilter')}
+                  </button>
+                </div>
+              )}
+
+              <div className="my-4 mb-3 flex flex-wrap items-center justify-between gap-2">
+                <div className="flex flex-wrap gap-1.5" role="tablist" aria-label={t('review.filterAria')}>
+                  <button
+                    type="button"
+                    role="tab"
+                    aria-selected={urlIds.length === 0 && filter === 'changed'}
+                    className={filterTabClass(urlIds.length === 0 && filter === 'changed')}
+                    onClick={() => selectFilter('changed')}
+                  >
+                    {t('review.filters.changed')} <span className="text-[11px] opacity-80">{changedCount}</span>
+                  </button>
+                  <button
+                    type="button"
+                    role="tab"
+                    aria-selected={urlIds.length === 0 && filter === 'attention'}
+                    className={filterTabClass(urlIds.length === 0 && filter === 'attention')}
+                    onClick={() => selectFilter('attention')}
+                  >
+                    {t('review.filters.attention')} <span className="text-[11px] opacity-80">{attentionCount}</span>
+                  </button>
+                  <button
+                    type="button"
+                    role="tab"
+                    aria-selected={urlIds.length === 0 && filter === 'feedback'}
+                    className={filterTabClass(urlIds.length === 0 && filter === 'feedback')}
+                    onClick={() => selectFilter('feedback')}
+                  >
+                    {t('review.filters.feedback')} <span className="text-[11px] opacity-80">{feedbackBlockCount}</span>
+                  </button>
+                  <button
+                    type="button"
+                    role="tab"
+                    aria-selected={urlIds.length === 0 && filter === 'unreviewed'}
+                    className={filterTabClass(urlIds.length === 0 && filter === 'unreviewed')}
+                    onClick={() => selectFilter('unreviewed')}
+                  >
+                    {t('review.filters.unreviewed')}{' '}
+                    <span className="text-[11px] opacity-80">{data.counts.unreviewed}</span>
+                  </button>
+                  <button
+                    type="button"
+                    role="tab"
+                    aria-selected={urlIds.length === 0 && filter === 'approved'}
+                    className={filterTabClass(urlIds.length === 0 && filter === 'approved')}
+                    onClick={() => selectFilter('approved')}
+                  >
+                    {t('review.filters.approved')}{' '}
+                    <span className="text-[11px] opacity-80">{data.counts.approved}</span>
+                  </button>
+                  <button
+                    type="button"
+                    role="tab"
+                    aria-selected={urlIds.length === 0 && filter === 'all'}
+                    className={filterTabClass(urlIds.length === 0 && filter === 'all')}
+                    onClick={() => selectFilter('all')}
+                  >
+                    {t('review.filters.all')} <span className="text-[11px] opacity-80">{data.blocks.length}</span>
+                  </button>
+                </div>
+
+                {!readOnly && feedbackBlockCount > 0 && (
+                  <button
+                    type="button"
+                    className="sem-action-btn"
+                    onClick={() =>
+                      void copyText(
+                        'feedback-all',
+                        buildFeedbackAiPrompt(feedbackBlocks, i18n.resolvedLanguage ?? 'ja'),
+                      )
+                    }
+                  >
+                    {copiedKey === 'feedback-all'
+                      ? t('review.copied')
+                      : t('review.copyFeedbackPrompt', { count: data.counts.openFeedback })}
+                  </button>
+                )}
               </div>
+
+              {!readOnly && selectedBlocks.length > 0 && (
+                <div className="mb-3 flex flex-wrap items-center justify-between gap-2 rounded-lg border border-accent/40 bg-accent-soft px-3.5 py-2 text-[12.5px]">
+                  <span className="font-semibold text-fg">
+                    {t('review.selectedCount', { count: selectedBlocks.length })}
+                  </span>
+                  <div className="flex flex-wrap items-center gap-1.5">
+                    <button
+                      type="button"
+                      className="sem-action-btn sem-approve-btn"
+                      onClick={() =>
+                        void copyText('quiz-selected', buildQuizAiPrompt(selectedBlocks, i18n.resolvedLanguage ?? 'ja'))
+                      }
+                    >
+                      {copiedKey === 'quiz-selected'
+                        ? t('review.copied')
+                        : t('review.copyQuizSelected', { count: selectedBlocks.length })}
+                    </button>
+                    <button type="button" className="sem-action-btn" onClick={() => setSelectedIds(new Set())}>
+                      {t('review.clearSelection')}
+                    </button>
+                  </div>
+                </div>
+              )}
 
               {statusFiltered.length > 0 && (
                 <div className="mb-4 flex flex-wrap items-center gap-1.5" aria-label={t('review.kindFilterAria')}>
@@ -200,11 +369,20 @@ export default function ReviewLayout() {
 
               {filtered.length === 0 ? (
                 <div className="rounded-[10px] border border-dashed border-line px-5 py-7 text-center text-fg-muted">
-                  {filter === 'attention' ? (
+                  {urlIds.length === 0 && filter === 'changed' ? (
+                    <>
+                      <p className="m-0 mb-3">{t('review.emptyChanged')}</p>
+                      {data.counts.unreviewed > 0 && (
+                        <button type="button" className="button" onClick={() => selectFilter('unreviewed')}>
+                          {t('review.checkUnreviewed', { count: data.counts.unreviewed })}
+                        </button>
+                      )}
+                    </>
+                  ) : urlIds.length === 0 && filter === 'attention' ? (
                     <>
                       <p className="m-0 mb-3">{t('review.emptyAttention')}</p>
                       {data.counts.unreviewed > 0 && (
-                        <button type="button" className="button" onClick={() => setSelectedFilter('unreviewed')}>
+                        <button type="button" className="button" onClick={() => selectFilter('unreviewed')}>
                           {t('review.checkUnreviewed', { count: data.counts.unreviewed })}
                         </button>
                       )}
@@ -221,7 +399,13 @@ export default function ReviewLayout() {
                       block={block}
                       terms={terms}
                       busy={busyId === block.id}
+                      selected={selectedIds.has(block.id)}
+                      copiedQuiz={copiedKey === `quiz:${block.id}`}
                       diffOpen={block.review === 'stale' && !closedDiffIds.has(block.id)}
+                      onToggleSelect={() => toggleSelect(block.id)}
+                      onCopyQuiz={() =>
+                        void copyText(`quiz:${block.id}`, buildQuizAiPrompt([block], i18n.resolvedLanguage ?? 'ja'))
+                      }
                       onApprove={() => void runAction(block.id, () => api.approveBlock(block.id))}
                       onUnapprove={() => void runAction(block.id, () => api.unapproveBlock(block.id))}
                       onAddFeedback={(body) => runAction(block.id, () => api.addFeedback(block.id, body))}
@@ -253,7 +437,11 @@ function ReviewInboxCard({
   block,
   terms,
   busy,
+  selected,
+  copiedQuiz,
   diffOpen,
+  onToggleSelect,
+  onCopyQuiz,
   onApprove,
   onUnapprove,
   onAddFeedback,
@@ -264,7 +452,11 @@ function ReviewInboxCard({
   block: ReviewBlockItem
   terms: readonly TermEntry[]
   busy: boolean
+  selected: boolean
+  copiedQuiz: boolean
   diffOpen: boolean
+  onToggleSelect: () => void
+  onCopyQuiz: () => void
   onApprove: () => void
   onUnapprove: () => void
   onAddFeedback: (body: string) => Promise<void>
@@ -282,7 +474,7 @@ function ReviewInboxCard({
 
   const needsApprove = block.review !== 'approved' || block.suspect
   const canUnapprove = block.review === 'approved' || block.review === 'stale'
-  const isAttention = block.review === 'stale' || block.suspect
+  const isStale = block.review === 'stale'
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault()
@@ -294,10 +486,19 @@ function ReviewInboxCard({
 
   return (
     <section
-      className={`rounded-[10px] border bg-sidebar px-4 py-3.5 ${isAttention ? 'border-amber-600' : 'border-line'}`}
+      className={`rounded-[10px] border bg-sidebar px-4 py-3.5 ${isStale ? 'border-amber-600' : selected ? 'border-accent' : 'border-line'}`}
     >
       <header className="mb-1.5 flex flex-wrap items-center justify-between gap-2">
         <div className="flex flex-wrap items-center gap-1.5">
+          {!readOnly && (
+            <input
+              type="checkbox"
+              checked={selected}
+              onChange={onToggleSelect}
+              aria-label={t('review.selectBlockAria', { id: block.id })}
+              className="h-3.5 w-3.5 cursor-pointer accent-accent"
+            />
+          )}
           <span className={`sem-kind sem-kind-${block.kind}`}>{block.kind.toUpperCase()}</span>
           <code className="sem-id">{block.id}</code>
           <span className={`sem-review-badge sem-review-${block.review}`}>
@@ -307,6 +508,11 @@ function ReviewInboxCard({
                 ? t('blocks.staleShort')
                 : t('blocks.unreviewed')}
           </span>
+          {block.changed && (
+            <span className="rounded bg-accent-soft px-1.5 py-0.5 text-[10.5px] font-semibold text-accent">
+              {t('review.changedBadge')}
+            </span>
+          )}
           {block.suspect && <span className="sem-review-badge sem-review-suspect">{t('blocks.suspect')}</span>}
           {block.realization && (
             <span className={`sem-realization-badge sem-real-${block.realization}`}>
@@ -318,6 +524,11 @@ function ReviewInboxCard({
           {block.review === 'stale' && (
             <button type="button" className="sem-action-btn" onClick={onToggleDiff}>
               {diffOpen ? t('review.closeDiff') : t('review.diff')}
+            </button>
+          )}
+          {!readOnly && (
+            <button type="button" className="sem-action-btn" onClick={onCopyQuiz}>
+              {copiedQuiz ? t('review.copied') : t('review.copyQuizPrompt')}
             </button>
           )}
           {(!readOnly || block.feedback.length > 0) && (

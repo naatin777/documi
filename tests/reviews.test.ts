@@ -4,6 +4,8 @@ import { mkdtemp, mkdir, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { stringify } from 'yaml'
+import { runDocsCheck } from '../src/core/checker'
+import { getChangedBlockIds } from '../src/core/git'
 import { loadDocuments } from '../src/core/loader'
 import {
   addBlockFeedback,
@@ -15,6 +17,7 @@ import {
   setFeedbackResolved,
   unapproveBlock,
 } from '../src/core/reviews'
+import { enrichWithRealization } from '../src/core/trace'
 
 let root: string
 
@@ -136,6 +139,104 @@ describe('人間レビュー・Stale・Suspect・Diff・Feedback', () => {
     expect(downstream.review).toBe('approved')
     expect(downstream.suspect).toBe(true)
     expect(downstream.suspectSources).toContain('auth.lockout')
+  })
+
+  test('[core.human-review] suspect は軽量な参考通知に留め、実装済み Spec を drifted にせず --strict でもエラーにしない', async () => {
+    const projectDir = root
+    const docsDir = path.join(projectDir, 'docs')
+    await mkdir(path.join(docsDir, 'goals'), { recursive: true })
+    await mkdir(path.join(docsDir, 'specs'), { recursive: true })
+    await mkdir(path.join(projectDir, 'src'), { recursive: true })
+
+    await writeFile(path.join(docsDir, 'goals/main.mdx'), '---\ntitle: Goal\n---\n\n# Goal v1\n')
+    await writeFile(
+      path.join(docsDir, 'specs/auth.mdx'),
+      '---\ntitle: Auth\nderives: [goals/main]\n---\n\n<Spec id="auth.lockout" stability="stable">5回失敗でロック</Spec>\n',
+    )
+    await writeFile(
+      path.join(projectDir, 'src/auth.ts'),
+      '// @implements auth.lockout\nexport const lock = () => true\n',
+    )
+
+    let idx = await loadDocuments(docsDir)
+    await approveBlock(docsDir, idx, 'auth.lockout')
+
+    // 上流 Goal の文言だけ軽く修正する
+    await writeFile(path.join(docsDir, 'goals/main.mdx'), '---\ntitle: Goal\n---\n\n# Goal v2 (言い回し調整)\n')
+
+    idx = await loadDocuments(docsDir)
+    await enrichWithRealization(idx, { projectRoot: projectDir })
+    const spec = idx.blocksById.get('auth.lockout')!
+    expect(spec.review).toBe('approved')
+    expect(spec.suspect).toBe(true)
+    expect(spec.realization?.status).toBe('implemented')
+
+    const report = await runDocsCheck({ docsDir, projectRoot: projectDir, strict: true })
+    expect(report.ok).toBe(true)
+    expect(report.errors).toHaveLength(0)
+    expect(report.warnings).toHaveLength(0)
+    expect(report.reviewCounts.suspect).toBe(1)
+  })
+
+  test('[core.doc-history] getChangedBlockIds は未コミット変更・新規ファイル・ブランチ差分で変更されたブロックのみ抽出する', async () => {
+    execFileSync('git', ['init', '-b', 'main'], { cwd: root, stdio: 'ignore' })
+    execFileSync('git', ['config', 'user.name', 'Tester'], { cwd: root, stdio: 'ignore' })
+    execFileSync('git', ['config', 'user.email', 'tester@example.com'], { cwd: root, stdio: 'ignore' })
+
+    const docsDir = path.join(root, 'docs')
+    await mkdir(path.join(docsDir, 'goals'), { recursive: true })
+    await mkdir(path.join(docsDir, 'specs'), { recursive: true })
+    await writeFile(path.join(docsDir, 'goals/main.mdx'), '---\ntitle: Goal\n---\n\n# Goal\n')
+    await writeFile(
+      path.join(docsDir, 'specs/auth.mdx'),
+      [
+        '---',
+        'title: Auth',
+        'derives: [goals/main]',
+        '---',
+        '',
+        '<Spec id="auth.first">最初の仕様</Spec>',
+        '',
+        '<Spec id="auth.second">2番目の仕様</Spec>',
+        '',
+      ].join('\n'),
+    )
+    execFileSync('git', ['add', '.'], { cwd: root, stdio: 'ignore' })
+    execFileSync('git', ['commit', '-m', 'init'], { cwd: root, stdio: 'ignore' })
+
+    // 変更なし時は空
+    let idx = await loadDocuments(docsDir)
+    expect(getChangedBlockIds(idx).size).toBe(0)
+
+    // feature ブランチで 2 番目のブロックだけ編集してコミット + 未追跡の新規ファイルを追加
+    execFileSync('git', ['checkout', '-b', 'feat/update-second'], { cwd: root, stdio: 'ignore' })
+    await writeFile(
+      path.join(docsDir, 'specs/auth.mdx'),
+      [
+        '---',
+        'title: Auth',
+        'derives: [goals/main]',
+        '---',
+        '',
+        '<Spec id="auth.first">最初の仕様</Spec>',
+        '',
+        '<Spec id="auth.second">2番目の仕様を更新</Spec>',
+        '',
+      ].join('\n'),
+    )
+    execFileSync('git', ['add', '.'], { cwd: root, stdio: 'ignore' })
+    execFileSync('git', ['commit', '-m', 'update second spec'], { cwd: root, stdio: 'ignore' })
+
+    await writeFile(
+      path.join(docsDir, 'specs/extra.mdx'),
+      '---\ntitle: Extra\nderives: [goals/main]\n---\n\n<Spec id="extra.rule">新規仕様</Spec>\n',
+    )
+
+    idx = await loadDocuments(docsDir)
+    const changed = getChangedBlockIds(idx)
+    expect(changed.has('auth.first')).toBe(false)
+    expect(changed.has('auth.second')).toBe(true)
+    expect(changed.has('extra.rule')).toBe(true)
   })
 
   test('フィードバックの追加・解決・Stability 上書きが動作する', async () => {

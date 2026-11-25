@@ -487,3 +487,88 @@ export function getDocumentRevision(docsDir: string, doc: Document, commitSha: s
     body,
   }
 }
+
+const DEFAULT_BASE_BRANCHES = ['origin/main', 'main', 'origin/master', 'master'] as const
+
+function resolveDiffBaseRef(ctx: GitContext): string | null {
+  const head = runGit(ctx.gitRoot, ['rev-parse', '--verify', 'HEAD'])?.trim()
+  if (!head) return null
+
+  const currentBranch = runGit(ctx.gitRoot, ['rev-parse', '--abbrev-ref', 'HEAD'])?.trim()
+  if (currentBranch && currentBranch !== 'HEAD' && currentBranch !== 'main' && currentBranch !== 'master') {
+    for (const candidate of DEFAULT_BASE_BRANCHES) {
+      const mergeBase = runGit(ctx.gitRoot, ['merge-base', candidate, 'HEAD'])?.trim()
+      if (mergeBase) return mergeBase
+    }
+  }
+  return 'HEAD'
+}
+
+// @implements core.doc-history
+/**
+ * 現在の作業ツリー（未コミット変更・新規ファイル）およびデフォルトブランチ分岐以降の差分に含まれる
+ * セマンティックブロック ID の集合を返す。Git 管理外の場合は空集合を返す。
+ */
+export function getChangedBlockIds(index: DocsIndex): Set<string> {
+  const changedIds = new Set<string>()
+  const ctx = resolveGitContext(index.rootDir)
+  if (!ctx) return changedIds
+
+  const changedByDoc = new Map<string, ChangedLineRange[] | 'all'>()
+  const statusMap = parseStatusMap(ctx)
+  for (const [docRel, status] of statusMap) {
+    if (status === 'untracked' || status === 'added') {
+      changedByDoc.set(docRel, 'all')
+    }
+  }
+
+  const baseRef = resolveDiffBaseRef(ctx)
+  if (baseRef) {
+    const pathspec = ctx.relDocs || '.'
+    const diffText = runGit(ctx.gitRoot, ['diff', '-U0', baseRef, '--', pathspec]) ?? ''
+    if (diffText) {
+      let currentDocRel: string | null = null
+      let currentLines: string[] = []
+      const flush = () => {
+        if (!currentDocRel || changedByDoc.get(currentDocRel) === 'all') return
+        const ranges = parseUnifiedDiffRanges(currentLines.join('\n'), 0)
+        if (ranges.length > 0) changedByDoc.set(currentDocRel, ranges)
+      }
+
+      for (const line of diffText.split(/\r?\n/)) {
+        if (line.startsWith('diff --git ')) {
+          flush()
+          currentDocRel = null
+          currentLines = []
+          continue
+        }
+        if (line.startsWith('+++ ')) {
+          const rawPath = line.slice(4).trim()
+          if (rawPath === '/dev/null') {
+            currentDocRel = null
+          } else {
+            const gitPath = rawPath.startsWith('b/') ? rawPath.slice(2) : rawPath
+            currentDocRel = stripDocsPrefix(ctx, gitPath)
+          }
+          continue
+        }
+        if (currentDocRel && line.startsWith('@@ ')) {
+          currentLines.push(line)
+        }
+      }
+      flush()
+    }
+  }
+
+  for (const doc of index.documents) {
+    const entry = changedByDoc.get(doc.path)
+    if (!entry) continue
+    for (const block of doc.blocks) {
+      if (entry === 'all' || entry.some((r) => r.startLine <= block.endLine && r.endLine >= block.startLine)) {
+        changedIds.add(block.id)
+      }
+    }
+  }
+
+  return changedIds
+}

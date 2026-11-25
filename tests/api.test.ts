@@ -43,7 +43,7 @@ beforeEach(async () => {
     '<Outcome id="dec.bun">Bun を採用する。</Outcome>\n\n詳細な比較メモ。\n',
   )
 
-  store = await DocsStore.open(root)
+  store = await DocsStore.open(root, { projectRoot: root })
   app = createApp(store)
 })
 

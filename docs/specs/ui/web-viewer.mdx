@@ -24,7 +24,7 @@ tags: [ui, frontend]
 
 <Spec id="ui.human-review" stability="stable" derives="goals/low-friction-governance">
   **When** 人間が Web UI でセマンティックブロックまたは専用 `/review` 受信箱を閲覧するとき、
-  **the** Web UI **shall** `docs/.documi/reviews.json` と連動した承認・承認取り消しボタン・Markdown/MDX レンダリング・承認時点コミットからの Diff 表示（`/review` の `stale` は自動展開）・Stability 切替・その場での AI 向けフィードバック投稿＆解決切替・ブロック種別フィルタ・Realization トレース詳細を提供し、MDX 本文自体は変更しない。
+  **the** Web UI **shall** `docs/.documi/reviews.json` と連動した承認・承認取り消しボタン・Markdown/MDX レンダリング・承認時点コミットからの Diff 表示（`/review` の `stale` は自動展開）・Stability 切替・その場での AI 向けフィードバック投稿＆解決切替・Git 変更分フィルタおよび URL 絞り込み（`/review?ids=...`）・未解決コメントや選択ブロックを AI チャット（`documi-review` 等）へ渡すワンクリックプロンプトコピー・ブロック種別フィルタ・Realization トレース詳細を提供し、MDX 本文自体は変更しない。
 </Spec>
 
 <Spec id="ui.glossary-autolink" stability="stable" derives="goals/human-comprehension">

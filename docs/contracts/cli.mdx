@@ -95,7 +95,7 @@ AI エディタ・CLI エージェント向けに **stdio トランスポート*
 | `--docs <dir>` | 対象 docs ディレクトリ（既定: `./docs` または `DOCUMI_DOCS_DIR`） |
 | `--project <dir>` | ソース・テスト走査のプロジェクトルート（既定: docs の親または `DOCUMI_PROJECT_ROOT`） |
 | `--test-report <xml>` | JUnit XML テストレポートのパス（既定: `docs/.documi/test-results.xml`） |
-| `--strict` | 未承認 (`unreviewed` / `stale` / `suspect`) および `drifted` もエラー扱い |
+| `--strict` | 未承認 (`unreviewed` / `stale`) および `drifted` もエラー扱い（`suspect` は参考通知のまま） |
 | `--no-review-edit` | Git 作業ツリー上で `docs/.documi/reviews.json` が変更されていたらエラー（AI 改ざん防止） |
 | `--prs` | `gh` CLI から PR 情報も取得して紐づけ |
 | `--json` | 検証レポートを JSON 形式で出力 |
