@@ -179,8 +179,8 @@ description: Documi CLI を使って Living Specification（仕様・設計・AD
 
 1. **Spec ID がまだ分からないタスク**: \`documi retrieve "<自然文のタスクや質問>"\` — BM25＋用語集同義語展開＋グラフ展開で関連 Spec・上流 Goal・Decision \`<Outcome>\`・用語・\`<SourceRef>\` を文字数予算内で 1 発取得する。
 2. **全体像の把握**: \`documi map\` — Goal・Architecture・Decision \`<Outcome>\`・ドメイン用語・Review / Realization 全体像を一括取得する（機械処理時は \`documi map --json\`）。
-3. **条件絞り込み・横断検索**: \`documi query [--kind spec] [--review ...] [--realization ...] [--has-feedback] [--q <語>]\` または \`documi search "<query>"\`。
-4. **特定 Spec の深掘り**: \`documi context <spec-id>\` — 対象 Spec 本文・上流 Goal・未解決フィードバック・関連文書・用語・\`<SourceRef>\` を取得する（全文や参照関係が必要なら \`documi show <doc-id>\` / \`documi relations <id>\`）。
+3. **条件絞り込み・横断検索**: \`documi query [--kind spec] [--review ...] [--realization ...] [--q <語>]\` または \`documi search "<query>"\`。
+4. **特定 Spec の深掘り**: \`documi context <spec-id>\` — 対象 Spec 本文・上流 Goal・関連文書・用語・\`<SourceRef>\` を取得する（全文や参照関係が必要なら \`documi show <doc-id>\` / \`documi relations <id>\`）。
 
 ## 2. CLI による精密編集（差分を最小限に保つ）
 
@@ -213,7 +213,7 @@ EOF
 
 ## 4. 守るべき不変ルール
 
-- **\`${relDocsDir}/.documi/reviews.json\` を直接編集しない。** 承認とフィードバックは人間専用（\`documi check --no-review-edit\` で検証）。
+- **\`${relDocsDir}/guard/reviews.json\` を直接編集しない。** 承認記録は人間専用（\`documi check --no-review-edit\` で検証）。
 - **MDX 内で実行可能な JavaScript を書かない**（ESM \`import\`/\`export\`・JSX 式 \`{...}\`・未許可コンポーネントは禁止）。
 - **\`${relDocsDir}/\` 内に一時的な \`tasks.md\` 等を作らない。** 進捗（\`realization\`）はコード・テスト・PR から自動算出される。
 
@@ -258,7 +258,7 @@ description: 既存コードベース（Brownfield）に Documi の Living Speci
 ## 4. 検証して人間へ引き継ぐ
 
 1. \`documi check\` を実行し、\`<SourceRef>\` パス切れ・\`derives\` 漏れ（\`orphan-spec\`）・MDX 構文エラーをすべて解消する。
-2. **\`${relDocsDir}/.documi/reviews.json\` は絶対に編集しない。** 生成した仕様はすべて \`unreviewed\` のまま残し、人間オーナーが \`documi serve\` 上で確認・修正・承認できるようにする。
+2. **\`${relDocsDir}/guard/reviews.json\` は絶対に編集しない。** 生成した仕様はすべて \`unreviewed\` のまま残し、人間オーナーが \`documi serve\` 上で確認・修正・承認できるようにする。
 3. 作成したドキュメント・Spec ID 一覧と、既存コードから判断がつかなかった曖昧点（人間の意思決定が必要な点）を簡潔に報告する。
 `,
       'documi-review/SKILL.md': `---
@@ -277,7 +277,6 @@ description: 未承認・stale・suspect な仕様を 2〜3 件ずつ取り上�
 2. 指定が無ければ、以下の優先順で \`documi query\` を実行し、**未処理の 2〜3 件**だけを選ぶ（1 度に大量の仕様を並べない）：
    - \`documi query --review stale\`（承認後に変更されたブロック）
    - \`documi query --suspect\`（上流変更が波及したブロック）
-   - \`documi query --has-feedback\`（未解決フィードバックがあるブロック）
    - \`documi query --review unreviewed --kind spec\`（未承認の正式仕様）
 3. 選んだ各ブロックについて \`documi context <spec-id>\` を実行し、上流 Goal・Decision \`<Outcome>\`・関連制約・\`<SourceRef>\`（実コード）を把握する。
 
@@ -289,7 +288,7 @@ description: 未承認・stale・suspect な仕様を 2〜3 件ずつ取り上�
   - **障害・フォールバック**: 外部依存や入力が欠けたとき、エラー終了するかフォールバックするか？
   - **境界・セキュリティ拒否**: プロジェクトルート外パスや不正フラグを渡されたとき、どう拒否するか？
   - **優先順位・競合解決**: 設定ファイルと CLI 引数、あるいは \`.mdx\` と \`.md\` が衝突したとき、どちらが勝つか？
-  - **副作用・不変条件**: 承認取り消し時に既存フィードバックを残すか消すか、書き込み範囲はどこまでか？
+  - **副作用・不変条件**: 書き込み範囲はどこまでか、MDX 本文とサイドカーの責務はどう分かれているか？
 - **禁止する出題**:
   - 仕様文面の単語穴埋めや、読んでいれば誰でも分かるトリビア問題。
   - 仕様の全文を丸ごと貼り付けて「これで合っていますか？」と聞くだけの形式。
@@ -305,13 +304,15 @@ description: 未承認・stale・suspect な仕様を 2〜3 件ずつ取り上�
    - 人間の意図に合わせて \`documi block update <block-id> --body - <<'EOF'\` で仕様を精密修正する（コード・テスト変更も必要なら続けて提案・修正する）。
    - 修正後に \`documi check --no-review-edit\` でエラー 0 件を確認する。
 
-## 4. 人間専用の承認コマンドを引き継ぐ（不変ルール）
+## 4. 人間専用の最終確認 URL・承認コマンドを引き継ぐ（不変ルール）
 
-- **AI は絶対に \`${relDocsDir}/.documi/reviews.json\` を編集せず、\`documi approve\` / \`documi unapprove\` も実行しない。** 承認の最終決定と記録は必ず人間が行う。
-- 認識が 100% 一致したブロックだけを選び、人間がそのままターミナルで実行できる承認コマンドと、Web UI で対象ブロックだけを開けるディープリンク（\`/review?ids=<aligned-id-1>,<aligned-id-2>\`）を併せて提示する：
+- **AI は絶対に \`${relDocsDir}/guard/reviews.json\` を編集せず、\`documi approve\` / \`documi unapprove\` も実行しない。** 承認の最終決定と記録は必ず人間が行う。
+- 認識が 100% 一致したブロックだけを選び、人間が 1 クリックで最終確認・まとめて承認できる **Web UI 最終確認 URL**（確認した内容の短い要約を \`note\` クエリに載せる）と、CLI コマンドを併せて提示する：
 
+  - Web UI 最終確認 URL: \`/review?ids=<aligned-id-1>,<aligned-id-2>&note=<URLエンコード済み確認メモ>\`
+  - CLI コマンド:
 \`\`\`bash
-documi approve <aligned-id-1> <aligned-id-2>
+documi approve <aligned-id-1> <aligned-id-2> --note "<確認した内容の要約>"
 \`\`\`
 
 - 最後に「次の 2〜3 件も続けますか？」と尋ね、ユーザーのペースで段階的に承認を進められるようにする。
@@ -335,8 +336,8 @@ Prefer the **default compact text output** for reading to minimize token usage; 
 
 1. **Unknown Spec ID / natural-language task**: Run \`documi retrieve "<task or question>"\` — combines BM25, glossary alias expansion, and graph traversal (upstream Goals, Decision \`<Outcome>\`s, related docs, Terms, \`<SourceRef>\`s) within a character budget in one shot.
 2. **Project overview**: Run \`documi map\` to load Goals, Architecture summaries, Decision \`<Outcome>\` blocks, Domain Terms, and Review / Realization status (use \`documi map --json\` for structured output).
-3. **Filtering & search**: Run \`documi query [--kind spec] [--review ...] [--realization ...] [--has-feedback] [--q <text>]\` or \`documi search "<query>"\`.
-4. **Target Spec deep dive**: Run \`documi context <spec-id>\` for its spec body, upstream Goals, unresolved feedback, related Design/Contract docs, Terms, and \`<SourceRef>\` anchors (use \`documi show <doc-id>\` or \`documi relations <id>\` only when full prose or graph edges are needed).
+3. **Filtering & search**: Run \`documi query [--kind spec] [--review ...] [--realization ...] [--q <text>]\` or \`documi search "<query>"\`.
+4. **Target Spec deep dive**: Run \`documi context <spec-id>\` for its spec body, upstream Goals, related Design/Contract docs, Terms, and \`<SourceRef>\` anchors (use \`documi show <doc-id>\` or \`documi relations <id>\` only when full prose or graph edges are needed).
 
 ## 2. Surgical Editing via CLI (Keep Diffs Minimal)
 
@@ -369,7 +370,7 @@ EOF
 
 ## 4. Invariant Guardrails
 
-- **Never edit \`${relDocsDir}/.documi/reviews.json\` directly.** Approvals and feedback belong strictly to humans (enforced by \`documi check --no-review-edit\`).
+- **Never edit \`${relDocsDir}/guard/reviews.json\` directly.** Approvals belong strictly to humans (enforced by \`documi check --no-review-edit\`).
 - **Never write executable JS inside MDX** (no ESM \`import\`/\`export\`, no JSX \`{...}\` expressions, no unapproved components).
 - **Never create temporary \`tasks.md\` checklists inside \`${relDocsDir}/\`** — progress is computed automatically from code, tests, and PRs.
 
@@ -414,7 +415,7 @@ Use \`documi\` CLI commands (\`documi scaffold\`, \`documi block add\`, \`documi
 ## 4. Validate & Hand Off to Humans
 
 1. Run \`documi check\` and fix all broken \`<SourceRef>\` paths, missing \`derives\` (orphan specs), or invalid MDX syntax.
-2. **Do not edit \`${relDocsDir}/.documi/reviews.json\`.** Leave all bootstrapped specs as \`unreviewed\` so the human owner can read, refine, and approve them in \`documi serve\`.
+2. **Do not edit \`${relDocsDir}/guard/reviews.json\`.** Leave all bootstrapped specs as \`unreviewed\` so the human owner can read, refine, and approve them in \`documi serve\`.
 3. Present a concise summary of created documents, Spec IDs, and any ambiguities discovered in the existing codebase that need a human decision.
 `,
     'documi-review/SKILL.md': `---
@@ -433,7 +434,6 @@ Work in fast, focused rounds of **2–3 blocks at a time**, verify alignment thr
 2. Otherwise, run \`documi query\` in priority order and pick **only 2–3 blocks** for this round (never dump dozens of specs at once):
    - \`documi query --review stale\` (modified after approval)
    - \`documi query --suspect\` (upstream changed)
-   - \`documi query --has-feedback\` (unresolved human feedback)
    - \`documi query --review unreviewed --kind spec\` (unreviewed normative specs)
 3. Run \`documi context <spec-id>\` on each selected block to inspect its upstream Goal, Decision \`<Outcome>\`, constraints, and linked \`<SourceRef>\` code.
 
@@ -445,7 +445,7 @@ For the **2–3 selected blocks**, ask **1–2 multiple-choice questions per blo
   - **Failure & fallback**: What happens when a dependency is missing, offline, or throws?
   - **Security & boundary rejection**: What happens on out-of-root paths, invalid flags, or forbidden writes?
   - **Precedence & conflict**: When config vs. CLI flag or two files collide, which wins?
-  - **Side effects & invariants**: What state is preserved vs. removed on an action (e.g., unapprove with existing feedback)?
+  - **Side effects & invariants**: Which files are written vs. kept immutable (MDX body vs. guard sidecar)?
 - **Avoid**:
   - Fill-in-the-blank trivia copied straight from prose.
   - Pasting whole spec paragraphs and asking "Does this look OK?"
@@ -461,13 +461,15 @@ When the human answers:
    - Update the spec in place via \`documi block update <block-id> --body - <<'EOF'\` (and update code/tests if requested).
    - Run \`documi check --no-review-edit\` to confirm 0 errors.
 
-## 4. Hand Off Human-Only Approval (Strict Invariant)
+## 4. Hand Off Human-Only Final Confirmation URL & Approval (Strict Invariant)
 
-- **NEVER edit \`${relDocsDir}/.documi/reviews.json\` and NEVER execute \`documi approve\` or \`documi unapprove\` yourself.** Approval belongs strictly to the human.
-- For the blocks confirmed as 100% aligned, present a ready-to-run command the human can execute directly, along with a Web UI deep link (\`/review?ids=<aligned-id-1>,<aligned-id-2>\`) so they can inspect diffs and approve in the browser if preferred:
+- **NEVER edit \`${relDocsDir}/guard/reviews.json\` and NEVER execute \`documi approve\` or \`documi unapprove\` yourself.** Approval belongs strictly to the human.
+- For the blocks confirmed as 100% aligned, present a **Web UI final-confirmation URL** (including a short URL-encoded summary in \`note=\` so the human can review and approve all matching blocks in 1 click) along with the equivalent CLI command:
 
+  - Web UI Final Confirmation URL: \`/review?ids=<aligned-id-1>,<aligned-id-2>&note=<url-encoded-summary>\`
+  - CLI command:
 \`\`\`bash
-documi approve <aligned-id-1> <aligned-id-2>
+documi approve <aligned-id-1> <aligned-id-2> --note "<short summary of what was verified>"
 \`\`\`
 
 - Ask if the user wants to continue to the next batch of 2–3 blocks.

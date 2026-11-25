@@ -129,6 +129,7 @@ async function collectMarkdownFiles(root: string, relDir: string, issues: IndexI
   const files: string[] = []
   for (const entry of entries) {
     if (entry.name.startsWith('.') || entry.name === 'node_modules') continue
+    if (!relDir && entry.isDirectory() && entry.name === 'guard') continue
     const childRel = relDir ? `${relDir}/${entry.name}` : entry.name
     if (entry.isDirectory()) {
       const nested = await collectMarkdownFiles(root, childRel, issues)

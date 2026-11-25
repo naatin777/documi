@@ -8,13 +8,13 @@
 
 - **MCP 経由（推奨）**: `documi mcp`（stdio）または `http://localhost:3000/mcp` に接続し、以下を呼ぶ
   1. `get_project_map` — Goal・Architecture・Decision `<Outcome>`・用語集・Review / Realization 全体像
-  2. `get_spec_context` — 対象 Spec ID に紐づく上流 Goal・未解決フィードバック・関連 Design / Contract・用語・`<SourceRef>`
+  2. `get_spec_context` — 対象 Spec ID に紐づく上流 Goal・関連 Design / Contract・用語・`<SourceRef>`
 - **ファイル直接参照**: `docs/goals/living-specification.mdx`, `docs/architecture/system-overview.mdx`, `docs/decisions/*.mdx`（`<Outcome>` ブロック）, 対象の `docs/specs/*.mdx`
 
 ## 2. 守るべき不変ルール
 
-1. **`docs/.documi/reviews.json` を直接編集しない**
-   - `reviews.json` は人間の承認・フィードバック専用のサイドカーファイルです。
+1. **`docs/guard/reviews.json` を直接編集しない**
+   - `docs/guard/reviews.json` は人間の承認専用のガードファイルです。
    - AI エージェントは MDX 本文・ソース・テストを編集し、承認記録には触れません（`documi check --no-review-edit` で検証されます）。
 2. **`src/core/` はフレームワーク非依存に保つ**
    - `src/core/` から `react`, `hono`, `sigma` 等を import しないでください。Web UI・REST API・MCP・CLI が同じ Document Core を共有します。
@@ -43,7 +43,7 @@
 変更後はすべてエラー・警告 0 件で通ることを確認してください。
 
 ```bash
-bun test --reporter=junit --reporter-outfile=docs/.documi/test-results.xml
+mkdir -p .documi && bun test --reporter=junit --reporter-outfile=.documi/test-results.xml
 bun run check
 bun run lint
 bun run format:check

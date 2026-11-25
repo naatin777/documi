@@ -127,8 +127,8 @@ export class DocsStore {
 function shouldIgnorePath(relPath: string): boolean {
   const normalized = relPath.replace(/\\/g, '/')
   if (
-    normalized === '.documi/reviews.json' ||
-    normalized.endsWith('/.documi/reviews.json') ||
+    normalized === 'guard/reviews.json' ||
+    normalized.endsWith('/guard/reviews.json') ||
     normalized === '.documi/test-results.xml' ||
     normalized.endsWith('/.documi/test-results.xml')
   ) {

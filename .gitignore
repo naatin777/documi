@@ -4,5 +4,4 @@ dist-site/
 coverage/
 *.log
 .DS_Store
-**/.documi/cache/
-**/.documi/test-results.xml
+**/.documi/

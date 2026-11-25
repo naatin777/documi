@@ -13,8 +13,8 @@ description: Documi CLI を使って Living Specification（仕様・設計・AD
 
 1. **Spec ID がまだ分からないタスク**: `documi retrieve "<自然文のタスクや質問>"` — BM25＋用語集同義語展開＋グラフ展開で関連 Spec・上流 Goal・Decision `<Outcome>`・用語・`<SourceRef>` を文字数予算内で 1 発取得する。
 2. **全体像の把握**: `documi map` — Goal・Architecture・Decision `<Outcome>`・ドメイン用語・Review / Realization 全体像を一括取得する（機械処理時は `documi map --json`）。
-3. **条件絞り込み・横断検索**: `documi query [--kind spec] [--review ...] [--realization ...] [--has-feedback] [--q <語>]` または `documi search "<query>"`。
-4. **特定 Spec の深掘り**: `documi context <spec-id>` — 対象 Spec 本文・上流 Goal・未解決フィードバック・関連文書・用語・`<SourceRef>` を取得する（全文や参照関係が必要なら `documi show <doc-id>` / `documi relations <id>`）。
+3. **条件絞り込み・横断検索**: `documi query [--kind spec] [--review ...] [--realization ...] [--q <語>]` または `documi search "<query>"`。
+4. **特定 Spec の深掘り**: `documi context <spec-id>` — 対象 Spec 本文・上流 Goal・関連文書・用語・`<SourceRef>` を取得する（全文や参照関係が必要なら `documi show <doc-id>` / `documi relations <id>`）。
 
 ## 2. CLI による精密編集（差分を最小限に保つ）
 
@@ -47,7 +47,7 @@ EOF
 
 ## 4. 守るべき不変ルール
 
-- **`docs/.documi/reviews.json` を直接編集しない。** 承認とフィードバックは人間専用（`documi check --no-review-edit` で検証）。
+- **`docs/guard/reviews.json` を直接編集しない。** 承認記録は人間専用（`documi check --no-review-edit` で検証）。
 - **MDX 内で実行可能な JavaScript を書かない**（ESM `import`/`export`・JSX 式 `{...}`・未許可コンポーネントは禁止）。
 - **`docs/` 内に一時的な `tasks.md` 等を作らない。** 進捗（`realization`）はコード・テスト・PR から自動算出される。
 

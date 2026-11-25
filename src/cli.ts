@@ -120,6 +120,7 @@ Options:
   --no-review-edit        reviews.json が Git 上で変更されていたらエラーにする (check 用)
   --prs                   gh CLI から PR 情報も取得して紐づける (check 用)
   --author <name>         承認者名 (approve 用)
+  --note <text>           承認時の確認メモ (approve 用・任意)
   --type <type>           Artifact Type (list / search / scaffold 用)
   --limit <n>             最大返却件数 (search 既定: 20 / retrieve 既定: 8)
   --budget <chars>        retrieve の返却文字数予算 (既定: 6000)
@@ -136,7 +137,6 @@ Options:
   --review <status>       レビュー状態 unreviewed|approved|stale (query 用)
   --realization <status>  実装状態 unimplemented|in-progress|implemented|verified|drifted (query 用)
   --suspect               Suspect ブロックのみ抽出 (query 用、--no-suspect で除外)
-  --has-feedback          未解決フィードバックありのみ抽出 (query 用、--no-feedback で除外)
   --q <text>              ID または本文のキーワード絞り込み (query 用)
   --id <block-id>         新規ブロック ID (block add 用)
   --body <text>           ブロック/文書本文 ("-" 指定で標準入力から読込)
@@ -181,6 +181,7 @@ const CLI_OPTIONS = {
   host: { type: 'string' },
   'test-report': { type: 'string' },
   author: { type: 'string' },
+  note: { type: 'string' },
   format: { type: 'string' },
   scope: { type: 'string' },
   ids: { type: 'string' },
@@ -210,8 +211,6 @@ const CLI_OPTIONS = {
   realization: { type: 'string' },
   suspect: { type: 'boolean' },
   'no-suspect': { type: 'boolean' },
-  'has-feedback': { type: 'boolean' },
-  'no-feedback': { type: 'boolean' },
   q: { type: 'string' },
   id: { type: 'string' },
   body: { type: 'string' },
@@ -431,7 +430,6 @@ async function cmdInit(flags: CliFlags, io: CliIo): Promise<number> {
     return 0
   }
 
-  const relDocs = path.relative(projectRoot, docsDir).split(path.sep).join('/') || 'docs'
   if (flags['skills-only'] !== true) {
     io.out(`Documi Init (docs, lang=${result.lang}): ${result.docsDir}`)
     for (const rel of result.createdDocs) io.out(`  + created ${rel}`)
@@ -444,8 +442,7 @@ async function cmdInit(flags: CliFlags, io: CliIo): Promise<number> {
     for (const rel of result.skippedSkills) io.out(`  - skipped ${rel} (already exists)`)
   }
   io.out('\n推奨 .gitignore 設定:')
-  io.out(`  ${relDocs}/.documi/cache/`)
-  io.out(`  ${relDocs}/.documi/test-results.xml`)
+  io.out('  .documi/')
   io.out('\nAI 連携方法（どちらでも単体で完結します）:')
   io.out('  1. CLI + Agent Skills (MCP 設定不要):')
   io.out('     .agents/skills/ のスキルが自動で読み込まれ、documi map / search / query / context / block を利用します')
@@ -578,14 +575,15 @@ async function cmdApprove(ids: string[], flags: CliFlags, io: CliIo): Promise<nu
     io.err('承認するブロック ID を 1 つ以上指定してください (例: documi approve auth.lockout)')
     return 1
   }
-  const { docsDir } = resolveCliPaths(flags)
+  const { docsDir, projectRoot } = resolveCliPaths(flags)
   const author = typeof flags.author === 'string' ? flags.author : undefined
+  const note = typeof flags.note === 'string' ? flags.note : undefined
   const index = await loadDocuments(docsDir)
 
   let failed = 0
   for (const id of ids) {
     try {
-      const rec = await approveBlock(docsDir, index, id, { author })
+      const rec = await approveBlock(docsDir, index, id, { author, note, cacheRoot: projectRoot })
       io.out(`✓ Approved ${id} (${rec.hash.slice(0, 19)}… by ${rec.approvedBy ?? 'human'})`)
     } catch (e) {
       const msg = e instanceof ReviewError ? e.message : String(e)
@@ -601,13 +599,13 @@ async function cmdUnapprove(ids: string[], flags: CliFlags, io: CliIo): Promise<
     io.err('承認を取り消すブロック ID を 1 つ以上指定してください (例: documi unapprove auth.lockout)')
     return 1
   }
-  const { docsDir } = resolveCliPaths(flags)
+  const { docsDir, projectRoot } = resolveCliPaths(flags)
   const index = await loadDocuments(docsDir)
 
   let failed = 0
   for (const id of ids) {
     try {
-      const { removed } = await unapproveBlock(docsDir, index, id)
+      const { removed } = await unapproveBlock(docsDir, index, id, { cacheRoot: projectRoot })
       io.out(removed ? `✓ Unapproved ${id}` : `- ${id} は未承認のため変更ありません`)
     } catch (e) {
       const msg = e instanceof ReviewError ? e.message : String(e)
@@ -676,7 +674,7 @@ async function cmdMap(flags: CliFlags, io: CliIo): Promise<number> {
 
   io.out(`Documi Project Map (${map.documentCount} docs, ${map.blockCount} blocks, ${map.issueCount} issues)`)
   io.out(
-    `  reviews:     approved=${map.reviewSummary.approved} unreviewed=${map.reviewSummary.unreviewed} stale=${map.reviewSummary.stale} suspect=${map.reviewSummary.suspect} openFeedback=${map.reviewSummary.openFeedback}`,
+    `  reviews:     approved=${map.reviewSummary.approved} unreviewed=${map.reviewSummary.unreviewed} stale=${map.reviewSummary.stale} suspect=${map.reviewSummary.suspect}`,
   )
   io.out(
     `  realization: verified=${map.realizationSummary.verified} implemented=${map.realizationSummary.implemented} in-progress=${map.realizationSummary['in-progress']} unimplemented=${map.realizationSummary.unimplemented} drifted=${map.realizationSummary.drifted}`,
@@ -1023,9 +1021,6 @@ async function cmdQuery(flags: CliFlags, io: CliIo): Promise<number> {
   if (flags.suspect === true && flags['no-suspect'] === true) {
     throw new CliArgError('--suspect と --no-suspect は同時に指定できません')
   }
-  if (flags['has-feedback'] === true && flags['no-feedback'] === true) {
-    throw new CliArgError('--has-feedback と --no-feedback は同時に指定できません')
-  }
 
   const filters = {
     kind: parseOptionalBlockKind(flags),
@@ -1034,7 +1029,6 @@ async function cmdQuery(flags: CliFlags, io: CliIo): Promise<number> {
     review: parseOptionalReviewStatus(flags),
     realization: parseOptionalRealizationStatus(flags),
     suspect: flags.suspect === true ? true : flags['no-suspect'] === true ? false : undefined,
-    hasFeedback: flags['has-feedback'] === true ? true : flags['no-feedback'] === true ? false : undefined,
     query: getStringFlag(flags, 'q'),
     full: flags.full === true,
   }
@@ -1053,9 +1047,7 @@ async function cmdQuery(flags: CliFlags, io: CliIo): Promise<number> {
     const status = 'summary' in b ? b.realizationStatus : b.realization?.status
     const real = status ? ` realization=${status}` : ''
     const suspect = b.suspect ? ' suspect' : ''
-    const openFb = 'summary' in b ? b.openFeedbackCount : b.feedback.filter((f) => !f.resolved).length
-    const fb = openFb > 0 ? ` feedback=${openFb}` : ''
-    io.out(`  [${b.kind}] ${b.id} (${b.docPath}:${b.startLine}-${b.endLine}) review=${b.review}${real}${suspect}${fb}`)
+    io.out(`  [${b.kind}] ${b.id} (${b.docPath}:${b.startLine}-${b.endLine}) review=${b.review}${real}${suspect}`)
   }
   return 0
 }
@@ -1093,10 +1085,6 @@ async function cmdContext(positionals: string[], flags: CliFlags, io: CliIo): Pr
   }
   if (ctx.upstreamGoals.length > 0) {
     io.out(`  upstream goals: ${ctx.upstreamGoals.map((g) => g.id).join(', ')}`)
-  }
-  if (ctx.openFeedback.length > 0) {
-    io.out(`  open feedback (${ctx.openFeedback.length}):`)
-    for (const f of ctx.openFeedback) io.out(`    - [${f.blockId}] ${f.author}: ${f.body}`)
   }
   if (ctx.relatedDocuments.length > 0) {
     io.out(`  related docs: ${ctx.relatedDocuments.map((d) => `${d.id} [${d.type}]`).join(', ')}`)

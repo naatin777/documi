@@ -25,5 +25,5 @@ tags: [core, spec, search, rag]
 
 <Spec id="core.hybrid-rag" stability="evolving" derives="goals/ai-reproducibility">
   **When** `.documi.json` の `rag` 設定または `--semantic` / `documi index` によりローカル Hybrid RAG が有効化されたとき、
-  **the** Document Core および CLI / MCP / REST API **shall** 組み込み ONNX（既定 `onnx-community/embeddinggemma-300m-ONNX` `q4`）・Ollama・OpenAI 互換 HTTP のいずれかの Embedding プロバイダを用いて `contentHash` 差分のみを `bun:sqlite` キャッシュ（`docs/.documi/cache/embeddings.sqlite`）へ保存し、BM25 順位とベクトル類似度順位を RRF（Reciprocal Rank Fusion）で統合してグラフ展開結果を返却する。プロバイダが利用できない場合は BM25 結果へ安全にフォールバックする。
+  **the** Document Core および CLI / MCP / REST API **shall** 組み込み ONNX（既定 `onnx-community/embeddinggemma-300m-ONNX` `q4`）・Ollama・OpenAI 互換 HTTP のいずれかの Embedding プロバイダを用いて `contentHash` 差分のみを `bun:sqlite` キャッシュ（`.documi/cache/embeddings.sqlite`）へ保存し、BM25 順位とベクトル類似度順位を RRF（Reciprocal Rank Fusion）で統合してグラフ展開結果を返却する。プロバイダが利用できない場合は BM25 結果へ安全にフォールバックする。
 </Spec>

@@ -1,17 +1,8 @@
 import { Hono } from 'hono'
 import { z } from 'zod'
 import { getChangedBlockIds } from '../../core/git'
-import {
-  ReviewError,
-  addBlockFeedback,
-  approveBlock,
-  getBlockDiff,
-  setBlockStabilityOverride,
-  setFeedbackResolved,
-  unapproveBlock,
-} from '../../core/reviews'
-import { STABILITIES } from '../../core/types'
-import type { BlockKind, DocFormat, RealizationStatus, ReviewFeedback, ReviewStatus, Stability } from '../../core/types'
+import { ReviewError, approveBlock, getBlockDiff, unapproveBlock } from '../../core/reviews'
+import type { BlockKind, DocFormat, RealizationStatus, ReviewStatus, Stability } from '../../core/types'
 import type { DocsStore } from '../store'
 import { zValidator, type ErrorStatusCode } from '../validator'
 
@@ -32,31 +23,22 @@ interface ReviewBlockSummary {
   changed: boolean
   approvedAt?: string
   approvedBy?: string
+  approvedNote?: string
   realization?: RealizationStatus
-  openFeedbackCount: number
-  feedback: ReviewFeedback[]
 }
 
 const approveBodySchema = z
   .object({
     author: z.string().optional(),
+    note: z.string().optional(),
   })
   .optional()
   .default({})
 
-const feedbackBodySchema = z.object({
-  body: z.string(),
+const approveBatchBodySchema = z.object({
+  ids: z.array(z.string().min(1)).min(1, '承認対象のブロック ID を 1 件以上指定してください'),
   author: z.string().optional(),
-})
-
-const feedbackPatchBodySchema = z.object({
-  resolved: z.boolean({ message: 'resolved (boolean) が必要です' }),
-})
-
-const stabilityPatchBodySchema = z.object({
-  stability: z.union([z.enum(STABILITIES), z.null()], {
-    message: 'stability は stable / evolving / volatile または null である必要があります',
-  }),
+  note: z.string().optional(),
 })
 
 export function createBlocksRoutes(store: DocsStore) {
@@ -65,17 +47,15 @@ export function createBlocksRoutes(store: DocsStore) {
       const index = store.getIndex()
       const changedIds = getChangedBlockIds(index)
       const blocks: ReviewBlockSummary[] = []
-      const counts = { approved: 0, unreviewed: 0, stale: 0, suspect: 0, changed: 0, openFeedback: 0 }
+      const counts = { approved: 0, unreviewed: 0, stale: 0, suspect: 0, changed: 0 }
 
       for (const doc of index.documents) {
         for (const b of doc.blocks) {
           if (b.kind === 'note') continue
-          const openFeedbackCount = b.feedback.filter((f) => !f.resolved).length
           const changed = changedIds.has(b.id)
           counts[b.review]++
           if (b.suspect) counts.suspect++
           if (changed) counts.changed++
-          counts.openFeedback += openFeedbackCount
 
           blocks.push({
             id: b.id,
@@ -94,19 +74,41 @@ export function createBlocksRoutes(store: DocsStore) {
             changed,
             ...(b.approvedAt ? { approvedAt: b.approvedAt } : {}),
             ...(b.approvedBy ? { approvedBy: b.approvedBy } : {}),
+            ...(b.approvedNote ? { approvedNote: b.approvedNote } : {}),
             ...(b.realization ? { realization: b.realization.status } : {}),
-            openFeedbackCount,
-            feedback: b.feedback,
           })
         }
       }
 
       return c.json({ blocks, counts }, 200)
     })
+    .post('/approve-batch', zValidator('json', approveBatchBodySchema), async (c) => {
+      const { ids, author, note } = c.req.valid('json')
+      const uniqueIds = [...new Set(ids)]
+      try {
+        const index = store.getIndex()
+        for (const blockId of uniqueIds) {
+          if (!index.blocksById.has(blockId)) {
+            return c.json({ error: `ブロックが見つかりません: ${blockId}` }, 404)
+          }
+        }
+        for (const blockId of uniqueIds) {
+          await approveBlock(store.rootDir, index, blockId, { author, note, cacheRoot: store.projectRoot })
+        }
+        const next = await store.reload()
+        const approved = uniqueIds
+          .map((id) => next.blocksById.get(id))
+          .filter((b): b is NonNullable<typeof b> => Boolean(b))
+        return c.json({ approvedIds: approved.map((b) => b.id), count: approved.length }, 200)
+      } catch (e) {
+        if (e instanceof ReviewError) return c.json({ error: e.message }, e.status as ErrorStatusCode)
+        throw e
+      }
+    })
     .get('/:id/diff', async (c) => {
       const blockId = decodeURIComponent(c.req.param('id'))
       try {
-        const diff = await getBlockDiff(store.rootDir, store.getIndex(), blockId)
+        const diff = await getBlockDiff(store.rootDir, store.getIndex(), blockId, { cacheRoot: store.projectRoot })
         return c.json(diff, 200)
       } catch (e) {
         if (e instanceof ReviewError) return c.json({ error: e.message }, e.status as ErrorStatusCode)
@@ -115,9 +117,9 @@ export function createBlocksRoutes(store: DocsStore) {
     })
     .post('/:id/approve', zValidator('json', approveBodySchema), async (c) => {
       const blockId = decodeURIComponent(c.req.param('id'))
-      const { author } = c.req.valid('json')
+      const { author, note } = c.req.valid('json')
       try {
-        await approveBlock(store.rootDir, store.getIndex(), blockId, { author })
+        await approveBlock(store.rootDir, store.getIndex(), blockId, { author, note, cacheRoot: store.projectRoot })
         const next = await store.reload()
         const block = next.blocksById.get(blockId)
         if (!block) return c.json({ error: `ブロックが見つかりません: ${blockId}` }, 404)
@@ -130,50 +132,7 @@ export function createBlocksRoutes(store: DocsStore) {
     .delete('/:id/approve', async (c) => {
       const blockId = decodeURIComponent(c.req.param('id'))
       try {
-        await unapproveBlock(store.rootDir, store.getIndex(), blockId)
-        const next = await store.reload()
-        const block = next.blocksById.get(blockId)
-        if (!block) return c.json({ error: `ブロックが見つかりません: ${blockId}` }, 404)
-        return c.json({ block }, 200)
-      } catch (e) {
-        if (e instanceof ReviewError) return c.json({ error: e.message }, e.status as ErrorStatusCode)
-        throw e
-      }
-    })
-    .post('/:id/feedback', zValidator('json', feedbackBodySchema), async (c) => {
-      const blockId = decodeURIComponent(c.req.param('id'))
-      const { body, author } = c.req.valid('json')
-      try {
-        const feedback = await addBlockFeedback(store.rootDir, store.getIndex(), blockId, body, author)
-        const next = await store.reload()
-        const block = next.blocksById.get(blockId)
-        if (!block) return c.json({ error: `ブロックが見つかりません: ${blockId}` }, 404)
-        return c.json({ feedback, block }, 201)
-      } catch (e) {
-        if (e instanceof ReviewError) return c.json({ error: e.message }, e.status as ErrorStatusCode)
-        throw e
-      }
-    })
-    .patch('/:id/feedback/:feedbackId', zValidator('json', feedbackPatchBodySchema), async (c) => {
-      const blockId = decodeURIComponent(c.req.param('id'))
-      const feedbackId = decodeURIComponent(c.req.param('feedbackId'))
-      const { resolved } = c.req.valid('json')
-      try {
-        const feedback = await setFeedbackResolved(store.rootDir, blockId, feedbackId, resolved)
-        const next = await store.reload()
-        const block = next.blocksById.get(blockId)
-        if (!block) return c.json({ error: `ブロックが見つかりません: ${blockId}` }, 404)
-        return c.json({ feedback, block }, 200)
-      } catch (e) {
-        if (e instanceof ReviewError) return c.json({ error: e.message }, e.status as ErrorStatusCode)
-        throw e
-      }
-    })
-    .patch('/:id/stability', zValidator('json', stabilityPatchBodySchema), async (c) => {
-      const blockId = decodeURIComponent(c.req.param('id'))
-      const { stability } = c.req.valid('json')
-      try {
-        await setBlockStabilityOverride(store.rootDir, store.getIndex(), blockId, stability)
+        await unapproveBlock(store.rootDir, store.getIndex(), blockId, { cacheRoot: store.projectRoot })
         const next = await store.reload()
         const block = next.blocksById.get(blockId)
         if (!block) return c.json({ error: `ブロックが見つかりません: ${blockId}` }, 404)

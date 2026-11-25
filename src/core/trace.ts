@@ -65,7 +65,7 @@ export interface RawPullRequest {
 
 export interface TraceEnrichOptions {
   projectRoot: string
-  /** JUnit XML テストレポートのパス (省略時は docs/.documi/test-results.xml 等を自動探索) */
+  /** JUnit XML テストレポートのパス (省略時は .documi/test-results.xml 等を自動探索) */
   testReportPath?: string
   /** テスト注入用の PR 一覧 (指定時は gh CLI を呼ばない) */
   pullRequests?: RawPullRequest[]
@@ -319,7 +319,7 @@ export async function loadTestResults(
 ): Promise<TestCaseResult[]> {
   const candidates = explicitPath
     ? [path.resolve(explicitPath)]
-    : [path.join(docsDir, '.documi/test-results.xml'), path.join(projectRoot, '.documi/test-results.xml')]
+    : [path.join(projectRoot, '.documi/test-results.xml'), path.join(docsDir, '.documi/test-results.xml')]
 
   for (const file of candidates) {
     try {

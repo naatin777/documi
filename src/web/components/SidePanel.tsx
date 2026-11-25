@@ -215,7 +215,6 @@ export default function SidePanel({
                 </h2>
                 <ul className="m-0 grid list-none gap-1 p-0">
                   {doc.blocks.map((b) => {
-                    const openFb = b.feedback.filter((f) => !f.resolved).length
                     const dotClass = b.suspect ? 'suspect' : b.review
                     const changed = rangeOverlaps(b.startLine, b.endLine, activeChangedRanges)
                     return (
@@ -237,7 +236,6 @@ export default function SidePanel({
                               title={t('inspector.changedSectionTitle')}
                             />
                           )}
-                          {openFb > 0 && <span className="rp-fb-count">{openFb}</span>}
                         </button>
                       </li>
                     )

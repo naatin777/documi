@@ -11,7 +11,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          # reviews.json の Git コミット比較 (git show) や --no-review-edit で履歴を参照するため
+          # reviews.json の Git コミット比較 (git show) や --no-review-edit・PR 差分確認のため
           fetch-depth: 0
 
       - uses: oven-sh/setup-bun@v2
@@ -22,7 +22,7 @@ jobs:
         run: bun install --frozen-lockfile
 
       - name: Run tests & generate JUnit report
-        run: bun test --reporter=junit --reporter-outfile=docs/.documi/test-results.xml
+        run: mkdir -p .documi && bun test --reporter=junit --reporter-outfile=.documi/test-results.xml
 
       - name: Typecheck
         run: bun run check
@@ -43,3 +43,13 @@ jobs:
         run: bun run documi:check
         # 全ブロック承認運用を開始した後は `--strict` を有効化してください:
         # run: bun src/cli.ts check --strict
+
+      - name: Advisory check for docs sync on PR
+        if: github.event_name == 'pull_request'
+        run: |
+          BASE_SHA="${{ github.event.pull_request.base.sha }}"
+          SRC_CHANGED=$(git diff --name-only "$BASE_SHA" HEAD -- src/ | wc -l)
+          DOCS_CHANGED=$(git diff --name-only "$BASE_SHA" HEAD -- docs/ | wc -l)
+          if [ "$SRC_CHANGED" -gt 0 ] && [ "$DOCS_CHANGED" -eq 0 ]; then
+            echo "::notice::src/ に変更がありますが docs/ は更新されていません。振る舞い・契約・構造の変更がある場合は docs/ の同期を確認してください。"
+          fi

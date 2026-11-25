@@ -57,7 +57,7 @@ const DOCUMI_MCP_INSTRUCTIONS = [
   '   - Call retrieve_context with a natural-language task or question when you do not know the exact Spec ID — it runs BM25 + glossary alias expansion + graph traversal (upstream Goals, Decision <Outcome>s, related docs, Terms, <SourceRef>s) within a character budget.',
   '   - Call get_project_map for a project-wide overview (Goal/Architecture summaries, Decision <Outcome>s, Domain Terms, Review/Realization summaries; pass full: true only if full bodies are needed).',
   '   - Call query_specs or search_documents to filter/search specific blocks or docs (query_specs returns compact summaries by default; pass full: true only when full trace arrays are needed).',
-  '   - Call get_spec_context for a known Spec ID to inspect its exact body, feedback, upstream Goals, and linked code/docs.',
+  '   - Call get_spec_context for a known Spec ID to inspect its exact body, upstream Goals, and linked code/docs.',
   '   - Only call get_document or get_relations when full document prose or graph edges are needed.',
   '2. Surgical editing (prefer over full-file rewrites):',
   '   - Use update_block, add_block, upsert_term, scaffold_document, and rename_block_id (always preview with dryRun: true first).',
@@ -68,7 +68,7 @@ const DOCUMI_MCP_INSTRUCTIONS = [
   '   - Surface public boundary symbols (exported classes, interfaces, types, public functions) via `<SourceRef file="..." mode="exports" />` or `<SourceRef symbol="..." />` rather than hand-copying code; never write internal if/for pseudocode or private helper steps in docs.',
   '   - Update triggers before finishing: new subsystem/module -> update architecture + add/update design (with `satisfies` + `<SourceRef>`); high-reversibility structural choice -> add decision (ADR); new spec/test suite -> update verification (`verifies`); spec file > 10 blocks -> split by domain.',
   '4. Strict invariants:',
-  '   - NEVER edit `docs/.documi/reviews.json` directly (human approvals and feedback only).',
+  '   - NEVER edit `docs/guard/reviews.json` directly (human approvals only).',
   '   - NEVER write executable JS in MDX (no ESM import/export, no JSX `{...}` expressions, no unapproved components).',
   '   - NEVER create temporary `tasks.md` checklists inside docs/; realization is derived automatically from code, tests, and PRs.',
   '5. Always call validate_docs before finishing, fix all errors, and review health coverage hints (missing design / missing verification / bloated spec docs).',
@@ -186,7 +186,7 @@ function createDocumiMcpServer(store: DocsStore, projectRoot?: string, ragConfig
     'query_specs',
     {
       description:
-        'セマンティックブロック (<Spec> / <Constraint> / <Outcome> / <Note> / <TermDef>) をレビュー状態・Suspect・未解決フィードバック・安定度などで検索します。',
+        'セマンティックブロック (<Spec> / <Constraint> / <Outcome> / <Note> / <TermDef>) をレビュー状態・Suspect・安定度などで検索します。',
       inputSchema: {
         kind: optionalKindSchema,
         intent: optionalIntentSchema,
@@ -194,7 +194,6 @@ function createDocumiMcpServer(store: DocsStore, projectRoot?: string, ragConfig
         review: optionalReviewSchema,
         realization: optionalRealizationSchema,
         suspect: optionalBoolSchema('上流変更により Suspect になっているブロックのみ抽出'),
-        hasFeedback: optionalBoolSchema('未解決の人間フィードバックがあるブロックのみ抽出'),
         query: optionalQuerySchema,
         full: optionalBoolSchema('true のとき realization 詳細配列・本文全文まで含めて返却 (既定: false の軽量サマリ)'),
       },
@@ -206,7 +205,6 @@ function createDocumiMcpServer(store: DocsStore, projectRoot?: string, ragConfig
       review?: ReviewStatus
       realization?: RealizationStatus
       suspect?: boolean
-      hasFeedback?: boolean
       query?: string
       full?: boolean
     }) => jsonResult(querySpecs(getIndex(), args)),

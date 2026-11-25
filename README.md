@@ -7,14 +7,14 @@ Web UI・REST API・MCP Server・CLI のすべてが同じ Document Core (`src/c
 
 ## 人間と AI の標準フロー
 
-Documi は **AI が CLI / MCP で仕様・設計・コード・テストを同期し、人間が Web UI（閲覧・Diff・フィードバック・承認）と AI チャット（修正依頼・対話クイズ）で判断する** 役割分担を前提にしています。
+Documi は **AI が CLI / MCP で仕様・設計・コード・テストを同期し、人間が Web UI（閲覧・Diff・最終承認）と AI チャット（修正依頼・対話クイズ）で判断する** 役割分担を前提にしています。
 
 1. **AI に依頼する（AI チャット）**: 機能追加や仕様変更を伝えると、AI が `docs/`・コード・テストを同期更新し、`documi check --no-review-edit` まで検証します。
-2. **変更分を確認する（Web UI `/review`）**: `documi serve` で開いたブラウザは SSE で自動更新され、**`変更あり` タブ**（作業ツリー／ブランチ差分のブロックのみ）や **`要再確認` タブ**（承認時点からの自動展開 Diff・上流変更の軽量な `suspect` 参考通知）、`/review?ids=...` リンクから変更点をすぐ確認できます。
+2. **変更分を確認する（Web UI `/review`）**: `documi serve` で開いたブラウザは SSE で自動更新され、**`変更あり` タブ**（作業ツリー／ブランチ差分のブロックのみ）や **`要再確認` タブ**（承認時点からの自動展開 Diff・上流変更の軽量な `suspect` 参考通知）から変更点をすぐ確認できます。
 3. **ズレを直す・理解を確認する（Web UI → AI チャット）**:
-   - 直したい箇所はブロックのフィードバック欄に書き溜め、**「未解決コメントを AI へ渡す」** ボタンで 1 クリックコピーして AI チャットへ渡します。
+   - 直したい箇所は各ブロックの **「AI へ伝える」** ボタンで参照をコピーして AI チャットへ渡します。
    - 重要な仕様はカードを選択して **「AI クイズでレビュー」** をコピーし、`documi-review` スキルで 2〜3 件ずつエッジケースの認識合わせを行えます。
-4. **承認・取消する（人間専用）**: 納得したブロックだけ Web UI の「承認」ボタンまたは `documi approve <id...>` で承認します（見直し時は「承認を取り消す」 / `documi unapprove <id...>`）。AI が `docs/.documi/reviews.json` を書き換えることは `documi check --no-review-edit` で防ぎます。
+4. **最終確認 URL から承認する（人間専用）**: `documi-review` 合意後に AI が発行する最終確認 URL（`/review?ids=...&note=...`）を開き、確認メモを添えて **「この N 件をまとめて承認」** を 1 クリックします（`documi approve <id...> --note "..."` / `documi unapprove <id...>` も利用可）。AI が `docs/guard/reviews.json` を書き換えることは `documi check --no-review-edit` と `.github/CODEOWNERS` で防ぎます。
 
 ## 主な特徴
 
@@ -22,8 +22,8 @@ Documi は **AI が CLI / MCP で仕様・設計・コード・テストを同�
 - **4 層・9 種類の Artifact Type**: `goal` / `decision` / `domain` / `spec` / `contract` / `architecture` / `design` / `verification` / `guide`（ディレクトリ名・ファイル名から自動推論）
 - **Goal を根にした Rooted DAG**: `normative` な `<Spec>` が `derives` 経由で `goal` に繋がっていない場合は `orphan-spec` として検知
 - **MDX セマンティックタグ（任意 JS 実行禁止）**: `<Spec>`, `<Constraint>`, `<Outcome>`, `<Note>`, `<TermDef>`, `<Term>`, `<SourceRef>` + `<Callout>`, `<Tabs>`, `<Steps>`, Mermaid, KaTeX, Shiki
-- **読む・レビューする中心の UI**: 1 本の開閉式サイドバー（`⌘B`・上流→下流の `Flow` / `Files` 切替）、専用 **Review Inbox (`/review`)**（Git 変更分フィルタ・`?ids=` URL 絞り込み・自動展開 Diff・AI プロンプトコピー）、右ペイン **Context Inspector (`Outline` / `Links` / `History`) ＋ Side-by-Side プレビュー (`Shift+クリック`)**、読み取り専用 **Code Explorer (`/code`)**
-- **人間レビュー & Git Diff (`docs/.documi/reviews.json`)**: MDX 本文と物理分離された承認サイドカー。本文変更で自動 `stale` ＋承認時点コミットとの行 Diff 表示、上流変更で軽量な参考通知 `suspect` を自動付与、Web UI / CLI から承認・承認取り消し・Stability 切替・AI 向けフィードバック投稿
+- **読む・レビューする中心の UI**: 1 本の開閉式サイドバー（`⌘B`・上流→下流の `Flow` / `Files` 切替）、専用 **Review Inbox (`/review`)**（Git 変更分フィルタ・最終確認 URL `/review?ids=...&note=...`・自動展開 Diff・AI 向けコピー）、右ペイン **Context Inspector (`Outline` / `Links` / `History`) ＋ Side-by-Side プレビュー (`Shift+クリック`)**、読み取り専用 **Code Explorer (`/code`)**
+- **人間承認ガード & Git Diff (`docs/guard/reviews.json`)**: MDX 本文と物理分離された可視の承認ガードファイル（一時キャッシュはルート `.documi/` へ分離）。本文変更で自動 `stale` ＋承認時点コミットとの行 Diff 表示、上流変更で軽量な参考通知 `suspect` を自動付与、確認メモ付き承認・承認取り消しに対応
 - **Living Glossary**: 登録済み `<TermDef>` 用語・別名を本文中で自動リンクし、ホバー時に定義＋AST 抽出した実コード型定義をポップオーバー表示
 - **コード・テスト・PR からの `realization` 自動算出 & 健全性ヒント**: `@implements` / `@verifies` / `test("[spec.id] ...")` / `<SourceRef mode="exports">` / JUnit XML / `gh` PR 連携から `unimplemented` 〜 `verified` / `drifted` と Design・Verification カバレッジを自動算出
 - **Sigma.js (WebGL) ライブ力学ネットワークグラフ (`/graph`)**: フルビューポート・角丸長方形ノード・弾性ドラッグ・Figma 風トラックパッドパン／ピンチズーム・Forces スライダー・**ノードクリックで右側に本文を即時プレビュー**
@@ -70,8 +70,8 @@ Streamable HTTP (`/mcp`) および stdio (`documi mcp`) で AI エージェン�
 | `list_documents` | ドキュメント一覧 (`type` 絞り込み可) |
 | `get_document` | パス ID から本文・ブロック・関係・問題を取得 |
 | `get_relations` | ドキュメント ID またはブロック ID の外向き/逆参照を取得 |
-| `query_specs` | セマンティックブロックを `kind` / `intent` / `stability` / `review` / `realization` / `suspect` / `hasFeedback` / キーワードで検索 |
-| `get_spec_context` | 指定 Spec の上流 Goal・未解決フィードバック・関連文書・Decision Outcome・用語・SourceRef を一括集約 |
+| `query_specs` | セマンティックブロックを `kind` / `intent` / `stability` / `review` / `realization` / `suspect` / キーワードで検索 |
+| `get_spec_context` | 指定 Spec の上流 Goal・関連文書・Decision Outcome・用語・SourceRef を一括集約 |
 | `search_documents` | ドキュメントとセマンティックブロックを横断全文検索 |
 | `retrieve_context` | 自然文から BM25（＋任意 Embedding RRF）＋グラフ展開で関連文脈を予算内に集約 |
 | `validate_docs` | `orphan-spec`・参照切れ・循環・重複 ID・MDX 未対応構文・AST `<SourceRef>` / `<TermDef>` シンボル切れ・健全性ヒントを一括検証 |

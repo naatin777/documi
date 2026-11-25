@@ -90,7 +90,7 @@ function resolveCacheDbPath(docsDir: string, cachePath?: string, projectRoot?: s
   if (cachePath?.trim()) {
     return path.isAbsolute(cachePath) ? cachePath : path.resolve(projectRoot ?? path.dirname(docsDir), cachePath)
   }
-  return path.join(path.resolve(docsDir), DEFAULT_EMBEDDINGS_CACHE_REL)
+  return path.join(path.resolve(projectRoot ?? docsDir), DEFAULT_EMBEDDINGS_CACHE_REL)
 }
 
 async function openVectorDb(dbPath: string): Promise<Database> {

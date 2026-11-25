@@ -101,23 +101,15 @@ export function isReviewStatus(value: unknown): value is ReviewStatus {
   return typeof value === 'string' && (REVIEW_STATUSES as readonly string[]).includes(value)
 }
 
-export interface ReviewFeedback {
-  id: string
-  body: string
-  author: string
-  createdAt: string
-  resolved: boolean
-}
-
 export interface BlockReviewRecord {
   docPath: string
   hash: string
   approvedCommit?: string
   approvedAt?: string
   approvedBy?: string
+  /** 人間が最終確認・承認時に残した確認メモ (任意) */
+  note?: string
   upstreamHashes?: Record<string, string>
-  stabilityOverride?: Stability
-  feedback: ReviewFeedback[]
 }
 
 export interface ReviewsFile {
@@ -256,17 +248,15 @@ export interface SemanticBlock {
   title?: string
   intent: SpecIntent | NoteIntent
   stability: Stability
-  stabilitySource?: 'mdx' | 'override'
-  /** 人間レビュー状態 (reviews.json と contentHash から自動算出) */
+  /** 人間レビュー状態 (guard/reviews.json と contentHash から自動算出) */
   review: ReviewStatus
   approvedAt?: string
   approvedBy?: string
   approvedCommit?: string
+  approvedNote?: string
   /** 上流の変更により要再確認になっているか (Suspect Link) */
   suspect: boolean
   suspectSources: string[]
-  /** 人間から AI 向けのフィードバックコメント */
-  feedback: ReviewFeedback[]
   /** コード・テスト・PR から自動算出された実装/検証状態 */
   realization?: RealizationSummary
   /** 明示的な上流参照 (derives) */
