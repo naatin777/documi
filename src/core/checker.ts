@@ -11,7 +11,7 @@ export interface CheckOptions {
   docsDir: string
   projectRoot?: string
   testReportPath?: string
-  /** true のとき未承認・stale・suspect・drifted もエラー扱いにする */
+  /** true のとき未承認・stale・drifted もエラー扱いにする（suspect は参考通知のまま） */
   strict?: boolean
   /** true のとき Git 作業ツリー／ステージに reviews.json の変更があるとエラーにする (AI 改ざん防止用) */
   noReviewEdit?: boolean
@@ -135,14 +135,6 @@ export async function runDocsCheck(options: CheckOptions): Promise<CheckReport> 
           severity: 'error',
           code: `review-${block.review}`,
           message: `ブロック "${block.id}" が未承認 (${block.review}) です (--strict)`,
-          path: index.byId.get(block.docId)?.path,
-          blockId: block.id,
-        })
-      } else if (block.suspect) {
-        errors.push({
-          severity: 'error',
-          code: 'review-suspect',
-          message: `ブロック "${block.id}" が上流変更により Suspect です (--strict)`,
           path: index.byId.get(block.docId)?.path,
           blockId: block.id,
         })

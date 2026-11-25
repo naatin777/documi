@@ -283,7 +283,7 @@ description: 未承認・stale・suspect な仕様を 2〜3 件ずつ取り上�
 
 ## 2. 具体シナリオ・エッジケースのクイズをテンポよく出題する
 
-選んだ **2〜3 件のブロックに対して、各 1〜2 問（1 ラウンド計 3〜5 問）** を選択式（A/B/C/D）メインで出題する。
+選んだ **2〜3 件のブロックに対して、各 1〜2 問（1 ラウンド計 3〜5 問）** を選択式（A/B/C/D）メインで出題する。利用しているエージェントに選択式質問 UI ツール（例: \`ask_question\`）がある場合は積極的に使い、人間がクリックだけで回答できるようにする。
 
 - **良い出題の切り口（認識ズレが出やすい箇所を狙う）**:
   - **障害・フォールバック**: 外部依存や入力が欠けたとき、エラー終了するかフォールバックするか？
@@ -308,7 +308,7 @@ description: 未承認・stale・suspect な仕様を 2〜3 件ずつ取り上�
 ## 4. 人間専用の承認コマンドを引き継ぐ（不変ルール）
 
 - **AI は絶対に \`${relDocsDir}/.documi/reviews.json\` を編集せず、\`documi approve\` / \`documi unapprove\` も実行しない。** 承認の最終決定と記録は必ず人間が行う。
-- 認識が 100% 一致したブロックだけを選び、人間がそのままターミナルで実行できる承認コマンド（または Web UI \`documi serve\` → \`/review\` の案内）を提示する：
+- 認識が 100% 一致したブロックだけを選び、人間がそのままターミナルで実行できる承認コマンドと、Web UI で対象ブロックだけを開けるディープリンク（\`/review?ids=<aligned-id-1>,<aligned-id-2>\`）を併せて提示する：
 
 \`\`\`bash
 documi approve <aligned-id-1> <aligned-id-2>
@@ -439,7 +439,7 @@ Work in fast, focused rounds of **2–3 blocks at a time**, verify alignment thr
 
 ## 2. Ask Concrete Edge-Case & Scenario Questions
 
-For the **2–3 selected blocks**, ask **1–2 multiple-choice questions per block (3–5 questions total per round)** targeting real behavioral boundaries:
+For the **2–3 selected blocks**, ask **1–2 multiple-choice questions per block (3–5 questions total per round)** targeting real behavioral boundaries. If your agent supports an interactive multiple-choice question UI tool (e.g., \`ask_question\`), prefer it so the human can simply click their answers.
 
 - **High-signal question angles**:
   - **Failure & fallback**: What happens when a dependency is missing, offline, or throws?
@@ -464,7 +464,7 @@ When the human answers:
 ## 4. Hand Off Human-Only Approval (Strict Invariant)
 
 - **NEVER edit \`${relDocsDir}/.documi/reviews.json\` and NEVER execute \`documi approve\` or \`documi unapprove\` yourself.** Approval belongs strictly to the human.
-- For the blocks confirmed as 100% aligned, present a ready-to-run command the human can execute directly (or link to \`documi serve\` → \`/review\`):
+- For the blocks confirmed as 100% aligned, present a ready-to-run command the human can execute directly, along with a Web UI deep link (\`/review?ids=<aligned-id-1>,<aligned-id-2>\`) so they can inspect diffs and approve in the browser if preferred:
 
 \`\`\`bash
 documi approve <aligned-id-1> <aligned-id-2>

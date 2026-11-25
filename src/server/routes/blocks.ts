@@ -1,5 +1,6 @@
 import { Hono } from 'hono'
 import { z } from 'zod'
+import { getChangedBlockIds } from '../../core/git'
 import {
   ReviewError,
   addBlockFeedback,
@@ -28,6 +29,7 @@ interface ReviewBlockSummary {
   review: ReviewStatus
   suspect: boolean
   suspectSources: string[]
+  changed: boolean
   approvedAt?: string
   approvedBy?: string
   realization?: RealizationStatus
@@ -61,15 +63,18 @@ export function createBlocksRoutes(store: DocsStore) {
   return new Hono()
     .get('/', (c) => {
       const index = store.getIndex()
+      const changedIds = getChangedBlockIds(index)
       const blocks: ReviewBlockSummary[] = []
-      const counts = { approved: 0, unreviewed: 0, stale: 0, suspect: 0, openFeedback: 0 }
+      const counts = { approved: 0, unreviewed: 0, stale: 0, suspect: 0, changed: 0, openFeedback: 0 }
 
       for (const doc of index.documents) {
         for (const b of doc.blocks) {
           if (b.kind === 'note') continue
           const openFeedbackCount = b.feedback.filter((f) => !f.resolved).length
+          const changed = changedIds.has(b.id)
           counts[b.review]++
           if (b.suspect) counts.suspect++
+          if (changed) counts.changed++
           counts.openFeedback += openFeedbackCount
 
           blocks.push({
@@ -86,6 +91,7 @@ export function createBlocksRoutes(store: DocsStore) {
             review: b.review,
             suspect: b.suspect,
             suspectSources: b.suspectSources,
+            changed,
             ...(b.approvedAt ? { approvedAt: b.approvedAt } : {}),
             ...(b.approvedBy ? { approvedBy: b.approvedBy } : {}),
             ...(b.realization ? { realization: b.realization.status } : {}),

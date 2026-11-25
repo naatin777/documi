@@ -116,7 +116,7 @@ Options:
   --port <number>         待ち受けポート (serve 用、既定: 3000 または PORT)
   --host <addr>           バインドアドレス (serve 用、既定: 127.0.0.1 または HOST)
   --test-report <xml>     JUnit XML テストレポートのパス (check / map / query / context 用)
-  --strict                未承認・stale・suspect・drifted もエラー扱いにする (check 用)
+  --strict                未承認・stale・drifted もエラー扱いにする (check 用)
   --no-review-edit        reviews.json が Git 上で変更されていたらエラーにする (check 用)
   --prs                   gh CLI から PR 情報も取得して紐づける (check 用)
   --author <name>         承認者名 (approve 用)

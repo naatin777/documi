@@ -13,7 +13,7 @@ import DocTabs from '../src/web/components/DocTabs'
 import Explorer from '../src/web/components/Explorer'
 import Markdown from '../src/web/components/Markdown'
 import OverviewLayout from '../src/web/components/OverviewLayout'
-import ReviewLayout from '../src/web/components/ReviewLayout'
+import ReviewLayout, { buildFeedbackAiPrompt, buildQuizAiPrompt } from '../src/web/components/ReviewLayout'
 import SearchModal from '../src/web/components/SearchModal'
 import { DocReviewProvider, SpecBlock } from '../src/web/components/SemanticBlocks'
 import SidePanel from '../src/web/components/SidePanel'
@@ -227,6 +227,47 @@ describe('Web UI & Live Spec Dogfooding', () => {
     expect(html).toContain('差分')
     expect(html).toContain('💬 1')
     expect(html).toContain('>承認</button>')
+  })
+
+  test('[ui.human-review] ReviewLayout の AI プロンプト生成ヘルパーが未解決フィードバックとクイズ対象を整形する', () => {
+    const sampleBlocks = [
+      {
+        id: 'sample.rule',
+        kind: 'spec' as const,
+        docId: 'specs/sample',
+        docTitle: 'Sample',
+        docPath: 'specs/sample.mdx',
+        docDir: 'specs',
+        docFormat: 'mdx' as const,
+        rawBody: '本文',
+        stability: 'stable' as const,
+        review: 'unreviewed' as const,
+        suspect: false,
+        suspectSources: [],
+        changed: true,
+        openFeedbackCount: 1,
+        feedback: [
+          {
+            id: 'fb-1',
+            author: 'alice',
+            body: '境界値を見直してほしい',
+            createdAt: '2026-11-25T00:00:00Z',
+            resolved: false,
+          },
+          { id: 'fb-2', author: 'alice', body: '対応済みコメント', createdAt: '2026-11-25T00:00:00Z', resolved: true },
+        ],
+      },
+    ]
+
+    const fbPrompt = buildFeedbackAiPrompt(sampleBlocks, 'ja')
+    expect(fbPrompt).toContain('sample.rule (specs/sample.mdx)')
+    expect(fbPrompt).toContain('境界値を見直してほしい')
+    expect(fbPrompt).not.toContain('対応済みコメント')
+    expect(fbPrompt).toContain('reviews.json')
+
+    const quizPrompt = buildQuizAiPrompt(sampleBlocks, 'ja')
+    expect(quizPrompt).toContain('documi-review')
+    expect(quizPrompt).toContain('- sample.rule (specs/sample.mdx)')
   })
 
   test('[ui.glossary-autolink] Markdown は登録済み用語・別名を本文中で自動リンクしコードや見出し内は除外する', () => {
