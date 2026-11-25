@@ -1104,7 +1104,7 @@ async function cmdContext(positionals: string[], flags: CliFlags, io: CliIo): Pr
   if (ctx.sourceRefs.length > 0) {
     io.out(`  sourceRefs (${ctx.sourceRefs.length}):`)
     for (const r of ctx.sourceRefs) {
-      const suffix = r.mode === 'exports' ? ' [exports]' : r.symbol ? `#${r.symbol}` : r.lines ? `:${r.lines}` : ''
+      const suffix = r.mode === 'exports' ? ' [exports]' : r.mode === 'symbol' ? `#${r.symbol}` : `:${r.lines}`
       io.out(`    - ${r.file}${suffix}`)
     }
   }

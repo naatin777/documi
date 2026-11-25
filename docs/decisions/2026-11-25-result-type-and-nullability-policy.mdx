@@ -58,9 +58,12 @@ Documi はフレームワーク非依存の `src/core/` を REST API（Hono）�
 | **想定内のドメイン失敗** | **`Result<T, TaggedError>`** | ファイル未存在・ルート外アクセス・バイナリ／サイズ超過・シンボル未検出／曖昧・ブロック未存在など、呼び出し側（REST / MCP / CLI / `documi check`）が分岐・通知すべき失敗を `src/core/errors.ts` の `TaggedError` として返す。**`src/core/` のエラーに HTTP ステータスを持たせない。** |
 | **予期せぬバグ・不変条件違反** | **例外（`throw` / `Panic`）** | プログラムのバグや回復不能な異常まで無理に `Result` で包まない。 |
 
-### 2. 偽フォールバック禁止の原則
+### 2. 偽フォールバック禁止と「不必要な `undefined`」の排除（Make Illegal States Unrepresentable）
 - オプショナルな値が取得できない場合、別の環境情報やダミー文字列で穴埋めせず **`undefined` のまま保持** する（例: `approvedBy` は `--author` → `git config user.name` のみ参照し、未設定なら `undefined` として `reviews.json` にもキーを出さない。表示用フォールバックが必要なら CLI / Web UI 側の責務とする）。
-- 必須フィールド（例: `reviews.json` の `docPath` / `hash`）が欠損・不正な場合は `?? ''` で通さず、検証エラー／`IndexIssue` として記録し破損レコードをスキップする。
+- 必須フィールド（例: `reviews.json` の `docPath` / `hash` / `approvedAt`）が欠損・不正な場合は `?? ''` で通さず、検証エラー／`IndexIssue` として記録し破損レコードをスキップする。
+- **不必要な `undefined` を型で潰す**:
+  - 2 値フラグを `boolean | undefined` の 3 値にしない（`SourceResult.truncated: boolean`, `CodeAnchor.fromDoc: boolean`）。
+  - 排他モードや状態依存フィールドはオプショナル群ではなく **Discriminated Union** で表現する（`SourceRefDecl` の `mode: 'exports' | 'symbol' | 'lines'`、`BlockDiffResult` の `baseSource: 'none' | 'git' | 'cache'`、`DocumentHistory` の `highlightBasis: 'none' | 'working' | 'last-commit'`、`SemanticBlock` の `kind` 別バリアントと `TermSemanticBlock` の非オプショナル `aliases` / `symbols` 配列）。
 
 ### 3. アダプタ層での網羅マッピング
 - `src/server/errors.ts` で `matchError` を使い、各 `TaggedError` の `_tag` を HTTP ステータスコードへ網羅的に変換する（エンドポイント固有の上書きが必要な場合のみ `matchErrorPartial` 等で明示する）。新しいエラータグを `src/core/` に追加すると、サーバー側の型チェックが即座に未対応箇所を検出する。

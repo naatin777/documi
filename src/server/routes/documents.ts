@@ -95,8 +95,8 @@ function collectTerms(index: DocsIndex): TermPayload[] {
       id: block.id,
       docId: block.docId,
       docTitle: doc?.title ?? block.docId,
-      aliases: block.aliases ?? [],
-      symbols: block.symbols ?? [],
+      aliases: block.aliases,
+      symbols: block.symbols,
       rawBody: block.rawBody,
     })
   }
@@ -148,7 +148,7 @@ export function createDocumentsRoutes(store: DocsStore, projectRoot?: string, ra
               }
             }
             if (block.kind === 'spec') {
-              if (block.intent in specsByIntent) specsByIntent[block.intent as SpecIntent]++
+              specsByIntent[block.intent]++
               specsByStability[block.stability]++
             } else if (block.kind === 'outcome') {
               outcomes.push({

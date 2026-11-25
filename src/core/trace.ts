@@ -173,7 +173,7 @@ export function extractAnchorsFromSource(relFile: string, source: string, out: C
           .filter(Boolean)
         for (const id of rawIds) {
           if (BLOCK_ID_PATTERN.test(id)) {
-            out.push({ kind, specId: id, file: relFile, line: lineNum })
+            out.push({ kind, specId: id, file: relFile, line: lineNum, fromDoc: false })
           }
         }
       }
@@ -188,7 +188,7 @@ export function extractAnchorsFromSource(relFile: string, source: string, out: C
       while ((bm = BRACKET_ID_RE.exec(testName)) !== null) {
         const specId = bm[1]!
         if (specId.includes('.')) {
-          out.push({ kind: 'verifies', specId, file: relFile, line: lineNum, testName })
+          out.push({ kind: 'verifies', specId, file: relFile, line: lineNum, testName, fromDoc: false })
         }
       }
     }
@@ -416,18 +416,16 @@ export async function validateSourceLinks(
       const res =
         ref.mode === 'exports'
           ? await extractExportedSymbols(projectRoot, ref.file)
-          : ref.symbol
+          : ref.mode === 'symbol'
             ? await resolveSourceSymbol(projectRoot, ref.file, ref.symbol)
-            : ref.lines
-              ? await resolveSourceLines(projectRoot, ref.file, ref.lines)
-              : undefined
-      if (res?.isErr()) {
+            : await resolveSourceLines(projectRoot, ref.file, ref.lines)
+      if (res.isErr()) {
         const targetAttr =
           ref.mode === 'exports'
             ? 'mode="exports"'
-            : ref.symbol
+            : ref.mode === 'symbol'
               ? `symbol="${ref.symbol}"`
-              : `lines="${ref.lines ?? ''}"`
+              : `lines="${ref.lines}"`
         issues.push({
           code: 'broken-source-ref',
           message: `<SourceRef file="${ref.file}" ${targetAttr} /> (L${ref.startLine}): ${res.error.message}`,
@@ -440,7 +438,7 @@ export async function validateSourceLinks(
     }
 
     for (const block of doc.blocks) {
-      if (block.kind !== 'term' || !block.symbols) continue
+      if (block.kind !== 'term') continue
       for (const sym of block.symbols) {
         const [file, symbol] = sym.split('#')
         if (!file || !symbol) {

@@ -18,7 +18,7 @@ Documi がファイルシステム上で読み書きする永続ファイル・�
 
 - **配置**: `<docsDir>/guard/reviews.json`（Git コミット対象・非隠しフォルダ・AI 編集禁止）
 - **決定論的フォーマット**: `blocks` キーおよび各ブロック内の `upstreamHashes` キーは常に昇順ソート＋2 スペース JSON＋末尾改行で保存し、Git diff ノイズを防ぐ。
-- **検証と耐障害性**: ファイル未存在時は `{ "version": 1, "blocks": {} }` として正常読み込みする。JSON 破損・ルート型不正・必須フィールド（`docPath` / `hash`）が欠損または空文字のレコードは `invalid-reviews` issue を記録してスキップし、存在しないブロック ID のレコードは `orphan-review` issue を記録する。
+- **検証と耐障害性**: ファイル未存在時は `{ "version": 1, "blocks": {} }` として正常読み込みする。JSON 破損・ルート型不正・必須フィールド（`docPath` / `hash` / `approvedAt`）が欠損または空文字のレコードは `invalid-reviews` issue を記録してスキップし、存在しないブロック ID のレコードは `orphan-review` issue を記録する。
 
 | フィールド | 型 | 必須 | 説明 |
 |---|---|---|---|
@@ -26,7 +26,7 @@ Documi がファイルシステム上で読み書きする永続ファイル・�
 | `blocks.<blockId>.docPath` | `string` | 必須 | `<docsDir>` からの POSIX 相対パス |
 | `blocks.<blockId>.hash` | `string` | 必須 | 承認時点の正規化本文ハッシュ (`sha256:<hex>`) |
 | `blocks.<blockId>.approvedCommit` | `string` | 任意 | 承認時点の Git 短縮 SHA（非 Git 環境では省略） |
-| `blocks.<blockId>.approvedAt` | `string` | 任意 | 承認日時（ISO 8601 UTC） |
+| `blocks.<blockId>.approvedAt` | `string` | 必須 | 承認日時（ISO 8601 UTC） |
 | `blocks.<blockId>.approvedBy` | `string` | 任意 | 承認者名（明示 `author` → `git config user.name`。いずれも未設定時はキーを省略し、OS ユーザー名や固定ダミー値へフォールバックしない） |
 | `blocks.<blockId>.note` | `string` | 任意 | 人間が確認・承認時に残した確認メモ（空文字は省略） |
 | `blocks.<blockId>.upstreamHashes` | `Record<string, string>` | 任意 | 承認時点の上流対象（`derives` / `satisfies` / `verifies` 先）のハッシュ辞書 |

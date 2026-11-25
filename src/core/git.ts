@@ -385,17 +385,29 @@ export async function getDocumentHistory(docsDir: string, doc: Document, limit =
   }
 
   const latest = parsedCommits[0]
-  if (latest) {
+  const latestEntry = commits[0]
+  if (latest && latestEntry) {
     const diffText = runGit(ctx.gitRoot, ['show', '-U0', '--format=', latest.sha, '--', latest.gitPath]) ?? ''
     const changedRanges = parseUnifiedDiffRanges(diffText, bodyLineOffset)
+    if (changedRanges.length > 0) {
+      return {
+        docId: doc.id,
+        path: doc.path,
+        gitAvailable: true,
+        freshness,
+        highlightBasis: 'last-commit',
+        highlightCommit: latestEntry,
+        changedRanges,
+        commits,
+      }
+    }
     return {
       docId: doc.id,
       path: doc.path,
       gitAvailable: true,
       freshness,
-      highlightBasis: changedRanges.length > 0 ? 'last-commit' : 'none',
-      highlightCommit: commits[0],
-      changedRanges,
+      highlightBasis: 'none',
+      changedRanges: [],
       commits,
     }
   }

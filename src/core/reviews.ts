@@ -57,7 +57,7 @@ const rawBlockRecordSchema = z
     docPath: z.string().min(1),
     hash: z.string().min(1),
     approvedCommit: z.string().optional(),
-    approvedAt: z.string().optional(),
+    approvedAt: z.string().min(1),
     approvedBy: z.string().optional(),
     note: z.string().optional(),
     upstreamHashes: z.record(z.string(), z.unknown()).optional(),
@@ -87,7 +87,7 @@ function validateReviewsFile(parsed: unknown, issues: IndexIssue[]): ReviewsFile
     if (!recResult.success) {
       issues.push({
         code: 'invalid-reviews',
-        message: `reviews.json のブロック "${id}" に必須フィールド (docPath / hash) が不足または不正です`,
+        message: `reviews.json のブロック "${id}" に必須フィールド (docPath / hash / approvedAt) が不足または不正です`,
         path: REVIEWS_REL_PATH,
         blockId: id,
       })
@@ -137,7 +137,7 @@ export async function saveReviews(docsDir: string, reviews: ReviewsFile): Promis
       docPath: rec.docPath,
       hash: rec.hash,
       ...(rec.approvedCommit ? { approvedCommit: rec.approvedCommit } : {}),
-      ...(rec.approvedAt ? { approvedAt: rec.approvedAt } : {}),
+      approvedAt: rec.approvedAt,
       ...(approvedBy ? { approvedBy } : {}),
       ...(note ? { note } : {}),
       ...(sortedUpstreams ? { upstreamHashes: sortedUpstreams } : {}),
@@ -398,49 +398,42 @@ export async function getBlockDiff(
   const reviews = await loadReviews(docsDir, [])
   const rec = reviews.blocks[blockId]
   if (!rec || !rec.hash) {
-    return Result.ok({ blockId, hasBase: false, baseSource: 'none', changed: false, lines: [] })
+    return Result.ok({ blockId, baseSource: 'none', changed: false, lines: [] })
   }
-
-  let baseBody: string | undefined
-  let baseSource: 'git' | 'cache' | 'none' = 'none'
 
   if (rec.approvedCommit && rec.docPath) {
     const fromGit = readBlockFromGitCommit(docsDir, rec.approvedCommit, rec.docPath, blockId)
     if (fromGit !== undefined && computeContentHash(fromGit) === rec.hash) {
-      baseBody = fromGit
-      baseSource = 'git'
+      const lines = computeLineDiff(fromGit, block.rawBody)
+      return Result.ok({
+        blockId,
+        baseSource: 'git',
+        baseCommit: rec.approvedCommit,
+        changed: lines.some((l) => l.type !== 'context'),
+        lines,
+      })
     }
   }
 
-  if (baseBody === undefined) {
-    const cache = await readBodyCache(docsDir, options.cacheRoot)
-    const fromCache = cache[blockId]
-    if (typeof fromCache === 'string') {
-      baseBody = fromCache
-      baseSource = 'cache'
-    }
-  }
-
-  if (baseBody === undefined) {
+  const cache = await readBodyCache(docsDir, options.cacheRoot)
+  const fromCache = cache[blockId]
+  if (typeof fromCache === 'string') {
+    const lines = computeLineDiff(fromCache, block.rawBody)
     return Result.ok({
       blockId,
-      hasBase: false,
-      baseSource: 'none',
-      baseCommit: rec.approvedCommit,
-      changed: rec.hash !== block.contentHash,
-      lines: [],
+      baseSource: 'cache',
+      ...(rec.approvedCommit ? { baseCommit: rec.approvedCommit } : {}),
+      changed: lines.some((l) => l.type !== 'context'),
+      lines,
     })
   }
 
-  const lines = computeLineDiff(baseBody, block.rawBody)
-  const changed = lines.some((l) => l.type !== 'context')
   return Result.ok({
     blockId,
-    hasBase: true,
-    baseSource,
-    baseCommit: rec.approvedCommit,
-    changed,
-    lines,
+    baseSource: 'none',
+    ...(rec.approvedCommit ? { baseCommit: rec.approvedCommit } : {}),
+    changed: rec.hash !== block.contentHash,
+    lines: [],
   })
 }
 

@@ -304,10 +304,12 @@ export default function SidePanel({
                 <ul className="m-0 flex list-none flex-col gap-1 p-0">
                   {doc.sourceRefs.map((ref, i) => {
                     const qs = new URLSearchParams({ file: ref.file })
-                    if (ref.lines) qs.set('lines', ref.lines)
+                    if (ref.mode === 'lines') qs.set('lines', ref.lines)
+                    const keySuffix =
+                      ref.mode === 'symbol' ? ref.symbol : ref.mode === 'lines' ? ref.lines : `exports-${i}`
                     return (
                       <li
-                        key={`${ref.file}:${ref.symbol ?? ref.lines ?? i}`}
+                        key={`${ref.file}:${keySuffix}`}
                         className="mono rounded-md border border-line bg-surface px-2 py-[5px] text-[11px] [overflow-wrap:anywhere]"
                       >
                         <NavLink
@@ -315,8 +317,9 @@ export default function SidePanel({
                           className="group inline-flex flex-wrap text-inherit no-underline"
                         >
                           <span className="group-hover:text-accent group-hover:underline">{ref.file}</span>
-                          {ref.symbol && <span className="text-fg-muted">#{ref.symbol}</span>}
-                          {ref.lines && <span className="text-fg-muted">:L{ref.lines}</span>}
+                          {ref.mode === 'symbol' && <span className="text-fg-muted">#{ref.symbol}</span>}
+                          {ref.mode === 'lines' && <span className="text-fg-muted">:L{ref.lines}</span>}
+                          {ref.mode === 'exports' && <span className="text-fg-muted"> [exports]</span>}
                         </NavLink>
                       </li>
                     )

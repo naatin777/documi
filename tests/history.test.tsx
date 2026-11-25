@@ -129,7 +129,9 @@ describe('Document Git Freshness, Highlight & History', () => {
       const historyCommitted = await getDocumentHistory(docsDir, specDoc!)
       expect(historyCommitted.gitAvailable).toBe(true)
       expect(historyCommitted.highlightBasis).toBe('last-commit')
-      expect(historyCommitted.highlightCommit?.sha).toBe(secondSha)
+      if (historyCommitted.highlightBasis === 'last-commit') {
+        expect(historyCommitted.highlightCommit.sha).toBe(secondSha)
+      }
       expect(historyCommitted.commits).toHaveLength(2)
       expect(historyCommitted.changedRanges.length).toBeGreaterThan(0)
 
