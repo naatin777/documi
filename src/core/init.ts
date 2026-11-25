@@ -204,7 +204,11 @@ EOF
 - 実装コードには \`// @implements <spec.id>\`（または設計書に \`<SourceRef file="src/..." satisfies="<spec.id>" />\`）を付与する。
 - 検証テストには \`test('[<spec.id>] ...', ...)\`（または \`// @verifies <spec.id>\`）を含め、設定されていれば JUnit XML を出力する。
 - \`<SourceRef file="...">\` と \`<TermDef symbols="...">\` は必ずプロジェクトルートからの POSIX 相対パスで記述する。
-- **書く／書かないの境界**: 公開シンボル（export された \`class\` / \`interface\` / \`type\` / 公開関数）は手書きコピペせず \`<SourceRef file="src/..." mode="exports" />\` や \`<SourceRef symbol="..." />\` で AST 紐づけして把握できるようにする。一方、非公開ヘルパーや関数内の \`if\`/\`for\` 擬似コードは書かず、外部から観測できる条件・エラー・フォールバックのみを \`spec\` / \`contract\` に書く。
+- **書く／書かないの境界（再現性 4 チェック）**: 機能追加・仕様変更を書いたときは「別 AI が \`${relDocsDir}/\` だけで同じ挙動を再現できるか」を確認する。
+  1. **境界条件・エラー拒否**（不正入力・パス脱出・空状態・エラーコード）を明記したか？
+  2. **優先順位・フォールバック・競合解決**の順序を明記したか？
+  3. **入出力・永続ファイルのスキーマ変更**を \`contract\` に同期したか？
+  4. **公開シンボル**（export された \`class\`/\`interface\`/\`type\`/公開関数）は手書きコピペせず \`<SourceRef file="src/..." mode="exports" />\` や \`<SourceRef symbol="..." />\` で AST 紐づけし、非公開ヘルパーや関数内の \`if\`/\`for\` 擬似コードは書いていないか？
 - **更新トリガー（PR 完了前セルフチェック）**:
   - 新サブシステム・主要モジュール追加 → \`architecture\` 更新 ＋ \`design\`（\`satisfies\`・\`<SourceRef>\`）追加・更新
   - 後戻りコストが高い構造・技術判断 → \`decision\`（ADR＋\`<Outcome>\`）を追加
@@ -317,6 +321,47 @@ documi approve <aligned-id-1> <aligned-id-2> --note "<確認した内容の要�
 
 - 最後に「次の 2〜3 件も続けますか？」と尋ね、ユーザーのペースで段階的に承認を進められるようにする。
 `,
+      'documi-audit/SKILL.md': `---
+name: documi-audit
+description: 既存のソースコード・テストと Documi の仕様・契約・設計・ADR を突き合わせ、「別 AI に docs/ だけ渡してもほぼ同じ挙動を再現できる解像度」に不足している境界条件・優先順位・スキーマ・外部契約・ADR 漏れを監査して肉付けするスキル。仕様の薄い要約を補強したいとき・コードと docs の意味的な整合性を棚卸しするときに使用します。
+---
+
+# Documi 再現性監査・ドキュメント肉付けワークフロー（CLI）
+
+\`${relDocsDir}/\` が「機能名のカタログ要約（1 機能 3 行）」に留まっていると、別の AI エージェントへ \`${relDocsDir}/\` だけ渡しても同じ挙動を再現できず、AI コードレビューも無限に発散します。
+このスキルは **コード・テストと \`${relDocsDir}/\` を領域単位で突き合わせ、「書きすぎ（擬似コード）」を避けながら「再現可能レベル」まで仕様・契約・設計・ADR を引き上げる** ための監査手順です。
+
+## 1. 監査スコープを 1 領域に絞る
+
+1 度に全リポジトリを書き換えず、1 回につき 1 領域に絞る：
+
+1. \`documi map\` および \`documi query --kind spec\` で対象領域の文書・Spec ID・健全性ヒントを確認する。
+2. 対象の \`spec\` / \`contract\` / \`design\` / \`decision\` を \`documi show <doc-id>\` や \`documi context <spec-id>\` で読む。
+3. \`<SourceRef>\`・\`@implements\`・対応テストの実コードを読み、**コードが実際に守っている振る舞い**を抽出する。
+
+## 2. 再現性ギャップの 5 観点チェック（AI 差し戻しテスト）
+
+「**別の AI に \`${relDocsDir}/\` だけ渡してゼロから再実装させたとき、どこが違っていたら仕様違反で差し戻すか？**」の基準で、以下の 5 つの穴を洗い出す：
+
+1. **境界条件・異常系・セキュリティ拒否**: 不正入力・空入力・上限値・パストラバーサル・未存在 ID・禁止構文でどう拒否・エラー終了するか。
+2. **優先順位・フォールバック・競合解決**: 設定 vs 環境変数 vs CLI、拡張子衝突、外部依存障害時のフォールバック順など。
+3. **永続ファイル＆設定スキーマ契約 (\`contract\`)**: JSON / YAML / DB / 出力ファイルの実パス・フィールド・型・既定値・厳格検証。
+4. **外部 I/F の入出力契約 (\`contract\`)**: REST API・MCP・CLI の引数・主要レスポンス構造・エラーコード・副作用範囲。
+5. **公開境界の AST 紐づけと未記録 ADR 漏れ**: 主要モジュールの export を \`<SourceRef file="src/..." mode="exports" />\` で接続し、後戻りコストが高い判断や Non-Goals を ADR / Goal に記録する。
+
+## 3. 書きすぎ防止ガード（リファクタリングテスト）
+
+- **書く**: 決定表（条件 × 結果）、優先順位リスト、状態遷移図（Mermaid）、入出力フィールド表、エラー規約表、\`<SourceRef mode="exports" />\`。
+- **書かない**: 関数内部の \`if\`/\`for\` 手順、非公開ヘルパー名、リファクタしても外部契約が変わらない細部。
+- 1 つの \`spec\` ファイルは **10 件以下の \`<Spec>\`** に保ちつつ、各仕様の境界条件と決定表を具体的に記述する。
+
+## 4. 精密更新と検証・引き継ぎ
+
+1. \`documi block update\` / \`documi scaffold\` 等で不足している仕様・契約・設計・ADR を補強する。
+2. **\`${relDocsDir}/guard/reviews.json\` は絶対に編集しない。**
+3. \`documi check --no-review-edit\` でエラー 0 件・\`<SourceRef>\` 切れ 0 件を確認する。
+4. 補強したギャップの要約と \`/review?filter=changed\` を人間へ提示して引き継ぐ。
+`,
     }
   }
 
@@ -361,7 +406,11 @@ EOF
 - Link implementation code to specs with \`// @implements <spec.id>\` (or \`<SourceRef file="src/..." satisfies="<spec.id>" />\`).
 - Link verification tests with \`test('[<spec.id>] ...', ...)\` (or \`// @verifies <spec.id>\`) and emit JUnit XML when running tests if configured.
 - Always write \`<SourceRef file="...">\` and \`<TermDef symbols="...">\` as POSIX paths relative to the project root.
-- **Boundary rule**: Surface public boundary symbols (exported classes, interfaces, types, public functions) via \`<SourceRef file="src/..." mode="exports" />\` or \`<SourceRef symbol="..." />\` rather than hand-copying declarations; never write private helper steps or function-internal \`if\`/\`for\` pseudocode in docs—record only observable behavior, errors, and fallbacks in \`spec\`/\`contract\`.
+- **Boundary & reproducibility 4-check**: Whenever adding or changing behavior, verify another AI could reproduce the exact same behavior from \`${relDocsDir}/\` alone:
+  1. **Boundaries & rejections**: invalid inputs, empty states, path traversal, limits, and exact error codes/statuses.
+  2. **Precedence & fallbacks**: resolution order (CLI vs. env vs. config, collisions, offline/missing dependency fallback).
+  3. **Schemas & external contracts**: update \`contract\` docs when API/MCP/CLI payloads or persistent file formats change.
+  4. **Public symbols without pseudocode**: link exported classes/interfaces/types/functions via \`<SourceRef file="src/..." mode="exports" />\` or \`<SourceRef symbol="..." />\`; never write private helper steps or function-internal \`if\`/\`for\` pseudocode.
 - **Update triggers (check before finishing)**:
   - New subsystem or core module -> update \`architecture\` and add/update \`design\` (with \`satisfies\` + \`<SourceRef>\`)
   - High-reversibility structural/technical choice -> add a \`decision\` (ADR with \`<Outcome>\`)
@@ -473,6 +522,47 @@ documi approve <aligned-id-1> <aligned-id-2> --note "<short summary of what was 
 \`\`\`
 
 - Ask if the user wants to continue to the next batch of 2–3 blocks.
+`,
+    'documi-audit/SKILL.md': `---
+name: documi-audit
+description: Audit source code and tests against Documi specs, contracts, designs, and ADRs to close reproducibility gaps (missing edge cases, precedence/fallback rules, persistent schemas, external I/F contracts, and unrecorded ADRs) without turning docs into pseudocode.
+---
+
+# Documi Reproducibility Audit & Spec Enrichment Workflow (CLI)
+
+If \`${relDocsDir}/\` stays at "3-line feature summaries," another AI cannot reproduce the same system behavior from docs alone and AI code reviews will diverge endlessly.
+Use this workflow to **compare real code & tests against \`${relDocsDir}/\` one domain at a time** and enrich specs, contracts, designs, and ADRs to **reproducible fidelity** without writing pseudocode.
+
+## 1. Scope the Audit to One Domain
+
+Never rewrite the whole repository in one pass; pick one cohesive domain (e.g., Core Model, Review & Governance, API/CLI Contracts, Retrieval/RAG, Web UI):
+
+1. Run \`documi map\` and \`documi query --kind spec\` to list relevant docs, Spec IDs, and health hints.
+2. Inspect target \`spec\`, \`contract\`, \`design\`, and \`decision\` docs via \`documi show <doc-id>\` or \`documi context <spec-id>\`.
+3. Read the linked \`<SourceRef>\`, \`@implements\`, and test files to extract the **actual observable behavior** enforced by code.
+
+## 2. Five-Point Reproducibility Gap Check (AI Rejection Test)
+
+Ask: *"If another AI re-implemented this domain from \`${relDocsDir}/\` alone, what discrepancy would make me reject the PR?"* Audit these 5 areas:
+
+1. **Boundaries, Errors & Security Rejections**: invalid inputs, empty states, size limits, path traversal / symlink escapes, unknown IDs, forbidden writes, and exact error/status codes.
+2. **Precedence, Fallbacks & Conflict Resolution**: CLI vs. env vs. config order, file collisions, missing-cache / offline-provider fallbacks, and tie-breaking rules.
+3. **Persistent File & Config Schemas (\`contract\`)**: exact file paths, required/optional fields, types, defaults, and strict validation rules (e.g., unknown-key rejection).
+4. **External I/F Contracts (\`contract\`)**: REST API, MCP tool, and CLI arguments, key request/response fields, side-effect boundaries, and idempotency.
+5. **Public AST Anchors & Unrecorded ADRs**: link public module exports with \`<SourceRef file="src/..." mode="exports" />\`, and record any high-reversibility structural decisions or Non-Goals in \`decisions/\` or \`goals/\`.
+
+## 3. Anti-Pseudocode Guardrail (Refactoring Test)
+
+- **Write declaratively**: decision tables (condition x outcome), precedence lists, Mermaid state/flow diagrams, I/O field tables, error tables, and \`<SourceRef mode="exports" />\`.
+- **Never write**: function-internal \`if\`/\`for\` step-by-step pseudocode, private helper names, or details that can change freely during refactoring without affecting observable behavior.
+- Keep each \`spec\` file at **<= 10 \`<Spec>\` blocks** while making each block's observable rules and edge cases explicit.
+
+## 4. Update, Verify & Hand Off
+
+1. Enrich specs, contracts, designs, and missing ADRs using \`documi block update\` / \`documi scaffold\` (or direct MDX edits for large tables).
+2. **NEVER edit \`${relDocsDir}/guard/reviews.json\`.**
+3. Run \`documi check --no-review-edit\` and confirm 0 errors and 0 broken \`<SourceRef>\` anchors.
+4. Summarize the closed reproducibility gaps and link the human reviewer to \`/review?filter=changed\`.
 `,
   }
 }

@@ -50,6 +50,17 @@ AI が 1 ブロック修正するために無関係な文書全体を読み込�
 | `scaffold_document` | `path`, `title`, `type?`, `description?`, `date?`, `tags?`, `derives?`, `satisfies?`, `verifies?`, `body?` | 規約通りの YAML frontmatter を持つ新規 `.mdx` ドキュメントを作成（既存ファイルの上書きは拒否） |
 | `rename_block_id` | `oldId`, `newId`, `dryRun?` | 全 `docs/` のブロック定義・`derives` / `supersedes` / `satisfies` / `verifies`・`<SourceRef>` と、`projectRoot` 配下の `@implements` / `@verifies` / `test("[id]")` を一括リネーム（`dryRun: true` で変更予定一覧のみ返却） |
 
+## コンパクト出力 vs `full: true` 契約
+
+AI のコンテキスト消費を抑えるため、主要読み取りツールは既定で軽量サマリを返し、`full: true` 指定時のみ完全展開する。
+
+| Tool | 既定 (`full: false`) の主要返却構造 | `full: true` で追加展開される項目 |
+|---|---|---|
+| `get_project_map` | `documentCount`, `blockCount`, `issueCount`, `reviewSummary`, `realizationSummary`, `health`, `goals`（概要＋見出し）, `architecture`（概要＋見出し）, `decisionOutcomes`（240 字要約）, `terms`（160 字要約） | `goals[].body`, `architecture[].body`, `decisionOutcomes[].body` 全文, `terms[].definition` 全文 |
+| `query_specs` | `{ count, blocks: [{ id, kind, docId, docPath, startLine, endLine, intent, stability, review, suspect, realizationStatus?, derives?, summary }] }` | 各ブロック全文 `rawBody`・完全な `realization` 詳細配列 |
+| `get_spec_context` | `target`（本文＋要約 `realization`）, `docPath`, `startLine`, `endLine`, `document`, `upstreamGoals`（概要）, `relatedDocuments`（概要）, `decisionOutcomes`, `relevantTerms`（160 字要約）, `sourceRefs`, `exportedSymbols?`（`mode="exports"` 参照のみ） | 上流 Goal 本文全文・完全な `realization` 配列・全 `sourceRefs` ファイルの公開シンボル |
+| `retrieve_context` | `{ query, mode, budget, usedChars, hits, upstreamGoals, decisionOutcomes, relatedDocuments, terms, sourceRefs }`（既定 `limit = 8`, `budget = 6000`） | —（`budget` で上限調整） |
+
 ## 事前・事後条件・副作用・エラー規約
 
 - **読み取りツールの純粋性**: 読み取り・検証ツールは完全に読み取り専用であり、MDX 本文・`docs/guard/reviews.json`・ソースコードを一切書き換えない。

@@ -1,49 +1,102 @@
 ---
 type: spec
 title: レビュー・実装トレース・バンドル・静的サイト出力仕様
-description: サイドカー人間承認・Realization 自動算出・AST 参照検証・複数バンドル解決・プロバイダ非依存静的サイト書き出しの仕様
+description: ガードファイル人間承認・Realization 自動算出・AST 参照検証・健全性ヒント・公開シンボル抽出・複数バンドル解決・プロバイダ非依存静的サイト書き出しの仕様
 tags: [core, spec, governance, export]
 ---
 
 # レビュー・実装トレース・バンドル・静的サイト出力仕様
 
-## 人間レビュー・Diff・Suspect Links
+## 1. 人間レビュー・Diff・Suspect Links
 
 <Spec id="core.human-review" stability="stable" derives="goals/low-friction-governance">
   **When** 人間がセマンティックブロックを承認または承認取り消ししたとき、
   **the** Document Core **shall** MDX 本文ではなくガードファイル `docs/guard/reviews.json` にコンテンツハッシュ・承認コミット SHA・上流ハッシュ・任意の確認メモ（`note`）を保存（取り消し時はレコードとローカルキャッシュを整理削除）し、本文変更で `stale`、上流変更で CI や `realization` を阻害しない軽量な参考通知フラグ `suspect` を自動判定するとともに承認時点からの行 diff を算出する。
 </Spec>
 
-## コード・テスト・PR 連携と実装状態の自動算出
+- **状態判定ルール**:
+  - レコード未存在または `hash` 空 → `unreviewed`
+  - `record.hash === block.contentHash` → `approved`
+  - `record.hash !== block.contentHash` → `stale`
+- **Suspect Links（軽量 Advisory）**:
+  - `review === "approved"` かつ、① 承認時の `upstreamHashes`（`derives` / `satisfies` / `verifies` 先）と現在のハッシュが異なる、または ② 上流ブロック自身が `stale` / `suspect` の場合、`suspect = true` および昇順ソート済み `suspectSources` を付与する。
+  - `suspect` は参考通知であり、**`realization` を `drifted` に変更せず、`documi check` / `--strict` の警告・エラーにもしない**（再承認で解消）。
+- **行 Diff のベース本文取得フォールバック順 (`getBlockDiff`)**:
+  1. `approvedCommit` と `docPath` がある場合、`git show <commit>:<relPath>` から対象ブロック本文を抽出し、`computeContentHash` が `record.hash` と一致すれば採用（`baseSource: "git"`）。
+  2. 取得できないまたはハッシュ不一致の場合、`.documi/cache/approved-bodies.json` のキャッシュ本文へフォールバック（`baseSource: "cache"`）。
+  3. いずれも無い場合はエラーにせず `hasBase: false, baseSource: "none"` を返す。
+- **承認取り消し (`unapproveBlock`)**: 対象ブロックが未存在なら `404`、未承認なら `{ removed: false }`（冪等）、承認済み／`stale` なら `reviews.json` からキーを削除しローカルキャッシュも掃除して `{ removed: true }` を返す。
+
+## 2. コード・テスト・PR 連携と実装状態の自動算出
 
 <Spec id="core.realization" stability="stable" derives="goals/low-friction-governance">
   **When** プロジェクトのソース/テスト・JUnit XML レポート・PR 情報を走査するとき、
   **the** Document Core **shall** `@implements` / `@verifies` / `test("[id] ...")` / `<SourceRef>` / PR 参照を集約し、各 `normative` `<Spec>` の `realization` (`unimplemented` / `in-progress` / `implemented` / `verified` / `drifted`) を完全自動で算出する。
 </Spec>
 
+- **アンカー抽出規約**:
+  - コードコメント内の `@implements <spec.id>` / `@verifies <spec.id>`（複数指定可）
+  - テスト定義行の `test("[<spec.id>] ...")` / `it("[<spec.id>] ...")`
+  - ドキュメント内 `<SourceRef satisfies="<spec.id>" />` / `verifies="<spec.id>"`
+  - JUnit XML（`<projectRoot>/.documi/test-results.xml` 優先、次に `<docsDir>/.documi/test-results.xml`）の `<testcase name="[<spec.id>] ...">`
+  - 任意 `--prs` 時の `gh pr list` 本文内 `Implements: <spec.id>` / `Verifies: <spec.id>`
+- **`realization` 5 状態の決定優先順位（上から最初に一致したものを採用）**:
+
+| 優先順 | 条件 | 算出ステータス |
+|---|---|---|
+| 1 | 紐づくテスト結果に `failed` が 1 件以上ある | `drifted` |
+| 2 | 紐づく `<SourceRef>` のファイル・シンボル・行範囲が破損している | `drifted` |
+| 3 | コード/テスト紐づきがあり、かつ `block.review === "stale"` | `drifted` |
+| 4 | 紐づくテスト結果に `passed` が 1 件以上あり `failed` が 0 件 | `verified` |
+| 5 | 紐づくオープン PR (`OPEN`) が 1 件以上ある | `in-progress` |
+| 6 | 実装アンカーまたはテストアンカーが 1 件以上ある | `implemented` |
+| 7 | 上記いずれにも該当しない | `unimplemented` |
+
 <Spec id="core.ast-check" stability="stable" derives="goals/low-friction-governance">
   **When** `documi check` または MCP `validate_docs` が実行されたとき、
-  **the** Document Core **shall** 全 `<SourceRef>` および `<TermDef symbols="...">` を `@ast-grep/napi` で実在検証し、`--no-review-edit` 指定時は `reviews.json` の未許可変更もエラーとして検出する。
+  **the** Document Core **shall** 全 `<SourceRef>` および `<TermDef symbols="...">` を `@ast-grep/napi` で実在検証し、`--no-review-edit` 指定時は `docs/guard/reviews.json` の未許可変更もエラーとして検出する。
 </Spec>
+
+- **セキュリティ・境界検証**: 絶対パス、`..` 含むパス、`projectRoot` 外を指すシンボリックリンク、1 MiB（`1,048,576` バイト）超ファイル、先頭 8 KiB に NUL バイトを含むバイナリファイルはすべて拒否する。
+- **抽出行数上限**: シンボル抽出は最大 400 行、行範囲抽出は最大 2,000 行。
+- **終了コード・厳格モード**:
+  - 既定: 構文エラー・参照切れ・DAG 違反・`orphan-spec`・AST 破損は `error`（終了コード `1`）、`missing-frontmatter` / `missing-title` / `inferred-default-type` / `unknown-anchor-spec` / `spec-drifted` は `warning`。
+  - `--strict`: `spec-drifted` および `normative` ブロックの `unreviewed` / `stale` も `error` に昇格する（`suspect` は対象外）。
+  - `--no-review-edit`: Git 作業ツリー／ステージ上で `docs/guard/reviews.json` が変更されていれば `review-file-modified` エラーを返す。
 
 <Spec id="core.doc-health" stability="evolving" derives="goals/low-friction-governance">
   **When** `documi check`・`documi map`・MCP `get_project_map` / `validate_docs`・REST `/api/overview` / `/api/check` が実行されたとき、
   **the** Document Core **shall** 全 `normative` `<Spec>` に対する `design` (`satisfies`) および `verification` (`verifies`) カバレッジ、1 ファイルあたり推奨上限を超えた肥大化 `spec` 文書、および `architecture` 鮮度ギャップを CI を失敗させない Advisory 健全性ヒントとして算出・提示する。
 </Spec>
 
+| ヒントコード | 発火条件（すべて非ブロッキング Advisory） |
+|---|---|
+| `missing-design` | `normative` `<Spec>`（または所属文書）を `satisfies` する `design` 文書が 0 件 |
+| `missing-verification` | `normative` `<Spec>`（または所属文書）を `verifies` する `verification` 文書が 0 件 |
+| `bloated-spec-doc` | 1 つの `spec` 文書内の `<Spec>` 件数が既定上限 **10 件**を超過 |
+| `stale-architecture` | `architecture` 文書の最終更新より 24 時間以上後に更新された他文書が **5 件以上**存在 |
+
 <Spec id="core.ast-exports" stability="evolving" derives="goals/human-comprehension">
   **When** `<SourceRef file="src/..." mode="exports" />`・`GET /api/source/exports`・Code Explorer (`/api/code/file`)・`documi context` / MCP `get_spec_context` がソースファイルの公開シンボルを要求したとき、
   **the** Document Core **shall** `@ast-grep/napi` により対象ファイルから export / 公開されている `class`・`interface`・`type`・`enum`・`function`・`constant` 等の名前・種別・1 行シグネチャ・行範囲を自動抽出し、手書き複製なしで常に最新の公開境界一覧を提供する。
 </Spec>
 
-## 複数バンドル解決と静的サイト書き出し
+- **対応言語と公開判定**: TypeScript / TSX / JavaScript / JSX（`export` 宣言）、Go（大文字始まり識別子）、Rust（`pub` 宣言）、Python（`_` 始まり以外のトップレベル `def` / `class`）、Java / Kotlin / Swift（`public` / 非 `private` トップレベル宣言）。
+- **AI 文脈での展開既定**: `documi context` / MCP `get_spec_context` では既定で `mode="exports"` を明示した参照ファイルのみ公開シンボルを展開し、`--full` / `full: true` 指定時のみ全参照ファイルを展開する。
+
+## 3. 複数バンドル解決と静的サイト書き出し
 
 <Spec id="core.bundle-export" stability="evolving" derives="goals/human-comprehension">
   **When** `all` / `dir:<path>` / `goal:<id>` / 明示 `ids` のいずれかでバンドルが要求されたとき、
   **the** Document Core **shall** 対象ドキュメント一式（Goal 起点時はトレーサビリティ下流および関連用語集・Decision を自動同梱）を解決する。
 </Spec>
 
+- **スコープ解決優先順位**: 明示 `ids`（指定順）→ `scope=goal:<id>`（Goal 配下の全下流＋関連 `domain` / `decision`）→ `scope=dir:<path>`（指定ディレクトリ配下）→ `scope=all`（全文書を Flow 読み順で整列）。
+
 <Spec id="core.static-site" stability="evolving" derives="goals/human-comprehension">
   **When** `documi build-site` が実行されたとき、
-  **the** Documi CLI および Web UI **shall** ビルド済み Web UI アセット（CSS フォント URL・動的チャンク preload ベースパス・favicon を含む相対/任意ベースパス対応済み）と事前計算済みの全読み取り API JSON（Overview・ツリー・ドキュメント詳細・履歴・過去版・グラフ・マトリクス・検索インデックス・任意でハッシュ索引化したコード＆`<SourceRef>` スニペット・アイコン）およびホスティング補助ファイル（`_headers`・`.nojekyll`・`404.html`・`window.__DOCUMI_STATIC__` 注入済み `index.html`）を静的ディレクトリへ出力し、Cloudflare Pages / Workers Static Assets・Vercel・Netlify・GitHub Pages・S3 等の任意の静的ホスティング上でサーバーレス・読み取り専用に動作できるようにする。`--no-code` 指定時はソースコード全文を含めない。
+  **the** Documi CLI および Web UI **shall** ビルド済み Web UI アセット（CSS フォント URL・動的チャンク preload ベースパス・favicon を含む相対/任意ベースパス対応済み）と事前計算済みの全読み取り API JSON（Overview・ツリー・ドキュメント詳細・履歴・過去版・グラフ・検索インデックス・任意でハッシュ索引化したコード＆`<SourceRef>` スニペット・アイコン）およびホスティング補助ファイル（`_headers`・`.nojekyll`・`404.html`・`window.__DOCUMI_STATIC__` 注入済み `index.html`）を静的ディレクトリへ出力し、Cloudflare Pages / Workers Static Assets・Vercel・Netlify・GitHub Pages・S3 等の任意の静的ホスティング上でサーバーレス・読み取り専用に動作できるようにする。`--no-code` 指定時はソースコード全文を含めない。
 </Spec>
+
+- 出力ファイル構成およびキャッシュヘッダ契約の詳細は [永続ファイル・設定・キャッシュ・静的出力スキーマ契約](../../contracts/storage-formats.mdx) を参照する。
+- 静的サイトモードでは `HashRouter` と静的 JSON フェッチへ自動切替し、承認・取り消し・AI プロンプトコピー等の書き込み／ローカル連携操作を非表示にする。
