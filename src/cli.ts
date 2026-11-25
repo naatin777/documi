@@ -31,7 +31,7 @@ import {
   searchDocuments,
 } from './core/query'
 import { retrieveContext } from './core/retrieval'
-import { approveBlock, ReviewError } from './core/reviews'
+import { approveBlock, ReviewError, unapproveBlock } from './core/reviews'
 import {
   ARTIFACT_TYPES,
   BLOCK_KINDS,
@@ -83,6 +83,7 @@ Usage:
   documi mcp [options]                           MCP サーバーを stdio モードで起動 (AI エディタ連携用)
   documi check [options]                         ドキュメント・グラフ・ASTシンボル・テスト結果を一括検証
   documi approve <block-id...> [opts]            指定したセマンティックブロックを承認 (reviews.json を更新)
+  documi unapprove <block-id...> [opts]          指定したセマンティックブロックの承認を取り消し (未承認へ戻す)
   documi export [options]                        複数ドキュメントを 1 冊の PDF / HTML にまとめて出力
   documi build-site [options]                    任意の静的ホスティング向けに読み取り専用静的サイトを生成
 
@@ -586,6 +587,28 @@ async function cmdApprove(ids: string[], flags: CliFlags, io: CliIo): Promise<nu
     try {
       const rec = await approveBlock(docsDir, index, id, { author })
       io.out(`✓ Approved ${id} (${rec.hash.slice(0, 19)}… by ${rec.approvedBy ?? 'human'})`)
+    } catch (e) {
+      const msg = e instanceof ReviewError ? e.message : String(e)
+      io.err(`✗ ${id}: ${msg}`)
+      failed++
+    }
+  }
+  return failed > 0 ? 1 : 0
+}
+
+async function cmdUnapprove(ids: string[], flags: CliFlags, io: CliIo): Promise<number> {
+  if (ids.length === 0) {
+    io.err('承認を取り消すブロック ID を 1 つ以上指定してください (例: documi unapprove auth.lockout)')
+    return 1
+  }
+  const { docsDir } = resolveCliPaths(flags)
+  const index = await loadDocuments(docsDir)
+
+  let failed = 0
+  for (const id of ids) {
+    try {
+      const { removed } = await unapproveBlock(docsDir, index, id)
+      io.out(removed ? `✓ Unapproved ${id}` : `- ${id} は未承認のため変更ありません`)
     } catch (e) {
       const msg = e instanceof ReviewError ? e.message : String(e)
       io.err(`✗ ${id}: ${msg}`)
@@ -1325,6 +1348,7 @@ export async function runCli(argv: string[], io: CliIo = DEFAULT_IO): Promise<nu
     if (command === 'mcp') return await cmdMcp(flags)
     if (command === 'check') return await cmdCheck(flags, io)
     if (command === 'approve') return await cmdApprove(positionals, flags, io)
+    if (command === 'unapprove') return await cmdUnapprove(positionals, flags, io)
     if (command === 'export') return await cmdExport(flags, io)
     if (command === 'build-site') return await cmdBuildSite(flags, io)
     if (command === 'map') return await cmdMap(flags, io)

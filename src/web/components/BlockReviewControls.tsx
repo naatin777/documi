@@ -35,6 +35,21 @@ export default function BlockReviewControls({ block, onMutate }: { block: Semant
     }
   }
 
+  const handleUnapprove = async () => {
+    setBusy(true)
+    setError(null)
+    try {
+      await api.unapproveBlock(block.id)
+      setShowDiff(false)
+      setDiff(null)
+      onMutate()
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e))
+    } finally {
+      setBusy(false)
+    }
+  }
+
   const handleToggleDiff = async () => {
     if (showDiff) {
       setShowDiff(false)
@@ -98,6 +113,7 @@ export default function BlockReviewControls({ block, onMutate }: { block: Semant
   }
 
   const needsApproval = block.review !== 'approved' || block.suspect
+  const canUnapprove = block.review === 'approved' || block.review === 'stale'
 
   return (
     <>
@@ -181,6 +197,12 @@ export default function BlockReviewControls({ block, onMutate }: { block: Semant
             onClick={() => setShowFeedback((v) => !v)}
           >
             💬 {openCount > 0 ? openCount : ''}
+          </button>
+        )}
+
+        {!readOnly && canUnapprove && (
+          <button type="button" className="sem-action-btn" disabled={busy} onClick={() => void handleUnapprove()}>
+            {t('review.unapprove')}
           </button>
         )}
 

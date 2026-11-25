@@ -1,12 +1,16 @@
-import { useMemo, useState } from 'react'
+import { useMemo, useState, type FormEvent } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Link } from 'react-router'
-import type { BlockDiffResult } from '../../core/types'
-import { api, encodeDocId, isStaticSite, type ReviewBlocksResponse } from '../api'
-import { toErrorMessage, useBlocksQuery, useInvalidateDocs } from '../queries'
+import type { BlockKind } from '../../core/types'
+import { api, encodeDocId, isStaticSite, type ReviewBlocksResponse, type TermEntry } from '../api'
+import { toErrorMessage, useBlockDiffQuery, useBlocksQuery, useInvalidateDocs, useTermsQuery } from '../queries'
 import DocPeekPane from './DocPeekPane'
+import Markdown from './Markdown'
 
 type ReviewFilter = 'attention' | 'feedback' | 'unreviewed' | 'approved' | 'all'
+type KindFilter = 'all' | Exclude<BlockKind, 'note'>
+
+const REVIEWABLE_KINDS: readonly Exclude<BlockKind, 'note'>[] = ['spec', 'outcome', 'constraint', 'term']
 
 type ReviewBlockItem = ReviewBlocksResponse['blocks'][number]
 
@@ -18,16 +22,27 @@ function filterTabClass(active: boolean) {
   }`
 }
 
+function kindChipClass(active: boolean) {
+  return `inline-flex cursor-pointer items-center gap-1 rounded-md border px-2 py-0.5 text-[11.5px] font-semibold ${
+    active
+      ? 'border-accent bg-accent-soft text-accent'
+      : 'border-line bg-surface text-fg-muted hover:border-fg-muted hover:text-fg'
+  }`
+}
+
 // @implements ui.human-review
 export default function ReviewLayout() {
   const { t } = useTranslation()
   const invalidateDocs = useInvalidateDocs()
   const { data, error: queryError } = useBlocksQuery()
+  const termsQuery = useTermsQuery()
+  const terms = useMemo(() => termsQuery.data?.terms ?? [], [termsQuery.data])
+
   const [actionError, setActionError] = useState<string | null>(null)
-  const [filter, setFilter] = useState<ReviewFilter>('attention')
+  const [selectedFilter, setSelectedFilter] = useState<ReviewFilter | null>(null)
+  const [kindFilter, setKindFilter] = useState<KindFilter>('all')
   const [busyId, setBusyId] = useState<string | null>(null)
-  const [diffs, setDiffs] = useState<Record<string, BlockDiffResult>>({})
-  const [openDiffIds, setOpenDiffIds] = useState<ReadonlySet<string>>(new Set())
+  const [closedDiffIds, setClosedDiffIds] = useState<ReadonlySet<string>>(new Set())
   const [peekTarget, setPeekTarget] = useState<{ docId: string; focusBlockId: string } | null>(null)
   const error = actionError ?? toErrorMessage(queryError)
 
@@ -40,7 +55,11 @@ export default function ReviewLayout() {
     [data],
   )
 
-  const filtered = useMemo(() => {
+  // 要確認が 0 件で未承認がある初期状態では、空画面にせず自動で未承認タブを開く
+  const filter: ReviewFilter =
+    selectedFilter ?? (attentionCount === 0 && (data?.counts.unreviewed ?? 0) > 0 ? 'unreviewed' : 'attention')
+
+  const statusFiltered = useMemo(() => {
     if (!data) return []
     return data.blocks.filter((b) => {
       if (filter === 'attention') return b.review === 'stale' || b.suspect
@@ -51,11 +70,30 @@ export default function ReviewLayout() {
     })
   }, [data, filter])
 
-  const handleApprove = async (blockId: string) => {
+  const kindCounts = useMemo(() => {
+    const counts: Record<KindFilter, number> = {
+      all: statusFiltered.length,
+      spec: 0,
+      outcome: 0,
+      constraint: 0,
+      term: 0,
+    }
+    for (const b of statusFiltered) {
+      if (b.kind !== 'note') counts[b.kind]++
+    }
+    return counts
+  }, [statusFiltered])
+
+  const filtered = useMemo(
+    () => (kindFilter === 'all' ? statusFiltered : statusFiltered.filter((b) => b.kind === kindFilter)),
+    [statusFiltered, kindFilter],
+  )
+
+  const runAction = async (blockId: string, fn: () => Promise<unknown>) => {
     setBusyId(blockId)
     setActionError(null)
     try {
-      await api.approveBlock(blockId)
+      await fn()
       invalidateDocs()
     } catch (e) {
       setActionError(e instanceof Error ? e.message : String(e))
@@ -64,23 +102,11 @@ export default function ReviewLayout() {
     }
   }
 
-  const handleToggleDiff = async (blockId: string) => {
-    const next = new Set(openDiffIds)
-    if (next.has(blockId)) {
-      next.delete(blockId)
-      setOpenDiffIds(next)
-      return
-    }
-    next.add(blockId)
-    setOpenDiffIds(next)
-    if (!diffs[blockId]) {
-      try {
-        const res = await api.blockDiff(blockId)
-        setDiffs((prev) => ({ ...prev, [blockId]: res }))
-      } catch {
-        // Diff 取得失敗時は無視
-      }
-    }
+  const handleToggleDiff = (blockId: string) => {
+    const next = new Set(closedDiffIds)
+    if (next.has(blockId)) next.delete(blockId)
+    else next.add(blockId)
+    setClosedDiffIds(next)
   }
 
   return (
@@ -99,13 +125,13 @@ export default function ReviewLayout() {
 
           {data && (
             <>
-              <div className="my-4 mb-5 flex flex-wrap gap-1.5" role="tablist" aria-label={t('review.filterAria')}>
+              <div className="my-4 mb-3 flex flex-wrap gap-1.5" role="tablist" aria-label={t('review.filterAria')}>
                 <button
                   type="button"
                   role="tab"
                   aria-selected={filter === 'attention'}
                   className={filterTabClass(filter === 'attention')}
-                  onClick={() => setFilter('attention')}
+                  onClick={() => setSelectedFilter('attention')}
                 >
                   {t('review.filters.attention')} <span className="text-[11px] opacity-80">{attentionCount}</span>
                 </button>
@@ -114,7 +140,7 @@ export default function ReviewLayout() {
                   role="tab"
                   aria-selected={filter === 'feedback'}
                   className={filterTabClass(filter === 'feedback')}
-                  onClick={() => setFilter('feedback')}
+                  onClick={() => setSelectedFilter('feedback')}
                 >
                   {t('review.filters.feedback')} <span className="text-[11px] opacity-80">{feedbackBlockCount}</span>
                 </button>
@@ -123,7 +149,7 @@ export default function ReviewLayout() {
                   role="tab"
                   aria-selected={filter === 'unreviewed'}
                   className={filterTabClass(filter === 'unreviewed')}
-                  onClick={() => setFilter('unreviewed')}
+                  onClick={() => setSelectedFilter('unreviewed')}
                 >
                   {t('review.filters.unreviewed')}{' '}
                   <span className="text-[11px] opacity-80">{data.counts.unreviewed}</span>
@@ -133,7 +159,7 @@ export default function ReviewLayout() {
                   role="tab"
                   aria-selected={filter === 'approved'}
                   className={filterTabClass(filter === 'approved')}
-                  onClick={() => setFilter('approved')}
+                  onClick={() => setSelectedFilter('approved')}
                 >
                   {t('review.filters.approved')} <span className="text-[11px] opacity-80">{data.counts.approved}</span>
                 </button>
@@ -142,11 +168,35 @@ export default function ReviewLayout() {
                   role="tab"
                   aria-selected={filter === 'all'}
                   className={filterTabClass(filter === 'all')}
-                  onClick={() => setFilter('all')}
+                  onClick={() => setSelectedFilter('all')}
                 >
                   {t('review.filters.all')} <span className="text-[11px] opacity-80">{data.blocks.length}</span>
                 </button>
               </div>
+
+              {statusFiltered.length > 0 && (
+                <div className="mb-4 flex flex-wrap items-center gap-1.5" aria-label={t('review.kindFilterAria')}>
+                  <button
+                    type="button"
+                    className={kindChipClass(kindFilter === 'all')}
+                    onClick={() => setKindFilter('all')}
+                  >
+                    {t('review.filters.all')}
+                    <span className="mono text-[10.5px] opacity-75">{kindCounts.all}</span>
+                  </button>
+                  {REVIEWABLE_KINDS.map((kind) => (
+                    <button
+                      key={kind}
+                      type="button"
+                      className={kindChipClass(kindFilter === kind)}
+                      onClick={() => setKindFilter(kind)}
+                    >
+                      {kind.toUpperCase()}
+                      <span className="mono text-[10.5px] opacity-75">{kindCounts[kind]}</span>
+                    </button>
+                  ))}
+                </div>
+              )}
 
               {filtered.length === 0 ? (
                 <div className="rounded-[10px] border border-dashed border-line px-5 py-7 text-center text-fg-muted">
@@ -154,7 +204,7 @@ export default function ReviewLayout() {
                     <>
                       <p className="m-0 mb-3">{t('review.emptyAttention')}</p>
                       {data.counts.unreviewed > 0 && (
-                        <button type="button" className="button" onClick={() => setFilter('unreviewed')}>
+                        <button type="button" className="button" onClick={() => setSelectedFilter('unreviewed')}>
                           {t('review.checkUnreviewed', { count: data.counts.unreviewed })}
                         </button>
                       )}
@@ -169,11 +219,16 @@ export default function ReviewLayout() {
                     <ReviewInboxCard
                       key={block.id}
                       block={block}
+                      terms={terms}
                       busy={busyId === block.id}
-                      diffOpen={openDiffIds.has(block.id)}
-                      diff={diffs[block.id]}
-                      onApprove={() => void handleApprove(block.id)}
-                      onToggleDiff={() => void handleToggleDiff(block.id)}
+                      diffOpen={block.review === 'stale' && !closedDiffIds.has(block.id)}
+                      onApprove={() => void runAction(block.id, () => api.approveBlock(block.id))}
+                      onUnapprove={() => void runAction(block.id, () => api.unapproveBlock(block.id))}
+                      onAddFeedback={(body) => runAction(block.id, () => api.addFeedback(block.id, body))}
+                      onResolveFeedback={(feedbackId, resolved) =>
+                        void runAction(block.id, () => api.setFeedbackResolved(block.id, feedbackId, resolved))
+                      }
+                      onToggleDiff={() => handleToggleDiff(block.id)}
                       onPeek={() => setPeekTarget({ docId: block.docId, focusBlockId: block.id })}
                     />
                   ))}
@@ -196,25 +251,46 @@ export default function ReviewLayout() {
 
 function ReviewInboxCard({
   block,
+  terms,
   busy,
   diffOpen,
-  diff,
   onApprove,
+  onUnapprove,
+  onAddFeedback,
+  onResolveFeedback,
   onToggleDiff,
   onPeek,
 }: {
   block: ReviewBlockItem
+  terms: readonly TermEntry[]
   busy: boolean
   diffOpen: boolean
-  diff?: BlockDiffResult
   onApprove: () => void
+  onUnapprove: () => void
+  onAddFeedback: (body: string) => Promise<void>
+  onResolveFeedback: (feedbackId: string, resolved: boolean) => void
   onToggleDiff: () => void
   onPeek: () => void
 }) {
   const { t } = useTranslation()
+  const readOnly = isStaticSite()
+  const diffQuery = useBlockDiffQuery(block.id, diffOpen && block.review === 'stale')
+  const diff = diffQuery.data
   const openFeedback = block.feedback.filter((f) => !f.resolved)
+  const [showFeedback, setShowFeedback] = useState(openFeedback.length > 0)
+  const [draft, setDraft] = useState('')
+
   const needsApprove = block.review !== 'approved' || block.suspect
+  const canUnapprove = block.review === 'approved' || block.review === 'stale'
   const isAttention = block.review === 'stale' || block.suspect
+
+  const handleSubmit = async (e: FormEvent) => {
+    e.preventDefault()
+    const body = draft.trim()
+    if (!body) return
+    await onAddFeedback(body)
+    setDraft('')
+  }
 
   return (
     <section
@@ -238,10 +314,21 @@ function ReviewInboxCard({
             </span>
           )}
         </div>
-        <div className="flex items-center gap-1.5">
+        <div className="flex flex-wrap items-center gap-1.5">
           {block.review === 'stale' && (
             <button type="button" className="sem-action-btn" onClick={onToggleDiff}>
               {diffOpen ? t('review.closeDiff') : t('review.diff')}
+            </button>
+          )}
+          {(!readOnly || block.feedback.length > 0) && (
+            <button
+              type="button"
+              className={`sem-action-btn${showFeedback || openFeedback.length > 0 ? ' has-feedback' : ''}`}
+              disabled={busy}
+              onClick={() => setShowFeedback((v) => !v)}
+              title={t('review.feedbackButton')}
+            >
+              💬 {openFeedback.length > 0 ? openFeedback.length : ''}
             </button>
           )}
           <button type="button" className="sem-action-btn" onClick={onPeek}>
@@ -253,7 +340,12 @@ function ReviewInboxCard({
           >
             {t('common.open')} ↗
           </Link>
-          {!isStaticSite() && needsApprove && (
+          {!readOnly && canUnapprove && (
+            <button type="button" className="sem-action-btn" disabled={busy} onClick={onUnapprove}>
+              {t('review.unapprove')}
+            </button>
+          )}
+          {!readOnly && needsApprove && (
             <button type="button" className="sem-action-btn sem-approve-btn" disabled={busy} onClick={onApprove}>
               {busy ? t('common.processing') : t('review.approve')}
             </button>
@@ -268,7 +360,15 @@ function ReviewInboxCard({
         <span className="mono text-[11px] text-fg-muted">{block.docPath}</span>
       </div>
 
-      <p className="m-0 text-[13.5px] leading-[1.65] whitespace-pre-wrap">{block.rawBody}</p>
+      <div className="text-[13.5px] leading-[1.65] [&_.markdown_p:first-child]:mt-0 [&_.markdown_p:last-child]:mb-0">
+        <Markdown
+          body={block.rawBody}
+          format={block.docFormat}
+          currentDir={block.docDir}
+          terms={terms}
+          headingPrefix={`review-${block.id}`}
+        />
+      </div>
 
       {block.suspect && block.suspectSources.length > 0 && (
         <div className="sem-suspect-banner mt-2 rounded-md border">
@@ -296,14 +396,46 @@ function ReviewInboxCard({
         </div>
       )}
 
-      {openFeedback.length > 0 && (
-        <ul className="m-0 mt-2.5 flex list-none flex-col gap-1 rounded-md border border-line bg-surface px-3 py-2 text-[12.5px]">
-          {openFeedback.map((fb) => (
-            <li key={fb.id}>
-              <strong>{fb.author}:</strong> {fb.body}
-            </li>
-          ))}
-        </ul>
+      {showFeedback && (
+        <div className="sem-feedback-panel mt-2.5 rounded-md border border-line">
+          {block.feedback.length > 0 && (
+            <ul className="sem-feedback-list">
+              {block.feedback.map((fb) => (
+                <li key={fb.id} className={`sem-feedback-item${fb.resolved ? ' resolved' : ''}`}>
+                  <div className="sem-feedback-text">{fb.body}</div>
+                  <div className="sem-feedback-meta">
+                    <span>{fb.author}</span>
+                    {!readOnly && (
+                      <button
+                        type="button"
+                        className="sem-feedback-toggle"
+                        disabled={busy}
+                        onClick={() => onResolveFeedback(fb.id, !fb.resolved)}
+                      >
+                        {fb.resolved ? t('blocks.reopenFeedback') : t('blocks.resolveFeedback')}
+                      </button>
+                    )}
+                  </div>
+                </li>
+              ))}
+            </ul>
+          )}
+          {!readOnly && (
+            <form className="sem-feedback-form" onSubmit={(e) => void handleSubmit(e)}>
+              <input
+                type="text"
+                className="sem-feedback-input"
+                value={draft}
+                onChange={(e) => setDraft(e.target.value)}
+                placeholder={t('blocks.feedbackPlaceholder')}
+                disabled={busy}
+              />
+              <button type="submit" className="sem-action-btn sem-approve-btn" disabled={busy || !draft.trim()}>
+                {t('common.submit')}
+              </button>
+            </form>
+          )}
+        </div>
       )}
     </section>
   )

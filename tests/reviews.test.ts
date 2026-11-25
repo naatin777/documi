@@ -10,8 +10,10 @@ import {
   approveBlock,
   computeLineDiff,
   getBlockDiff,
+  loadReviews,
   setBlockStabilityOverride,
   setFeedbackResolved,
+  unapproveBlock,
 } from '../src/core/reviews'
 
 let root: string
@@ -158,6 +160,50 @@ describe('人間レビュー・Stale・Suspect・Diff・Feedback', () => {
     await setFeedbackResolved(root, 'auth.rate', fb.id, true)
     idx = await loadDocuments(root)
     expect(idx.blocksById.get('auth.rate')?.feedback[0]?.resolved).toBe(true)
+  })
+
+  test('[core.human-review] unapproveBlock は承認を取り消し、フィードバックや Stability 上書きは保持しつつ空レコードを削除する', async () => {
+    await writeDoc('goals/core.mdx', { title: 'Core' }, '# Core\n')
+    await writeDoc(
+      'specs/auth.mdx',
+      { title: 'Auth', derives: ['goals/core'] },
+      [
+        '<Spec id="auth.clean" stability="stable">クリーンな仕様</Spec>',
+        '<Spec id="auth.withfb" stability="evolving">FB付き仕様</Spec>',
+      ].join('\n\n') + '\n',
+    )
+
+    let idx = await loadDocuments(root)
+    await approveBlock(root, idx, 'auth.clean', { author: 'alice' })
+    await approveBlock(root, idx, 'auth.withfb', { author: 'alice' })
+    await addBlockFeedback(root, idx, 'auth.withfb', '境界値を確認したい', 'alice')
+    await setBlockStabilityOverride(root, idx, 'auth.withfb', 'volatile')
+
+    idx = await loadDocuments(root)
+    expect(idx.blocksById.get('auth.clean')?.review).toBe('approved')
+    expect(idx.blocksById.get('auth.withfb')?.review).toBe('approved')
+
+    // 1. FB・Stability 上書きが無いブロックはレコード自体が綺麗に削除される
+    const r1 = await unapproveBlock(root, idx, 'auth.clean')
+    expect(r1.removed).toBe(true)
+    const r1Again = await unapproveBlock(root, idx, 'auth.clean')
+    expect(r1Again.removed).toBe(false)
+
+    // 2. FB・Stability 上書きがあるブロックは承認情報のみ解除して残す
+    const r2 = await unapproveBlock(root, idx, 'auth.withfb')
+    expect(r2.removed).toBe(true)
+
+    const saved = await loadReviews(root, [])
+    expect(saved.blocks['auth.clean']).toBeUndefined()
+    expect(saved.blocks['auth.withfb']?.hash).toBe('')
+    expect(saved.blocks['auth.withfb']?.feedback).toHaveLength(1)
+    expect(saved.blocks['auth.withfb']?.stabilityOverride).toBe('volatile')
+
+    idx = await loadDocuments(root)
+    expect(idx.blocksById.get('auth.clean')?.review).toBe('unreviewed')
+    expect(idx.blocksById.get('auth.withfb')?.review).toBe('unreviewed')
+    expect(idx.blocksById.get('auth.withfb')?.stability).toBe('volatile')
+    expect(idx.blocksById.get('auth.withfb')?.feedback).toHaveLength(1)
   })
 
   test('computeLineDiff は追加・削除・一致行を正しく算出する', () => {

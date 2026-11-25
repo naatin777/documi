@@ -10,8 +10,8 @@ tags: [core, spec, governance, export]
 ## 人間レビュー・Diff・Suspect Links
 
 <Spec id="core.human-review" stability="stable" derives="goals/low-friction-governance">
-  **When** 人間がセマンティックブロックを承認したとき、
-  **the** Document Core **shall** MDX 本文ではなくサイドカー `docs/.documi/reviews.json` にコンテンツハッシュ・承認コミット SHA・上流ハッシュを保存し、本文変更で `stale`、上流変更で `suspect` を自動判定するとともに承認時点からの行 diff を算出する。
+  **When** 人間がセマンティックブロックを承認または承認取り消ししたとき、
+  **the** Document Core **shall** MDX 本文ではなくサイドカー `docs/.documi/reviews.json` にコンテンツハッシュ・承認コミット SHA・上流ハッシュを保存（取り消し時は既存フィードバック・Stability 上書きを保持しつつ承認情報のみ解除）し、本文変更で `stale`、上流変更で `suspect` を自動判定するとともに承認時点からの行 diff を算出する。
 </Spec>
 
 ## コード・テスト・PR 連携と実装状態の自動算出
