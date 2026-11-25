@@ -191,6 +191,15 @@ async function writeBodyCache(docsDir: string, blockId: string, rawBody: string)
   await writeFile(cachePath, `${JSON.stringify(current, null, 2)}\n`, 'utf-8')
 }
 
+async function removeBodyCache(docsDir: string, blockId: string): Promise<void> {
+  const cachePath = path.join(docsDir, SNAPSHOT_CACHE_REL_PATH)
+  const current = await readBodyCache(docsDir)
+  if (!(blockId in current)) return
+  delete current[blockId]
+  await mkdir(path.dirname(cachePath), { recursive: true })
+  await writeFile(cachePath, `${JSON.stringify(current, null, 2)}\n`, 'utf-8')
+}
+
 /** 現在の対象 (ブロック ID またはドキュメント ID) のハッシュを取得する */
 function currentTargetHash(index: DocsIndex, targetId: string): string | undefined {
   const block = index.blocksById.get(targetId)
@@ -331,6 +340,40 @@ export async function approveBlock(
   await saveReviews(docsDir, reviews)
   await writeBodyCache(docsDir, blockId, block.rawBody)
   return record
+}
+
+/**
+ * ブロックの承認を取り消し未承認 (unreviewed) へ戻す。
+ * 既存のフィードバックや Stability 上書きは保持し、どちらも無ければレコード自体を整理削除する。
+ */
+export async function unapproveBlock(
+  docsDir: string,
+  index: DocsIndex,
+  blockId: string,
+): Promise<{ removed: boolean }> {
+  const block = index.blocksById.get(blockId)
+  if (!block) throw new ReviewError(`ブロックが見つかりません: ${blockId}`, 404)
+
+  const reviews = await loadReviews(docsDir, [])
+  const prev = reviews.blocks[blockId]
+  if (!prev || !prev.hash) {
+    return { removed: false }
+  }
+
+  if (prev.feedback.length === 0 && !prev.stabilityOverride) {
+    delete reviews.blocks[blockId]
+  } else {
+    reviews.blocks[blockId] = {
+      docPath: prev.docPath,
+      hash: '',
+      stabilityOverride: prev.stabilityOverride,
+      feedback: prev.feedback,
+    }
+  }
+
+  await saveReviews(docsDir, reviews)
+  await removeBodyCache(docsDir, blockId)
+  return { removed: true }
 }
 
 /** ブロックへ AI 向けフィードバックコメントを追加する */

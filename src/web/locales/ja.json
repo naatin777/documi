@@ -151,6 +151,7 @@
     "title": "レビュー",
     "description": "AI が作成・変更した仕様・設計・意思決定ブロックをまとめて確認し、差分チェックと承認を行う受信箱です。",
     "filterAria": "レビュー絞り込み",
+    "kindFilterAria": "ブロック種別で絞り込み",
     "filters": {
       "attention": "要再確認",
       "feedback": "未解決コメント",
@@ -164,7 +165,9 @@
     "closeDiff": "差分を閉じる",
     "diff": "差分",
     "peekSideBySide": "並べて確認",
+    "feedbackButton": "AI 向けフィードバック",
     "approve": "承認",
+    "unapprove": "承認を取り消す",
     "suspectBanner": "上流の変更が検知されました ({{sources}})。確認して再承認してください。",
     "noBaseSnapshot": "承認時点のスナップショットが見つかりませんでした。"
   },

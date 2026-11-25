@@ -151,6 +151,7 @@
     "title": "Review Queue",
     "description": "Review semantic blocks created or updated by AI, inspect line diffs from approval, and approve in one place.",
     "filterAria": "Filter review queue",
+    "kindFilterAria": "Filter by block kind",
     "filters": {
       "attention": "Needs Attention (Stale / Suspect)",
       "feedback": "Open Feedback",
@@ -164,7 +165,9 @@
     "closeDiff": "Hide Diff",
     "diff": "Diff",
     "peekSideBySide": "Side-by-Side",
+    "feedbackButton": "Feedback for AI",
     "approve": "Approve",
+    "unapprove": "Unapprove",
     "suspectBanner": "Upstream changes detected ({{sources}}). Review and re-approve.",
     "noBaseSnapshot": "Could not find the approved baseline snapshot."
   },

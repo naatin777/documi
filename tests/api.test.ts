@@ -220,6 +220,28 @@ describe('REST API', () => {
     const diffBody = (await diffRes.json()) as { changed: boolean; lines: { type: string; text: string }[] }
     expect(diffBody.changed).toBe(true)
     expect(diffBody.lines.some((l) => l.type === 'add' && l.text.includes('3回失敗'))).toBe(true)
+
+    // GET /api/blocks に Markdown 描画用メタデータが含まれる
+    const blocksRes = await app.fetch(new Request('http://localhost/api/blocks'))
+    expect(blocksRes.status).toBe(200)
+    const blocksJson = (await blocksRes.json()) as {
+      blocks: Array<{ id: string; docFormat: string; docDir: string }>
+    }
+    const lockoutSummary = blocksJson.blocks.find((b) => b.id === 'auth.lockout')
+    expect(lockoutSummary?.docFormat).toBe('mdx')
+    expect(lockoutSummary?.docDir).toBe('specs/auth')
+
+    // 承認取り消し API (DELETE /api/blocks/:id/approve) はフィードバックと Stability を保持しつつ unreviewed に戻す
+    const unapproveRes = await app.fetch(
+      new Request('http://localhost/api/blocks/auth.lockout/approve', { method: 'DELETE' }),
+    )
+    expect(unapproveRes.status).toBe(200)
+    const unapproved = (await unapproveRes.json()) as {
+      block: { review: string; stability: string; feedback: unknown[] }
+    }
+    expect(unapproved.block.review).toBe('unreviewed')
+    expect(unapproved.block.stability).toBe('volatile')
+    expect(unapproved.block.feedback).toHaveLength(1)
   })
 
   test('Hono RPC (hc<ApiRoutes>) と Zod バリデーションが型安全に動作する', async () => {

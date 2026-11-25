@@ -7,9 +7,10 @@ import {
   getBlockDiff,
   setBlockStabilityOverride,
   setFeedbackResolved,
+  unapproveBlock,
 } from '../../core/reviews'
 import { STABILITIES } from '../../core/types'
-import type { BlockKind, RealizationStatus, ReviewFeedback, ReviewStatus, Stability } from '../../core/types'
+import type { BlockKind, DocFormat, RealizationStatus, ReviewFeedback, ReviewStatus, Stability } from '../../core/types'
 import type { DocsStore } from '../store'
 import { zValidator, type ErrorStatusCode } from '../validator'
 
@@ -19,6 +20,8 @@ interface ReviewBlockSummary {
   docId: string
   docTitle: string
   docPath: string
+  docDir: string
+  docFormat: DocFormat
   title?: string
   rawBody: string
   stability: Stability
@@ -75,6 +78,8 @@ export function createBlocksRoutes(store: DocsStore) {
             docId: doc.id,
             docTitle: doc.title,
             docPath: doc.path,
+            docDir: doc.dir,
+            docFormat: doc.format,
             ...(b.title ? { title: b.title } : {}),
             rawBody: b.rawBody,
             stability: b.stability,
@@ -107,6 +112,19 @@ export function createBlocksRoutes(store: DocsStore) {
       const { author } = c.req.valid('json')
       try {
         await approveBlock(store.rootDir, store.getIndex(), blockId, { author })
+        const next = await store.reload()
+        const block = next.blocksById.get(blockId)
+        if (!block) return c.json({ error: `ブロックが見つかりません: ${blockId}` }, 404)
+        return c.json({ block }, 200)
+      } catch (e) {
+        if (e instanceof ReviewError) return c.json({ error: e.message }, e.status as ErrorStatusCode)
+        throw e
+      }
+    })
+    .delete('/:id/approve', async (c) => {
+      const blockId = decodeURIComponent(c.req.param('id'))
+      try {
+        await unapproveBlock(store.rootDir, store.getIndex(), blockId)
         const next = await store.reload()
         const block = next.blocksById.get(blockId)
         if (!block) return c.json({ error: `ブロックが見つかりません: ${blockId}` }, 404)
