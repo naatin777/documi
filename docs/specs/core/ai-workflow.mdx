@@ -18,7 +18,7 @@ tags: [core, spec, ai, cli, mcp]
 
 <Spec id="core.agent-skills-init" stability="evolving" derives="goals/ai-reproducibility">
   **When** `documi init` が実行されたとき、
-  **the** Document Core および CLI **shall** 既存の `AGENTS.md` 等と競合させずに標準 Agent Skills 形式（既定 `<projectRoot>/.agents/skills/`）で CLI ベースの日常運用スキル（`documi/SKILL.md`）および既存コードベース導入スキル（`documi-bootstrap/SKILL.md`）と `docs/` 雛形を指定言語（`--en` / `--ja` / `--lang`、既定 `en`）で冪等に生成する。既存ファイルは明示フラグ（`--force-skills`）なしに上書きしない。
+  **the** Document Core および CLI **shall** 既存の `AGENTS.md` 等と競合させずに標準 Agent Skills 形式（既定 `<projectRoot>/.agents/skills/`）で CLI ベースの日常運用スキル（`documi/SKILL.md`）・既存コードベース導入スキル（`documi-bootstrap/SKILL.md`）・対話型仕様レビュー／認識合わせクイズスキル（`documi-review/SKILL.md`）と `docs/` 雛形を指定言語（`--en` / `--ja` / `--lang`、既定 `en`）で冪等に生成する。既存ファイルは明示フラグ（`--force-skills`）なしに上書きしない。
 </Spec>
 
 ## AI・人間向け CLI クエリ・精密編集と MCP 自己完結

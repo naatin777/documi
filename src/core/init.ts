@@ -261,6 +261,61 @@ description: 既存コードベース（Brownfield）に Documi の Living Speci
 2. **\`${relDocsDir}/.documi/reviews.json\` は絶対に編集しない。** 生成した仕様はすべて \`unreviewed\` のまま残し、人間オーナーが \`documi serve\` 上で確認・修正・承認できるようにする。
 3. 作成したドキュメント・Spec ID 一覧と、既存コードから判断がつかなかった曖昧点（人間の意思決定が必要な点）を簡潔に報告する。
 `,
+      'documi-review/SKILL.md': `---
+name: documi-review
+description: 未承認・stale・suspect な仕様を 2〜3 件ずつ取り上げ、具体シナリオやエッジケースの選択式クイズで人間と AI の認識ズレを炙り出し、合意後に人間専用の承認コマンドを引き継ぐ対話レビュースキル。仕様レビュー・承認前の理解確認に使用します。
+---
+
+# Documi 対話型仕様レビュー・認識合わせクイズ（CLI）
+
+「読んだつもりのハンコ承認」と「AI 側の勝手な解釈・勘違い」を同時に防ぐための対話レビュー手順です。
+**1 回に 2〜3 件のブロック**に絞り、具体的なエッジケースや挙動の選択式クイズで認識を合わせてから、人間が自分の手で承認できるように引き継ぎます。
+
+## 1. 今回のレビュー対象を 2〜3 件選ぶ
+
+1. ユーザーから特定のドキュメントや Spec ID の指定があればそれを対象にする。
+2. 指定が無ければ、以下の優先順で \`documi query\` を実行し、**未処理の 2〜3 件**だけを選ぶ（1 度に大量の仕様を並べない）：
+   - \`documi query --review stale\`（承認後に変更されたブロック）
+   - \`documi query --suspect\`（上流変更が波及したブロック）
+   - \`documi query --has-feedback\`（未解決フィードバックがあるブロック）
+   - \`documi query --review unreviewed --kind spec\`（未承認の正式仕様）
+3. 選んだ各ブロックについて \`documi context <spec-id>\` を実行し、上流 Goal・Decision \`<Outcome>\`・関連制約・\`<SourceRef>\`（実コード）を把握する。
+
+## 2. 具体シナリオ・エッジケースのクイズをテンポよく出題する
+
+選んだ **2〜3 件のブロックに対して、各 1〜2 問（1 ラウンド計 3〜5 問）** を選択式（A/B/C/D）メインで出題する。
+
+- **良い出題の切り口（認識ズレが出やすい箇所を狙う）**:
+  - **障害・フォールバック**: 外部依存や入力が欠けたとき、エラー終了するかフォールバックするか？
+  - **境界・セキュリティ拒否**: プロジェクトルート外パスや不正フラグを渡されたとき、どう拒否するか？
+  - **優先順位・競合解決**: 設定ファイルと CLI 引数、あるいは \`.mdx\` と \`.md\` が衝突したとき、どちらが勝つか？
+  - **副作用・不変条件**: 承認取り消し時に既存フィードバックを残すか消すか、書き込み範囲はどこまでか？
+- **禁止する出題**:
+  - 仕様文面の単語穴埋めや、読んでいれば誰でも分かるトリビア問題。
+  - 仕様の全文を丸ごと貼り付けて「これで合っていますか？」と聞くだけの形式。
+- 各質問には「（どれも違う／仕様をこう変えたい）」と答えやすい余地を残し、人間の意図と仕様が食い違っていれば即座に拾えるようにする。
+
+## 3. 回答の照合とズレの即時修正
+
+人間の回答を受け取ったら、各ブロックについて簡潔に照合する：
+
+1. **認識が一致した場合**: 1 行で簡潔に確認し、テンポを止めない。
+2. **人間側の読み飛ばし・記憶違いだった場合**: 現行仕様の挙動と理由を 1〜2 行で補足し、「この現行仕様で意図通りか？」を確認する。
+3. **仕様や AI 側の勘違いが見つかった場合**:
+   - 人間の意図に合わせて \`documi block update <block-id> --body - <<'EOF'\` で仕様を精密修正する（コード・テスト変更も必要なら続けて提案・修正する）。
+   - 修正後に \`documi check --no-review-edit\` でエラー 0 件を確認する。
+
+## 4. 人間専用の承認コマンドを引き継ぐ（不変ルール）
+
+- **AI は絶対に \`${relDocsDir}/.documi/reviews.json\` を編集せず、\`documi approve\` / \`documi unapprove\` も実行しない。** 承認の最終決定と記録は必ず人間が行う。
+- 認識が 100% 一致したブロックだけを選び、人間がそのままターミナルで実行できる承認コマンド（または Web UI \`documi serve\` → \`/review\` の案内）を提示する：
+
+\`\`\`bash
+documi approve <aligned-id-1> <aligned-id-2>
+\`\`\`
+
+- 最後に「次の 2〜3 件も続けますか？」と尋ね、ユーザーのペースで段階的に承認を進められるようにする。
+`,
     }
   }
 
@@ -361,6 +416,61 @@ Use \`documi\` CLI commands (\`documi scaffold\`, \`documi block add\`, \`documi
 1. Run \`documi check\` and fix all broken \`<SourceRef>\` paths, missing \`derives\` (orphan specs), or invalid MDX syntax.
 2. **Do not edit \`${relDocsDir}/.documi/reviews.json\`.** Leave all bootstrapped specs as \`unreviewed\` so the human owner can read, refine, and approve them in \`documi serve\`.
 3. Present a concise summary of created documents, Spec IDs, and any ambiguities discovered in the existing codebase that need a human decision.
+`,
+    'documi-review/SKILL.md': `---
+name: documi-review
+description: Run an interactive specification review and alignment quiz for unreviewed, stale, or suspect Documi blocks (2–3 blocks per round) using concrete edge-case scenarios to catch both human rubber-stamping and AI misunderstandings, then hand off human-only approval commands.
+---
+
+# Documi Interactive Review & Alignment Quiz (CLI)
+
+Use this workflow to prevent both **rubber-stamp approvals** (approving without really noticing edge cases) and **AI misunderstandings** (spec drift from the human's actual intent).
+Work in fast, focused rounds of **2–3 blocks at a time**, verify alignment through concrete scenario questions, fix any spec mismatches immediately, and hand off the exact approval command for the human to run.
+
+## 1. Pick a Focused Batch (2–3 Blocks Only)
+
+1. If the user names specific documents or Spec IDs, review those.
+2. Otherwise, run \`documi query\` in priority order and pick **only 2–3 blocks** for this round (never dump dozens of specs at once):
+   - \`documi query --review stale\` (modified after approval)
+   - \`documi query --suspect\` (upstream changed)
+   - \`documi query --has-feedback\` (unresolved human feedback)
+   - \`documi query --review unreviewed --kind spec\` (unreviewed normative specs)
+3. Run \`documi context <spec-id>\` on each selected block to inspect its upstream Goal, Decision \`<Outcome>\`, constraints, and linked \`<SourceRef>\` code.
+
+## 2. Ask Concrete Edge-Case & Scenario Questions
+
+For the **2–3 selected blocks**, ask **1–2 multiple-choice questions per block (3–5 questions total per round)** targeting real behavioral boundaries:
+
+- **High-signal question angles**:
+  - **Failure & fallback**: What happens when a dependency is missing, offline, or throws?
+  - **Security & boundary rejection**: What happens on out-of-root paths, invalid flags, or forbidden writes?
+  - **Precedence & conflict**: When config vs. CLI flag or two files collide, which wins?
+  - **Side effects & invariants**: What state is preserved vs. removed on an action (e.g., unapprove with existing feedback)?
+- **Avoid**:
+  - Fill-in-the-blank trivia copied straight from prose.
+  - Pasting whole spec paragraphs and asking "Does this look OK?"
+- Always leave room for the human to reply *"None of these — the spec should actually do X"*.
+
+## 3. Reconcile Answers & Fix Mismatches Immediately
+
+When the human answers:
+
+1. **Aligned**: Confirm in 1 concise line and keep momentum.
+2. **Human missed a detail**: Briefly explain what the current spec says and ask whether they agree with it as written.
+3. **Spec or AI misunderstanding**:
+   - Update the spec in place via \`documi block update <block-id> --body - <<'EOF'\` (and update code/tests if requested).
+   - Run \`documi check --no-review-edit\` to confirm 0 errors.
+
+## 4. Hand Off Human-Only Approval (Strict Invariant)
+
+- **NEVER edit \`${relDocsDir}/.documi/reviews.json\` and NEVER execute \`documi approve\` or \`documi unapprove\` yourself.** Approval belongs strictly to the human.
+- For the blocks confirmed as 100% aligned, present a ready-to-run command the human can execute directly (or link to \`documi serve\` → \`/review\`):
+
+\`\`\`bash
+documi approve <aligned-id-1> <aligned-id-2>
+\`\`\`
+
+- Ask if the user wants to continue to the next batch of 2–3 blocks.
 `,
   }
 }
