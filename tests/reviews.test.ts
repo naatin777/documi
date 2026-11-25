@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, test } from 'bun:test'
 import { execFileSync } from 'node:child_process'
-import { mkdtemp, mkdir, rm, writeFile } from 'node:fs/promises'
+import { mkdtemp, mkdir, readdir, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { stringify } from 'yaml'
@@ -169,6 +169,53 @@ describe('人間レビュー・Stale・Suspect・Diff・承認メモ', () => {
     expect(report.errors).toHaveLength(0)
     expect(report.warnings).toHaveLength(0)
     expect(report.reviewCounts.suspect).toBe(1)
+  })
+
+  test('[core.human-review] Suspect は多段依存でもブロックの走査順に依存せず下流まで波及する', async () => {
+    await writeDoc('goals/main.mdx', { title: 'Goal' }, '# Goal\n')
+    await writeDoc('specs/a.mdx', { title: 'A', derives: ['goals/main'] }, '<Spec id="spec.a">元の仕様</Spec>\n')
+    // 走査順で下流 (a-c) が中間 (b-b) より先に処理される配置にする
+    await writeDoc(
+      'designs/b-b.mdx',
+      { title: 'B', satisfies: ['spec.a'] },
+      '<Constraint id="design.b">中間制約</Constraint>\n',
+    )
+    await writeDoc(
+      'designs/a-c.mdx',
+      { title: 'C', satisfies: ['design.b'] },
+      '<Constraint id="design.c">下流制約</Constraint>\n',
+    )
+
+    let idx = await loadDocuments(root)
+    for (const id of ['spec.a', 'design.b', 'design.c']) {
+      expect((await approveBlock(root, idx, id)).isOk()).toBe(true)
+    }
+
+    await writeDoc('specs/a.mdx', { title: 'A', derives: ['goals/main'] }, '<Spec id="spec.a">変更後の仕様</Spec>\n')
+    idx = await loadDocuments(root)
+    expect(idx.blocksById.get('spec.a')?.review).toBe('stale')
+    expect(idx.blocksById.get('design.b')?.suspect).toBe(true)
+    const downstream = idx.blocksById.get('design.c')!
+    expect(downstream.suspect).toBe(true)
+    expect(downstream.suspectSources).toContain('design.b')
+  })
+
+  test('[core.human-review] 並行承認でも reviews.json の更新が失われず一時ファイルも残らない', async () => {
+    await writeDoc('goals/main.mdx', { title: 'Goal' }, '# Goal\n')
+    const ids = Array.from({ length: 8 }, (_, i) => `conc.item${i + 1}`)
+    await writeDoc(
+      'specs/conc.mdx',
+      { title: 'Conc', derives: ['goals/main'] },
+      ids.map((id) => `<Spec id="${id}">仕様 ${id}</Spec>`).join('\n\n') + '\n',
+    )
+
+    const idx = await loadDocuments(root)
+    const results = await Promise.all(ids.map((id) => approveBlock(root, idx, id, { author: 'alice' })))
+    expect(results.every((r) => r.isOk())).toBe(true)
+
+    const loaded = await loadReviews(root, [])
+    expect(Object.keys(loaded.blocks).toSorted()).toEqual(ids.toSorted())
+    expect(await readdir(path.join(root, 'guard'))).toEqual(['reviews.json'])
   })
 
   test('[core.doc-history] getChangedBlockIds は未コミット変更・新規ファイル・ブランチ差分で変更されたブロックのみ抽出する', async () => {

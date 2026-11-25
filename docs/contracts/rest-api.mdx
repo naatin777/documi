@@ -59,7 +59,9 @@ satisfies:
 
 ## 主要エンドポイントの入出力スキーマ契約
 
-- **Origin / CORS ガード**: `Origin` ヘッダがあるリクエストは `http://localhost:*`・`http://127.0.0.1:*`・`http://[::1]:*` のみ許可し、それ以外の外部 Origin は `403` で拒否する。
+- **Origin / CORS ガード**: `Origin` ヘッダがあるリクエストは `http://localhost:*`・`http://127.0.0.1:*`・`http://[::1]:*` のみ許可し、それ以外の外部 Origin は `/api/*` と `/mcp` の両方で読み書きとも `403` で拒否する（CSRF / DNS rebinding 対策）。`Origin` が無いローカルクライアント（CLI・curl 等）は許可する。
+- **PDF 出力の境界**: `POST /api/export/pdf` は受け取った HTML を `Content-Security-Policy: default-src 'none'; style-src 'unsafe-inline'; img-src data:; font-src data:` 付きで描画し、スクリプト実行と外部・ローカルネットワークアクセスを許可しない。`POST /api/export/bundle-pdf` は常に自サーバー自身の Origin の `/bundle`（完全一致）のみを開き、リクエストでベース URL を指定できない。
+- **ソース取得の除外**: `.env` など環境変数ファイルは `/api/source` / `/api/code/file` の対象外（拡張子 allowlist に含めない）。
 - **`GET /api/blocks`**:
   - レスポンス: `{ blocks: ReviewBlockSummary[], counts: { approved, unreviewed, stale, suspect, changed } }`
   - 各要素は `id`, `kind`, `docId`, `docTitle`, `docPath`, `docDir`, `docFormat`, `rawBody`, `stability`, `review`, `suspect`, `suspectSources`, `changed`（作業ツリー／ブランチ差分で変更されたブロックか）, `approvedAt?`, `approvedBy?`, `approvedNote?`, `realization?` を返す。

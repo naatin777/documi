@@ -1,4 +1,4 @@
-import { mkdir, readFile, writeFile } from 'node:fs/promises'
+import { mkdir, readFile, rename, writeFile } from 'node:fs/promises'
 import path from 'node:path'
 import { Result } from 'better-result'
 import { diffArrays } from 'diff'
@@ -145,7 +145,22 @@ export async function saveReviews(docsDir: string, reviews: ReviewsFile): Promis
   }
 
   const normalized: ReviewsFile = { version: 1, blocks: sortedBlocks }
-  await writeFile(filePath, `${JSON.stringify(normalized, null, 2)}\n`, 'utf-8')
+  await atomicWriteFile(filePath, `${JSON.stringify(normalized, null, 2)}\n`)
+}
+
+/** 一時ファイルへ書いてから rename することで、途中失敗や並行読み取りで半端な JSON を見せない */
+async function atomicWriteFile(filePath: string, content: string): Promise<void> {
+  const tmpPath = `${filePath}.${process.pid}.${Date.now()}.tmp`
+  await writeFile(tmpPath, content, 'utf-8')
+  await rename(tmpPath, filePath)
+}
+
+/** reviews.json / スナップショットキャッシュの read-modify-write をプロセス内で直列化する */
+let reviewWriteQueue: Promise<unknown> = Promise.resolve()
+function withReviewLock<T>(fn: () => Promise<T>): Promise<T> {
+  const run = reviewWriteQueue.then(fn, fn)
+  reviewWriteQueue = run.catch(() => undefined)
+  return run
 }
 
 function resolveSnapshotCachePath(docsDir: string, cacheRoot?: string): string {
@@ -172,7 +187,7 @@ async function writeBodyCache(docsDir: string, blockId: string, rawBody: string,
   const current = await readBodyCache(docsDir, cacheRoot)
   current[blockId] = rawBody
   await mkdir(path.dirname(cachePath), { recursive: true })
-  await writeFile(cachePath, `${JSON.stringify(current, null, 2)}\n`, 'utf-8')
+  await atomicWriteFile(cachePath, `${JSON.stringify(current, null, 2)}\n`)
 }
 
 async function removeBodyCache(docsDir: string, blockId: string, cacheRoot?: string): Promise<void> {
@@ -181,7 +196,7 @@ async function removeBodyCache(docsDir: string, blockId: string, cacheRoot?: str
   if (!(blockId in current)) return
   delete current[blockId]
   await mkdir(path.dirname(cachePath), { recursive: true })
-  await writeFile(cachePath, `${JSON.stringify(current, null, 2)}\n`, 'utf-8')
+  await atomicWriteFile(cachePath, `${JSON.stringify(current, null, 2)}\n`)
 }
 
 /** 現在の対象 (ブロック ID またはドキュメント ID) のハッシュを取得する */
@@ -241,32 +256,40 @@ export function applyReviewsAndSuspects(index: DocsIndex, reviews: ReviewsFile):
   // 3. Suspect Links 判定:
   //    (a) 承認時に記録した上流ハッシュと現在の上流ハッシュを比較
   //    (b) 承認済みブロックの上流ブロック自身が stale / suspect の場合も波及
-  for (const block of index.blocksById.values()) {
-    if (block.review !== 'approved') continue
-    const rec = reviews.blocks[block.id]
-    const sources = new Set<string>()
+  //    (b) は多段依存でもブロックの走査順に依存しないよう、変化がなくなるまで固定点反復する
+  let changed = true
+  while (changed) {
+    changed = false
+    for (const block of index.blocksById.values()) {
+      if (block.review !== 'approved') continue
+      const rec = reviews.blocks[block.id]
+      const sources = new Set<string>()
 
-    if (rec?.upstreamHashes) {
-      for (const [upId, savedHash] of Object.entries(rec.upstreamHashes)) {
-        const nowHash = currentTargetHash(index, upId)
-        if (!nowHash || nowHash !== savedHash) {
-          sources.add(upId)
+      if (rec?.upstreamHashes) {
+        for (const [upId, savedHash] of Object.entries(rec.upstreamHashes)) {
+          const nowHash = currentTargetHash(index, upId)
+          if (!nowHash || nowHash !== savedHash) {
+            sources.add(upId)
+          }
         }
       }
-    }
 
-    for (const edge of index.edges) {
-      if (!UPSTREAM_EDGE_KINDS.has(edge.kind)) continue
-      if (edge.from !== block.id && edge.from !== block.docId) continue
-      const upBlock = index.blocksById.get(edge.to)
-      if (upBlock && (upBlock.review === 'stale' || upBlock.suspect)) {
-        sources.add(upBlock.id)
+      for (const edge of index.edges) {
+        if (!UPSTREAM_EDGE_KINDS.has(edge.kind)) continue
+        if (edge.from !== block.id && edge.from !== block.docId) continue
+        const upBlock = index.blocksById.get(edge.to)
+        if (upBlock && (upBlock.review === 'stale' || upBlock.suspect)) {
+          sources.add(upBlock.id)
+        }
       }
-    }
 
-    if (sources.size > 0) {
-      block.suspect = true
-      block.suspectSources = [...sources].toSorted()
+      if (sources.size === 0) continue
+      const sorted = [...sources].toSorted()
+      if (!block.suspect || block.suspectSources?.join('\n') !== sorted.join('\n')) {
+        block.suspect = true
+        block.suspectSources = sorted
+        changed = true
+      }
     }
   }
 }
@@ -289,8 +312,6 @@ export async function approveBlock(
     )
   }
 
-  const issues: IndexIssue[] = []
-  const reviews = await loadReviews(docsDir, issues)
   const upstreamHashes = collectUpstreamHashes(index, block)
   const note = options.note?.trim() || undefined
   const approvedBy = options.author?.trim() || getGitUserName(docsDir)
@@ -305,9 +326,12 @@ export async function approveBlock(
     upstreamHashes: Object.keys(upstreamHashes).length > 0 ? upstreamHashes : undefined,
   }
 
-  reviews.blocks[blockId] = record
-  await saveReviews(docsDir, reviews)
-  await writeBodyCache(docsDir, blockId, block.rawBody, options.cacheRoot)
+  await withReviewLock(async () => {
+    const reviews = await loadReviews(docsDir, [])
+    reviews.blocks[blockId] = record
+    await saveReviews(docsDir, reviews)
+    await writeBodyCache(docsDir, blockId, block.rawBody, options.cacheRoot)
+  })
   return Result.ok(record)
 }
 
@@ -326,16 +350,17 @@ export async function unapproveBlock(
     return Result.err(new BlockNotFoundError({ blockId, message: `Block not found: ${blockId}` }))
   }
 
-  const reviews = await loadReviews(docsDir, [])
-  const prev = reviews.blocks[blockId]
-  if (!prev || !prev.hash) {
-    return Result.ok({ removed: false })
-  }
+  const removed = await withReviewLock(async () => {
+    const reviews = await loadReviews(docsDir, [])
+    const prev = reviews.blocks[blockId]
+    if (!prev || !prev.hash) return false
 
-  delete reviews.blocks[blockId]
-  await saveReviews(docsDir, reviews)
-  await removeBodyCache(docsDir, blockId, options.cacheRoot)
-  return Result.ok({ removed: true })
+    delete reviews.blocks[blockId]
+    await saveReviews(docsDir, reviews)
+    await removeBodyCache(docsDir, blockId, options.cacheRoot)
+    return true
+  })
+  return Result.ok({ removed })
 }
 
 /** Git コミットから指定ブロックの本文を取り出す */
