@@ -67,7 +67,7 @@
     "primaryViews": "主要ビュー",
     "home": "ホーム",
     "reviewQueue": "レビュー",
-    "graphMatrix": "グラフ・関連表",
+    "graph": "グラフ",
     "codeExplorer": "コード閲覧",
     "documents": "ドキュメント",
     "searchPlaceholder": "検索…",
@@ -238,7 +238,6 @@
   },
   "graph": {
     "graphViewTab": "グラフ ({{count}})",
-    "matrixTab": "トレーサビリティ表 ({{count}})",
     "documents": "文書のみ",
     "docsAndBlocks": "文書＋ブロック",
     "allLinks": "全リンク",
@@ -251,25 +250,7 @@
     "forcesSettings": "物理パラメータ調整",
     "forcesLabel": "物理パラメータ調整",
     "webglError": "WebGL グラフの初期化に失敗しました",
-    "hint": "ズームでカード/ドット自動切替 / ドラッグで引っ張る / クリックで右に表示 / ダブルクリックで開く"
-  },
-  "matrix": {
-    "empty": "該当する仕様がありません。",
-    "spec": "仕様",
-    "goals": "上位目標",
-    "designContract": "設計・契約",
-    "verification": "検証",
-    "review": "レビュー",
-    "realization": "実装・検証",
-    "orphan": "未接続",
-    "filters": {
-      "all": "すべて",
-      "verified": "検証済み",
-      "unimplemented": "未実装",
-      "drifted": "乖離あり",
-      "unreviewed": "未承認",
-      "orphan": "未接続"
-    }
+    "hint": "2本指スワイプで移動 / ピンチ・⌘+ホイールで拡大縮小 / ドラッグで引っ張る / クリックで右に表示 / ダブルクリックで開く"
   },
   "search": {
     "dialogAria": "全文検索",
@@ -351,7 +332,8 @@
     "sidebar": "サイドバー幅を調整",
     "inspector": "右インスペクタ幅を調整",
     "peek": "プレビューペイン幅を調整",
-    "codeTree": "ファイルツリー幅を調整"
+    "codeTree": "ファイルツリー幅を調整",
+    "codeInspector": "コード右パネル幅を調整"
   },
   "codeExplorer": {
     "filterPlaceholder": "ファイル名で絞り込み…",
@@ -375,6 +357,14 @@
     "linkedDocs": "文書 ({{count}})",
     "linkedTerms": "用語 ({{count}})",
     "exportedSymbols": "公開シンボル ({{count}})",
+    "toggleTreeOpen": "ファイルツリーを開く",
+    "toggleTreeClose": "ファイルツリーを閉じる",
+    "toggleInspectorOpen": "公開シンボル・関連パネルを開く",
+    "toggleInspectorClose": "公開シンボル・関連パネルを閉じる",
+    "inspectorAria": "公開シンボル・関連リンクパネル",
+    "inspectorSymbolsTab": "シンボル ({{count}})",
+    "inspectorLinksTab": "関連 ({{count}})",
+    "noExports": "このファイルに公開シンボルはありません。",
     "lineSelectHint": "クリックで {{line}} 行目を強調（Shift+クリックで範囲選択）"
   },
   "code": {

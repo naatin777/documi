@@ -67,7 +67,7 @@
     "primaryViews": "Primary views",
     "home": "Home",
     "reviewQueue": "Review Queue",
-    "graphMatrix": "Graph & Matrix",
+    "graph": "Graph",
     "codeExplorer": "Code Explorer",
     "documents": "Documents",
     "searchPlaceholder": "Search…",
@@ -237,8 +237,7 @@
     "backToHistory": "Back to History"
   },
   "graph": {
-    "graphViewTab": "Graph View ({{count}})",
-    "matrixTab": "Traceability Matrix ({{count}})",
+    "graphViewTab": "Graph ({{count}})",
     "documents": "Documents",
     "docsAndBlocks": "Docs + Blocks",
     "allLinks": "All Links",
@@ -251,25 +250,7 @@
     "forcesSettings": "Adjust physics (Forces)",
     "forcesLabel": "Physics parameters",
     "webglError": "Failed to initialize WebGL graph",
-    "hint": "Zoom to switch cards/dots · Drag to pull · Click to preview · Double-click to open"
-  },
-  "matrix": {
-    "empty": "No matching Specs.",
-    "spec": "Spec",
-    "goals": "Goals (Upstream)",
-    "designContract": "Design / Contract",
-    "verification": "Verification",
-    "review": "Review",
-    "realization": "Realization",
-    "orphan": "Orphan",
-    "filters": {
-      "all": "All",
-      "verified": "Verified",
-      "unimplemented": "Unimplemented",
-      "drifted": "Drifted",
-      "unreviewed": "Unreviewed",
-      "orphan": "Orphan"
-    }
+    "hint": "Swipe to pan · Pinch or ⌘/Ctrl+Scroll to zoom · Drag to pull · Click to preview · Double-click to open"
   },
   "search": {
     "dialogAria": "Full-text search",
@@ -351,7 +332,8 @@
     "sidebar": "Resize sidebar width",
     "inspector": "Resize right inspector width",
     "peek": "Resize preview pane width",
-    "codeTree": "Resize source tree width"
+    "codeTree": "Resize source tree width",
+    "codeInspector": "Resize code inspector width"
   },
   "codeExplorer": {
     "filterPlaceholder": "Filter files…",
@@ -375,6 +357,14 @@
     "linkedDocs": "Docs ({{count}})",
     "linkedTerms": "Terms ({{count}})",
     "exportedSymbols": "Exports ({{count}})",
+    "toggleTreeOpen": "Show file tree",
+    "toggleTreeClose": "Hide file tree",
+    "toggleInspectorOpen": "Show symbols & links panel",
+    "toggleInspectorClose": "Hide symbols & links panel",
+    "inspectorAria": "Code symbols and links inspector",
+    "inspectorSymbolsTab": "Exports ({{count}})",
+    "inspectorLinksTab": "Links ({{count}})",
+    "noExports": "No exported symbols found in this file.",
     "lineSelectHint": "Click to highlight line {{line}} (Shift+Click for range)"
   },
   "code": {

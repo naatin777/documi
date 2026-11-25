@@ -157,7 +157,7 @@ export default function Explorer({
         </NavLink>
         <NavLink to="/graph" className={primaryNavClass} onClick={onClose}>
           <GraphIcon />
-          <span>{t('nav.graphMatrix')}</span>
+          <span>{t('nav.graph')}</span>
         </NavLink>
         <NavLink to="/code" className={primaryNavClass} onClick={onClose}>
           <FileCode2 size={15} strokeWidth={1.75} aria-hidden="true" />

@@ -317,13 +317,12 @@
   counter-reset: shiki-line;
   font-family: var(--font-mono);
   font-size: 13px;
-  line-height: 1.65;
+  line-height: 1.55;
 }
 
 .codeblock-body .shiki .line,
 .shiki-host .shiki .line {
-  display: block;
-  min-height: 1.5em;
+  display: inline;
 }
 
 .codeblock-body .shiki .line::before,

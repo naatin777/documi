@@ -48,7 +48,6 @@ type HistoryResponse = InferResponseType<typeof rpc.api.history.$get, 200>
 type RevisionResponse = InferResponseType<typeof rpc.api.history.revision.$get, 200>
 type TermsResponse = InferResponseType<typeof rpc.api.terms.$get, 200>
 type SearchResponse = InferResponseType<typeof rpc.api.search.$get, 200>
-type MatrixResponse = InferResponseType<typeof rpc.api.matrix.$get, 200>
 type BundleResponse = InferResponseType<typeof rpc.api.bundle.$get, 200>
 type BlockDiffResponse = InferResponseType<(typeof rpc.api.blocks)[':id']['diff']['$get'], 200>
 type SourceResponse = InferResponseType<typeof rpc.api.source.$get, 200>
@@ -292,8 +291,6 @@ export const api = {
             },
           }),
         ),
-  matrix: (): Promise<MatrixResponse> =>
-    isStaticSite() ? fetchStaticJson<MatrixResponse>('data/matrix.json') : unwrap(rpc.api.matrix.$get()),
   bundle: (params: { scope?: string; ids?: string[]; title?: string }): Promise<BundleResponse> =>
     isStaticSite()
       ? bundleStatic(params)

@@ -26,7 +26,6 @@ const queryKeys = {
   terms: ['terms'] as const,
   blocks: ['blocks'] as const,
   graph: (layers: 'all' | 'trace', granularity: 'docs' | 'blocks') => ['graph', layers, granularity] as const,
-  matrix: ['matrix'] as const,
   bundle: (params: { scope?: string; ids?: string[]; title?: string }) =>
     ['bundle', params.scope ?? '', params.ids?.join(',') ?? '', params.title ?? ''] as const,
   search: (q: string) => ['search', q] as const,
@@ -131,13 +130,6 @@ export function useGraphQuery(layers: 'all' | 'trace', granularity: 'docs' | 'bl
     queryKey: queryKeys.graph(layers, granularity),
     queryFn: () => api.graph(layers, granularity),
     placeholderData: keepPreviousData,
-  })
-}
-
-export function useMatrixQuery() {
-  return useQuery({
-    queryKey: queryKeys.matrix,
-    queryFn: () => api.matrix(),
   })
 }
 
