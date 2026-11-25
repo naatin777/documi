@@ -1,7 +1,9 @@
 import os from 'node:os'
 import path from 'node:path'
+import { Result } from 'better-result'
 import { DEFAULT_OLLAMA_MODEL, DEFAULT_ONNX_DTYPE, DEFAULT_ONNX_MODEL, DEFAULT_OPENAI_MODEL } from './config'
 import type { OnnxDtype, RagConfig, RagProvider } from './config'
+import { EmbeddingInitError, EmbeddingRequestError, EmbeddingResponseError, type EmbeddingDomainError } from './errors'
 
 interface EmbeddingDocumentInput {
   title: string
@@ -13,15 +15,8 @@ export interface EmbeddingProvider {
   readonly id: string
   readonly provider: RagProvider
   readonly model: string
-  embedDocuments(items: readonly EmbeddingDocumentInput[]): Promise<Float32Array[]>
-  embedQuery(query: string): Promise<Float32Array>
-}
-
-export class EmbeddingError extends Error {
-  constructor(message: string) {
-    super(message)
-    this.name = 'EmbeddingError'
-  }
+  embedDocuments(items: readonly EmbeddingDocumentInput[]): Promise<Result<Float32Array[], EmbeddingDomainError>>
+  embedQuery(query: string): Promise<Result<Float32Array, EmbeddingDomainError>>
 }
 
 export function normalizeVector(input: ArrayLike<number>): Float32Array {
@@ -91,44 +86,64 @@ type FeatureExtractor = (
   options?: { pooling?: 'mean' | 'last_token' | 'cls' | 'none'; normalize?: boolean },
 ) => Promise<FeatureExtractionOutput>
 
-const onnxPipelineCache = new Map<string, Promise<FeatureExtractor>>()
+const onnxPipelineCache = new Map<string, Promise<Result<FeatureExtractor, EmbeddingInitError>>>()
 
-async function loadOnnxExtractor(model: string, dtype: OnnxDtype, cacheDir: string): Promise<FeatureExtractor> {
+async function loadOnnxExtractor(
+  model: string,
+  dtype: OnnxDtype,
+  cacheDir: string,
+): Promise<Result<FeatureExtractor, EmbeddingInitError>> {
   const cacheKey = `${model}|${dtype}|${cacheDir}`
   const existing = onnxPipelineCache.get(cacheKey)
   if (existing) return existing
 
-  const promise = (async () => {
-    try {
+  const promise = Result.tryPromise<FeatureExtractor, EmbeddingInitError>({
+    try: async () => {
       const transformers = await import('@huggingface/transformers')
       transformers.env.cacheDir = cacheDir
       const pipe = await transformers.pipeline('feature-extraction', model, { dtype })
-      return pipe as unknown as FeatureExtractor
-    } catch (error) {
+      return pipe
+    },
+    catch: (error) => {
       onnxPipelineCache.delete(cacheKey)
-      throw new EmbeddingError(
-        `ONNX Embedding モデル (${model}, dtype=${dtype}) の初期化に失敗しました: ${error instanceof Error ? error.message : String(error)}`,
-      )
-    }
-  })()
+      return new EmbeddingInitError({
+        provider: 'onnx',
+        model,
+        message: `ONNX Embedding モデル (${model}, dtype=${dtype}) の初期化に失敗しました: ${error instanceof Error ? error.message : String(error)}`,
+      })
+    },
+  })
 
   onnxPipelineCache.set(cacheKey, promise)
   return promise
 }
 
-function extractMatrixRows(raw: unknown, expectedCount: number): Float32Array[] {
+function extractMatrixRows(
+  provider: string,
+  model: string,
+  raw: unknown,
+  expectedCount: number,
+): Result<Float32Array[], EmbeddingResponseError> {
   if (!Array.isArray(raw)) {
-    throw new EmbeddingError('Embedding 出力が配列形式ではありません')
+    return Result.err(
+      new EmbeddingResponseError({ provider, model, message: 'Embedding 出力が配列形式ではありません' }),
+    )
   }
-  if (raw.length === 0) return []
+  if (raw.length === 0) return Result.ok([])
   if (typeof raw[0] === 'number') {
-    return [normalizeVector(raw as number[])]
+    return Result.ok([normalizeVector(raw as number[])])
   }
   const rows = (raw as number[][]).map((row) => normalizeVector(row))
   if (rows.length !== expectedCount) {
-    throw new EmbeddingError(`Embedding 返却件数が一致しません (expected=${expectedCount}, got=${rows.length})`)
+    return Result.err(
+      new EmbeddingResponseError({
+        provider,
+        model,
+        message: `Embedding 返却件数が一致しません (expected=${expectedCount}, got=${rows.length})`,
+      }),
+    )
   }
-  return rows
+  return Result.ok(rows)
 }
 
 /**
@@ -152,18 +167,42 @@ function createOnnxEmbeddingProvider(options: {
     provider: 'onnx',
     model,
     async embedDocuments(items) {
-      if (items.length === 0) return []
-      const extractor = await loadOnnxExtractor(model, dtype, cacheDir)
-      const prompts = items.map((item) => formatEmbeddingPrompt(model, 'document', item.text, item.title))
-      const output = await extractor(prompts, { pooling, normalize: true })
-      return extractMatrixRows(output.tolist(), items.length)
+      if (items.length === 0) return Result.ok([])
+      return Result.gen(async function* () {
+        const extractor = yield* Result.await(loadOnnxExtractor(model, dtype, cacheDir))
+        const prompts = items.map((item) => formatEmbeddingPrompt(model, 'document', item.text, item.title))
+        const output = yield* Result.await(
+          Result.tryPromise({
+            try: () => extractor(prompts, { pooling, normalize: true }),
+            catch: (error) =>
+              new EmbeddingRequestError({
+                provider: 'onnx',
+                model,
+                message: `ONNX Embedding 推論に失敗しました: ${error instanceof Error ? error.message : String(error)}`,
+              }),
+          }),
+        )
+        return extractMatrixRows('onnx', model, output.tolist(), items.length)
+      })
     },
     async embedQuery(query) {
-      const extractor = await loadOnnxExtractor(model, dtype, cacheDir)
-      const prompt = formatEmbeddingPrompt(model, 'query', query)
-      const output = await extractor([prompt], { pooling, normalize: true })
-      const rows = extractMatrixRows(output.tolist(), 1)
-      return rows[0]!
+      return Result.gen(async function* () {
+        const extractor = yield* Result.await(loadOnnxExtractor(model, dtype, cacheDir))
+        const prompt = formatEmbeddingPrompt(model, 'query', query)
+        const output = yield* Result.await(
+          Result.tryPromise({
+            try: () => extractor([prompt], { pooling, normalize: true }),
+            catch: (error) =>
+              new EmbeddingRequestError({
+                provider: 'onnx',
+                model,
+                message: `ONNX Embedding 推論に失敗しました: ${error instanceof Error ? error.message : String(error)}`,
+              }),
+          }),
+        )
+        const rows = yield* extractMatrixRows('onnx', model, output.tolist(), 1)
+        return Result.ok(rows[0]!)
+      })
     },
   }
 }
@@ -181,44 +220,92 @@ function createOllamaEmbeddingProvider(options: {
   const endpoint = (options.endpoint ?? process.env.OLLAMA_HOST ?? 'http://localhost:11434').replace(/\/+$/, '')
   const fetchFn = options.fetchFn ?? fetch
 
-  const embedBatch = async (texts: string[]): Promise<Float32Array[]> => {
-    if (texts.length === 0) return []
-    const res = await fetchFn(`${endpoint}/api/embed`, {
-      method: 'POST',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ model, input: texts }),
+  const embedBatch = async (texts: string[]): Promise<Result<Float32Array[], EmbeddingDomainError>> => {
+    if (texts.length === 0) return Result.ok([])
+    const resResult = await Result.tryPromise({
+      try: () =>
+        fetchFn(`${endpoint}/api/embed`, {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({ model, input: texts }),
+        }),
+      catch: (error) =>
+        new EmbeddingRequestError({
+          provider: 'ollama',
+          model,
+          message: `Ollama /api/embed への接続に失敗しました: ${error instanceof Error ? error.message : String(error)}`,
+        }),
     })
+    if (resResult.isErr()) return resResult
+    const res = resResult.value
 
     if (res.ok) {
       const data = (await res.json()) as { embeddings?: number[][] }
       if (!Array.isArray(data.embeddings) || data.embeddings.length !== texts.length) {
-        throw new EmbeddingError(`Ollama /api/embed の応答形式が不正です (model=${model})`)
+        return Result.err(
+          new EmbeddingResponseError({
+            provider: 'ollama',
+            model,
+            message: `Ollama /api/embed の応答形式が不正です (model=${model})`,
+          }),
+        )
       }
-      return data.embeddings.map((row) => normalizeVector(row))
+      return Result.ok(data.embeddings.map((row) => normalizeVector(row)))
     }
 
     // 古い Ollama バージョン向けフォールバック (/api/embeddings)
     if (res.status === 404) {
       const out: Float32Array[] = []
       for (const prompt of texts) {
-        const legRes = await fetchFn(`${endpoint}/api/embeddings`, {
-          method: 'POST',
-          headers: { 'content-type': 'application/json' },
-          body: JSON.stringify({ model, prompt }),
+        const legResResult = await Result.tryPromise({
+          try: () =>
+            fetchFn(`${endpoint}/api/embeddings`, {
+              method: 'POST',
+              headers: { 'content-type': 'application/json' },
+              body: JSON.stringify({ model, prompt }),
+            }),
+          catch: (error) =>
+            new EmbeddingRequestError({
+              provider: 'ollama',
+              model,
+              message: `Ollama /api/embeddings への接続に失敗しました: ${error instanceof Error ? error.message : String(error)}`,
+            }),
         })
+        if (legResResult.isErr()) return legResResult
+        const legRes = legResResult.value
         if (!legRes.ok) {
-          throw new EmbeddingError(`Ollama /api/embeddings が失敗しました (${legRes.status}): ${await legRes.text()}`)
+          return Result.err(
+            new EmbeddingRequestError({
+              provider: 'ollama',
+              model,
+              status: legRes.status,
+              message: `Ollama /api/embeddings が失敗しました (${legRes.status}): ${await legRes.text()}`,
+            }),
+          )
         }
         const legData = (await legRes.json()) as { embedding?: number[] }
         if (!Array.isArray(legData.embedding)) {
-          throw new EmbeddingError(`Ollama /api/embeddings の応答形式が不正です (model=${model})`)
+          return Result.err(
+            new EmbeddingResponseError({
+              provider: 'ollama',
+              model,
+              message: `Ollama /api/embeddings の応答形式が不正です (model=${model})`,
+            }),
+          )
         }
         out.push(normalizeVector(legData.embedding))
       }
-      return out
+      return Result.ok(out)
     }
 
-    throw new EmbeddingError(`Ollama /api/embed が失敗しました (${res.status}): ${await res.text()}`)
+    return Result.err(
+      new EmbeddingRequestError({
+        provider: 'ollama',
+        model,
+        status: res.status,
+        message: `Ollama /api/embed が失敗しました (${res.status}): ${await res.text()}`,
+      }),
+    )
   }
 
   return {
@@ -230,7 +317,7 @@ function createOllamaEmbeddingProvider(options: {
     },
     async embedQuery(query) {
       const rows = await embedBatch([formatEmbeddingPrompt(model, 'query', query)])
-      return rows[0]!
+      return rows.map((list) => list[0]!)
     },
   }
 }
@@ -250,31 +337,64 @@ function createOpenAiEmbeddingProvider(options: {
   const apiKeyEnv = options.apiKeyEnv ?? 'OPENAI_API_KEY'
   const fetchFn = options.fetchFn ?? fetch
 
-  const embedBatch = async (texts: string[]): Promise<Float32Array[]> => {
-    if (texts.length === 0) return []
+  const embedBatch = async (texts: string[]): Promise<Result<Float32Array[], EmbeddingDomainError>> => {
+    if (texts.length === 0) return Result.ok([])
     const apiKey = process.env[apiKeyEnv]?.trim()
     const headers: Record<string, string> = { 'content-type': 'application/json' }
     if (apiKey) headers.authorization = `Bearer ${apiKey}`
 
-    const res = await fetchFn(`${endpoint}/embeddings`, {
-      method: 'POST',
-      headers,
-      body: JSON.stringify({ model, input: texts }),
+    const resResult = await Result.tryPromise({
+      try: () =>
+        fetchFn(`${endpoint}/embeddings`, {
+          method: 'POST',
+          headers,
+          body: JSON.stringify({ model, input: texts }),
+        }),
+      catch: (error) =>
+        new EmbeddingRequestError({
+          provider: 'openai',
+          model,
+          message: `OpenAI 互換 /embeddings への接続に失敗しました: ${error instanceof Error ? error.message : String(error)}`,
+        }),
     })
+    if (resResult.isErr()) return resResult
+    const res = resResult.value
+
     if (!res.ok) {
-      throw new EmbeddingError(`OpenAI 互換 /embeddings が失敗しました (${res.status}): ${await res.text()}`)
+      return Result.err(
+        new EmbeddingRequestError({
+          provider: 'openai',
+          model,
+          status: res.status,
+          message: `OpenAI 互換 /embeddings が失敗しました (${res.status}): ${await res.text()}`,
+        }),
+      )
     }
     const payload = (await res.json()) as { data?: Array<{ index?: number; embedding?: number[] }> }
     if (!Array.isArray(payload.data) || payload.data.length !== texts.length) {
-      throw new EmbeddingError(`OpenAI 互換 /embeddings の応答形式が不正です (model=${model})`)
+      return Result.err(
+        new EmbeddingResponseError({
+          provider: 'openai',
+          model,
+          message: `OpenAI 互換 /embeddings の応答形式が不正です (model=${model})`,
+        }),
+      )
     }
     const sorted = payload.data.toSorted((a, b) => (a.index ?? 0) - (b.index ?? 0))
-    return sorted.map((item) => {
+    const vectors: Float32Array[] = []
+    for (const item of sorted) {
       if (!Array.isArray(item.embedding)) {
-        throw new EmbeddingError('Embedding ベクトルが欠損しています')
+        return Result.err(
+          new EmbeddingResponseError({
+            provider: 'openai',
+            model,
+            message: 'Embedding ベクトルが欠損しています',
+          }),
+        )
       }
-      return normalizeVector(item.embedding)
-    })
+      vectors.push(normalizeVector(item.embedding))
+    }
+    return Result.ok(vectors)
   }
 
   return {
@@ -286,7 +406,7 @@ function createOpenAiEmbeddingProvider(options: {
     },
     async embedQuery(query) {
       const rows = await embedBatch([formatEmbeddingPrompt(model, 'query', query)])
-      return rows[0]!
+      return rows.map((list) => list[0]!)
     },
   }
 }

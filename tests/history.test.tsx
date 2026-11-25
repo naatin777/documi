@@ -6,7 +6,7 @@ import path from 'node:path'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { I18nextProvider } from 'react-i18next'
 import { MemoryRouter } from 'react-router'
-import { getDocumentHistory, getDocumentRevision, HistoryError, parseUnifiedDiffRanges } from '../src/core/git'
+import { getDocumentHistory, getDocumentRevision, parseUnifiedDiffRanges } from '../src/core/git'
 import { loadDocuments } from '../src/core/loader'
 import type { DocumentHistory } from '../src/core/types'
 import { createApp } from '../src/server/app'
@@ -134,20 +134,16 @@ describe('Document Git Freshness, Highlight & History', () => {
       expect(historyCommitted.changedRanges.length).toBeGreaterThan(0)
 
       // 過去コミット (firstSha) の本文を参照できる
-      const pastRev = getDocumentRevision(docsDir, specDoc!, firstSha)
+      const pastRev = getDocumentRevision(docsDir, specDoc!, firstSha).unwrap()
       expect(pastRev.title).toBe('Auth Spec v1')
       expect(pastRev.body).toContain('Initial paragraph.')
       expect(pastRev.body).not.toContain('Lockout')
       expect(pastRev.commit.sha).toBe(firstSha)
 
-      // 不正な SHA は 400 で拒否
-      expect(() => getDocumentRevision(docsDir, specDoc!, 'not-a-sha!')).toThrow(HistoryError)
-      try {
-        getDocumentRevision(docsDir, specDoc!, 'not-a-sha!')
-      } catch (err) {
-        expect(err).toBeInstanceOf(HistoryError)
-        expect((err as HistoryError).status).toBe(400)
-      }
+      // 不正な SHA は InvalidCommitShaError で拒否
+      const badRev = getDocumentRevision(docsDir, specDoc!, 'not-a-sha!')
+      expect(badRev.isErr()).toBe(true)
+      if (badRev.isErr()) expect(badRev.error._tag).toBe('InvalidCommitShaError')
 
       // ローカル未コミット変更 + 新規未追跡ファイルを追加
       await writeFile(

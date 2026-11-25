@@ -162,7 +162,7 @@ export function extractAnchorsFromSource(relFile: string, source: string, out: C
 
     // コメント内の @implements / @verifies (文字列リテラル内のフィクスチャ文字列を除外)
     const commentStart = findCommentPart(lineText)
-    if (commentStart !== null) {
+    if (commentStart !== undefined) {
       COMMENT_TAG_RE.lastIndex = 0
       let m: RegExpExecArray | null
       while ((m = COMMENT_TAG_RE.exec(commentStart)) !== null) {
@@ -196,19 +196,19 @@ export function extractAnchorsFromSource(relFile: string, source: string, out: C
 }
 
 /** 文字列リテラル外に出現するコメント部分だけを抽出する */
-function findCommentPart(line: string): string | null {
+function findCommentPart(line: string): string | undefined {
   const trimmed = line.trimStart()
   if (trimmed.startsWith('//') || trimmed.startsWith('#') || trimmed.startsWith('*') || trimmed.startsWith('/*')) {
     return trimmed
   }
-  let quote: string | null = null
+  let quote: string | undefined
   for (let i = 0; i < line.length; i++) {
     const ch = line[i]!
     if (quote) {
       if (ch === '\\') {
         i++
       } else if (ch === quote) {
-        quote = null
+        quote = undefined
       }
       continue
     }
@@ -220,7 +220,7 @@ function findCommentPart(line: string): string | null {
       return line.slice(i)
     }
   }
-  return null
+  return undefined
 }
 
 const junitXmlParser = new XMLParser({

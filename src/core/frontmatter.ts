@@ -1,6 +1,6 @@
+import { Result } from 'better-result'
 import { parse } from 'yaml'
-
-export class FrontmatterError extends Error {}
+import { FrontmatterParseError, UnclosedFrontmatterError } from './errors'
 
 export interface SplitFrontmatter {
   hasFrontmatter: boolean
@@ -16,35 +16,38 @@ export interface SplitFrontmatter {
 /**
  * 先頭の `---` フェンスで囲まれた YAML frontmatter を分離する。
  * 先頭に `---` がない場合は frontmatter なしとして本文全体を返す。
- * 開始フェンスがあるのに閉じフェンスがない場合は FrontmatterError を投げる。
+ * 開始フェンスがあるのに閉じフェンスがない場合は UnclosedFrontmatterError を返す。
  */
-export function splitFrontmatter(source: string): SplitFrontmatter {
+export function splitFrontmatter(source: string): Result<SplitFrontmatter, UnclosedFrontmatterError> {
   const text = source.charCodeAt(0) === 0xfeff ? source.slice(1) : source
   const normalized = text.replace(/\r\n/g, '\n')
   if (!normalized.startsWith('---\n') && normalized !== '---') {
-    return { hasFrontmatter: false, data: '', body: normalized, bodyOffset: 0, bodyStartLine: 1 }
+    return Result.ok({ hasFrontmatter: false, data: '', body: normalized, bodyOffset: 0, bodyStartLine: 1 })
   }
   const match = /^---\n([\s\S]*?)\n---(?:\n|$)/.exec(normalized)
   if (!match || match[1] === undefined) {
-    throw new FrontmatterError('YAML frontmatter の閉じフェンス (---) が見つかりません')
+    return Result.err(
+      new UnclosedFrontmatterError({ message: 'YAML frontmatter の閉じフェンス (---) が見つかりません' }),
+    )
   }
   const prefix = match[0]
   const bodyStartLine = prefix.split('\n').length
-  return {
+  return Result.ok({
     hasFrontmatter: true,
     data: match[1],
     body: normalized.slice(prefix.length),
     bodyOffset: prefix.length,
     bodyStartLine,
-  }
+  })
 }
 
-/** YAML 文字列をパースする。失敗時は FrontmatterError を投げる。 */
-export function parseYamlFrontmatter(data: string): unknown {
-  try {
-    return parse(data)
-  } catch (error) {
-    const message = error instanceof Error ? error.message : String(error)
-    throw new FrontmatterError(`frontmatter の YAML パースに失敗しました: ${message}`)
-  }
+/** YAML 文字列をパースする。失敗時は FrontmatterParseError を返す。 */
+export function parseYamlFrontmatter(data: string): Result<unknown, FrontmatterParseError> {
+  return Result.try({
+    try: () => parse(data) as unknown,
+    catch: (error) =>
+      new FrontmatterParseError({
+        message: `frontmatter の YAML パースに失敗しました: ${error instanceof Error ? error.message : String(error)}`,
+      }),
+  })
 }

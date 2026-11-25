@@ -36,7 +36,7 @@ function buildHitFromChunkKey(
   key: string,
   score: number,
   bm25ByKey: ReadonlyMap<string, SearchHit>,
-): SearchHit | null {
+): SearchHit | undefined {
   const existing = bm25ByKey.get(key)
   if (existing) {
     return { ...existing, score }
@@ -44,9 +44,9 @@ function buildHitFromChunkKey(
   if (key.startsWith('block:')) {
     const blockId = key.slice('block:'.length)
     const block = index.blocksById.get(blockId)
-    if (!block) return null
+    if (!block) return undefined
     const doc = getDocument(index, block.docId)
-    if (!doc) return null
+    if (!doc) return undefined
     return {
       kind: 'block',
       id: block.id,
@@ -61,7 +61,7 @@ function buildHitFromChunkKey(
   if (key.startsWith('doc:')) {
     const docId = key.slice('doc:'.length)
     const doc = getDocument(index, docId)
-    if (!doc) return null
+    if (!doc) return undefined
     return {
       kind: 'doc',
       id: doc.id,
@@ -72,7 +72,7 @@ function buildHitFromChunkKey(
       score,
     }
   }
-  return null
+  return undefined
 }
 
 /**
@@ -100,47 +100,47 @@ export async function searchIndexHybrid(
   const bm25 = searchIndexBm25(index, query, { type: options.type, limit: candidateLimit })
   const provider = options.provider ?? createEmbeddingProvider(options.ragConfig)
 
-  try {
-    const vectorHits = await searchVectorStore(docsDir, index, provider, query, {
-      type: options.type,
-      limit: candidateLimit,
-      cachePath: options.ragConfig?.cachePath,
-      projectRoot: options.projectRoot,
-    })
+  const vectorRes = await searchVectorStore(docsDir, index, provider, query, {
+    type: options.type,
+    limit: candidateLimit,
+    cachePath: options.ragConfig?.cachePath,
+    projectRoot: options.projectRoot,
+  })
 
-    const bm25ByKey = new Map<string, SearchHit>()
-    const bm25Ranking: Array<{ key: string }> = []
-    for (const hit of bm25.hits) {
-      const key = `${hit.kind}:${hit.id}`
-      bm25ByKey.set(key, hit)
-      bm25Ranking.push({ key })
-    }
-
-    const fused = reciprocalRankFusion([bm25Ranking, vectorHits], 60)
-    const merged: SearchHit[] = []
-    for (const [key, rrfScore] of fused.entries()) {
-      // 可読性のため 1000 倍スケールで丸める（例: 0.0328 -> 32.79）
-      const score = Math.round(rrfScore * 1000 * 100) / 100
-      const hit = buildHitFromChunkKey(index, key, score, bm25ByKey)
-      if (hit) merged.push(hit)
-    }
-    merged.sort((a, b) => b.score - a.score || a.id.localeCompare(b.id))
-
-    return {
-      hits: merged.slice(0, limit),
-      expandedTerms: bm25.expandedTerms,
-      mode: 'hybrid',
-      modelId: provider.id,
-    }
-  } catch (error) {
-    if (options.fallbackOnError === false) throw error
-    const reason = error instanceof Error ? error.message : String(error)
+  if (vectorRes.isErr()) {
+    if (options.fallbackOnError === false) throw vectorRes.error
     return {
       hits: bm25.hits.slice(0, limit),
       expandedTerms: bm25.expandedTerms,
       mode: 'bm25',
-      fallbackReason: reason,
+      fallbackReason: vectorRes.error.message,
     }
+  }
+
+  const vectorHits = vectorRes.value
+  const bm25ByKey = new Map<string, SearchHit>()
+  const bm25Ranking: Array<{ key: string }> = []
+  for (const hit of bm25.hits) {
+    const key = `${hit.kind}:${hit.id}`
+    bm25ByKey.set(key, hit)
+    bm25Ranking.push({ key })
+  }
+
+  const fused = reciprocalRankFusion([bm25Ranking, vectorHits], 60)
+  const merged: SearchHit[] = []
+  for (const [key, rrfScore] of fused.entries()) {
+    // 可読性のため 1000 倍スケールで丸める（例: 0.0328 -> 32.79）
+    const score = Math.round(rrfScore * 1000 * 100) / 100
+    const hit = buildHitFromChunkKey(index, key, score, bm25ByKey)
+    if (hit) merged.push(hit)
+  }
+  merged.sort((a, b) => b.score - a.score || a.id.localeCompare(b.id))
+
+  return {
+    hits: merged.slice(0, limit),
+    expandedTerms: bm25.expandedTerms,
+    mode: 'hybrid',
+    modelId: provider.id,
   }
 }
 

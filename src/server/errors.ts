@@ -1,5 +1,5 @@
 import { matchError } from 'better-result'
-import type { ReadCodeFileError, ReviewDomainError, SourceDomainError } from '../core/errors'
+import type { HistoryDomainError, ReadCodeFileError, ReviewDomainError, SourceDomainError } from '../core/errors'
 import type { ErrorStatusCode } from './validator'
 
 export interface HttpErrorResponse {
@@ -12,6 +12,17 @@ export function reviewErrorToHttp(error: ReviewDomainError): HttpErrorResponse {
   const status: ErrorStatusCode = matchError(error, {
     BlockNotFoundError: () => 404 as const,
     DocumentNotFoundError: () => 404 as const,
+  })
+  return { status, body: { error: error.message } }
+}
+
+/** Git 履歴ドメインエラーを網羅的に HTTP ステータスへ変換する */
+export function historyErrorToHttp(error: HistoryDomainError): HttpErrorResponse {
+  const status: ErrorStatusCode = matchError(error, {
+    InvalidCommitShaError: () => 400 as const,
+    GitRepoUnavailableError: () => 404 as const,
+    CommitNotFoundError: () => 404 as const,
+    DocumentNotInCommitError: () => 404 as const,
   })
   return { status, body: { error: error.message } }
 }

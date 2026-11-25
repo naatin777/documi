@@ -34,9 +34,9 @@ describe('documi init & Agent Skills', () => {
       // 生成された SKILL.md が Agent Skills 標準の frontmatter (name / description) を持ち、CLI ベースで MCP 重複が無い
       for (const rel of first.createdSkills) {
         const raw = await readFile(path.join(first.skillsDir, rel), 'utf-8')
-        const fm = splitFrontmatter(raw)
+        const fm = splitFrontmatter(raw).unwrap()
         expect(fm.hasFrontmatter).toBe(true)
-        const parsed = parseYamlFrontmatter(fm.data) as Record<string, unknown>
+        const parsed = parseYamlFrontmatter(fm.data).unwrap() as Record<string, unknown>
         expect(typeof parsed.name).toBe('string')
         expect(typeof parsed.description).toBe('string')
         expect(raw).not.toContain('get_project_map')

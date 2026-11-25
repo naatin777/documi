@@ -2,6 +2,14 @@ import { execFileSync } from 'node:child_process'
 import { realpathSync } from 'node:fs'
 import { readFile, stat } from 'node:fs/promises'
 import path from 'node:path'
+import { Result } from 'better-result'
+import {
+  CommitNotFoundError,
+  DocumentNotInCommitError,
+  GitRepoUnavailableError,
+  InvalidCommitShaError,
+  type HistoryDomainError,
+} from './errors'
 import { parseYamlFrontmatter, splitFrontmatter } from './frontmatter'
 import type {
   ChangedLineRange,
@@ -16,16 +24,6 @@ import type {
 
 const SHA_PATTERN = /^[0-9a-f]{7,40}$/i
 const HUNK_PATTERN = /^@@ -(\d+)(?:,(\d+))? \+(\d+)(?:,(\d+))? @@/
-
-export class HistoryError extends Error {
-  constructor(
-    message: string,
-    public status = 400,
-  ) {
-    super(message)
-    this.name = 'HistoryError'
-  }
-}
 
 interface GitContext {
   gitRoot: string
@@ -45,7 +43,7 @@ function toPosix(p: string): string {
   return p.split(path.sep).join('/')
 }
 
-function runGit(cwd: string, args: string[]): string | null {
+function runGit(cwd: string, args: string[]): string | undefined {
   try {
     return execFileSync('git', ['-c', 'core.quotepath=false', ...args], {
       cwd,
@@ -54,17 +52,17 @@ function runGit(cwd: string, args: string[]): string | null {
       stdio: ['ignore', 'pipe', 'ignore'],
     })
   } catch {
-    return null
+    return undefined
   }
 }
 
-function resolveGitContext(docsDir: string): GitContext | null {
+function resolveGitContext(docsDir: string): GitContext | undefined {
   const absDocs = safeRealpath(docsDir)
   const rawRoot = runGit(absDocs, ['rev-parse', '--show-toplevel'])
-  if (!rawRoot) return null
+  if (!rawRoot) return undefined
   const gitRoot = safeRealpath(rawRoot.trim())
   const rel = toPosix(path.relative(gitRoot, absDocs))
-  if (rel.startsWith('..') || path.isAbsolute(rel)) return null
+  if (rel.startsWith('..') || path.isAbsolute(rel)) return undefined
   return { gitRoot, relDocs: rel === '.' ? '' : rel }
 }
 
@@ -72,10 +70,10 @@ function toGitRelPath(ctx: GitContext, docRelPath: string): string {
   return ctx.relDocs ? `${ctx.relDocs}/${docRelPath}` : docRelPath
 }
 
-function stripDocsPrefix(ctx: GitContext, gitRelPath: string): string | null {
+function stripDocsPrefix(ctx: GitContext, gitRelPath: string): string | undefined {
   if (!ctx.relDocs) return gitRelPath
   const prefix = `${ctx.relDocs}/`
-  if (!gitRelPath.startsWith(prefix)) return null
+  if (!gitRelPath.startsWith(prefix)) return undefined
   return gitRelPath.slice(prefix.length)
 }
 
@@ -314,7 +312,8 @@ function loadFileCommits(ctx: GitContext, docRelPath: string, limit: number): Pa
 async function computeBodyLineOffset(docsDir: string, docRelPath: string): Promise<number> {
   try {
     const raw = await readFile(path.join(docsDir, docRelPath), 'utf-8')
-    return splitFrontmatter(raw).bodyStartLine - 1
+    const fm = splitFrontmatter(raw)
+    return fm.isOk() ? fm.value.bodyStartLine - 1 : 0
   } catch {
     return 0
   }
@@ -416,20 +415,26 @@ export async function getDocumentHistory(docsDir: string, doc: Document, limit =
 /**
  * 指定コミット SHA 時点のドキュメント本文・メタデータを読み取り専用で取得する。
  */
-export function getDocumentRevision(docsDir: string, doc: Document, commitSha: string): DocumentRevision {
+export function getDocumentRevision(
+  docsDir: string,
+  doc: Document,
+  commitSha: string,
+): Result<DocumentRevision, HistoryDomainError> {
   const trimmed = commitSha.trim()
   if (!SHA_PATTERN.test(trimmed)) {
-    throw new HistoryError(`不正なコミット SHA です: ${commitSha}`, 400)
+    return Result.err(new InvalidCommitShaError({ commitSha, message: `不正なコミット SHA です: ${commitSha}` }))
   }
 
   const ctx = resolveGitContext(docsDir)
   if (!ctx) {
-    throw new HistoryError('このドキュメントディレクトリは Git リポジトリではありません', 404)
+    return Result.err(
+      new GitRepoUnavailableError({ message: 'このドキュメントディレクトリは Git リポジトリではありません' }),
+    )
   }
 
   const commitHeaderRaw = runGit(ctx.gitRoot, ['log', '-1', '--format=%H%x1f%aI%x1f%an%x1f%s', trimmed])
   if (!commitHeaderRaw?.trim()) {
-    throw new HistoryError(`コミットが見つかりません: ${trimmed}`, 404)
+    return Result.err(new CommitNotFoundError({ commitSha: trimmed, message: `コミットが見つかりません: ${trimmed}` }))
   }
   const [sha = '', date = '', author = '', subject = ''] = commitHeaderRaw.trim().split('\x1f')
 
@@ -437,7 +442,7 @@ export function getDocumentRevision(docsDir: string, doc: Document, commitSha: s
   let rawContent = runGit(ctx.gitRoot, ['show', `${sha}:${gitRel}`])
   let commitStatus: GitCommitEntry['status'] = 'M'
 
-  if (rawContent === null) {
+  if (rawContent === undefined) {
     // リネーム前の旧パスを履歴から探索して取得する
     const history = loadFileCommits(ctx, doc.path, 100)
     const matched = history.find((c) => c.sha === sha || c.sha.startsWith(trimmed))
@@ -447,29 +452,37 @@ export function getDocumentRevision(docsDir: string, doc: Document, commitSha: s
     }
   }
 
-  if (rawContent === null) {
-    throw new HistoryError(`コミット ${sha.slice(0, 7)} 時点にこの文書は存在しません`, 404)
+  if (rawContent === undefined) {
+    return Result.err(
+      new DocumentNotInCommitError({
+        commitSha: sha,
+        docPath: doc.path,
+        message: `コミット ${sha.slice(0, 7)} 時点にこの文書は存在しません`,
+      }),
+    )
   }
 
   let title = doc.title
   let description = ''
   let body = rawContent
-  try {
-    const fm = splitFrontmatter(rawContent)
+  const fmRes = splitFrontmatter(rawContent)
+  if (fmRes.isOk()) {
+    const fm = fmRes.value
     body = fm.body
     if (fm.hasFrontmatter) {
-      const parsed = parseYamlFrontmatter(fm.data)
-      if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
-        const record = parsed as Record<string, unknown>
-        if (typeof record.title === 'string' && record.title.trim()) title = record.title.trim()
-        if (typeof record.description === 'string') description = record.description
+      const parsedRes = parseYamlFrontmatter(fm.data)
+      if (parsedRes.isOk()) {
+        const parsed = parsedRes.value
+        if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+          const record = parsed as Record<string, unknown>
+          if (typeof record.title === 'string' && record.title.trim()) title = record.title.trim()
+          if (typeof record.description === 'string') description = record.description
+        }
       }
     }
-  } catch {
-    // 過去バージョンの frontmatter が不完全でも本文参照自体は継続する
   }
 
-  return {
+  return Result.ok({
     docId: doc.id,
     path: doc.path,
     commit: {
@@ -485,14 +498,14 @@ export function getDocumentRevision(docsDir: string, doc: Document, commitSha: s
     format: doc.format,
     dir: doc.dir,
     body,
-  }
+  })
 }
 
 const DEFAULT_BASE_BRANCHES = ['origin/main', 'main', 'origin/master', 'master'] as const
 
-function resolveDiffBaseRef(ctx: GitContext): string | null {
+function resolveDiffBaseRef(ctx: GitContext): string | undefined {
   const head = runGit(ctx.gitRoot, ['rev-parse', '--verify', 'HEAD'])?.trim()
-  if (!head) return null
+  if (!head) return undefined
 
   const currentBranch = runGit(ctx.gitRoot, ['rev-parse', '--abbrev-ref', 'HEAD'])?.trim()
   if (currentBranch && currentBranch !== 'HEAD' && currentBranch !== 'main' && currentBranch !== 'master') {
@@ -527,7 +540,7 @@ export function getChangedBlockIds(index: DocsIndex): Set<string> {
     const pathspec = ctx.relDocs || '.'
     const diffText = runGit(ctx.gitRoot, ['diff', '-U0', baseRef, '--', pathspec]) ?? ''
     if (diffText) {
-      let currentDocRel: string | null = null
+      let currentDocRel: string | undefined
       let currentLines: string[] = []
       const flush = () => {
         if (!currentDocRel || changedByDoc.get(currentDocRel) === 'all') return
@@ -538,14 +551,14 @@ export function getChangedBlockIds(index: DocsIndex): Set<string> {
       for (const line of diffText.split(/\r?\n/)) {
         if (line.startsWith('diff --git ')) {
           flush()
-          currentDocRel = null
+          currentDocRel = undefined
           currentLines = []
           continue
         }
         if (line.startsWith('+++ ')) {
           const rawPath = line.slice(4).trim()
           if (rawPath === '/dev/null') {
-            currentDocRel = null
+            currentDocRel = undefined
           } else {
             const gitPath = rawPath.startsWith('b/') ? rawPath.slice(2) : rawPath
             currentDocRel = stripDocsPrefix(ctx, gitPath)

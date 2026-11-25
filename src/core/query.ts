@@ -152,7 +152,7 @@ export function listDocuments(index: DocsIndex, type?: ArtifactType) {
  */
 export function getDocumentDetail(index: DocsIndex, id: string) {
   const doc = getDocument(index, id)
-  if (!doc) return null
+  if (!doc) return undefined
   return {
     ...toDocumentSummary(doc),
     body: doc.body,
@@ -178,7 +178,7 @@ export function getNodeRelations(index: DocsIndex, id: string) {
     const incoming = index.edges.filter((e) => e.to === block.id)
     return { id: block.id, kind: 'block' as const, docId: block.docId, outgoing, incoming }
   }
-  return null
+  return undefined
 }
 
 /**
@@ -215,7 +215,7 @@ export function getSpecContext(index: DocsIndex, id: string, options: { full?: b
   const full = options.full === true
   const block = index.blocksById.get(id)
   const doc = block ? index.byId.get(block.docId) : getDocument(index, id)
-  if (!doc) return null
+  if (!doc) return undefined
 
   const targetIds = new Set<string>([doc.id, ...(block ? [block.id] : doc.blocks.map((b) => b.id))])
   const relatedDocIds = new Set<string>()

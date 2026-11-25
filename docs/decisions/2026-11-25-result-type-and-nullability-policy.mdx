@@ -9,7 +9,7 @@ tags: [adr, core, error-handling, result, nullability]
 # Document Core の Result 型 (`better-result`)・`TaggedError`・Nullability 規約の採用
 
 <Outcome id="dec.result-and-nullability" stability="evolving">
-  `src/core/` の想定内ドメイン失敗は **`better-result`**（`Result<T, E>` ＋ `TaggedError`）で型安全に返し、`src/core/` から HTTP ステータスコード（`400/403/404/...`）とメッセージ文字列マッチによるエラー再分類を撤廃する。HTTP ステータスや終了コードへの変換はアダプタ層（`src/server/`・`src/cli.ts`・`src/server/mcp.ts`）が `matchError` で網羅マッピングする。正常系の「値が無い」は Documi 内部全体で **`undefined` に統一** し（外部境界の `null` は受けた直後に `undefined` へ正規化）、`process.env.USER`・`'human'`・必須項目の `?? ''` のような **偽フォールバックを禁止** する。まずは最も負債が大きい `reviews.ts`・`source.ts`・`code.ts` から段階導入し、残りコアモジュールも同一規約へ揃える。
+  `src/core/` の想定内ドメイン失敗は **`better-result`**（`Result<T, E>` ＋ `TaggedError`）で型安全に返し、`src/core/` から全 7 種のレガシー例外クラス・HTTP ステータスコード（`400/403/404/...`）・メッセージ文字列マッチによるエラー再分類を完全に撤廃する。HTTP ステータスや終了コードへの変換はアダプタ層（`src/server/`・`src/cli.ts`・`src/server/mcp.ts`）が `matchError` で網羅マッピングする。正常系の「値が無い」は Documi 内部全体で **`undefined` に統一** し（外部境界の `null` は受けた直後に `undefined` へ正規化）、`process.env.USER`・`'human'`・必須項目の `?? ''` のような **偽フォールバックを禁止** する。
 </Outcome>
 
 ## 背景と課題
@@ -72,8 +72,8 @@ Documi はフレームワーク非依存の `src/core/` を REST API（Hono）�
   - OS ユーザー名（`process.env.USER`）や `'human'` の意図しない永続化を構造的に根絶できる。
   - エラー処理漏れが `tsc` / `oxlint --type-aware` で静的検出される。
 - **受け入れるトレードオフ**:
-  - `better-result`（v3.0.x）は Effect や neverthrow に比べて歴史が浅くエコシステム規模も小さい。依存リスクを抑えるため、利用する API はコア機能（`Result.ok` / `Result.err` / `Result.gen` / `Result.await` / `TaggedError` / `matchError`）に絞り、必要になれば薄い互換ラッパで置換可能な状態を保つ。
-  - 段階移行期間中は、`reviews.ts`・`source.ts`・`code.ts` が `Result` ベース、残りモジュール（`editor.ts`・`git.ts`・`config.ts`・`frontmatter.ts`・`embeddings.ts`）が一時的に従来の `Error` クラスのまま混在する。移行を完遂するまで混在を長期放置しない。
+  - `better-result`（v3.0.x）は Effect や neverthrow に比べて歴史が浅くエコシステム規模も小さい。依存リスクを抑えるため、利用する API はコア機能（`Result.ok` / `Result.err` / `Result.gen` / `Result.await` / `Result.try` / `Result.tryPromise` / `TaggedError` / `matchError`）に絞り、必要になれば薄い互換ラッパで置換可能な状態を保つ。
+  - テストや単純な同期関数呼び出しでも `.unwrap()` / `.isErr()` の確認が必要になる。ただしこれは「失敗を見落とさない」こととの引き換えとして意図的に受け入れる。
 - **見直し条件**:
   - 将来 Documi が常駐マルチテナントサーバー化し、構造化並行処理・キャンセル伝播・リソース寿命管理（`Scope`）・DI Layer が要件として不可欠になった場合は Effect への移行を再検討する。
   - `better-result` の保守が停止し TypeScript 新バージョンへ追従できなくなった場合は、利用箇所を絞った薄い自前実装または後継ライブラリへ移行する。

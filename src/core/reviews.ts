@@ -369,13 +369,9 @@ function readBlockFromGitCommit(docsDir: string, commit: string, docPath: string
 
   const format = docPath.toLowerCase().endsWith('.mdx') ? 'mdx' : 'markdown'
   const docId = docPath.replace(/\.(mdx|md)$/i, '')
-  let body = content
-  try {
-    body = splitFrontmatter(content).body
-  } catch {
-    return undefined
-  }
-  const extracted = extractMdxArtifacts(body, format, docId)
+  const fm = splitFrontmatter(content)
+  if (fm.isErr()) return undefined
+  const extracted = extractMdxArtifacts(fm.value.body, format, docId)
   return extracted.blocks.find((b) => b.id === blockId)?.rawBody
 }
 
