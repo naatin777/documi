@@ -1,0 +1,49 @@
+---
+type: decision
+title: 人間承認ガード分離・不要機能削減・AI 対話クイズ＆最終確認 URL 承認の採用
+description: docs/guard/reviews.json への可視分離、内蔵フィードバック／stabilityOverride／手書き owner の不採用、軽量な suspect 通知、および AI クイズ→最終確認 URL 承認フローの設計決定
+date: 2026-11-25
+supersedes:
+  - decisions/2026-11-review-sidecar-and-pr-workflow
+tags: [adr, review, guard, ai, quiz, workflow]
+---
+
+# 人間承認ガード分離・不要機能削減・AI 対話クイズ＆最終確認 URL 承認の採用
+
+<Outcome id="dec.review-guard-and-quiz" stability="stable">
+  人間承認レコードは隠しフォルダではなく **`docs/guard/reviews.json`**（任意の確認メモ `note` 付き）へ可視分離し、一時ファイル・キャッシュ（JUnit XML・Embedding DB・Diff キャッシュ）はルート **`.documi/`**（`.gitignore` 一本化）へ分離する。Web UI 内蔵フィードバック・`stabilityOverride`・手書き `owner:` frontmatter・Web UI 内蔵 LLM クライアント・無条件 `--all` 一括承認はすべて不採用とし、**AI チャットの `documi-review` 対話クイズ → 専用最終確認 URL（`/review?ids=...&note=...`）→ 人間 1 クリックまとめて承認** の疎結合フローを採用する。上流変更フラグ `suspect` は `realization: drifted` や CI `--strict` エラーにせず軽量な参考通知に留める。
+</Outcome>
+
+## 背景と課題
+
+初期の承認サイドカー設計（[旧 ADR](./2026-11-review-sidecar-and-pr-workflow.mdx)）を Dogfooding 運用したところ、以下の摩擦と二重管理が顕在化した。
+
+1. **隠しフォルダ混在の違和感**: `docs/.documi/` に Git 管理すべき承認記録（`reviews.json`）と `.gitignore` 対象の一時キャッシュ（`embeddings.sqlite` / `test-results.xml`）が同居し、PR 差分や `CODEOWNERS` 上で意図が分かりにくかった。
+2. **承認の二重コストと形骸化リスク**: 未承認ブロックが数十件あるとき 1 件ずつ手動確認するのは負荷が高く、かといって無条件の `--all` 一括承認を作ると「読まずにハンコ押し」になる。一方で AI に `documi approve` を直接叩かせると自動実行設定下で無断承認リスクが残る。
+3. **二重の真実（Split Truth）**: Web UI 内蔵フィードバックは AI チャット／GitHub PR コメントと重複し、`stabilityOverride` は MDX 本体の `stability="..."` 属性と食い違って混乱を招いていた。
+4. **`suspect` の過剰警告**: 上流 Goal の言い回しを軽く調整しただけで全下流 Spec が `realization: drifted` かつ CI 警告・`--strict` エラーとなり、ノイズ過多になっていた。
+
+## 検討した代替案と棄却理由
+
+### 1. Web UI 内に LLM クライアント（チャット・クイズ生成）を内蔵する案
+- **棄却理由**: LLM API キー・モデル設定の管理が発生し Documi のローカル完結・ゼロ設定思想を損なう。また普段利用しているコーディングエージェントの会話文脈・編集権限と分断され、仕様ズレ発見時に結局メインの AI チャットへ戻る羽目になる。
+- **採用**: クイズ出題・認識合わせ・即時修正は AI チャット（`documi-review` スキル）に任せ、Web UI は閲覧・Diff 確認・最終承認の場に徹する。往復のつなぎ目は **Git 変更分フィルタ・ワンクリックコピー・最終確認 URL（`/review?ids=...&note=...`）** の疎結合で解決する。
+
+### 2. AI チャットから直接 `documi approve` を実行させる案
+- **棄却理由**: 人間の明示合意後のみ許可する運用ルールを敷いても、エージェント側のコマンド自動許可設定によっては「いつの間にか AI が承認していた」事故を構造的に防ぎきれない。
+- **採用**: AI は `docs/guard/reviews.json` に一切触れず、確認内容の要約を載せた **読み取り専用 GET URL（`/review?ids=...&note=...`）** を発行する。人間がその URL を開いて確認メモを確認・編集し、ブラウザ上の「まとめて承認」ボタンを押したときだけ `POST /api/blocks/approve-batch` で記録する。
+
+### 3. 内蔵フィードバック機能・`stabilityOverride`・手書き `owner:` の維持／追加
+- **内蔵フィードバックを廃止した理由**: AI チャットに直接伝えるか GitHub PR コメントを使う方が文脈が切れず、Resolve/Reopen の二重管理が消える。Web UI 各ブロックには「AI へ伝える」参照コピーボタンのみを残す。
+- **`stabilityOverride` を廃止した理由**: Stability（`stable` / `evolving` / `volatile`）は仕様の性質そのものであり、MDX 属性を PR の diff でレビューする方が単一の真実を保てる。
+- **手書き `owner:` frontmatter を不採用とした理由**: 責任範囲の真実は `.github/CODEOWNERS` がすでに担っており、frontmatter へ手書きすると異動・体制変更時に必ず陳腐化する。将来チーム表示が必要になった場合は `.github/CODEOWNERS` の自動読込で解決する。
+
+### 4. `suspect` で `realization` を `drifted` や `--strict` エラーにする案
+- **棄却理由**: 上流の表現調整だけでテスト通過済みの下流実装まで「乖離」扱いすると、ドキュメント改善をためらう逆インセンティブを生む。
+- **採用**: `suspect` は UI バッジ・控えめなバナー・`documi query --suspect`・サマリー件数による軽量な参考通知（Advisory）に留める。
+
+## 影響・将来の見直し条件
+
+- **プラス面**: `reviews.json` が純粋な承認記録（＋任意 `note`）のみになり差分が極めて読みやすい。コード全体も大幅に簡素化され、GitHub PR テンプレート・`CODEOWNERS`（`/docs/guard/**`・`/docs/decisions/**`）・`--no-review-edit` との整合が取れた。
+- **受け入れるトレードオフ**: 承認を完了するにはブラウザで最終確認 URL を開いて 1 クリック（またはターミナルで `documi approve`）する 1 アクションが必要になる。
+- **見直し条件**: 大規模チーム運用で `CODEOWNERS` ベースの自動オーナー表示や、エージェント標準プロトコル（ACP 等）による安全な双方向 UI 連携が成熟した場合は再検討する。
