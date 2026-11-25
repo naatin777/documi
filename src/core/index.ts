@@ -8,6 +8,7 @@ export {
   loadReviews,
   saveReviews,
   approveBlock,
+  unapproveBlock,
   addBlockFeedback,
   setFeedbackResolved,
   setBlockStabilityOverride,

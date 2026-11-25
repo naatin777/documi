@@ -321,6 +321,14 @@ export const api = {
       }),
     )
   },
+  unapproveBlock: (blockId: string) => {
+    if (isStaticSite()) return Promise.reject(new Error('静的サイトでは承認取り消し操作は利用できません'))
+    return unwrap(
+      rpc.api.blocks[':id'].approve.$delete({
+        param: { id: encodeURIComponent(blockId) },
+      }),
+    )
+  },
   addFeedback: (blockId: string, body: string, author?: string) => {
     if (isStaticSite()) return Promise.reject(new Error('静的サイトではフィードバック投稿は利用できません'))
     return unwrap(

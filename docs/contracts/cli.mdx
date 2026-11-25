@@ -104,6 +104,10 @@ AI エディタ・CLI エージェント向けに **stdio トランスポート*
 
 指定した 1 つ以上のセマンティックブロックを承認し、`docs/.documi/reviews.json`（ハッシュ・`approvedCommit`・上流ハッシュ）とローカルキャッシュを更新する。
 
+## `documi unapprove <block-id...>`
+
+指定した 1 つ以上のセマンティックブロックの承認を取り消し、`unreviewed` 状態へ戻す。既存のフィードバックや Stability 上書きは保持し、どちらも無ければレコード自体を削除する。
+
 ## `documi export`
 
 複数ドキュメントを `/bundle` × `Bun.WebView` 経由で 1 冊の PDF または単一 HTML にまとめて出力する（事前に `bun run build` が必要）。
@@ -133,5 +137,5 @@ Cloudflare Pages / Workers Static Assets・Vercel・Netlify・GitHub Pages・AWS
 - **副作用の範囲**:
   - `documi check` / `documi mcp`: 読み取り専用（ファイル書き換えなし）。
   - `documi init`: 不足している雛形ファイルのみを作成し、既存ファイルは一切上書きしない（冪等）。
-  - `documi approve`: `docs/.documi/reviews.json` と `.documi/cache/` のみ更新し、MDX 本文は変更しない。
+  - `documi approve` / `documi unapprove`: `docs/.documi/reviews.json` と `.documi/cache/` のみ更新し、MDX 本文は変更しない。
   - `documi export`: `--out` で指定された出力ファイルのみを書き出す。

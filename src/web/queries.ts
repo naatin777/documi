@@ -25,6 +25,7 @@ const queryKeys = {
   documentRevision: (docId: string, commit: string) => ['document', docId, 'revision', commit] as const,
   terms: ['terms'] as const,
   blocks: ['blocks'] as const,
+  blockDiff: (blockId: string) => ['blocks', blockId, 'diff'] as const,
   graph: (layers: 'all' | 'trace', granularity: 'docs' | 'blocks') => ['graph', layers, granularity] as const,
   bundle: (params: { scope?: string; ids?: string[]; title?: string }) =>
     ['bundle', params.scope ?? '', params.ids?.join(',') ?? '', params.title ?? ''] as const,
@@ -122,6 +123,15 @@ export function useBlocksQuery() {
   return useQuery({
     queryKey: queryKeys.blocks,
     queryFn: () => api.blocks(),
+  })
+}
+
+export function useBlockDiffQuery(blockId: string, enabled: boolean) {
+  return useQuery({
+    queryKey: queryKeys.blockDiff(blockId),
+    queryFn: () => api.blockDiff(blockId),
+    enabled: enabled && Boolean(blockId),
+    retry: false,
   })
 }
 
