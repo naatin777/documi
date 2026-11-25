@@ -102,8 +102,8 @@ export function buildProjectMap(index: DocsIndex, options: { full?: boolean } = 
     .map((b) => ({
       id: b.id,
       docId: b.docId,
-      aliases: b.aliases ?? [],
-      symbols: b.symbols ?? [],
+      aliases: b.aliases,
+      symbols: b.symbols,
       definition: full ? b.rawBody : summarizeText(b.rawBody, 160),
     }))
 
@@ -258,12 +258,13 @@ export function getSpecContext(index: DocsIndex, id: string, options: { full?: b
     .filter((d) => d.type === 'decision')
     .flatMap((d) => d.blocks.filter((b) => b.kind === 'outcome'))
 
-  const terms: SemanticBlock[] = [...index.blocksById.values()].filter(
-    (b) =>
-      b.kind === 'term' &&
-      (doc.body.toLowerCase().includes(b.id.toLowerCase()) ||
-        (b.aliases ?? []).some((a) => doc.body.toLowerCase().includes(a.toLowerCase()))),
-  )
+  const terms = [...index.blocksById.values()]
+    .filter((b) => b.kind === 'term')
+    .filter(
+      (b) =>
+        doc.body.toLowerCase().includes(b.id.toLowerCase()) ||
+        b.aliases.some((a) => doc.body.toLowerCase().includes(a.toLowerCase())),
+    )
 
   const compactTarget = block
     ? {
@@ -311,8 +312,8 @@ export function getSpecContext(index: DocsIndex, id: string, options: { full?: b
     decisionOutcomes: outcomes.map((o) => ({ id: o.id, docId: o.docId, body: o.rawBody })),
     relevantTerms: terms.map((t) => ({
       id: t.id,
-      aliases: t.aliases ?? [],
-      symbols: t.symbols ?? [],
+      aliases: t.aliases,
+      symbols: t.symbols,
       body: full ? t.rawBody : summarizeText(t.rawBody, 160),
     })),
     sourceRefs: [...doc.sourceRefs, ...relatedDocs.flatMap((d) => d.sourceRefs)],

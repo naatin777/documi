@@ -589,7 +589,7 @@ function ReviewInboxCard({
 
       {diffOpen && diff && (
         <div className="sem-diff-panel mt-2.5 overflow-hidden rounded-md border border-line">
-          {!diff.hasBase ? (
+          {diff.baseSource === 'none' ? (
             <p className="sem-diff-empty muted">{t('review.noBaseSnapshot')}</p>
           ) : (
             <pre className="sem-diff-lines">

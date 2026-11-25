@@ -71,7 +71,7 @@ satisfies:
   - 事前検証: `ids` に未存在ブロックが 1 件でも含まれる場合は書き込まず `404` を返す。
   - レスポンス `200`: `{ approvedIds: string[], count: number }`
 - **`GET /api/blocks/:id/diff`**:
-  - レスポンス `200`: `{ blockId, hasBase, baseSource: "git" | "cache" | "none", baseCommit?, changed, lines: { type: "context" | "add" | "del", text }[] }`
+  - レスポンス `200`: `baseSource` を判別子とする判別共用体 `{ blockId, baseSource: "git", baseCommit, changed, lines }` / `{ blockId, baseSource: "cache", baseCommit?, changed, lines }` / `{ blockId, baseSource: "none", baseCommit?, changed, lines: [] }`（`lines` は `{ type: "context" | "add" | "del", text }[]`）
 - **`GET /api/search`**:
   - クエリ: `q?`, `type?`, `limit?`（既定 `30`・最大 `100`）, `semantic?: "true" | "false"`
   - レスポンス `200`: `{ query, results: SearchHit[], count, mode: "bm25" | "hybrid", modelId? }`

@@ -273,35 +273,45 @@ function extractSemanticBlock(
   }
 
   const rawBody = extractInnerBody(node, source)
-  const block: SemanticBlock = {
+  const base = {
     id,
-    kind,
     docId,
     startLine,
     endLine,
     contentHash: computeContentHash(rawBody),
     rawBody,
     title: props.title?.trim() || undefined,
-    intent,
     stability,
-    review: 'unreviewed',
+    review: 'unreviewed' as const,
     suspect: false,
-    suspectSources: [],
+    suspectSources: [] as string[],
     derives: splitCsv(props.derives),
     supersedes: splitCsv(props.supersedes),
   }
 
-  if (kind === 'constraint' && props.scope?.trim()) {
-    block.scope = props.scope.trim()
-  }
-  if (kind === 'term') {
-    const aliases = splitCsv(props.aliases)
-    const symbols = splitCsv(props.symbols)
-    if (aliases.length > 0) block.aliases = aliases
-    if (symbols.length > 0) block.symbols = symbols
+  if (kind === 'note') {
+    const noteIntent: NoteIntent = isNoteIntent(intent) ? intent : 'informative'
+    return { ...base, kind: 'note', intent: noteIntent }
   }
 
-  return block
+  const specIntent: SpecIntent = isSpecIntent(intent) ? intent : 'normative'
+  if (kind === 'constraint') {
+    const scope = props.scope?.trim()
+    return { ...base, kind: 'constraint', intent: specIntent, ...(scope ? { scope } : {}) }
+  }
+  if (kind === 'term') {
+    return {
+      ...base,
+      kind: 'term',
+      intent: specIntent,
+      aliases: splitCsv(props.aliases),
+      symbols: splitCsv(props.symbols),
+    }
+  }
+  if (kind === 'outcome') {
+    return { ...base, kind: 'outcome', intent: specIntent }
+  }
+  return { ...base, kind: 'spec', intent: specIntent }
 }
 
 function extractSourceRef(
@@ -314,25 +324,38 @@ function extractSourceRef(
   const file = props.file?.trim()
   if (!file) return
   const rawMode = props.mode?.trim()
-  let mode: SourceRefDecl['mode']
+  const base = {
+    file,
+    satisfies: splitCsv(props.satisfies),
+    verifies: splitCsv(props.verifies),
+    startLine: (node.position?.start?.line ?? 1) + lineOffset,
+  }
   if (rawMode !== undefined && rawMode !== '') {
-    if (rawMode === 'snippet' || rawMode === 'exports') {
-      mode = rawMode
-    } else {
+    if (rawMode === 'exports') {
+      out.push({ ...base, mode: 'exports' })
+      return
+    }
+    if (rawMode !== 'snippet') {
       issues.push({
         code: 'invalid-block-attr',
         message: `<SourceRef> の mode が不正です: ${rawMode} (snippet / exports)`,
       })
+      return
     }
   }
-  out.push({
-    file,
-    symbol: props.symbol?.trim() || undefined,
-    lines: props.lines?.trim() || undefined,
-    ...(mode ? { mode } : {}),
-    satisfies: splitCsv(props.satisfies),
-    verifies: splitCsv(props.verifies),
-    startLine: (node.position?.start?.line ?? 1) + lineOffset,
+  const symbol = props.symbol?.trim()
+  if (symbol) {
+    out.push({ ...base, mode: 'symbol', symbol })
+    return
+  }
+  const lines = props.lines?.trim()
+  if (lines) {
+    out.push({ ...base, mode: 'lines', lines })
+    return
+  }
+  issues.push({
+    code: 'invalid-block-attr',
+    message: `<SourceRef file="${file}"> には mode="exports"・symbol・lines のいずれかが必要です`,
   })
 }
 

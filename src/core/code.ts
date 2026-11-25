@@ -149,7 +149,9 @@ function buildFileReverseIndex(index: DocsIndex): FileReverseIndex {
   for (const doc of index.documents) {
     for (const ref of doc.sourceRefs) {
       const f = normalizeRelPath(ref.file)
-      const key = `${f}|${doc.id}|${ref.symbol ?? ''}|${ref.lines ?? ''}`
+      const refSymbol = ref.mode === 'symbol' ? ref.symbol : undefined
+      const refLines = ref.mode === 'lines' ? ref.lines : undefined
+      const key = `${f}|${doc.id}|${ref.mode}|${refSymbol ?? ''}|${refLines ?? ''}`
       if (!docRefSeen.has(key)) {
         docRefSeen.add(key)
         const list = docs.get(f) ?? []
@@ -157,8 +159,8 @@ function buildFileReverseIndex(index: DocsIndex): FileReverseIndex {
           docId: doc.id,
           docTitle: doc.title,
           docType: doc.type,
-          ...(ref.symbol ? { symbol: ref.symbol } : {}),
-          ...(ref.lines ? { lines: ref.lines } : {}),
+          ...(refSymbol ? { symbol: refSymbol } : {}),
+          ...(refLines ? { lines: refLines } : {}),
         })
         docs.set(f, list)
       }
@@ -171,7 +173,7 @@ function buildFileReverseIndex(index: DocsIndex): FileReverseIndex {
             kind: 'source-ref',
             docId: specDoc.id,
             docTitle: specDoc.title,
-            symbol: ref.symbol,
+            symbol: refSymbol,
           })
         }
       }
@@ -184,7 +186,7 @@ function buildFileReverseIndex(index: DocsIndex): FileReverseIndex {
             kind: 'verifies',
             docId: specDoc.id,
             docTitle: specDoc.title,
-            symbol: ref.symbol,
+            symbol: refSymbol,
           })
         }
       }
@@ -198,7 +200,7 @@ function buildFileReverseIndex(index: DocsIndex): FileReverseIndex {
     seenTermBlock.add(term.id)
     const ownerDoc = index.byId.get(term.docId)
     if (!ownerDoc) continue
-    for (const rawSym of term.symbols ?? []) {
+    for (const rawSym of term.symbols) {
       const [rawFile, symbol] = rawSym.split('#')
       if (!rawFile || !symbol) continue
       const f = normalizeRelPath(rawFile)

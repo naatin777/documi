@@ -59,7 +59,7 @@ describe('人間レビュー・Stale・Suspect・Diff・承認メモ', () => {
     const diffRes = await getBlockDiff(root, idx, 'auth.lockout')
     expect(diffRes.isOk()).toBe(true)
     const diff = diffRes.unwrap()
-    expect(diff.hasBase).toBe(true)
+    expect(diff.baseSource).toBe('cache')
     expect(diff.changed).toBe(true)
     expect(diff.lines.some((l) => l.type === 'del' && l.text.includes('5回失敗'))).toBe(true)
     expect(diff.lines.some((l) => l.type === 'add' && l.text.includes('3回失敗'))).toBe(true)

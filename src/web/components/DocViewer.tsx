@@ -90,8 +90,10 @@ export default function DocViewer({
                 <span className="truncate">
                   {history.highlightBasis === 'working'
                     ? t('doc.highlightWorking')
-                    : t('doc.highlightLastCommit', { sha: history.highlightCommit?.shortSha ?? '' })}
-                  {history.highlightBasis === 'last-commit' && history.highlightCommit?.subject
+                    : history.highlightBasis === 'last-commit'
+                      ? t('doc.highlightLastCommit', { sha: history.highlightCommit.shortSha })
+                      : ''}
+                  {history.highlightBasis === 'last-commit' && history.highlightCommit.subject
                     ? ` · ${history.highlightCommit.subject}`
                     : ''}
                 </span>
