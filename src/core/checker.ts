@@ -1,5 +1,5 @@
-import { execFileSync } from 'node:child_process'
 import path from 'node:path'
+import { isGitPathDirty } from './git'
 import { computeDocumentHealth } from './health'
 import type { DocumentHealthSummary } from './health'
 import { loadDocuments } from './loader'
@@ -159,15 +159,5 @@ export async function runDocsCheck(options: CheckOptions): Promise<CheckReport> 
 }
 
 function isReviewsFileModifiedInGit(projectRoot: string, docsDir: string): boolean {
-  try {
-    const rel = path.relative(projectRoot, path.join(docsDir, REVIEWS_REL_PATH)).split(path.sep).join('/')
-    const status = execFileSync('git', ['status', '--porcelain', '--', rel], {
-      cwd: projectRoot,
-      encoding: 'utf8',
-      stdio: ['ignore', 'pipe', 'ignore'],
-    }).trim()
-    return status.length > 0
-  } catch {
-    return false
-  }
+  return isGitPathDirty(projectRoot, path.join(docsDir, REVIEWS_REL_PATH))
 }

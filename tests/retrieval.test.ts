@@ -90,12 +90,21 @@ afterEach(async () => {
 })
 
 describe('BM25 + Glossary Alias Expansion + Graph-Aware Retrieval', () => {
-  test('[core.graph-retrieval] 日本語自然文（スペースなし）と camelCase/dot ID をトークナイズして BM25 検索できる', async () => {
+  test('[core.graph-retrieval] 日本語自然文（Intl.Segmenter 単語分割）と camelCase/dot ID をトークナイズして BM25 検索できる', async () => {
     const jpTokens = tokenizeForSearch('認証のロックアウト仕様はどうなっている？')
     expect(jpTokens).toContain('認証')
     expect(jpTokens).toContain('ロックアウト')
     expect(jpTokens).toContain('仕様')
     expect(jpTokens).not.toContain('の')
+
+    // 複合カタカナや送り仮名付き和語も自然に単語分割される
+    const compoundTokens = tokenizeForSearch('アカウントロックアウトの書き出しと取り消し')
+    expect(compoundTokens).toContain('アカウント')
+    expect(compoundTokens).toContain('ロックアウト')
+    expect(compoundTokens).toContain('書き出し')
+    expect(compoundTokens).toContain('取り消し')
+    expect(compoundTokens).not.toContain('の')
+    expect(compoundTokens).not.toContain('と')
 
     const idTokens = tokenizeForSearch('core.static-site buildProjectMap')
     expect(idTokens).toContain('core.static-site')

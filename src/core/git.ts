@@ -3,6 +3,7 @@ import { realpathSync } from 'node:fs'
 import { readFile, stat } from 'node:fs/promises'
 import path from 'node:path'
 import { Result } from 'better-result'
+import { parsePatch, type StructuredPatchHunk } from 'diff'
 import {
   CommitNotFoundError,
   DocumentNotInCommitError,
@@ -23,7 +24,6 @@ import type {
 } from './types'
 
 const SHA_PATTERN = /^[0-9a-f]{7,40}$/i
-const HUNK_PATTERN = /^@@ -(\d+)(?:,(\d+))? \+(\d+)(?:,(\d+))? @@/
 
 interface GitContext {
   gitRoot: string
@@ -83,27 +83,55 @@ function normalizeCommitStatus(raw: string): GitCommitEntry['status'] {
   return 'M'
 }
 
-/**
- * Unified Diff (`-U0`) のハンクヘッダから本文（frontmatter 除外後）基準の変更行レンジ一覧を抽出する。
- */
-export function parseUnifiedDiffRanges(diffText: string, bodyLineOffset: number): ChangedLineRange[] {
-  const ranges: ChangedLineRange[] = []
-  for (const line of diffText.split(/\r?\n/)) {
-    const match = HUNK_PATTERN.exec(line)
-    if (!match) continue
-    const oldCount = match[2] !== undefined ? Number(match[2]) : 1
-    const newStart = Number(match[3])
-    const newCount = match[4] !== undefined ? Number(match[4]) : 1
+/** 現在の Git HEAD 短縮 SHA を取得する（非 Git 環境や未コミット時は undefined） */
+export function getGitHeadShortSha(cwd: string): string | undefined {
+  return runGit(cwd, ['rev-parse', '--short', 'HEAD'])?.trim() || undefined
+}
 
-    const fileStart = newStart
-    const fileEnd = newCount === 0 ? newStart : newStart + newCount - 1
+/** Git リポジトリの user.name を取得する。非 Git 環境や未設定時は undefined を返し、OS ユーザー名等へフォールバックしない */
+export function getGitUserName(cwd: string): string | undefined {
+  if (!runGit(cwd, ['rev-parse', '--is-inside-work-tree'])?.trim()) return undefined
+  return runGit(cwd, ['config', 'user.name'])?.trim() || undefined
+}
+
+/** 指定コミット時点の docsDir 配下ファイルの生テキストを取得する */
+export function readFileAtGitCommit(docsDir: string, commit: string, docRelPath: string): string | undefined {
+  const ctx = resolveGitContext(docsDir)
+  if (!ctx) return undefined
+  return runGit(ctx.gitRoot, ['show', `${commit}:${toGitRelPath(ctx, docRelPath)}`])
+}
+
+/** 指定パスに未コミット変更または未追跡ファイルがあるかを返す（非 Git 環境では false） */
+export function isGitPathDirty(projectRoot: string, targetPath: string): boolean {
+  const rel = toPosix(path.relative(projectRoot, targetPath))
+  const status = runGit(projectRoot, ['status', '--porcelain=v1', '-z', '--', rel])
+  return Boolean(status && status.length > 0)
+}
+
+function hunksToChangedRanges(hunks: readonly StructuredPatchHunk[], bodyLineOffset: number): ChangedLineRange[] {
+  const ranges: ChangedLineRange[] = []
+  for (const hunk of hunks) {
+    const fileStart = hunk.newStart
+    const fileEnd = hunk.newLines === 0 ? hunk.newStart : hunk.newStart + hunk.newLines - 1
     // frontmatter 領域のみの変更は本文ハイライト対象から除外する
     if (fileEnd <= bodyLineOffset) continue
 
     const startLine = Math.max(1, fileStart - bodyLineOffset)
     const endLine = Math.max(startLine, fileEnd - bodyLineOffset)
-    const kind: ChangedLineRange['kind'] = oldCount === 0 && newCount > 0 ? 'added' : 'modified'
+    const kind: ChangedLineRange['kind'] = hunk.oldLines === 0 && hunk.newLines > 0 ? 'added' : 'modified'
     ranges.push({ startLine, endLine, kind })
+  }
+  return ranges
+}
+
+/**
+ * Unified Diff (`-U0`) のハンクから本文（frontmatter 除外後）基準の変更行レンジ一覧を抽出する。
+ */
+export function parseUnifiedDiffRanges(diffText: string, bodyLineOffset: number): ChangedLineRange[] {
+  if (!diffText.trim()) return []
+  const ranges: ChangedLineRange[] = []
+  for (const patch of parsePatch(diffText)) {
+    ranges.push(...hunksToChangedRanges(patch.hunks, bodyLineOffset))
   }
   return ranges
 }
@@ -111,18 +139,19 @@ export function parseUnifiedDiffRanges(diffText: string, bodyLineOffset: number)
 function parseStatusMap(ctx: GitContext): Map<string, WorkingTreeStatus> {
   const result = new Map<string, WorkingTreeStatus>()
   const pathspec = ctx.relDocs || '.'
-  const raw = runGit(ctx.gitRoot, ['status', '--porcelain', '-uall', '--', pathspec])
+  // -z (NUL 区切り) を使うことでパスのクォート・エスケープやリネーム表記の揺れを排除する
+  const raw = runGit(ctx.gitRoot, ['status', '--porcelain=v1', '-z', '-uall', '--', pathspec])
   if (!raw) return result
 
-  for (const line of raw.split(/\r?\n/)) {
-    if (line.length < 4) continue
-    const xy = line.slice(0, 2)
-    let filePath = line.slice(3).trim()
-    // リネーム表記 "old -> new" のときは新パスを採用する
-    const arrowIdx = filePath.indexOf(' -> ')
-    if (arrowIdx >= 0) filePath = filePath.slice(arrowIdx + 4)
-    if (filePath.startsWith('"') && filePath.endsWith('"')) {
-      filePath = filePath.slice(1, -1)
+  const entries = raw.split('\0')
+  for (let i = 0; i < entries.length; i++) {
+    const entry = entries[i]
+    if (!entry || entry.length < 4) continue
+    const xy = entry.slice(0, 2)
+    const filePath = entry.slice(3)
+    // リネーム/コピー (R/C) の直後に続く旧パス要素をスキップ
+    if (xy[0] === 'R' || xy[0] === 'C' || xy[1] === 'R' || xy[1] === 'C') {
+      i++
     }
 
     const docRel = stripDocsPrefix(ctx, filePath)
@@ -549,37 +578,15 @@ export function getChangedBlockIds(index: DocsIndex): Set<string> {
   if (baseRef) {
     const pathspec = ctx.relDocs || '.'
     const diffText = runGit(ctx.gitRoot, ['diff', '-U0', baseRef, '--', pathspec]) ?? ''
-    if (diffText) {
-      let currentDocRel: string | undefined
-      let currentLines: string[] = []
-      const flush = () => {
-        if (!currentDocRel || changedByDoc.get(currentDocRel) === 'all') return
-        const ranges = parseUnifiedDiffRanges(currentLines.join('\n'), 0)
-        if (ranges.length > 0) changedByDoc.set(currentDocRel, ranges)
+    if (diffText.trim()) {
+      for (const patch of parsePatch(diffText)) {
+        if (patch.isDelete || !patch.newFileName || patch.newFileName === '/dev/null') continue
+        const gitPath = patch.newFileName.startsWith('b/') ? patch.newFileName.slice(2) : patch.newFileName
+        const docRel = stripDocsPrefix(ctx, gitPath)
+        if (!docRel || changedByDoc.get(docRel) === 'all') continue
+        const ranges = hunksToChangedRanges(patch.hunks, 0)
+        if (ranges.length > 0) changedByDoc.set(docRel, ranges)
       }
-
-      for (const line of diffText.split(/\r?\n/)) {
-        if (line.startsWith('diff --git ')) {
-          flush()
-          currentDocRel = undefined
-          currentLines = []
-          continue
-        }
-        if (line.startsWith('+++ ')) {
-          const rawPath = line.slice(4).trim()
-          if (rawPath === '/dev/null') {
-            currentDocRel = undefined
-          } else {
-            const gitPath = rawPath.startsWith('b/') ? rawPath.slice(2) : rawPath
-            currentDocRel = stripDocsPrefix(ctx, gitPath)
-          }
-          continue
-        }
-        if (currentDocRel && line.startsWith('@@ ')) {
-          currentLines.push(line)
-        }
-      }
-      flush()
     }
   }
 

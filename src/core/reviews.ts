@@ -1,11 +1,11 @@
-import { execFileSync } from 'node:child_process'
-import { realpathSync } from 'node:fs'
 import { mkdir, readFile, writeFile } from 'node:fs/promises'
 import path from 'node:path'
 import { Result } from 'better-result'
+import { diffArrays } from 'diff'
 import { z } from 'zod'
 import { BlockNotFoundError, DocumentNotFoundError, type ReviewDomainError } from './errors'
 import { splitFrontmatter } from './frontmatter'
+import { getGitHeadShortSha, getGitUserName, readFileAtGitCommit } from './git'
 import { computeContentHash, extractMdxArtifacts } from './mdx'
 import type {
   BlockDiffResult,
@@ -271,24 +271,6 @@ export function applyReviewsAndSuspects(index: DocsIndex, reviews: ReviewsFile):
   }
 }
 
-function runGit(cwd: string, args: string[]): string | undefined {
-  try {
-    return execFileSync('git', args, { cwd, encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] }).trim()
-  } catch {
-    return undefined
-  }
-}
-
-function getHeadCommit(cwd: string): string | undefined {
-  return runGit(cwd, ['rev-parse', '--short', 'HEAD']) || undefined
-}
-
-/** Git リポジトリの user.name を取得する。非 Git 環境や未設定時は undefined を返し、OS ユーザー名等へフォールバックしない */
-function getGitUserName(cwd: string): string | undefined {
-  if (!runGit(cwd, ['rev-parse', '--is-inside-work-tree'])) return undefined
-  return runGit(cwd, ['config', 'user.name']) || undefined
-}
-
 /** ブロックを承認し guard/reviews.json とローカルキャッシュを更新する */
 export async function approveBlock(
   docsDir: string,
@@ -316,7 +298,7 @@ export async function approveBlock(
   const record: BlockReviewRecord = {
     docPath: doc.path,
     hash: block.contentHash,
-    approvedCommit: getHeadCommit(docsDir),
+    approvedCommit: getGitHeadShortSha(docsDir),
     approvedAt: new Date().toISOString(),
     ...(approvedBy ? { approvedBy } : {}),
     ...(note ? { note } : {}),
@@ -358,13 +340,7 @@ export async function unapproveBlock(
 
 /** Git コミットから指定ブロックの本文を取り出す */
 function readBlockFromGitCommit(docsDir: string, commit: string, docPath: string, blockId: string): string | undefined {
-  const gitRootRaw = runGit(docsDir, ['rev-parse', '--show-toplevel'])
-  if (!gitRootRaw) return undefined
-  const gitRoot = safeRealpath(gitRootRaw)
-  const absDocsDir = safeRealpath(docsDir)
-  const absFile = path.join(absDocsDir, docPath)
-  const relFromGit = path.relative(gitRoot, absFile).split(path.sep).join('/')
-  const content = runGit(gitRoot, ['show', `${commit}:${relFromGit}`])
+  const content = readFileAtGitCommit(docsDir, commit, docPath)
   if (content === undefined) return undefined
 
   const format = docPath.toLowerCase().endsWith('.mdx') ? 'mdx' : 'markdown'
@@ -373,14 +349,6 @@ function readBlockFromGitCommit(docsDir: string, commit: string, docPath: string
   if (fm.isErr()) return undefined
   const extracted = extractMdxArtifacts(fm.value.body, format, docId)
   return extracted.blocks.find((b) => b.id === blockId)?.rawBody
-}
-
-function safeRealpath(p: string): string {
-  try {
-    return realpathSync(p)
-  } catch {
-    return path.resolve(p)
-  }
 }
 
 /** 承認時点の本文 (Git またはローカルキャッシュ) と現在の本文の行 diff を算出する */
@@ -437,48 +405,16 @@ export async function getBlockDiff(
   })
 }
 
-/** LCS ベースのシンプルな行単位 diff を計算する */
+/** Myers アルゴリズム (`diff` パッケージ) による行単位 diff を計算する */
 export function computeLineDiff(before: string, after: string): DiffLine[] {
   const a = before.replace(/\r\n/g, '\n').split('\n')
   const b = after.replace(/\r\n/g, '\n').split('\n')
-  const m = a.length
-  const n = b.length
-
-  // DP テーブル (ブロック単位は通常数十行以内のため十分高速)
-  const dp: number[][] = Array.from({ length: m + 1 }, () => Array.from<number>({ length: n + 1 }).fill(0))
-  for (let i = m - 1; i >= 0; i--) {
-    for (let j = n - 1; j >= 0; j--) {
-      if (a[i] === b[j]) {
-        dp[i]![j] = dp[i + 1]![j + 1]! + 1
-      } else {
-        dp[i]![j] = Math.max(dp[i + 1]![j]!, dp[i]![j + 1]!)
-      }
-    }
-  }
-
   const lines: DiffLine[] = []
-  let i = 0
-  let j = 0
-  while (i < m && j < n) {
-    if (a[i] === b[j]) {
-      lines.push({ type: 'context', text: a[i]! })
-      i++
-      j++
-    } else if (dp[i + 1]![j]! >= dp[i]![j + 1]!) {
-      lines.push({ type: 'del', text: a[i]! })
-      i++
-    } else {
-      lines.push({ type: 'add', text: b[j]! })
-      j++
+  for (const part of diffArrays(a, b)) {
+    const type: DiffLine['type'] = part.added ? 'add' : part.removed ? 'del' : 'context'
+    for (const text of part.value) {
+      lines.push({ type, text })
     }
-  }
-  while (i < m) {
-    lines.push({ type: 'del', text: a[i]! })
-    i++
-  }
-  while (j < n) {
-    lines.push({ type: 'add', text: b[j]! })
-    j++
   }
   return lines
 }
