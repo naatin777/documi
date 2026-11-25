@@ -34,7 +34,7 @@ export function zValidator<
       const first = parsed.error.issues[0]
       const message = first?.path?.length
         ? `${first.path.join('.')}: ${first.message}`
-        : (first?.message ?? '不正なリクエストパラメータです')
+        : (first?.message ?? 'Invalid request parameters')
       return c.json({ error: message }, 400)
     }
     return parsed.data

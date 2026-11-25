@@ -444,7 +444,7 @@ export async function validateSourceLinks(
         if (!file || !symbol) {
           issues.push({
             code: 'broken-term-symbol',
-            message: `<TermDef id="${block.id}"> の symbol 形式が不正です ("file#Symbol" 形式が必要): ${sym}`,
+            message: `<TermDef id="${block.id}"> has invalid symbol format (expected "file#Symbol"): ${sym}`,
             path: doc.path,
             blockId: block.id,
           })
@@ -454,7 +454,7 @@ export async function validateSourceLinks(
         if (res.isErr()) {
           issues.push({
             code: 'broken-term-symbol',
-            message: `<TermDef id="${block.id}"> のシンボル ${sym} が解決できません: ${res.error.message}`,
+            message: `<TermDef id="${block.id}"> cannot resolve symbol ${sym}: ${res.error.message}`,
             path: doc.path,
             blockId: block.id,
           })
@@ -523,13 +523,13 @@ export async function enrichWithRealization(
     let status: RealizationStatus
     if (hasFailedTest) {
       status = 'drifted'
-      reasons.push('紐づくテストが失敗しています')
+      reasons.push('Linked tests are failing')
     } else if (hasBrokenRef) {
       status = 'drifted'
-      reasons.push('紐づく <SourceRef> のシンボルまたは行範囲が壊れています')
+      reasons.push('Linked <SourceRef> symbol or line range is broken')
     } else if (hasCodeOrTest && block.review === 'stale') {
       status = 'drifted'
-      reasons.push('仕様が承認後に変更されており、実装との再確認が必要です')
+      reasons.push('Specification changed after approval and needs re-verification against implementation')
     } else if (hasPassedTest && !hasFailedTest) {
       status = 'verified'
     } else if (hasOpenPr) {

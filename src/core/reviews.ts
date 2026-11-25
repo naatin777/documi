@@ -33,7 +33,7 @@ export async function loadReviews(docsDir: string, issues: IndexIssue[]): Promis
     }
     issues.push({
       code: 'invalid-reviews',
-      message: `reviews.json を読み込めません: ${error instanceof Error ? error.message : String(error)}`,
+      message: `Failed to read reviews.json: ${error instanceof Error ? error.message : String(error)}`,
       path: REVIEWS_REL_PATH,
     })
     return { version: 1, blocks: {} }
@@ -45,7 +45,7 @@ export async function loadReviews(docsDir: string, issues: IndexIssue[]): Promis
   } catch (error) {
     issues.push({
       code: 'invalid-reviews',
-      message: `reviews.json の JSON パースに失敗しました: ${error instanceof Error ? error.message : String(error)}`,
+      message: `Failed to parse reviews.json: ${error instanceof Error ? error.message : String(error)}`,
       path: REVIEWS_REL_PATH,
     })
     return { version: 1, blocks: {} }
@@ -75,7 +75,7 @@ function validateReviewsFile(parsed: unknown, issues: IndexIssue[]): ReviewsFile
   if (!rootResult.success) {
     issues.push({
       code: 'invalid-reviews',
-      message: 'reviews.json の構造が不正です（ルートと blocks はオブジェクトである必要があります）',
+      message: 'Invalid reviews.json structure (root and blocks must be objects)',
       path: REVIEWS_REL_PATH,
     })
     return { version: 1, blocks: {} }
@@ -87,7 +87,7 @@ function validateReviewsFile(parsed: unknown, issues: IndexIssue[]): ReviewsFile
     if (!recResult.success) {
       issues.push({
         code: 'invalid-reviews',
-        message: `reviews.json のブロック "${id}" に必須フィールド (docPath / hash / approvedAt) が不足または不正です`,
+        message: `Invalid review record for block "${id}": missing or invalid required fields (docPath / hash / approvedAt)`,
         path: REVIEWS_REL_PATH,
         blockId: id,
       })
@@ -214,7 +214,7 @@ export function applyReviewsAndSuspects(index: DocsIndex, reviews: ReviewsFile):
     if (!index.blocksById.has(id)) {
       index.issues.push({
         code: 'orphan-review',
-        message: `reviews.json に存在しないブロック ID "${id}" の記録があります`,
+        message: `reviews.json references non-existent block ID "${id}"`,
         path: REVIEWS_REL_PATH,
         blockId: id,
       })
@@ -298,12 +298,12 @@ export async function approveBlock(
 ): Promise<Result<BlockReviewRecord, ReviewDomainError>> {
   const block = index.blocksById.get(blockId)
   if (!block) {
-    return Result.err(new BlockNotFoundError({ blockId, message: `ブロックが見つかりません: ${blockId}` }))
+    return Result.err(new BlockNotFoundError({ blockId, message: `Block not found: ${blockId}` }))
   }
   const doc = index.byId.get(block.docId)
   if (!doc) {
     return Result.err(
-      new DocumentNotFoundError({ docId: block.docId, message: `所属ドキュメントが見つかりません: ${block.docId}` }),
+      new DocumentNotFoundError({ docId: block.docId, message: `Owner document not found: ${block.docId}` }),
     )
   }
 
@@ -341,7 +341,7 @@ export async function unapproveBlock(
 ): Promise<Result<{ removed: boolean }, BlockNotFoundError>> {
   const block = index.blocksById.get(blockId)
   if (!block) {
-    return Result.err(new BlockNotFoundError({ blockId, message: `ブロックが見つかりません: ${blockId}` }))
+    return Result.err(new BlockNotFoundError({ blockId, message: `Block not found: ${blockId}` }))
   }
 
   const reviews = await loadReviews(docsDir, [])
@@ -392,7 +392,7 @@ export async function getBlockDiff(
 ): Promise<Result<BlockDiffResult, BlockNotFoundError>> {
   const block = index.blocksById.get(blockId)
   if (!block) {
-    return Result.err(new BlockNotFoundError({ blockId, message: `ブロックが見つかりません: ${blockId}` }))
+    return Result.err(new BlockNotFoundError({ blockId, message: `Block not found: ${blockId}` }))
   }
 
   const reviews = await loadReviews(docsDir, [])

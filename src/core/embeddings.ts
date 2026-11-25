@@ -109,7 +109,7 @@ async function loadOnnxExtractor(
       return new EmbeddingInitError({
         provider: 'onnx',
         model,
-        message: `ONNX Embedding モデル (${model}, dtype=${dtype}) の初期化に失敗しました: ${error instanceof Error ? error.message : String(error)}`,
+        message: `Failed to initialize ONNX embedding model (${model}, dtype=${dtype}): ${error instanceof Error ? error.message : String(error)}`,
       })
     },
   })
@@ -125,9 +125,7 @@ function extractMatrixRows(
   expectedCount: number,
 ): Result<Float32Array[], EmbeddingResponseError> {
   if (!Array.isArray(raw)) {
-    return Result.err(
-      new EmbeddingResponseError({ provider, model, message: 'Embedding 出力が配列形式ではありません' }),
-    )
+    return Result.err(new EmbeddingResponseError({ provider, model, message: 'Embedding output is not an array' }))
   }
   if (raw.length === 0) return Result.ok([])
   if (typeof raw[0] === 'number') {
@@ -139,7 +137,7 @@ function extractMatrixRows(
       new EmbeddingResponseError({
         provider,
         model,
-        message: `Embedding 返却件数が一致しません (expected=${expectedCount}, got=${rows.length})`,
+        message: `Embedding count mismatch (expected=${expectedCount}, got=${rows.length})`,
       }),
     )
   }
@@ -178,7 +176,7 @@ function createOnnxEmbeddingProvider(options: {
               new EmbeddingRequestError({
                 provider: 'onnx',
                 model,
-                message: `ONNX Embedding 推論に失敗しました: ${error instanceof Error ? error.message : String(error)}`,
+                message: `ONNX embedding inference failed: ${error instanceof Error ? error.message : String(error)}`,
               }),
           }),
         )
@@ -196,7 +194,7 @@ function createOnnxEmbeddingProvider(options: {
               new EmbeddingRequestError({
                 provider: 'onnx',
                 model,
-                message: `ONNX Embedding 推論に失敗しました: ${error instanceof Error ? error.message : String(error)}`,
+                message: `ONNX embedding inference failed: ${error instanceof Error ? error.message : String(error)}`,
               }),
           }),
         )
@@ -233,7 +231,7 @@ function createOllamaEmbeddingProvider(options: {
         new EmbeddingRequestError({
           provider: 'ollama',
           model,
-          message: `Ollama /api/embed への接続に失敗しました: ${error instanceof Error ? error.message : String(error)}`,
+          message: `Failed to connect to Ollama /api/embed: ${error instanceof Error ? error.message : String(error)}`,
         }),
     })
     if (resResult.isErr()) return resResult
@@ -246,7 +244,7 @@ function createOllamaEmbeddingProvider(options: {
           new EmbeddingResponseError({
             provider: 'ollama',
             model,
-            message: `Ollama /api/embed の応答形式が不正です (model=${model})`,
+            message: `Invalid response from Ollama /api/embed (model=${model})`,
           }),
         )
       }
@@ -268,7 +266,7 @@ function createOllamaEmbeddingProvider(options: {
             new EmbeddingRequestError({
               provider: 'ollama',
               model,
-              message: `Ollama /api/embeddings への接続に失敗しました: ${error instanceof Error ? error.message : String(error)}`,
+              message: `Failed to connect to Ollama /api/embeddings: ${error instanceof Error ? error.message : String(error)}`,
             }),
         })
         if (legResResult.isErr()) return legResResult
@@ -279,7 +277,7 @@ function createOllamaEmbeddingProvider(options: {
               provider: 'ollama',
               model,
               status: legRes.status,
-              message: `Ollama /api/embeddings が失敗しました (${legRes.status}): ${await legRes.text()}`,
+              message: `Ollama /api/embeddings failed (${legRes.status}): ${await legRes.text()}`,
             }),
           )
         }
@@ -289,7 +287,7 @@ function createOllamaEmbeddingProvider(options: {
             new EmbeddingResponseError({
               provider: 'ollama',
               model,
-              message: `Ollama /api/embeddings の応答形式が不正です (model=${model})`,
+              message: `Invalid response from Ollama /api/embeddings (model=${model})`,
             }),
           )
         }
@@ -303,7 +301,7 @@ function createOllamaEmbeddingProvider(options: {
         provider: 'ollama',
         model,
         status: res.status,
-        message: `Ollama /api/embed が失敗しました (${res.status}): ${await res.text()}`,
+        message: `Ollama /api/embed failed (${res.status}): ${await res.text()}`,
       }),
     )
   }
@@ -354,7 +352,7 @@ function createOpenAiEmbeddingProvider(options: {
         new EmbeddingRequestError({
           provider: 'openai',
           model,
-          message: `OpenAI 互換 /embeddings への接続に失敗しました: ${error instanceof Error ? error.message : String(error)}`,
+          message: `Failed to connect to OpenAI-compatible /embeddings: ${error instanceof Error ? error.message : String(error)}`,
         }),
     })
     if (resResult.isErr()) return resResult
@@ -366,7 +364,7 @@ function createOpenAiEmbeddingProvider(options: {
           provider: 'openai',
           model,
           status: res.status,
-          message: `OpenAI 互換 /embeddings が失敗しました (${res.status}): ${await res.text()}`,
+          message: `OpenAI-compatible /embeddings failed (${res.status}): ${await res.text()}`,
         }),
       )
     }
@@ -376,7 +374,7 @@ function createOpenAiEmbeddingProvider(options: {
         new EmbeddingResponseError({
           provider: 'openai',
           model,
-          message: `OpenAI 互換 /embeddings の応答形式が不正です (model=${model})`,
+          message: `Invalid response from OpenAI-compatible /embeddings (model=${model})`,
         }),
       )
     }
@@ -388,7 +386,7 @@ function createOpenAiEmbeddingProvider(options: {
           new EmbeddingResponseError({
             provider: 'openai',
             model,
-            message: 'Embedding ベクトルが欠損しています',
+            message: 'Missing embedding vector in response',
           }),
         )
       }

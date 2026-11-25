@@ -26,9 +26,7 @@ export function splitFrontmatter(source: string): Result<SplitFrontmatter, Unclo
   }
   const match = /^---\n([\s\S]*?)\n---(?:\n|$)/.exec(normalized)
   if (!match || match[1] === undefined) {
-    return Result.err(
-      new UnclosedFrontmatterError({ message: 'YAML frontmatter の閉じフェンス (---) が見つかりません' }),
-    )
+    return Result.err(new UnclosedFrontmatterError({ message: 'Missing closing YAML frontmatter fence (---)' }))
   }
   const prefix = match[0]
   const bodyStartLine = prefix.split('\n').length
@@ -47,7 +45,7 @@ export function parseYamlFrontmatter(data: string): Result<unknown, FrontmatterP
     try: () => parse(data) as unknown,
     catch: (error) =>
       new FrontmatterParseError({
-        message: `frontmatter の YAML パースに失敗しました: ${error instanceof Error ? error.message : String(error)}`,
+        message: `Failed to parse YAML frontmatter: ${error instanceof Error ? error.message : String(error)}`,
       }),
   })
 }

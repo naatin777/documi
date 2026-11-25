@@ -66,7 +66,7 @@ export function extractMdxArtifacts(body: string, format: DocFormat, docId: stri
   const issues: DocIssue[] = []
   const { tree, parseError } = parseMarkdownAst(body, format)
   if (parseError) {
-    issues.push({ code: 'mdx-parse-error', message: `MDX の構文解析に失敗しました: ${parseError}` })
+    issues.push({ code: 'mdx-parse-error', message: `Failed to parse MDX syntax: ${parseError}` })
   }
 
   const definitions = new Map<string, string>()
@@ -149,14 +149,14 @@ export function extractMdxArtifacts(body: string, format: DocFormat, docId: stri
   walk(tree)
 
   if (hasEsm) {
-    issues.push({ code: 'mdx-unsupported', message: 'ESM の import / export 文は未対応です' })
+    issues.push({ code: 'mdx-unsupported', message: 'ESM import/export statements are not allowed in MDX' })
   }
   if (hasExpr) {
-    issues.push({ code: 'mdx-unsupported', message: 'JSX 式 { ... } は未対応です' })
+    issues.push({ code: 'mdx-unsupported', message: 'JSX expressions { ... } are not allowed in MDX' })
   }
   if (unsupportedComponents.size > 0) {
     const names = [...unsupportedComponents].map((n) => `<${n}>`).join(', ')
-    issues.push({ code: 'mdx-unsupported', message: `未対応のコンポーネントです: ${names}` })
+    issues.push({ code: 'mdx-unsupported', message: `Unsupported MDX component(s): ${names}` })
   }
 
   return { blocks, sourceRefs, links, termRefs, firstHeading, issues }
@@ -166,7 +166,7 @@ function parseStringAttributes(jsx: MdxJsxFlowElement | MdxJsxTextElement, issue
   const props: Record<string, string> = {}
   for (const attr of jsx.attributes) {
     if (attr.type === 'mdxJsxExpressionAttribute') {
-      issues.push({ code: 'mdx-unsupported', message: `<${jsx.name}> でスプレッド属性 {...} は未対応です` })
+      issues.push({ code: 'mdx-unsupported', message: `Spread attributes {...} are not allowed on <${jsx.name}>` })
       continue
     }
     const a = attr
@@ -177,7 +177,7 @@ function parseStringAttributes(jsx: MdxJsxFlowElement | MdxJsxTextElement, issue
     } else {
       issues.push({
         code: 'mdx-unsupported',
-        message: `<${jsx.name}> の属性 ${a.name} に JSX 式は使えません (文字列リテラルを使用してください)`,
+        message: `JSX expressions are not allowed in attribute "${a.name}" on <${jsx.name}> (use string literals)`,
       })
     }
   }
@@ -222,13 +222,13 @@ function extractSemanticBlock(
   } else if (!rawId) {
     issues.push({
       code: 'missing-block-id',
-      message: `<${capitalizeKind(kind)}> (L${startLine}) に id 属性が必要です`,
+      message: `<${capitalizeKind(kind)}> (L${startLine}) requires an id attribute`,
     })
     return undefined
   } else if (!BLOCK_ID_PATTERN.test(rawId)) {
     issues.push({
       code: 'invalid-block-id',
-      message: `ブロック ID が不正です: "${rawId}" (英字始まり、英数字と . _ - のみ使用可能)`,
+      message: `Invalid block ID: "${rawId}" (must start with a letter and contain only letters, digits, ".", "_", "-")`,
       blockId: rawId,
     })
     return undefined
@@ -244,7 +244,7 @@ function extractSemanticBlock(
       } else {
         issues.push({
           code: 'invalid-block-attr',
-          message: `<Note> の intent が不正です: ${props.intent} (idea / informative / rejected)`,
+          message: `Invalid <Note> intent: ${props.intent} (expected: idea / informative / rejected)`,
           blockId: id,
         })
       }
@@ -253,7 +253,7 @@ function extractSemanticBlock(
     } else {
       issues.push({
         code: 'invalid-block-attr',
-        message: `<${capitalizeKind(kind)}> の intent が不正です: ${props.intent} (normative / idea / rejected)`,
+        message: `Invalid <${capitalizeKind(kind)}> intent: ${props.intent} (expected: normative / idea / rejected)`,
         blockId: id,
       })
     }
@@ -266,7 +266,7 @@ function extractSemanticBlock(
     } else {
       issues.push({
         code: 'invalid-block-attr',
-        message: `stability が不正です: ${props.stability} (stable / evolving / volatile)`,
+        message: `Invalid stability: ${props.stability} (expected: stable / evolving / volatile)`,
         blockId: id,
       })
     }
@@ -338,7 +338,7 @@ function extractSourceRef(
     if (rawMode !== 'snippet') {
       issues.push({
         code: 'invalid-block-attr',
-        message: `<SourceRef> の mode が不正です: ${rawMode} (snippet / exports)`,
+        message: `Invalid <SourceRef> mode: ${rawMode} (expected: snippet / exports)`,
       })
       return
     }
@@ -355,7 +355,7 @@ function extractSourceRef(
   }
   issues.push({
     code: 'invalid-block-attr',
-    message: `<SourceRef file="${file}"> には mode="exports"・symbol・lines のいずれかが必要です`,
+    message: `<SourceRef file="${file}"> requires one of mode="exports", symbol, or lines`,
   })
 }
 

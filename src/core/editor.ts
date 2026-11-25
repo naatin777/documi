@@ -181,7 +181,7 @@ async function resolveSafeDocFile(
 > {
   const cleaned = relPath.replace(/\\/g, '/').replace(/^\/+/, '').trim()
   if (!cleaned || cleaned.includes('\0') || path.isAbsolute(relPath)) {
-    return Result.err(new InvalidDocPathError({ path: relPath, message: `不正なドキュメントパスです: ${relPath}` }))
+    return Result.err(new InvalidDocPathError({ path: relPath, message: `Invalid document path: ${relPath}` }))
   }
   const segments = cleaned.split('/')
   if (segments.some((s) => s === '' || s === '.' || s === '..')) {
@@ -189,7 +189,7 @@ async function resolveSafeDocFile(
       new DocPathOutsideRootError({
         path: relPath,
         reason: 'traversal',
-        message: `パスに相対参照 (..) を含めることはできません: ${relPath}`,
+        message: `Relative path traversal (..) is not allowed: ${relPath}`,
       }),
     )
   }
@@ -200,7 +200,7 @@ async function resolveSafeDocFile(
     return Result.err(
       new ProtectedPathWriteError({
         path: relPath,
-        message: 'docs/guard/・.documi/ および reviews.json への書き込みは禁止されています',
+        message: 'Writing to docs/guard/, .documi/, or reviews.json is forbidden',
       }),
     )
   }
@@ -208,7 +208,7 @@ async function resolveSafeDocFile(
     return Result.err(
       new InvalidDocPathError({
         path: relPath,
-        message: `ドキュメントは .mdx または .md である必要があります: ${relPath}`,
+        message: `Document path must end with .mdx or .md: ${relPath}`,
       }),
     )
   }
@@ -220,7 +220,7 @@ async function resolveSafeDocFile(
       new DocPathOutsideRootError({
         path: relPath,
         reason: 'traversal',
-        message: 'ドキュメントパスが docs ディレクトリ外を指しています',
+        message: 'Document path resolves outside docs directory',
       }),
     )
   }
@@ -235,7 +235,7 @@ async function resolveSafeDocFile(
           new DocPathOutsideRootError({
             path: relPath,
             reason: 'symlink',
-            message: 'シンボリックリンクが docs ディレクトリ外を指しています',
+            message: 'Symlink resolves outside docs directory',
           }),
         )
       }
@@ -268,7 +268,7 @@ function validateSafeDocumentSource(
     return Result.err(
       new UnsafeMdxError({
         docId,
-        message: `MDX 安全性検証に失敗しました: ${fatal.map((f) => f.message).join('; ')}`,
+        message: `MDX safety validation failed: ${fatal.map((f) => f.message).join('; ')}`,
       }),
     )
   }
@@ -278,7 +278,7 @@ function validateSafeDocumentSource(
 function escapeAttrValue(value: string): Result<string, InvalidEditInputError> {
   if (value.includes('"') || value.includes('\n') || value.includes('\r')) {
     return Result.err(
-      new InvalidEditInputError({ message: `属性値に改行またはダブルクォートは使用できません: ${value}` }),
+      new InvalidEditInputError({ message: `Attribute value cannot contain newlines or double quotes: ${value}` }),
     )
   }
   return Result.ok(value)
@@ -300,7 +300,7 @@ function formatBlockMdx(
   const openTag = attrParts.length > 0 ? `<${tag} ${attrParts.join(' ')}>` : `<${tag}>`
   const trimmedBody = body.replace(/\r\n/g, '\n').trim()
   if (!trimmedBody) {
-    return Result.err(new InvalidEditInputError({ message: 'ブロック本文は空にできません' }))
+    return Result.err(new InvalidEditInputError({ message: 'Block body cannot be empty' }))
   }
   const indented = trimmedBody
     .split('\n')
@@ -350,11 +350,11 @@ function validateBlockAttributes(
   input: { stability?: string; intent?: string },
 ): Result<void, InvalidEditInputError> {
   if (input.stability !== undefined && !isStability(input.stability)) {
-    return Result.err(new InvalidEditInputError({ message: `不正な stability です: ${input.stability}` }))
+    return Result.err(new InvalidEditInputError({ message: `Invalid stability: ${input.stability}` }))
   }
   if (input.intent !== undefined) {
     if (kind === 'note' ? !isNoteIntent(input.intent) : !isSpecIntent(input.intent)) {
-      return Result.err(new InvalidEditInputError({ message: `不正な intent です: ${input.intent}` }))
+      return Result.err(new InvalidEditInputError({ message: `Invalid intent: ${input.intent}` }))
     }
   }
   return Result.ok(undefined)
@@ -385,17 +385,12 @@ export async function updateBlockInDocs(
   return Result.gen(async function* () {
     const block = index.blocksById.get(input.id)
     if (!block) {
-      return Result.err(
-        new EditTargetNotFoundError({ target: input.id, message: `ブロックが見つかりません: ${input.id}` }),
-      )
+      return Result.err(new EditTargetNotFoundError({ target: input.id, message: `Block not found: ${input.id}` }))
     }
     const doc = index.byId.get(block.docId)
     if (!doc) {
       return Result.err(
-        new EditTargetNotFoundError({
-          target: block.docId,
-          message: `所属ドキュメントが見つかりません: ${block.docId}`,
-        }),
+        new EditTargetNotFoundError({ target: block.docId, message: `Owner document not found: ${block.docId}` }),
       )
     }
 
@@ -411,7 +406,7 @@ export async function updateBlockInDocs(
       return Result.err(
         new EditTargetNotFoundError({
           target: block.id,
-          message: `ファイル内でブロック定義 <${BLOCK_TAG_NAME[block.kind]} id="${block.id}"> を特定できませんでした`,
+          message: `Could not locate <${BLOCK_TAG_NAME[block.kind]} id="${block.id}"> in document`,
         }),
       )
     }
@@ -455,20 +450,18 @@ export async function addBlockToDoc(
     if (!BLOCK_ID_PATTERN.test(input.id)) {
       return Result.err(
         new InvalidEditInputError({
-          message: `ブロック ID が不正です: "${input.id}" (英字始まり、英数字と . _ - のみ使用可能)`,
+          message: `Invalid block ID: "${input.id}" (must start with a letter and contain only letters, digits, ".", "_", "-")`,
         }),
       )
     }
     if (index.blocksById.has(input.id)) {
-      return Result.err(
-        new EditConflictError({ target: input.id, message: `ブロック ID "${input.id}" はすでに存在します` }),
-      )
+      return Result.err(new EditConflictError({ target: input.id, message: `Block ID "${input.id}" already exists` }))
     }
 
     const doc = index.byId.get(input.docId.replace(/^\/+|\/+$/g, '').replace(/\.(mdx|md)$/i, ''))
     if (!doc) {
       return Result.err(
-        new EditTargetNotFoundError({ target: input.docId, message: `ドキュメントが見つかりません: ${input.docId}` }),
+        new EditTargetNotFoundError({ target: input.docId, message: `Document not found: ${input.docId}` }),
       )
     }
 
@@ -513,7 +506,7 @@ export async function addBlockToDoc(
         return Result.err(
           new EditTargetNotFoundError({
             target: input.afterHeading,
-            message: `指定された見出しが見つかりません: "${input.afterHeading}"`,
+            message: `Heading not found: "${input.afterHeading}"`,
           }),
         )
       }
@@ -553,7 +546,7 @@ export async function upsertTermInDocs(
 ): Promise<Result<UpsertTermResult, EditDomainError>> {
   return Result.gen(async function* () {
     if (!BLOCK_ID_PATTERN.test(input.id)) {
-      return Result.err(new InvalidEditInputError({ message: `用語 ID が不正です: "${input.id}"` }))
+      return Result.err(new InvalidEditInputError({ message: `Invalid term ID: "${input.id}"` }))
     }
     const existing = index.blocksById.get(input.id)
     if (existing) {
@@ -561,7 +554,7 @@ export async function upsertTermInDocs(
         return Result.err(
           new EditConflictError({
             target: input.id,
-            message: `ID "${input.id}" はすでに ${existing.kind} ブロックとして使用されています`,
+            message: `ID "${input.id}" is already used by a ${existing.kind} block`,
           }),
         )
       }
@@ -582,7 +575,7 @@ export async function upsertTermInDocs(
       return Result.err(
         new EditTargetNotFoundError({
           target: preferredDocId,
-          message: `用語集ドキュメントが見つかりません (${preferredDocId})`,
+          message: `Glossary document not found (${preferredDocId})`,
         }),
       )
     }
@@ -621,18 +614,18 @@ export async function scaffoldDocument(
       return Result.err(
         new EditConflictError({
           target: relPath,
-          message: `ファイルはすでに存在します（上書きは禁止されています）: ${relPath}`,
+          message: `File already exists (overwriting is forbidden): ${relPath}`,
         }),
       )
     }
 
     if (input.type !== undefined && !isArtifactType(input.type)) {
-      return Result.err(new InvalidEditInputError({ message: `不正な Artifact Type です: ${String(input.type)}` }))
+      return Result.err(new InvalidEditInputError({ message: `Invalid Artifact Type: ${String(input.type)}` }))
     }
     if (input.date !== undefined && !/^\d{4}-\d{2}(?:-\d{2})?$/.test(input.date.trim())) {
       return Result.err(
         new InvalidEditInputError({
-          message: `date は YYYY-MM-DD または YYYY-MM 形式で指定してください: ${input.date}`,
+          message: `date must be in YYYY-MM-DD or YYYY-MM format: ${input.date}`,
         }),
       )
     }
@@ -793,21 +786,21 @@ export async function renameBlockIdAcrossProject(
       return Result.err(
         new EditTargetNotFoundError({
           target: input.oldId,
-          message: `リネーム元のブロックが見つかりません: ${input.oldId}`,
+          message: `Source block to rename not found: ${input.oldId}`,
         }),
       )
     }
     if (!BLOCK_ID_PATTERN.test(input.newId)) {
-      return Result.err(new InvalidEditInputError({ message: `新しいブロック ID が不正です: "${input.newId}"` }))
+      return Result.err(new InvalidEditInputError({ message: `Invalid new block ID: "${input.newId}"` }))
     }
     if (input.oldId === input.newId) {
-      return Result.err(new InvalidEditInputError({ message: 'oldId と newId が同じです' }))
+      return Result.err(new InvalidEditInputError({ message: 'oldId and newId must be different' }))
     }
     if (index.blocksById.has(input.newId)) {
       return Result.err(
         new EditConflictError({
           target: input.newId,
-          message: `新しいブロック ID "${input.newId}" はすでに存在します`,
+          message: `New block ID "${input.newId}" already exists`,
         }),
       )
     }

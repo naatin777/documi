@@ -49,7 +49,7 @@ export async function loadDocuments(rootDir: string): Promise<DocsIndex> {
     if (byId.has(docId)) {
       issues.push({
         code: 'duplicate-doc-id',
-        message: `ドキュメント ID "${docId}" が重複しています (${byId.get(docId)!.path} と ${relPath})`,
+        message: `Duplicate document ID "${docId}" (${byId.get(docId)!.path} and ${relPath})`,
         path: relPath,
       })
       continue
@@ -66,7 +66,7 @@ export async function loadDocuments(rootDir: string): Promise<DocsIndex> {
         const prev = blocksById.get(block.id)!
         doc.issues.push({
           code: 'duplicate-block-id',
-          message: `ブロック ID "${block.id}" が重複しています (${prev.docId} と ${doc.id})`,
+          message: `Duplicate block ID "${block.id}" (${prev.docId} and ${doc.id})`,
           blockId: block.id,
         })
         continue
@@ -121,7 +121,7 @@ async function collectMarkdownFiles(root: string, relDir: string, issues: IndexI
     if ((error as NodeJS.ErrnoException).code === 'ENOENT') return []
     issues.push({
       code: 'read-error',
-      message: `ディレクトリを読み込めません: ${absDir} (${errorMessage(error)})`,
+      message: `Failed to read directory ${absDir}: ${errorMessage(error)}`,
       path: relDir || '.',
     })
     return []
@@ -154,7 +154,7 @@ async function parseDocumentFile(
   } catch (error) {
     indexIssues.push({
       code: 'read-error',
-      message: `ファイルを読み込めません: ${errorMessage(error)}`,
+      message: `Failed to read file: ${errorMessage(error)}`,
       path: relPath,
     })
     return undefined
@@ -192,12 +192,12 @@ async function parseDocumentFile(
     } else if (typeof parsed === 'object' && !Array.isArray(parsed)) {
       rawFm = parsed as Record<string, unknown>
     } else {
-      docIssues.push({ code: 'invalid-frontmatter', message: 'frontmatter は YAML オブジェクトである必要があります' })
+      docIssues.push({ code: 'invalid-frontmatter', message: 'Frontmatter must be a YAML mapping/object' })
     }
   } else {
     docIssues.push({
       code: 'missing-frontmatter',
-      message: 'YAML frontmatter がありません (パスから型を推論しました)',
+      message: 'Missing YAML frontmatter (artifact type inferred from path)',
     })
   }
 
@@ -252,7 +252,7 @@ function resolveArtifactType(
     }
     issues.push({
       code: 'invalid-type',
-      message: `不正な type です: ${formatUnknown(rawType)} (パスから推論します)`,
+      message: `Invalid artifact type: ${formatUnknown(rawType)} (inferring from path)`,
     })
   }
 
@@ -272,7 +272,7 @@ function resolveArtifactType(
 
   issues.push({
     code: 'inferred-default-type',
-    message: 'frontmatter またはパスから type を判別できなかったため guide として扱います',
+    message: 'Could not infer artifact type from frontmatter or path; defaulting to "guide"',
   })
   return { type: 'guide', typeInferred: true }
 }
@@ -284,7 +284,7 @@ function resolveTitle(rawTitle: unknown, firstHeading: string | undefined, docId
   if (firstHeading) {
     return firstHeading
   }
-  issues.push({ code: 'missing-title', message: 'title が指定されていないためファイル名を使用します' })
+  issues.push({ code: 'missing-title', message: 'Missing title; falling back to filename' })
   return docId.split('/').pop() ?? docId
 }
 
@@ -320,7 +320,7 @@ function parseDateField(value: unknown, issues: DocIssue[]): string | undefined 
   if (!normalized) {
     issues.push({
       code: 'invalid-date',
-      message: `date は YYYY-MM-DD (または YYYY-MM) 形式で指定してください: ${formatUnknown(value)}`,
+      message: `date must be in YYYY-MM-DD (or YYYY-MM) format: ${formatUnknown(value)}`,
     })
     return undefined
   }
@@ -336,7 +336,7 @@ function parseStringListField(value: unknown, field: string, issues: DocIssue[])
   if (Array.isArray(value) && value.every((v) => typeof v === 'string')) {
     return value.map((s) => s.trim()).filter(Boolean)
   }
-  issues.push({ code: 'invalid-field', message: `${field} は文字列または文字列の配列である必要があります` })
+  issues.push({ code: 'invalid-field', message: `${field} must be a string or an array of strings` })
   return []
 }
 
@@ -360,7 +360,7 @@ function registerTerm(block: TermSemanticBlock, termsByName: Map<string, TermSem
     if (existing && existing.id !== block.id) {
       issues.push({
         code: 'duplicate-term',
-        message: `用語名 "${name}" が "${existing.id}" と "${block.id}" で重複しています`,
+        message: `Duplicate term "${name}" defined in both "${existing.id}" and "${block.id}"`,
         blockId: block.id,
       })
       continue

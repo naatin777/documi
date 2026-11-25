@@ -77,93 +77,93 @@ function usage(io: CliIo): void {
   io.out(`Documi CLI
 
 Usage:
-  documi init [options]                          新規・既存プロジェクト向け docs/ 雛形と Agent Skills を生成
-  documi serve [options]                         Web UI・REST API・MCP (HTTP) サーバーを起動
-  documi mcp [options]                           MCP サーバーを stdio モードで起動 (AI エディタ連携用)
-  documi check [options]                         ドキュメント・グラフ・ASTシンボル・テスト結果を一括検証
-  documi approve <block-id...> [opts]            指定したセマンティックブロックを承認 (reviews.json を更新)
-  documi unapprove <block-id...> [opts]          指定したセマンティックブロックの承認を取り消し (未承認へ戻す)
-  documi export [options]                        複数ドキュメントを 1 冊の PDF / HTML にまとめて出力
-  documi build-site [options]                    任意の静的ホスティング向けに読み取り専用静的サイトを生成
+  documi init [options]                          Scaffold docs/ templates and Agent Skills for new or existing projects
+  documi serve [options]                         Start Web UI, REST API, and MCP (HTTP) server
+  documi mcp [options]                           Start MCP server over stdio (for AI editor integration)
+  documi check [options]                         Validate documents, graph, AST symbols, and test results
+  documi approve <block-id...> [opts]            Approve specified semantic blocks (updates reviews.json)
+  documi unapprove <block-id...> [opts]          Revoke approval for specified semantic blocks (back to unreviewed)
+  documi export [options]                        Export multiple documents as a single PDF or HTML bundle
+  documi build-site [options]                    Build a read-only static site for any static hosting provider
 
-  [AI & 人間向け 読み取り・検索コマンド (すべて --json 対応)]
-  documi map [options]                           Goal / Architecture / Outcome / 用語 / 統計を一括取得
-  documi list [--type <type>] [options]          ドキュメント一覧を取得
-  documi show <doc-id> [options]                 ドキュメント本文・ブロック・関係・問題一覧を取得
-  documi relations <id> [options]                ドキュメントまたはブロックの外向き・逆参照を取得
-  documi search <query...> [options]             ドキュメントとセマンティックブロックを横断全文検索 (BM25 + 用語展開 / --semantic)
-  documi retrieve <query...> [options]           自然文から BM25 (+ --semantic) + グラフ展開で関連 Spec・Goal・ADR・SourceRef を 1 発取得
-  documi index [options]                         ローカル Embedding キャッシュ (bun:sqlite) を contentHash 差分で構築・更新
-  documi query [filters] [options]               セマンティックブロックを多軸フィルタ検索
-  documi context <id> [options]                  Spec の上流 Goal・未解決 FB・関連文書・用語・SourceRef を集約
+  [Read & Search Commands for AI & Humans (all support --json)]
+  documi map [options]                           Get Goals, Architecture, Outcomes, Glossary, and summary stats
+  documi list [--type <type>] [options]          List documents
+  documi show <doc-id> [options]                 Show document body, blocks, relations, and issues
+  documi relations <id> [options]                Show outgoing and incoming references for a document or block
+  documi search <query...> [options]             Full-text search across documents and blocks (BM25 + glossary / --semantic)
+  documi retrieve <query...> [options]           Retrieve relevant Specs, Goals, ADRs, and SourceRefs via BM25 (+ --semantic) + graph expansion
+  documi index [options]                         Build or incrementally sync the local Embedding cache (bun:sqlite)
+  documi query [filters] [options]               Filter semantic blocks across multiple dimensions
+  documi context <id> [options]                  Aggregate upstream Goals, related docs, Outcomes, Terms, and SourceRefs for a Spec
 
-  [AI & 人間向け 精密編集コマンド (すべて --json 対応)]
-  documi block add <doc-id> [options]            指定ドキュメントにセマンティックブロックを 1 件追記
-  documi block update <block-id> [options]       既存セマンティックブロックの該当行範囲のみを安全に更新
-  documi block rename <old-id> <new-id> [opts]   docs/ とコード・テストのブロック ID 参照を一括リネーム
-  documi term upsert <term-id> [options]         用語集 (<TermDef>) を追加または更新
-  documi scaffold <rel-path> --title <t> [opts]  規約通りの frontmatter 付き新規 .mdx を作成
+  [Precision Edit Commands for AI & Humans (all support --json)]
+  documi block add <doc-id> [options]            Append a semantic block to a document
+  documi block update <block-id> [options]       Safely update only the line range of an existing semantic block
+  documi block rename <old-id> <new-id> [opts]   Rename a block ID across docs/, source code, and tests
+  documi term upsert <term-id> [options]         Add or update a glossary term (<TermDef>)
+  documi scaffold <rel-path> --title <t> [opts]  Create a new .mdx document with compliant frontmatter
 
 Options:
-  --project <dir>         プロジェクトルート (既定: cwd または DOCUMI_PROJECT_ROOT / --docs 指定時はその親)
-  --docs <dir>            docs ディレクトリ (既定: 設定ファイルの docs または <project>/docs / DOCUMI_DOCS_DIR)
-  --en / --ja             init で生成する Agent Skills・雛形の言語 (既定: en / --lang <en|ja> も可)
-  --skills-dir <dir>      Agent Skills 出力先 (init 用、既定: <project>/.agents/skills)
-  --skills-only           docs/ を作らず Agent Skills のみ生成 (init 用)
-  --no-skills             Agent Skills を生成しない (init 用)
-  --force-skills          既存の Documi SKILL.md を最新版で上書き更新 (init 用)
-  --port <number>         待ち受けポート (serve 用、既定: 3000 または PORT)
-  --host <addr>           バインドアドレス (serve 用、既定: 127.0.0.1 または HOST)
-  --test-report <xml>     JUnit XML テストレポートのパス (check / map / query / context 用)
-  --strict                未承認・stale・drifted もエラー扱いにする (check 用)
-  --no-review-edit        reviews.json が Git 上で変更されていたらエラーにする (check 用)
-  --prs                   gh CLI から PR 情報も取得して紐づける (check 用)
-  --author <name>         承認者名 (approve 用)
-  --note <text>           承認時の確認メモ (approve 用・任意)
-  --type <type>           Artifact Type (list / search / scaffold 用)
-  --limit <n>             最大返却件数 (search 既定: 20 / retrieve 既定: 8)
-  --budget <chars>        retrieve の返却文字数予算 (既定: 6000)
-  --no-graph              retrieve でグラフ近傍の関連文脈を展開しない
-  --semantic              search / retrieve でローカル Embedding との RRF ハイブリッド検索を有効化 (--no-semantic で無効化)
-  --provider <name>       Embedding プロバイダ onnx|ollama|openai (index / search / retrieve 用、既定: onnx)
-  --model <id>            Embedding モデル ID (ONNX 既定: onnx-community/embeddinggemma-300m-ONNX)
-  --dtype <level>         ONNX 量子化精度 q4|q8|fp16|fp32 (既定: q4)
-  --endpoint <url>        Ollama / OpenAI 互換エンドポイント URL
-  --api-key-env <var>     OpenAI 互換 API キーを読み取る環境変数名 (既定: OPENAI_API_KEY)
-  --kind <kind>           ブロック種別 spec|constraint|outcome|note|term (query / block add 用)
-  --intent <intent>       採用意思 normative|idea|rejected|informative (query / block 用)
-  --stability <level>     安定度 stable|evolving|volatile (query / block 用)
-  --review <status>       レビュー状態 unreviewed|approved|stale (query 用)
-  --realization <status>  実装状態 unimplemented|in-progress|implemented|verified|drifted (query 用)
-  --suspect               Suspect ブロックのみ抽出 (query 用、--no-suspect で除外)
-  --q <text>              ID または本文のキーワード絞り込み (query 用)
-  --id <block-id>         新規ブロック ID (block add 用)
-  --body <text>           ブロック/文書本文 ("-" 指定で標準入力から読込)
-  --body-file <file>      ブロック/文書本文を読み込むファイルパス
-  --definition <text>     用語の定義本文 (term upsert 用、"-" で標準入力可)
-  --after-heading <text>  挿入先の見出しテキスト (block add 用)
-  --derives <a,b>         derives 参照をカンマ区切りで指定
-  --supersedes <a,b>      supersedes 参照をカンマ区切りで指定
-  --satisfies <a,b>       satisfies 参照をカンマ区切りで指定 (scaffold 用)
-  --verifies <a,b>        verifies 参照をカンマ区切りで指定 (scaffold 用)
-  --tags <a,b>            タグ一覧をカンマ区切りで指定 (scaffold 用)
-  --description <text>    概要説明 (scaffold 用)
-  --date <YYYY-MM-DD>     決定日 (scaffold 用)
-  --scope <scope>         出力対象 (export 用) または Constraint の scope (block 用)
-  --aliases <a,b>         用語の別名一覧をカンマ区切りで指定 (block / term 用)
-  --symbols <a,b>         コードシンボル一覧をカンマ区切りで指定 (block / term 用)
-  --doc <doc-id>          追加先の用語集ドキュメント ID (term upsert 用、既定: domain/glossary)
-  --dry-run               変更予定一覧のみ確認 (block rename 用)
-  --format <pdf|html>     出力形式 (export 用、既定: pdf)
-  --ids <a,b,c>           出力するドキュメント ID をカンマ区切りで指定 (export 用)
-  --title <text>          表紙タイトル (export) / 文書・ブロックタイトル (scaffold / block)
-  --out <file>            出力先ファイル／ディレクトリ (export 既定: documi-bundle.pdf|html / build-site 既定: ./dist-site)
-  --base <path>           静的サイトのアセットベースパス (build-site 用、既定: ./)
-  --no-code               Code Explorer / ソーススニペットを含めずに書き出す (build-site 用)
-  --revisions <n>         各文書で同梱する過去コミット版の最大件数 (build-site 用、既定: 5)
-  --json                  JSON 形式で結果を出力
-  --full                  map / query / context の JSON 出力を全文・詳細配列込みで展開
-  -h, --help              ヘルプを表示`)
+  --project <dir>         Project root (default: cwd or DOCUMI_PROJECT_ROOT / parent of --docs)
+  --docs <dir>            Docs directory (default: config docs, <project>/docs, or DOCUMI_DOCS_DIR)
+  --en / --ja             Language for generated Agent Skills and starter docs (default: en / --lang <en|ja>)
+  --skills-dir <dir>      Agent Skills output directory (init, default: <project>/.agents/skills)
+  --skills-only           Generate Agent Skills only without creating docs/ (init)
+  --no-skills             Skip Agent Skills generation (init)
+  --force-skills          Overwrite existing Documi SKILL.md files with the latest version (init)
+  --port <number>         Listening port (serve, default: 3000 or PORT)
+  --host <addr>           Bind address (serve, default: 127.0.0.1 or HOST)
+  --test-report <xml>     Path to JUnit XML test report (check / map / query / context)
+  --strict                Treat unreviewed, stale, and drifted blocks as errors (check)
+  --no-review-edit        Fail if docs/guard/reviews.json has uncommitted Git changes (check)
+  --prs                   Fetch and link PRs via gh CLI (check)
+  --author <name>         Reviewer name (approve)
+  --note <text>           Optional approval note (approve)
+  --type <type>           Artifact type (list / search / scaffold)
+  --limit <n>             Maximum result count (search default: 20 / retrieve default: 8)
+  --budget <chars>        Character budget for retrieve output (default: 6000)
+  --no-graph              Disable graph neighborhood expansion in retrieve
+  --semantic              Enable local Embedding + RRF hybrid search in search / retrieve (--no-semantic to disable)
+  --provider <name>       Embedding provider: onnx|ollama|openai (index / search / retrieve, default: onnx)
+  --model <id>            Embedding model ID (ONNX default: onnx-community/embeddinggemma-300m-ONNX)
+  --dtype <level>         ONNX quantization dtype: q4|q8|fp16|fp32 (default: q4)
+  --endpoint <url>        Ollama / OpenAI-compatible endpoint URL
+  --api-key-env <var>     Environment variable name holding the OpenAI-compatible API key (default: OPENAI_API_KEY)
+  --kind <kind>           Block kind: spec|constraint|outcome|note|term (query / block add)
+  --intent <intent>       Intent: normative|idea|rejected|informative (query / block)
+  --stability <level>     Stability: stable|evolving|volatile (query / block)
+  --review <status>       Review status: unreviewed|approved|stale (query)
+  --realization <status>  Realization status: unimplemented|in-progress|implemented|verified|drifted (query)
+  --suspect               Only include suspect blocks (query, --no-suspect to exclude)
+  --q <text>              Keyword filter for ID or body (query)
+  --id <block-id>         New block ID (block add)
+  --body <text>           Block/document body (use "-" to read from stdin)
+  --body-file <file>      File path to read block/document body from
+  --definition <text>     Term definition body (term upsert, use "-" for stdin)
+  --after-heading <text>  Heading text after which to insert (block add)
+  --derives <a,b>         Comma-separated derives references
+  --supersedes <a,b>      Comma-separated supersedes references
+  --satisfies <a,b>       Comma-separated satisfies references (scaffold)
+  --verifies <a,b>        Comma-separated verifies references (scaffold)
+  --tags <a,b>            Comma-separated tags (scaffold)
+  --description <text>    Short description (scaffold)
+  --date <YYYY-MM-DD>     Decision date (scaffold)
+  --scope <scope>         Export scope (export) or Constraint scope (block)
+  --aliases <a,b>         Comma-separated term aliases (block / term)
+  --symbols <a,b>         Comma-separated code symbols (block / term)
+  --doc <doc-id>          Target glossary document ID (term upsert, default: domain/glossary)
+  --dry-run               Preview planned changes without writing files (block rename)
+  --format <pdf|html>     Output format (export, default: pdf)
+  --ids <a,b,c>           Comma-separated document IDs to export (export)
+  --title <text>          Cover title (export) or document/block title (scaffold / block)
+  --out <file>            Output file or directory (export default: documi-bundle.pdf|html / build-site default: ./dist-site)
+  --base <path>           Asset base path for static site (build-site, default: ./)
+  --no-code               Exclude Code Explorer and source snippets (build-site)
+  --revisions <n>         Max historical commits bundled per document (build-site, default: 5)
+  --json                  Output results as JSON
+  --full                  Include full body and detail arrays in map / query / context JSON output
+  -h, --help              Show this help`)
 }
 
 const CLI_OPTIONS = {
@@ -298,7 +298,7 @@ function parseOptionalArtifactType(flags: CliFlags): ArtifactType | undefined {
   const raw = getStringFlag(flags, 'type')
   if (raw === undefined) return undefined
   if (!isArtifactType(raw)) {
-    throw new CliArgError(`不正な --type です: "${raw}" (有効値: ${ARTIFACT_TYPES.join(', ')})`)
+    throw new CliArgError(`Invalid --type: "${raw}" (allowed: ${ARTIFACT_TYPES.join(', ')})`)
   }
   return raw
 }
@@ -307,7 +307,7 @@ function parseOptionalBlockKind(flags: CliFlags): BlockKind | undefined {
   const raw = getStringFlag(flags, 'kind')
   if (raw === undefined) return undefined
   if (!isBlockKind(raw)) {
-    throw new CliArgError(`不正な --kind です: "${raw}" (有効値: ${BLOCK_KINDS.join(', ')})`)
+    throw new CliArgError(`Invalid --kind: "${raw}" (allowed: ${BLOCK_KINDS.join(', ')})`)
   }
   return raw
 }
@@ -316,7 +316,7 @@ function parseOptionalStability(flags: CliFlags): Stability | undefined {
   const raw = getStringFlag(flags, 'stability')
   if (raw === undefined) return undefined
   if (!isStability(raw)) {
-    throw new CliArgError(`不正な --stability です: "${raw}" (有効値: ${STABILITIES.join(', ')})`)
+    throw new CliArgError(`Invalid --stability: "${raw}" (allowed: ${STABILITIES.join(', ')})`)
   }
   return raw
 }
@@ -325,7 +325,7 @@ function parseOptionalSpecIntent(flags: CliFlags): SpecIntent | undefined {
   const raw = getStringFlag(flags, 'intent')
   if (raw === undefined) return undefined
   if (!isSpecIntent(raw)) {
-    throw new CliArgError(`不正な --intent です: "${raw}" (有効値: ${SPEC_INTENTS.join(', ')})`)
+    throw new CliArgError(`Invalid --intent: "${raw}" (allowed: ${SPEC_INTENTS.join(', ')})`)
   }
   return raw
 }
@@ -334,7 +334,7 @@ function parseOptionalBlockIntent(flags: CliFlags): SpecIntent | NoteIntent | un
   const raw = getStringFlag(flags, 'intent')
   if (raw === undefined) return undefined
   if (!isSpecIntent(raw) && !isNoteIntent(raw)) {
-    throw new CliArgError(`不正な --intent です: "${raw}" (有効値: normative, idea, rejected, informative)`)
+    throw new CliArgError(`Invalid --intent: "${raw}" (allowed: normative, idea, rejected, informative)`)
   }
   return raw
 }
@@ -343,7 +343,7 @@ function parseOptionalReviewStatus(flags: CliFlags): ReviewStatus | undefined {
   const raw = getStringFlag(flags, 'review')
   if (raw === undefined) return undefined
   if (!isReviewStatus(raw)) {
-    throw new CliArgError(`不正な --review です: "${raw}" (有効値: ${REVIEW_STATUSES.join(', ')})`)
+    throw new CliArgError(`Invalid --review: "${raw}" (allowed: ${REVIEW_STATUSES.join(', ')})`)
   }
   return raw
 }
@@ -352,7 +352,7 @@ function parseOptionalRealizationStatus(flags: CliFlags): RealizationStatus | un
   const raw = getStringFlag(flags, 'realization')
   if (raw === undefined) return undefined
   if (!isRealizationStatus(raw)) {
-    throw new CliArgError(`不正な --realization です: "${raw}" (有効値: ${REALIZATION_STATUSES.join(', ')})`)
+    throw new CliArgError(`Invalid --realization: "${raw}" (allowed: ${REALIZATION_STATUSES.join(', ')})`)
   }
   return raw
 }
@@ -363,16 +363,16 @@ function resolveInitLanguage(flags: CliFlags): InitLanguage {
   const langFlag = getStringFlag(flags, 'lang')?.trim().toLowerCase()
 
   if (hasJa && hasEn) {
-    throw new CliArgError('--ja と --en は同時に指定できません')
+    throw new CliArgError('--ja and --en cannot be used together')
   }
   if (langFlag !== undefined && langFlag !== 'en' && langFlag !== 'ja') {
-    throw new CliArgError(`不正な --lang です: "${langFlag}" (有効値: en, ja)`)
+    throw new CliArgError(`Invalid --lang: "${langFlag}" (allowed: en, ja)`)
   }
   if (hasJa && langFlag === 'en') {
-    throw new CliArgError('--ja と --lang en は同時に指定できません')
+    throw new CliArgError('--ja and --lang en cannot be used together')
   }
   if (hasEn && langFlag === 'ja') {
-    throw new CliArgError('--en と --lang ja は同時に指定できません')
+    throw new CliArgError('--en and --lang ja cannot be used together')
   }
 
   if (hasJa || langFlag === 'ja') return 'ja'
@@ -390,7 +390,7 @@ async function resolveBodyContent(
   const inline = defFlag ?? bodyFlag
 
   if (bodyFile !== undefined && inline !== undefined) {
-    throw new CliArgError('--body / --definition と --body-file は同時に指定できません')
+    throw new CliArgError('--body / --definition and --body-file cannot be used together')
   }
   if (bodyFile !== undefined) {
     return readFile(path.resolve(bodyFile), 'utf-8')
@@ -402,8 +402,8 @@ async function resolveBodyContent(
     return inline
   }
   if (options.required) {
-    const label = options.allowDefinition ? '--definition または --body / --body-file' : '--body または --body-file'
-    throw new CliArgError(`${label} を指定してください`)
+    const label = options.allowDefinition ? '--definition or --body / --body-file' : '--body or --body-file'
+    throw new CliArgError(`Please specify ${label}`)
   }
   return undefined
 }
@@ -442,12 +442,14 @@ async function cmdInit(flags: CliFlags, io: CliIo): Promise<number> {
     for (const rel of result.updatedSkills) io.out(`  ~ updated ${rel}`)
     for (const rel of result.skippedSkills) io.out(`  - skipped ${rel} (already exists)`)
   }
-  io.out('\n推奨 .gitignore 設定:')
+  io.out('\nRecommended .gitignore entry:')
   io.out('  .documi/')
-  io.out('\nAI 連携方法（どちらでも単体で完結します）:')
-  io.out('  1. CLI + Agent Skills (MCP 設定不要):')
-  io.out('     .agents/skills/ のスキルが自動で読み込まれ、documi map / search / query / context / block を利用します')
-  io.out('  2. MCP Server (Skill 不要・instructions 内蔵):')
+  io.out('\nAI Integration (either option works standalone):')
+  io.out('  1. CLI + Agent Skills (no MCP config needed):')
+  io.out(
+    '     Skills in .agents/skills/ are loaded automatically and use documi map / search / query / context / block',
+  )
+  io.out('  2. MCP Server (no skills needed; built-in instructions):')
   io.out(
     JSON.stringify(
       {
@@ -462,7 +464,7 @@ async function cmdInit(flags: CliFlags, io: CliIo): Promise<number> {
       2,
     ),
   )
-  io.out('\n次のステップ:')
+  io.out('\nNext steps:')
   io.out('  documi check')
   io.out('  documi map')
   io.out('  documi serve')
@@ -573,7 +575,7 @@ async function cmdCheck(flags: CliFlags, io: CliIo): Promise<number> {
 
 async function cmdApprove(ids: string[], flags: CliFlags, io: CliIo): Promise<number> {
   if (ids.length === 0) {
-    io.err('承認するブロック ID を 1 つ以上指定してください (例: documi approve auth.lockout)')
+    io.err('Specify at least one block ID to approve (e.g. documi approve auth.lockout)')
     return 1
   }
   const { docsDir, projectRoot } = resolveCliPaths(flags)
@@ -598,7 +600,7 @@ async function cmdApprove(ids: string[], flags: CliFlags, io: CliIo): Promise<nu
 
 async function cmdUnapprove(ids: string[], flags: CliFlags, io: CliIo): Promise<number> {
   if (ids.length === 0) {
-    io.err('承認を取り消すブロック ID を 1 つ以上指定してください (例: documi unapprove auth.lockout)')
+    io.err('Specify at least one block ID to unapprove (e.g. documi unapprove auth.lockout)')
     return 1
   }
   const { docsDir, projectRoot } = resolveCliPaths(flags)
@@ -612,7 +614,7 @@ async function cmdUnapprove(ids: string[], flags: CliFlags, io: CliIo): Promise<
       failed++
       continue
     }
-    io.out(res.value.removed ? `✓ Unapproved ${id}` : `- ${id} は未承認のため変更ありません`)
+    io.out(res.value.removed ? `✓ Unapproved ${id}` : `- ${id} is not approved (no changes)`)
   }
   return failed > 0 ? 1 : 0
 }
@@ -622,7 +624,7 @@ async function cmdExport(flags: CliFlags, io: CliIo): Promise<number> {
   const { docsDir, projectRoot, testReportPath } = resolveCliPaths(flags)
   const clientDist = path.resolve(import.meta.dir, '../dist')
   if (!existsSync(clientDist)) {
-    io.err(`ビルド済みフロントエンドが見つかりません (${clientDist})。先に "bun run build" を実行してください。`)
+    io.err(`Built frontend not found (${clientDist}). Run "bun run build" first.`)
     return 1
   }
 
@@ -653,7 +655,7 @@ async function cmdExport(flags: CliFlags, io: CliIo): Promise<number> {
     return 0
   } catch (e) {
     const msg = e instanceof PdfError ? e.message : String(e)
-    io.err(`✗ Export 失敗: ${msg}`)
+    io.err(`✗ Export failed: ${msg}`)
     return 1
   } finally {
     void server.stop(true)
@@ -730,12 +732,12 @@ async function cmdList(flags: CliFlags, io: CliIo): Promise<number> {
 
 async function cmdShow(positionals: string[], flags: CliFlags, io: CliIo): Promise<number> {
   const id = positionals[0]
-  if (!id) throw new CliArgError('ドキュメント ID を指定してください (例: documi show specs/core/document-model)')
+  if (!id) throw new CliArgError('Document ID is required (e.g. documi show specs/core/document-model)')
   const { docsDir, projectRoot, testReportPath } = resolveCliPaths(flags)
   const store = await DocsStore.open(docsDir, { projectRoot, testReportPath })
   const detail = getDocumentDetail(store.getIndex(), id)
   if (!detail) {
-    io.err(`✗ ドキュメントが見つかりません: ${id}`)
+    io.err(`✗ Document not found: ${id}`)
     return 1
   }
 
@@ -760,15 +762,12 @@ async function cmdShow(positionals: string[], flags: CliFlags, io: CliIo): Promi
 
 async function cmdRelations(positionals: string[], flags: CliFlags, io: CliIo): Promise<number> {
   const id = positionals[0]
-  if (!id)
-    throw new CliArgError(
-      'ドキュメント ID またはブロック ID を指定してください (例: documi relations core.document-model)',
-    )
+  if (!id) throw new CliArgError('Document ID or block ID is required (e.g. documi relations core.document-model)')
   const { docsDir } = resolveCliPaths(flags)
   const index = await loadDocuments(docsDir)
   const rel = getNodeRelations(index, id)
   if (!rel) {
-    io.err(`✗ ドキュメントまたはブロックが見つかりません: ${id}`)
+    io.err(`✗ Document or block not found: ${id}`)
     return 1
   }
 
@@ -797,7 +796,7 @@ function resolveCliRagConfig(flags: CliFlags, baseConfig?: RagConfig): RagConfig
   let provider: RagProvider | undefined = baseConfig?.provider
   if (rawProvider !== undefined) {
     if (!(RAG_PROVIDERS as readonly string[]).includes(rawProvider)) {
-      throw new CliArgError(`不正な --provider です: "${rawProvider}" (有効値: ${RAG_PROVIDERS.join(', ')})`)
+      throw new CliArgError(`Invalid --provider: "${rawProvider}" (allowed: ${RAG_PROVIDERS.join(', ')})`)
     }
     provider = rawProvider as RagProvider
   }
@@ -806,7 +805,7 @@ function resolveCliRagConfig(flags: CliFlags, baseConfig?: RagConfig): RagConfig
   let dtype: OnnxDtype | undefined = baseConfig?.dtype
   if (rawDtype !== undefined) {
     if (!(ONNX_DTYPES as readonly string[]).includes(rawDtype)) {
-      throw new CliArgError(`不正な --dtype です: "${rawDtype}" (有効値: ${ONNX_DTYPES.join(', ')})`)
+      throw new CliArgError(`Invalid --dtype: "${rawDtype}" (allowed: ${ONNX_DTYPES.join(', ')})`)
     }
     dtype = rawDtype as OnnxDtype
   }
@@ -823,7 +822,7 @@ function resolveCliRagConfig(flags: CliFlags, baseConfig?: RagConfig): RagConfig
 
 function shouldUseSemantic(flags: CliFlags, ragConfig?: RagConfig): boolean {
   if (flags.semantic === true && flags['no-semantic'] === true) {
-    throw new CliArgError('--semantic と --no-semantic は同時に指定できません')
+    throw new CliArgError('--semantic and --no-semantic cannot be used together')
   }
   if (flags.semantic === true) return true
   if (flags['no-semantic'] === true) return false
@@ -858,14 +857,14 @@ async function cmdIndex(flags: CliFlags, io: CliIo): Promise<number> {
 
 async function cmdSearch(positionals: string[], flags: CliFlags, io: CliIo): Promise<number> {
   const query = positionals.join(' ').trim()
-  if (!query) throw new CliArgError('検索キーワードを指定してください (例: documi search "Rooted DAG")')
+  if (!query) throw new CliArgError('Search query is required (e.g. documi search "Rooted DAG")')
   const type = parseOptionalArtifactType(flags)
   const limitRaw = getStringFlag(flags, 'limit')
   let limit: number | undefined
   if (limitRaw !== undefined) {
     const parsed = Number(limitRaw)
     if (!Number.isInteger(parsed) || parsed < 1 || parsed > 100) {
-      throw new CliArgError(`--limit は 1〜100 の整数で指定してください: "${limitRaw}"`)
+      throw new CliArgError(`--limit must be an integer between 1 and 100: "${limitRaw}"`)
     }
     limit = parsed
   }
@@ -925,7 +924,9 @@ async function cmdSearch(positionals: string[], flags: CliFlags, io: CliIo): Pro
 async function cmdRetrieve(positionals: string[], flags: CliFlags, io: CliIo): Promise<number> {
   const query = positionals.join(' ').trim()
   if (!query) {
-    throw new CliArgError('検索する質問・タスク内容を指定してください (例: documi retrieve "静的サイト書き出しの仕様")')
+    throw new CliArgError(
+      'Search query or task description is required (e.g. documi retrieve "static site export spec")',
+    )
   }
   const type = parseOptionalArtifactType(flags)
   const limitRaw = getStringFlag(flags, 'limit')
@@ -933,7 +934,7 @@ async function cmdRetrieve(positionals: string[], flags: CliFlags, io: CliIo): P
   if (limitRaw !== undefined) {
     const parsed = Number(limitRaw)
     if (!Number.isInteger(parsed) || parsed < 1 || parsed > 30) {
-      throw new CliArgError(`--limit は 1〜30 の整数で指定してください: "${limitRaw}"`)
+      throw new CliArgError(`--limit must be an integer between 1 and 30: "${limitRaw}"`)
     }
     limit = parsed
   }
@@ -942,7 +943,7 @@ async function cmdRetrieve(positionals: string[], flags: CliFlags, io: CliIo): P
   if (budgetRaw !== undefined) {
     const parsed = Number(budgetRaw)
     if (!Number.isInteger(parsed) || parsed < 500 || parsed > 40000) {
-      throw new CliArgError(`--budget は 500〜40000 の整数で指定してください: "${budgetRaw}"`)
+      throw new CliArgError(`--budget must be an integer between 500 and 40000: "${budgetRaw}"`)
     }
     budget = parsed
   }
@@ -1025,7 +1026,7 @@ async function cmdRetrieve(positionals: string[], flags: CliFlags, io: CliIo): P
 
 async function cmdQuery(flags: CliFlags, io: CliIo): Promise<number> {
   if (flags.suspect === true && flags['no-suspect'] === true) {
-    throw new CliArgError('--suspect と --no-suspect は同時に指定できません')
+    throw new CliArgError('--suspect and --no-suspect cannot be used together')
   }
 
   const filters = {
@@ -1060,15 +1061,12 @@ async function cmdQuery(flags: CliFlags, io: CliIo): Promise<number> {
 
 async function cmdContext(positionals: string[], flags: CliFlags, io: CliIo): Promise<number> {
   const id = positionals[0]
-  if (!id)
-    throw new CliArgError(
-      'Spec ブロック ID またはドキュメント ID を指定してください (例: documi context core.document-model)',
-    )
+  if (!id) throw new CliArgError('Spec block ID or document ID is required (e.g. documi context core.document-model)')
   const { docsDir, projectRoot, testReportPath } = resolveCliPaths(flags)
   const store = await DocsStore.open(docsDir, { projectRoot, testReportPath })
   const ctx = getSpecContext(store.getIndex(), id, { full: flags.full === true })
   if (!ctx) {
-    io.err(`✗ 対象が見つかりません: ${id}`)
+    io.err(`✗ Target not found: ${id}`)
     return 1
   }
 
@@ -1124,7 +1122,7 @@ async function cmdContext(positionals: string[], flags: CliFlags, io: CliIo): Pr
 async function cmdBlock(positionals: string[], flags: CliFlags, io: CliIo): Promise<number> {
   const action = positionals[0]
   if (action !== 'add' && action !== 'update' && action !== 'rename') {
-    throw new CliArgError('documi block のサブコマンドは add / update / rename のいずれかを指定してください')
+    throw new CliArgError('documi block subcommand must be one of: add, update, rename')
   }
 
   const { docsDir, projectRoot, testReportPath } = resolveCliPaths(flags)
@@ -1134,12 +1132,12 @@ async function cmdBlock(positionals: string[], flags: CliFlags, io: CliIo): Prom
     const docId = positionals[1]
     if (!docId)
       throw new CliArgError(
-        '追加先のドキュメント ID を指定してください (例: documi block add specs/auth --kind spec --id auth.login --body "...")',
+        'Target document ID is required (e.g. documi block add specs/auth --kind spec --id auth.login --body "...")',
       )
     const kind = parseOptionalBlockKind(flags)
-    if (!kind) throw new CliArgError(`--kind を指定してください (${BLOCK_KINDS.join(', ')})`)
+    if (!kind) throw new CliArgError(`--kind is required (${BLOCK_KINDS.join(', ')})`)
     const id = getStringFlag(flags, 'id')
-    if (!id) throw new CliArgError('--id を指定してください')
+    if (!id) throw new CliArgError('--id is required')
     const body = (await resolveBodyContent(flags, io, { required: true }))!
 
     const addRes = await addBlockToDoc(store.rootDir, store.getIndex(), {
@@ -1176,10 +1174,7 @@ async function cmdBlock(positionals: string[], flags: CliFlags, io: CliIo): Prom
 
   if (action === 'update') {
     const id = positionals[1]
-    if (!id)
-      throw new CliArgError(
-        '更新対象のブロック ID を指定してください (例: documi block update auth.lockout --body "...")',
-      )
+    if (!id) throw new CliArgError('Target block ID is required (e.g. documi block update auth.lockout --body "...")')
     const body = (await resolveBodyContent(flags, io, { required: true }))!
 
     const updateRes = await updateBlockInDocs(store.rootDir, store.getIndex(), {
@@ -1215,9 +1210,7 @@ async function cmdBlock(positionals: string[], flags: CliFlags, io: CliIo): Prom
   const oldId = positionals[1]
   const newId = positionals[2]
   if (!oldId || !newId) {
-    throw new CliArgError(
-      '変更前・変更後のブロック ID を指定してください (例: documi block rename old.id new.id --dry-run)',
-    )
+    throw new CliArgError('Both old and new block IDs are required (e.g. documi block rename old.id new.id --dry-run)')
   }
   const dryRun = flags['dry-run'] === true
   const renameRes = await renameBlockIdAcrossProject(store.rootDir, projectRoot, store.getIndex(), {
@@ -1255,11 +1248,11 @@ async function cmdTerm(positionals: string[], flags: CliFlags, io: CliIo): Promi
   const action = positionals[0]
   if (action !== 'upsert') {
     throw new CliArgError(
-      'documi term のサブコマンドは upsert を指定してください (例: documi term upsert Artifact --definition "...")',
+      'documi term subcommand must be "upsert" (e.g. documi term upsert Artifact --definition "...")',
     )
   }
   const id = positionals[1]
-  if (!id) throw new CliArgError('用語 ID を指定してください (例: documi term upsert Artifact --definition "...")')
+  if (!id) throw new CliArgError('Term ID is required (e.g. documi term upsert Artifact --definition "...")')
   const definition = (await resolveBodyContent(flags, io, { allowDefinition: true, required: true }))!
 
   const { docsDir, projectRoot, testReportPath } = resolveCliPaths(flags)
@@ -1291,9 +1284,9 @@ async function cmdTerm(positionals: string[], flags: CliFlags, io: CliIo): Promi
 async function cmdScaffold(positionals: string[], flags: CliFlags, io: CliIo): Promise<number> {
   const relPath = positionals[0]
   if (!relPath)
-    throw new CliArgError('作成する相対パスを指定してください (例: documi scaffold specs/auth.mdx --title "Auth Spec")')
+    throw new CliArgError('Relative path is required (e.g. documi scaffold specs/auth.mdx --title "Auth Spec")')
   const title = getStringFlag(flags, 'title')
-  if (!title) throw new CliArgError('--title を指定してください')
+  if (!title) throw new CliArgError('--title is required')
   const body = await resolveBodyContent(flags, io, { required: false })
 
   const { docsDir, projectRoot, testReportPath } = resolveCliPaths(flags)
@@ -1346,7 +1339,7 @@ async function cmdBuildSite(flags: CliFlags, io: CliIo): Promise<number> {
     )
     return 0
   } catch (error) {
-    io.err(`✗ Static site ビルド失敗: ${error instanceof Error ? error.message : String(error)}`)
+    io.err(`✗ Static site build failed: ${error instanceof Error ? error.message : String(error)}`)
     return 1
   }
 }
@@ -1383,7 +1376,7 @@ export async function runCli(argv: string[], io: CliIo = DEFAULT_IO): Promise<nu
     if (command === 'term') return await cmdTerm(positionals, flags, io)
     if (command === 'scaffold') return await cmdScaffold(positionals, flags, io)
 
-    io.err(`不明なコマンドです: ${command}`)
+    io.err(`Unknown command: ${command}`)
     usage(io)
     return 1
   } catch (error) {

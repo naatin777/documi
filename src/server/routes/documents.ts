@@ -234,23 +234,23 @@ export function createDocumentsRoutes(store: DocsStore, projectRoot?: string, ra
         try {
           docId = decodeURIComponent(rawPath)
         } catch {
-          return c.json({ error: `不正なドキュメント ID です: ${rawPath}` }, 400)
+          return c.json({ error: `Invalid document ID: ${rawPath}` }, 400)
         }
         if (!docId || docId.includes('..')) {
-          return c.json({ error: `不正なドキュメント ID です: ${docId}` }, 400)
+          return c.json({ error: `Invalid document ID: ${docId}` }, 400)
         }
         const doc = getDocument(index, docId)
-        if (!doc) return c.json({ error: `ドキュメントが見つかりません: ${docId}` }, 404)
+        if (!doc) return c.json({ code: 'DocumentNotFoundError', error: `Document not found: ${docId}` }, 404)
         return c.json({ document: doc }, 200)
       })
       .get('/history', zValidator('query', historyQuerySchema), async (c) => {
         const index = store.getIndex()
         const { id: docId, limit: rawLimitStr } = c.req.valid('query')
         if (docId.includes('..')) {
-          return c.json({ error: `不正なドキュメント ID です: ${docId}` }, 400)
+          return c.json({ error: `Invalid document ID: ${docId}` }, 400)
         }
         const doc = getDocument(index, docId)
-        if (!doc) return c.json({ error: `ドキュメントが見つかりません: ${docId}` }, 404)
+        if (!doc) return c.json({ code: 'DocumentNotFoundError', error: `Document not found: ${docId}` }, 404)
         const rawLimit = Number(rawLimitStr ?? 20)
         const limit = Number.isFinite(rawLimit) && rawLimit > 0 ? Math.min(rawLimit, 50) : 20
         const history = await getDocumentHistory(index.rootDir, doc, limit)
@@ -260,10 +260,10 @@ export function createDocumentsRoutes(store: DocsStore, projectRoot?: string, ra
         const index = store.getIndex()
         const { id: docId, commit } = c.req.valid('query')
         if (docId.includes('..')) {
-          return c.json({ error: `不正なドキュメント ID です: ${docId}` }, 400)
+          return c.json({ error: `Invalid document ID: ${docId}` }, 400)
         }
         const doc = getDocument(index, docId)
-        if (!doc) return c.json({ error: `ドキュメントが見つかりません: ${docId}` }, 404)
+        if (!doc) return c.json({ code: 'DocumentNotFoundError', error: `Document not found: ${docId}` }, 404)
         const revisionRes = getDocumentRevision(index.rootDir, doc, commit)
         if (revisionRes.isErr()) {
           const http = historyErrorToHttp(revisionRes.error)
