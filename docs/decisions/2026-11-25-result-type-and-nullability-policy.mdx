@@ -1,0 +1,79 @@
+---
+type: decision
+title: Document Core の Result 型 (better-result)・TaggedError・Nullability 規約の採用
+description: src/core/ における想定内失敗の Result<T, TaggedError> 表現、HTTP ステータス分離、undefined 統一、偽フォールバック禁止の設計判断と Effect／独自実装／例外との比較
+date: 2026-11-25
+tags: [adr, core, error-handling, result, nullability]
+---
+
+# Document Core の Result 型 (`better-result`)・`TaggedError`・Nullability 規約の採用
+
+<Outcome id="dec.result-and-nullability" stability="evolving">
+  `src/core/` の想定内ドメイン失敗は **`better-result`**（`Result<T, E>` ＋ `TaggedError`）で型安全に返し、`src/core/` から HTTP ステータスコード（`400/403/404/...`）とメッセージ文字列マッチによるエラー再分類を撤廃する。HTTP ステータスや終了コードへの変換はアダプタ層（`src/server/`・`src/cli.ts`・`src/server/mcp.ts`）が `matchError` で網羅マッピングする。正常系の「値が無い」は Documi 内部全体で **`undefined` に統一** し（外部境界の `null` は受けた直後に `undefined` へ正規化）、`process.env.USER`・`'human'`・必須項目の `?? ''` のような **偽フォールバックを禁止** する。まずは最も負債が大きい `reviews.ts`・`source.ts`・`code.ts` から段階導入し、残りコアモジュールも同一規約へ揃える。
+</Outcome>
+
+## 背景と課題
+
+Documi はフレームワーク非依存の `src/core/` を REST API（Hono）・MCP Server・CLI の 3 アダプタで共有している。しかし実コードの棚卸しで、エラー表現と欠損値（`null` / `undefined` / フォールバック）に以下の構造的な負債が顕在化した。
+
+1. **`src/core/` への HTTP ステータス漏れと 7 種類の例外クラス乱立**:
+   - `ReviewError`・`SourceError`・`EditError`・`HistoryError`・`ConfigError`・`FrontmatterError`・`EmbeddingError` が `throw` されており、関数シグネチャから「どの失敗が起こりうるか」が判別できない。
+   - フレームワーク非依存の原則に反して `SourceError` / `ReviewError` / `HistoryError` が HTTP ステータス（`status = 400 / 403 / 404 / 409 / 413 / 422`）を直接保持していた。
+   - `src/core/code.ts` では `loadSourceFile()` が投げた `SourceError` を再分類するため、`e.status === 413` や **`e.message.includes('ルート外')` という日本語エラー文の文字列マッチ** が発生していた。
+2. **偽フォールバックによるデータ汚染とプライバシー事故リスク**:
+   - `src/core/reviews.ts` では `approvedBy?: string` がオプショナルであるにもかかわらず、`git config user.name` 未設定時に `process.env.USER`（OS ユーザー名）や固定文字列 `'human'` へフォールバックしており、公開リポジトリへの OS ユーザー名漏洩リスクと「不明な承認者」の偽装を招いていた。
+   - `reviews.json` の読み込みでも必須の `docPath` / `hash` 欠損を `?? ''` で握りつぶしていた。
+3. **`null` と `undefined` の混在と空 `catch {}` による異常系の握りつぶし**:
+   - 公開型は `prop?: T`（`undefined`）である一方、内部ヘルパー（`runGit`, `readBlockFromGitCommit`, `fieldText`, `goReceiverName`, `scopeNameText` 等）が `T | null` を返し、不要な変換や `!== null` 分岐が散在していた。
+
+## 検討した代替案と棄却理由
+
+### 1. Effect (`effect` / `Effect<A, E, R>`) を採用する案
+- **Effect の強み**: 型付きエラーチャネル（`E`）に加えて、DI コンテナ（`Layer` / `Context`）、Fiber ベースの構造化並行処理、キャンセル伝播、リソース寿命管理（`Scope`）、OpenTelemetry 計装まで一貫して扱える極めて強力なエコシステムである。
+- **不採用の理由**:
+  1. **感染性（Infectiousness）と導入コスト**: Effect は単なる `Result` 型ではなく独自の実行ランタイムである。本領を発揮させるには非同期処理・ファイル I/O・テスト・Hono ハンドラ・MCP ツール・CLI エントリまで全面的に `Effect.gen` / `Layer` / `Effect.runPromise` の流儀へ寄せる必要がある。
+  2. **Documi の要件に対して過剰（Overkill）**: Documi は単一プロセスのローカル CLI・Hono サーバー・MCP ツールであり、分散バックエンドのような Fiber 並列制御や多層 DI コンテナを必要としていない。現状の課題は「ドメイン失敗の型明示」と「`core/` からの HTTP 切り離し」であり、Effect 全体の学習・型推論・保守コストが便益を大きく上回る。
+  3. **AI・コントリビュータの読解負荷**: 標準の `async/await` + `Promise<Result<T, E>>` に比べ、Effect 固有の API 体系（`Layer` / `ManagedRuntime` / `Schema` 等）はバージョン変化も速く、軽快な OSS 開発ツールとしての参入障壁を上げてしまう。
+
+### 2. 独自 `Result` 型を自前実装する案
+- **独自実装の強み**: 外部依存ゼロで `{ ok: true; value: T } | { ok: false; error: E }` の 20 行から即座に始められる。
+- **不採用の理由**:
+  1. **結局 300〜500 行のミニライブラリを再発明することになる**: 実務で `src/core/` と 3 アダプタに展開すると、すぐに ① `Error` 継承＋`_tag` 判別子＋スタックトレースを持つ `TaggedError`、② 多段階の早期リターン合成（`Result.gen` / `andThenAsync`）、③ 外部例外境界の捕捉（`Result.try` / `Result.tryPromise`）、④ 網羅的パターンマッチ（`matchError`）、⑤ 想定内失敗（`Err`）と予期せぬバグ（`Panic`）の分離、が不可欠になる。
+  2. **型パズルの保守負債**: Union 分配やジェネレータの `yield*` 型推論を自前で正しく維持し続けるのは本質業務（Living Specification プラットフォーム）から外れる。
+  3. **`better-result` との比較**: `better-result` は **ゼロ依存・ESM 専用・約 10 KB** であり、まさに「独自実装で欲しくなる部分だけ」を標準化された型付き API として提供する。
+
+### 3. `neverthrow` を採用する案
+- **不採用の理由**: 実績は豊富だが、同期 `Result` と非同期 `ResultAsync` の二系統の型・変換が必要になりやすく、標準で `TaggedError` クラスファクトリや `_tag` ベースの網羅 `matchError`・`Result.gen` 合成を持たない。`better-result` は単一の `Result` ＋ `Promise<Result>`（`Result.await`）と `TaggedError` を中核に据えており、`src/core/` → REST / MCP / CLI の変換とより自然に噛み合う。
+
+### 4. 現状維持（例外 `throw` ＋ `status` プロパティ）を続ける案
+- **不採用の理由**: TypeScript の `throw` は型シグネチャに現れないため、新しい失敗ケースを追加しても REST / MCP / CLI 側のハンドリング漏れをコンパイル時に検出できない。また HTTP ステータスが `src/core/` に残り続け、フレームワーク非依存の境界が崩れたままになる。
+
+## 設計規約
+
+### 1. 値の不在・想定内失敗・バグの 3 分類
+
+| 区分 | 表現 | ルール |
+| :--- | :--- | :--- |
+| **正常な不在** | **`undefined`** | Documi 内部の戻り値・フィールドはすべて `undefined`（`T \| undefined` / `prop?: T`）に統一する。JSON・DOM・`@ast-grep/napi` 等の外部境界で `null` を受け取ったら、その場で `undefined` へ変換する。 |
+| **想定内のドメイン失敗** | **`Result<T, TaggedError>`** | ファイル未存在・ルート外アクセス・バイナリ／サイズ超過・シンボル未検出／曖昧・ブロック未存在など、呼び出し側（REST / MCP / CLI / `documi check`）が分岐・通知すべき失敗を `src/core/errors.ts` の `TaggedError` として返す。**`src/core/` のエラーに HTTP ステータスを持たせない。** |
+| **予期せぬバグ・不変条件違反** | **例外（`throw` / `Panic`）** | プログラムのバグや回復不能な異常まで無理に `Result` で包まない。 |
+
+### 2. 偽フォールバック禁止の原則
+- オプショナルな値が取得できない場合、別の環境情報やダミー文字列で穴埋めせず **`undefined` のまま保持** する（例: `approvedBy` は `--author` → `git config user.name` のみ参照し、未設定なら `undefined` として `reviews.json` にもキーを出さない。表示用フォールバックが必要なら CLI / Web UI 側の責務とする）。
+- 必須フィールド（例: `reviews.json` の `docPath` / `hash`）が欠損・不正な場合は `?? ''` で通さず、検証エラー／`IndexIssue` として記録し破損レコードをスキップする。
+
+### 3. アダプタ層での網羅マッピング
+- `src/server/errors.ts` で `matchError` を使い、各 `TaggedError` の `_tag` を HTTP ステータスコードへ網羅的に変換する（エンドポイント固有の上書きが必要な場合のみ `matchErrorPartial` 等で明示する）。新しいエラータグを `src/core/` に追加すると、サーバー側の型チェックが即座に未対応箇所を検出する。
+
+## 影響・受け入れるトレードオフ・見直し条件
+
+- **プラス面**:
+  - `src/core/` から HTTP ステータスと日本語メッセージ文字列マッチ（`includes('ルート外')`）が消滅し、純粋なドメインモデルになる。
+  - OS ユーザー名（`process.env.USER`）や `'human'` の意図しない永続化を構造的に根絶できる。
+  - エラー処理漏れが `tsc` / `oxlint --type-aware` で静的検出される。
+- **受け入れるトレードオフ**:
+  - `better-result`（v3.0.x）は Effect や neverthrow に比べて歴史が浅くエコシステム規模も小さい。依存リスクを抑えるため、利用する API はコア機能（`Result.ok` / `Result.err` / `Result.gen` / `Result.await` / `TaggedError` / `matchError`）に絞り、必要になれば薄い互換ラッパで置換可能な状態を保つ。
+  - 段階移行期間中は、`reviews.ts`・`source.ts`・`code.ts` が `Result` ベース、残りモジュール（`editor.ts`・`git.ts`・`config.ts`・`frontmatter.ts`・`embeddings.ts`）が一時的に従来の `Error` クラスのまま混在する。移行を完遂するまで混在を長期放置しない。
+- **見直し条件**:
+  - 将来 Documi が常駐マルチテナントサーバー化し、構造化並行処理・キャンセル伝播・リソース寿命管理（`Scope`）・DI Layer が要件として不可欠になった場合は Effect への移行を再検討する。
+  - `better-result` の保守が停止し TypeScript 新バージョンへ追従できなくなった場合は、利用箇所を絞った薄い自前実装または後継ライブラリへ移行する。

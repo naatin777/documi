@@ -40,7 +40,7 @@ describe('人間レビュー・Stale・Suspect・Diff・承認メモ', () => {
     expect(idx.blocksById.get('auth.lockout')?.review).toBe('unreviewed')
 
     // 承認すると approved
-    await approveBlock(root, idx, 'auth.lockout', { author: 'alice' })
+    expect((await approveBlock(root, idx, 'auth.lockout', { author: 'alice' })).isOk()).toBe(true)
     idx = await loadDocuments(root)
     const approved = idx.blocksById.get('auth.lockout')!
     expect(approved.review).toBe('approved')
@@ -56,7 +56,9 @@ describe('人間レビュー・Stale・Suspect・Diff・承認メモ', () => {
     expect(idx.blocksById.get('auth.lockout')?.review).toBe('stale')
 
     // Diff 取得
-    const diff = await getBlockDiff(root, idx, 'auth.lockout')
+    const diffRes = await getBlockDiff(root, idx, 'auth.lockout')
+    expect(diffRes.isOk()).toBe(true)
+    const diff = diffRes.unwrap()
     expect(diff.hasBase).toBe(true)
     expect(diff.changed).toBe(true)
     expect(diff.lines.some((l) => l.type === 'del' && l.text.includes('5回失敗'))).toBe(true)
@@ -90,7 +92,7 @@ describe('人間レビュー・Stale・Suspect・Diff・承認メモ', () => {
     )
 
     idx = await loadDocuments(docsDir)
-    const diff = await getBlockDiff(docsDir, idx, 'lock.rule')
+    const diff = (await getBlockDiff(docsDir, idx, 'lock.rule')).unwrap()
     expect(diff.baseSource).toBe('git')
     expect(diff.changed).toBe(true)
     expect(diff.lines).toEqual([
@@ -246,9 +248,9 @@ describe('人間レビュー・Stale・Suspect・Diff・承認メモ', () => {
     expect(approved.review).toBe('approved')
     expect(approved.approvedNote).toBe('境界条件を確認済み')
 
-    const r1 = await unapproveBlock(root, idx, 'auth.clean')
+    const r1 = (await unapproveBlock(root, idx, 'auth.clean')).unwrap()
     expect(r1.removed).toBe(true)
-    const r1Again = await unapproveBlock(root, idx, 'auth.clean')
+    const r1Again = (await unapproveBlock(root, idx, 'auth.clean')).unwrap()
     expect(r1Again.removed).toBe(false)
 
     const saved = await loadReviews(root, [])
@@ -257,6 +259,42 @@ describe('人間レビュー・Stale・Suspect・Diff・承認メモ', () => {
     idx = await loadDocuments(root)
     expect(idx.blocksById.get('auth.clean')?.review).toBe('unreviewed')
     expect(idx.blocksById.get('auth.clean')?.approvedNote).toBeUndefined()
+  })
+
+  test('[core.human-review] author と git user.name が無い場合は approvedBy を省略し、OS ユーザー名や "human" へフォールバックしない', async () => {
+    await writeDoc('goals/core.mdx', { title: 'Core' }, '# Core\n')
+    await writeDoc(
+      'specs/auth.mdx',
+      { title: 'Auth', derives: ['goals/core'] },
+      '<Spec id="auth.anon">承認者未指定の仕様</Spec>\n',
+    )
+
+    const idx = await loadDocuments(root)
+    const res = await approveBlock(root, idx, 'auth.anon')
+    expect(res.isOk()).toBe(true)
+    expect(res.unwrap().approvedBy).toBeUndefined()
+
+    const saved = await loadReviews(root, [])
+    expect(saved.blocks['auth.anon']?.approvedBy).toBeUndefined()
+
+    // 未存在ブロックは型付き BlockNotFoundError を返す
+    const missing = await approveBlock(root, idx, 'non.existent')
+    expect(missing.isErr()).toBe(true)
+    if (missing.isErr()) expect(missing.error._tag).toBe('BlockNotFoundError')
+
+    const missingDiff = await getBlockDiff(root, idx, 'non.existent')
+    expect(missingDiff.isErr()).toBe(true)
+    if (missingDiff.isErr()) expect(missingDiff.error._tag).toBe('BlockNotFoundError')
+
+    // 必須フィールド (docPath / hash) 欠損の破損レコードは空文字で通さず invalid-reviews として弾く
+    await writeFile(
+      path.join(root, 'guard/reviews.json'),
+      JSON.stringify({ version: 1, blocks: { 'auth.anon': { approvedBy: 'alice' } } }),
+    )
+    const issues: import('../src/core/types').IndexIssue[] = []
+    const loaded = await loadReviews(root, issues)
+    expect(loaded.blocks['auth.anon']).toBeUndefined()
+    expect(issues.some((i) => i.code === 'invalid-reviews' && i.blockId === 'auth.anon')).toBe(true)
   })
 
   test('computeLineDiff は追加・削除・一致行を正しく算出する', () => {

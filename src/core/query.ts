@@ -341,17 +341,13 @@ export async function collectSourceRefExports(
   const uniqueFiles = [...new Set(sourceRefs.map((r) => r.file))]
   const results: Array<{ file: string; language: string; symbols: ExportedSymbolEntry[] }> = []
   for (const file of uniqueFiles) {
-    try {
-      const extracted = await extractExportedSymbols(projectRoot, file)
-      if (extracted.symbols.length > 0) {
-        results.push({
-          file: extracted.file,
-          language: extracted.language,
-          symbols: extracted.symbols,
-        })
-      }
-    } catch {
-      // 未対応拡張子や存在しないファイルは文脈集約を失敗させずスキップ
+    const extracted = await extractExportedSymbols(projectRoot, file)
+    if (extracted.isOk() && extracted.value.symbols.length > 0) {
+      results.push({
+        file: extracted.value.file,
+        language: extracted.value.language,
+        symbols: extracted.value.symbols,
+      })
     }
   }
   return results

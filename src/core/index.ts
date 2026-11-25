@@ -2,9 +2,9 @@ export * from './types'
 export { loadDocuments, getDocument, toDocumentSummary, buildDocTree } from './loader'
 export { FrontmatterError, splitFrontmatter, parseYamlFrontmatter } from './frontmatter'
 export { ALLOWED_MDX_COMPONENTS, computeContentHash, extractMdxArtifacts } from './mdx'
+export * from './errors'
 export {
   REVIEWS_REL_PATH,
-  ReviewError,
   loadReviews,
   saveReviews,
   approveBlock,

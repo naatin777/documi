@@ -31,7 +31,7 @@ import {
   searchDocuments,
 } from './core/query'
 import { retrieveContext } from './core/retrieval'
-import { approveBlock, ReviewError, unapproveBlock } from './core/reviews'
+import { approveBlock, unapproveBlock } from './core/reviews'
 import {
   ARTIFACT_TYPES,
   BLOCK_KINDS,
@@ -582,14 +582,15 @@ async function cmdApprove(ids: string[], flags: CliFlags, io: CliIo): Promise<nu
 
   let failed = 0
   for (const id of ids) {
-    try {
-      const rec = await approveBlock(docsDir, index, id, { author, note, cacheRoot: projectRoot })
-      io.out(`✓ Approved ${id} (${rec.hash.slice(0, 19)}… by ${rec.approvedBy ?? 'human'})`)
-    } catch (e) {
-      const msg = e instanceof ReviewError ? e.message : String(e)
-      io.err(`✗ ${id}: ${msg}`)
+    const res = await approveBlock(docsDir, index, id, { author, note, cacheRoot: projectRoot })
+    if (res.isErr()) {
+      io.err(`✗ ${id}: ${res.error.message}`)
       failed++
+      continue
     }
+    const rec = res.value
+    const bySuffix = rec.approvedBy ? ` by ${rec.approvedBy}` : ''
+    io.out(`✓ Approved ${id} (${rec.hash.slice(0, 19)}…${bySuffix})`)
   }
   return failed > 0 ? 1 : 0
 }
@@ -604,14 +605,13 @@ async function cmdUnapprove(ids: string[], flags: CliFlags, io: CliIo): Promise<
 
   let failed = 0
   for (const id of ids) {
-    try {
-      const { removed } = await unapproveBlock(docsDir, index, id, { cacheRoot: projectRoot })
-      io.out(removed ? `✓ Unapproved ${id}` : `- ${id} は未承認のため変更ありません`)
-    } catch (e) {
-      const msg = e instanceof ReviewError ? e.message : String(e)
-      io.err(`✗ ${id}: ${msg}`)
+    const res = await unapproveBlock(docsDir, index, id, { cacheRoot: projectRoot })
+    if (res.isErr()) {
+      io.err(`✗ ${id}: ${res.error.message}`)
       failed++
+      continue
     }
+    io.out(res.value.removed ? `✓ Unapproved ${id}` : `- ${id} は未承認のため変更ありません`)
   }
   return failed > 0 ? 1 : 0
 }

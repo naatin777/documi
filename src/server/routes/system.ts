@@ -1,7 +1,8 @@
 import { Hono } from 'hono'
 import { z } from 'zod'
 import { runDocsCheck } from '../../core/checker'
-import { extractExportedSymbols, resolveSourceLines, resolveSourceSymbol, SourceError } from '../../core/source'
+import { extractExportedSymbols, resolveSourceLines, resolveSourceSymbol } from '../../core/source'
+import { sourceErrorToHttp } from '../errors'
 import { PdfError, renderPdf, renderPdfFromUrl } from '../pdf'
 import type { DocsStore } from '../store'
 import { isLocalOrigin, zValidator, type ErrorStatusCode } from '../validator'
@@ -82,25 +83,23 @@ export function createSystemRoutes(store: DocsStore, projectRoot: string) {
       })
       .get('/source', zValidator('query', sourceQuerySchema), async (c) => {
         const { file, symbol, lines } = c.req.valid('query')
-        try {
-          const result = symbol
-            ? await resolveSourceSymbol(projectRoot, file, symbol)
-            : await resolveSourceLines(projectRoot, file, lines!)
-          return c.json(result, 200)
-        } catch (e) {
-          if (e instanceof SourceError) return c.json({ error: e.message }, e.status as ErrorStatusCode)
-          throw e
+        const res = symbol
+          ? await resolveSourceSymbol(projectRoot, file, symbol)
+          : await resolveSourceLines(projectRoot, file, lines!)
+        if (res.isErr()) {
+          const http = sourceErrorToHttp(res.error)
+          return c.json(http.body, http.status)
         }
+        return c.json(res.value, 200)
       })
       .get('/source/exports', zValidator('query', sourceExportsQuerySchema), async (c) => {
         const { file } = c.req.valid('query')
-        try {
-          const result = await extractExportedSymbols(projectRoot, file)
-          return c.json(result, 200)
-        } catch (e) {
-          if (e instanceof SourceError) return c.json({ error: e.message }, e.status as ErrorStatusCode)
-          throw e
+        const res = await extractExportedSymbols(projectRoot, file)
+        if (res.isErr()) {
+          const http = sourceErrorToHttp(res.error)
+          return c.json(http.body, http.status)
         }
+        return c.json(res.value, 200)
       })
       // SSE: ファイル変更をブラウザへ即時通知する
       .get('/events', () => {

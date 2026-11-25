@@ -3,7 +3,7 @@ import type { Dirent } from 'node:fs'
 import { readdir, readFile, stat } from 'node:fs/promises'
 import path from 'node:path'
 import { XMLParser } from 'fast-xml-parser'
-import { extractExportedSymbols, resolveSourceLines, resolveSourceSymbol, SourceError } from './source'
+import { extractExportedSymbols, resolveSourceLines, resolveSourceSymbol } from './source'
 import { BLOCK_ID_PATTERN } from './types'
 import type {
   CodeAnchor,
@@ -413,16 +413,15 @@ export async function validateSourceLinks(
 
   for (const doc of index.documents) {
     for (const ref of doc.sourceRefs) {
-      try {
-        if (ref.mode === 'exports') {
-          await extractExportedSymbols(projectRoot, ref.file)
-        } else if (ref.symbol) {
-          await resolveSourceSymbol(projectRoot, ref.file, ref.symbol)
-        } else if (ref.lines) {
-          await resolveSourceLines(projectRoot, ref.file, ref.lines)
-        }
-      } catch (e) {
-        const msg = e instanceof SourceError ? e.message : String(e)
+      const res =
+        ref.mode === 'exports'
+          ? await extractExportedSymbols(projectRoot, ref.file)
+          : ref.symbol
+            ? await resolveSourceSymbol(projectRoot, ref.file, ref.symbol)
+            : ref.lines
+              ? await resolveSourceLines(projectRoot, ref.file, ref.lines)
+              : undefined
+      if (res?.isErr()) {
         const targetAttr =
           ref.mode === 'exports'
             ? 'mode="exports"'
@@ -431,7 +430,7 @@ export async function validateSourceLinks(
               : `lines="${ref.lines ?? ''}"`
         issues.push({
           code: 'broken-source-ref',
-          message: `<SourceRef file="${ref.file}" ${targetAttr} /> (L${ref.startLine}): ${msg}`,
+          message: `<SourceRef file="${ref.file}" ${targetAttr} /> (L${ref.startLine}): ${res.error.message}`,
           path: doc.path,
         })
         for (const id of [...ref.satisfies, ...ref.verifies]) {
@@ -453,13 +452,11 @@ export async function validateSourceLinks(
           })
           continue
         }
-        try {
-          await resolveSourceSymbol(projectRoot, file, symbol)
-        } catch (e) {
-          const msg = e instanceof SourceError ? e.message : String(e)
+        const res = await resolveSourceSymbol(projectRoot, file, symbol)
+        if (res.isErr()) {
           issues.push({
             code: 'broken-term-symbol',
-            message: `<TermDef id="${block.id}"> のシンボル ${sym} が解決できません: ${msg}`,
+            message: `<TermDef id="${block.id}"> のシンボル ${sym} が解決できません: ${res.error.message}`,
             path: doc.path,
             blockId: block.id,
           })
