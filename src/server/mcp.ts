@@ -7,7 +7,6 @@ import type { ZodTypeAny } from 'zod'
 import type { RagConfig } from '../core/config'
 import {
   addBlockToDoc,
-  EditError,
   renameBlockIdAcrossProject,
   scaffoldDocument,
   updateBlockInDocs,
@@ -363,15 +362,11 @@ function createDocumiMcpServer(store: DocsStore, projectRoot?: string, ragConfig
       aliases?: string[]
       symbols?: string[]
     }) => {
-      try {
-        const result = await updateBlockInDocs(store.rootDir, getIndex(), args)
-        const nextIndex = await store.reload()
-        const validation = await buildValidationPayload(nextIndex, projectRoot)
-        return jsonResult({ ...result, validation })
-      } catch (e) {
-        if (e instanceof EditError) return errorResult(e.message)
-        throw e
-      }
+      const res = await updateBlockInDocs(store.rootDir, getIndex(), args)
+      if (res.isErr()) return errorResult(res.error.message)
+      const nextIndex = await store.reload()
+      const validation = await buildValidationPayload(nextIndex, projectRoot)
+      return jsonResult({ ...res.value, validation })
     },
   )
 
@@ -411,15 +406,11 @@ function createDocumiMcpServer(store: DocsStore, projectRoot?: string, ragConfig
       aliases?: string[]
       symbols?: string[]
     }) => {
-      try {
-        const result = await addBlockToDoc(store.rootDir, getIndex(), args)
-        const nextIndex = await store.reload()
-        const validation = await buildValidationPayload(nextIndex, projectRoot)
-        return jsonResult({ ...result, validation })
-      } catch (e) {
-        if (e instanceof EditError) return errorResult(e.message)
-        throw e
-      }
+      const res = await addBlockToDoc(store.rootDir, getIndex(), args)
+      if (res.isErr()) return errorResult(res.error.message)
+      const nextIndex = await store.reload()
+      const validation = await buildValidationPayload(nextIndex, projectRoot)
+      return jsonResult({ ...res.value, validation })
     },
   )
 
@@ -436,15 +427,11 @@ function createDocumiMcpServer(store: DocsStore, projectRoot?: string, ragConfig
       },
     },
     async (args: { id: string; definition: string; aliases?: string[]; symbols?: string[]; docId?: string }) => {
-      try {
-        const result = await upsertTermInDocs(store.rootDir, getIndex(), args)
-        const nextIndex = await store.reload()
-        const validation = await buildValidationPayload(nextIndex, projectRoot)
-        return jsonResult({ ...result, validation })
-      } catch (e) {
-        if (e instanceof EditError) return errorResult(e.message)
-        throw e
-      }
+      const res = await upsertTermInDocs(store.rootDir, getIndex(), args)
+      if (res.isErr()) return errorResult(res.error.message)
+      const nextIndex = await store.reload()
+      const validation = await buildValidationPayload(nextIndex, projectRoot)
+      return jsonResult({ ...res.value, validation })
     },
   )
 
@@ -478,15 +465,11 @@ function createDocumiMcpServer(store: DocsStore, projectRoot?: string, ragConfig
       verifies?: string[]
       body?: string
     }) => {
-      try {
-        const result = await scaffoldDocument(store.rootDir, getIndex(), args)
-        const nextIndex = await store.reload()
-        const validation = await buildValidationPayload(nextIndex, projectRoot)
-        return jsonResult({ ...result, validation })
-      } catch (e) {
-        if (e instanceof EditError) return errorResult(e.message)
-        throw e
-      }
+      const res = await scaffoldDocument(store.rootDir, getIndex(), args)
+      if (res.isErr()) return errorResult(res.error.message)
+      const nextIndex = await store.reload()
+      const validation = await buildValidationPayload(nextIndex, projectRoot)
+      return jsonResult({ ...res.value, validation })
     },
   )
 
@@ -502,18 +485,15 @@ function createDocumiMcpServer(store: DocsStore, projectRoot?: string, ragConfig
       },
     },
     async (args: { oldId: string; newId: string; dryRun?: boolean }) => {
-      try {
-        const result = await renameBlockIdAcrossProject(store.rootDir, projectRoot, getIndex(), args)
-        if (!result.dryRun && result.changes.length > 0) {
-          const nextIndex = await store.reload()
-          const validation = await buildValidationPayload(nextIndex, projectRoot)
-          return jsonResult({ ...result, validation })
-        }
-        return jsonResult(result)
-      } catch (e) {
-        if (e instanceof EditError) return errorResult(e.message)
-        throw e
+      const res = await renameBlockIdAcrossProject(store.rootDir, projectRoot, getIndex(), args)
+      if (res.isErr()) return errorResult(res.error.message)
+      const result = res.value
+      if (!result.dryRun && result.changes.length > 0) {
+        const nextIndex = await store.reload()
+        const validation = await buildValidationPayload(nextIndex, projectRoot)
+        return jsonResult({ ...result, validation })
       }
+      return jsonResult(result)
     },
   )
 

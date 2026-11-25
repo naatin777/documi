@@ -2,8 +2,10 @@ import { Database } from 'bun:sqlite'
 import { createHash } from 'node:crypto'
 import { mkdir } from 'node:fs/promises'
 import path from 'node:path'
+import { Result } from 'better-result'
 import { dotProduct } from './embeddings'
 import type { EmbeddingProvider } from './embeddings'
+import type { EmbeddingDomainError } from './errors'
 import type { ArtifactType, DocsIndex } from './types'
 
 export const DEFAULT_EMBEDDINGS_CACHE_REL = path.join('.documi', 'cache', 'embeddings.sqlite')
@@ -132,7 +134,7 @@ export async function syncVectorIndex(
   index: DocsIndex,
   provider: EmbeddingProvider,
   options: { cachePath?: string; projectRoot?: string; batchSize?: number } = {},
-): Promise<SyncVectorIndexResult> {
+): Promise<Result<SyncVectorIndexResult, EmbeddingDomainError>> {
   const dbPath = resolveCacheDbPath(docsDir, options.cachePath, options.projectRoot)
   const batchSize = Math.max(1, Math.min(options.batchSize ?? 16, 64))
   const chunks = extractEmbeddingChunks(index)
@@ -190,7 +192,9 @@ export async function syncVectorIndex(
 
       for (let i = 0; i < toEmbed.length; i += batchSize) {
         const batch = toEmbed.slice(i, i + batchSize)
-        const vectors = await provider.embedDocuments(batch.map((c) => ({ title: c.title, text: c.text })))
+        const vectorsRes = await provider.embedDocuments(batch.map((c) => ({ title: c.title, text: c.text })))
+        if (vectorsRes.isErr()) return vectorsRes
+        const vectors = vectorsRes.value
         const now = new Date().toISOString()
         const upsertTx = db.transaction(() => {
           for (let j = 0; j < batch.length; j++) {
@@ -204,7 +208,7 @@ export async function syncVectorIndex(
       }
     }
 
-    return {
+    return Result.ok({
       dbPath,
       modelId: provider.id,
       provider: provider.provider,
@@ -213,7 +217,7 @@ export async function syncVectorIndex(
       embedded,
       cached,
       removed: toRemove.length,
-    }
+    })
   } finally {
     db.close()
   }
@@ -230,21 +234,24 @@ export async function searchVectorStore(
   provider: EmbeddingProvider,
   query: string,
   options: { type?: ArtifactType; limit?: number; cachePath?: string; projectRoot?: string; sync?: boolean } = {},
-): Promise<VectorSearchHit[]> {
+): Promise<Result<VectorSearchHit[], EmbeddingDomainError>> {
   const cleanQuery = query.trim()
-  if (!cleanQuery) return []
+  if (!cleanQuery) return Result.ok([])
 
   const dbPath = resolveCacheDbPath(docsDir, options.cachePath, options.projectRoot)
   if (options.sync !== false) {
-    await syncVectorIndex(docsDir, index, provider, {
+    const syncRes = await syncVectorIndex(docsDir, index, provider, {
       cachePath: options.cachePath,
       projectRoot: options.projectRoot,
     })
+    if (syncRes.isErr()) return syncRes
   }
 
-  const allowedKeys = options.type ? new Set(extractEmbeddingChunks(index, options.type).map((c) => c.key)) : null
+  const allowedKeys = options.type ? new Set(extractEmbeddingChunks(index, options.type).map((c) => c.key)) : undefined
 
-  const queryVec = await provider.embedQuery(cleanQuery)
+  const queryVecRes = await provider.embedQuery(cleanQuery)
+  if (queryVecRes.isErr()) return queryVecRes
+  const queryVec = queryVecRes.value
   const db = await openVectorDb(dbPath)
   try {
     const rows = db
@@ -265,7 +272,7 @@ export async function searchVectorStore(
     }
 
     scored.sort((a, b) => b.score - a.score || a.key.localeCompare(b.key))
-    return scored.slice(0, options.limit ?? 30)
+    return Result.ok(scored.slice(0, options.limit ?? 30))
   } finally {
     db.close()
   }

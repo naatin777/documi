@@ -215,7 +215,7 @@ pub fn run_engine() {}
     })
 
     // 1. AST 抽出 API と check 検証
-    const direct = await extractExportedSymbols(projectRoot, 'src/service.ts')
+    const direct = (await extractExportedSymbols(projectRoot, 'src/service.ts')).unwrap()
     expect(direct.symbols.map((s) => s.name)).toEqual(['ServiceInput', 'GreetingService', 'buildGreeting'])
 
     const report = await runDocsCheck({ docsDir, projectRoot })

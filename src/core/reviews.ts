@@ -2,7 +2,9 @@ import { execFileSync } from 'node:child_process'
 import { realpathSync } from 'node:fs'
 import { mkdir, readFile, writeFile } from 'node:fs/promises'
 import path from 'node:path'
+import { Result } from 'better-result'
 import { z } from 'zod'
+import { BlockNotFoundError, DocumentNotFoundError, type ReviewDomainError } from './errors'
 import { splitFrontmatter } from './frontmatter'
 import { computeContentHash, extractMdxArtifacts } from './mdx'
 import type {
@@ -19,16 +21,6 @@ export const REVIEWS_REL_PATH = 'guard/reviews.json'
 const SNAPSHOT_CACHE_REL_PATH = '.documi/cache/approved-bodies.json'
 
 const UPSTREAM_EDGE_KINDS = new Set(['derives', 'satisfies', 'verifies'])
-
-export class ReviewError extends Error {
-  constructor(
-    message: string,
-    public status = 400,
-  ) {
-    super(message)
-    this.name = 'ReviewError'
-  }
-}
 
 export async function loadReviews(docsDir: string, issues: IndexIssue[]): Promise<ReviewsFile> {
   const filePath = path.join(docsDir, REVIEWS_REL_PATH)
@@ -62,8 +54,8 @@ export async function loadReviews(docsDir: string, issues: IndexIssue[]): Promis
 
 const rawBlockRecordSchema = z
   .object({
-    docPath: z.string().optional(),
-    hash: z.string().optional(),
+    docPath: z.string().min(1),
+    hash: z.string().min(1),
     approvedCommit: z.string().optional(),
     approvedAt: z.string().optional(),
     approvedBy: z.string().optional(),
@@ -92,7 +84,15 @@ function validateReviewsFile(parsed: unknown, issues: IndexIssue[]): ReviewsFile
   const blocks: Record<string, BlockReviewRecord> = {}
   for (const [id, entry] of Object.entries(rootResult.data.blocks ?? {})) {
     const recResult = rawBlockRecordSchema.safeParse(entry)
-    if (!recResult.success) continue
+    if (!recResult.success) {
+      issues.push({
+        code: 'invalid-reviews',
+        message: `reviews.json のブロック "${id}" に必須フィールド (docPath / hash) が不足または不正です`,
+        path: REVIEWS_REL_PATH,
+        blockId: id,
+      })
+      continue
+    }
     const e = recResult.data
 
     const upstreamHashes: Record<string, string> = {}
@@ -100,13 +100,14 @@ function validateReviewsFile(parsed: unknown, issues: IndexIssue[]): ReviewsFile
       if (typeof v === 'string') upstreamHashes[k] = v
     }
 
-    const note = e.note?.trim()
+    const note = e.note?.trim() || undefined
+    const approvedBy = e.approvedBy?.trim() || undefined
     blocks[id] = {
-      docPath: e.docPath ?? '',
-      hash: e.hash ?? '',
+      docPath: e.docPath,
+      hash: e.hash,
       approvedCommit: e.approvedCommit,
       approvedAt: e.approvedAt,
-      approvedBy: e.approvedBy,
+      ...(approvedBy ? { approvedBy } : {}),
       ...(note ? { note } : {}),
       upstreamHashes: Object.keys(upstreamHashes).length > 0 ? upstreamHashes : undefined,
     }
@@ -130,13 +131,14 @@ export async function saveReviews(docsDir: string, reviews: ReviewsFile): Promis
               .map((k) => [k, rec.upstreamHashes![k]!]),
           )
         : undefined
-    const note = rec.note?.trim()
+    const note = rec.note?.trim() || undefined
+    const approvedBy = rec.approvedBy?.trim() || undefined
     sortedBlocks[id] = {
       docPath: rec.docPath,
       hash: rec.hash,
       ...(rec.approvedCommit ? { approvedCommit: rec.approvedCommit } : {}),
       ...(rec.approvedAt ? { approvedAt: rec.approvedAt } : {}),
-      ...(rec.approvedBy ? { approvedBy: rec.approvedBy } : {}),
+      ...(approvedBy ? { approvedBy } : {}),
       ...(note ? { note } : {}),
       ...(sortedUpstreams ? { upstreamHashes: sortedUpstreams } : {}),
     }
@@ -269,21 +271,22 @@ export function applyReviewsAndSuspects(index: DocsIndex, reviews: ReviewsFile):
   }
 }
 
-function runGit(cwd: string, args: string[]): string | null {
+function runGit(cwd: string, args: string[]): string | undefined {
   try {
     return execFileSync('git', args, { cwd, encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] }).trim()
   } catch {
-    return null
+    return undefined
   }
 }
 
 function getHeadCommit(cwd: string): string | undefined {
-  const sha = runGit(cwd, ['rev-parse', '--short', 'HEAD'])
-  return sha || undefined
+  return runGit(cwd, ['rev-parse', '--short', 'HEAD']) || undefined
 }
 
-function getGitUserName(cwd: string): string {
-  return runGit(cwd, ['config', 'user.name']) || process.env.USER || 'human'
+/** Git リポジトリの user.name を取得する。非 Git 環境や未設定時は undefined を返し、OS ユーザー名等へフォールバックしない */
+function getGitUserName(cwd: string): string | undefined {
+  if (!runGit(cwd, ['rev-parse', '--is-inside-work-tree'])) return undefined
+  return runGit(cwd, ['config', 'user.name']) || undefined
 }
 
 /** ブロックを承認し guard/reviews.json とローカルキャッシュを更新する */
@@ -292,23 +295,30 @@ export async function approveBlock(
   index: DocsIndex,
   blockId: string,
   options: { author?: string; note?: string; cacheRoot?: string } = {},
-): Promise<BlockReviewRecord> {
+): Promise<Result<BlockReviewRecord, ReviewDomainError>> {
   const block = index.blocksById.get(blockId)
-  if (!block) throw new ReviewError(`ブロックが見つかりません: ${blockId}`, 404)
+  if (!block) {
+    return Result.err(new BlockNotFoundError({ blockId, message: `ブロックが見つかりません: ${blockId}` }))
+  }
   const doc = index.byId.get(block.docId)
-  if (!doc) throw new ReviewError(`所属ドキュメントが見つかりません: ${block.docId}`, 404)
+  if (!doc) {
+    return Result.err(
+      new DocumentNotFoundError({ docId: block.docId, message: `所属ドキュメントが見つかりません: ${block.docId}` }),
+    )
+  }
 
   const issues: IndexIssue[] = []
   const reviews = await loadReviews(docsDir, issues)
   const upstreamHashes = collectUpstreamHashes(index, block)
-  const note = options.note?.trim()
+  const note = options.note?.trim() || undefined
+  const approvedBy = options.author?.trim() || getGitUserName(docsDir)
 
   const record: BlockReviewRecord = {
     docPath: doc.path,
     hash: block.contentHash,
     approvedCommit: getHeadCommit(docsDir),
     approvedAt: new Date().toISOString(),
-    approvedBy: options.author?.trim() || getGitUserName(docsDir),
+    ...(approvedBy ? { approvedBy } : {}),
     ...(note ? { note } : {}),
     upstreamHashes: Object.keys(upstreamHashes).length > 0 ? upstreamHashes : undefined,
   }
@@ -316,7 +326,7 @@ export async function approveBlock(
   reviews.blocks[blockId] = record
   await saveReviews(docsDir, reviews)
   await writeBodyCache(docsDir, blockId, block.rawBody, options.cacheRoot)
-  return record
+  return Result.ok(record)
 }
 
 /**
@@ -328,43 +338,41 @@ export async function unapproveBlock(
   index: DocsIndex,
   blockId: string,
   options: { cacheRoot?: string } = {},
-): Promise<{ removed: boolean }> {
+): Promise<Result<{ removed: boolean }, BlockNotFoundError>> {
   const block = index.blocksById.get(blockId)
-  if (!block) throw new ReviewError(`ブロックが見つかりません: ${blockId}`, 404)
+  if (!block) {
+    return Result.err(new BlockNotFoundError({ blockId, message: `ブロックが見つかりません: ${blockId}` }))
+  }
 
   const reviews = await loadReviews(docsDir, [])
   const prev = reviews.blocks[blockId]
   if (!prev || !prev.hash) {
-    return { removed: false }
+    return Result.ok({ removed: false })
   }
 
   delete reviews.blocks[blockId]
   await saveReviews(docsDir, reviews)
   await removeBodyCache(docsDir, blockId, options.cacheRoot)
-  return { removed: true }
+  return Result.ok({ removed: true })
 }
 
 /** Git コミットから指定ブロックの本文を取り出す */
-function readBlockFromGitCommit(docsDir: string, commit: string, docPath: string, blockId: string): string | null {
+function readBlockFromGitCommit(docsDir: string, commit: string, docPath: string, blockId: string): string | undefined {
   const gitRootRaw = runGit(docsDir, ['rev-parse', '--show-toplevel'])
-  if (!gitRootRaw) return null
+  if (!gitRootRaw) return undefined
   const gitRoot = safeRealpath(gitRootRaw)
   const absDocsDir = safeRealpath(docsDir)
   const absFile = path.join(absDocsDir, docPath)
   const relFromGit = path.relative(gitRoot, absFile).split(path.sep).join('/')
   const content = runGit(gitRoot, ['show', `${commit}:${relFromGit}`])
-  if (content === null) return null
+  if (content === undefined) return undefined
 
   const format = docPath.toLowerCase().endsWith('.mdx') ? 'mdx' : 'markdown'
   const docId = docPath.replace(/\.(mdx|md)$/i, '')
-  let body = content
-  try {
-    body = splitFrontmatter(content).body
-  } catch {
-    return null
-  }
-  const extracted = extractMdxArtifacts(body, format, docId)
-  return extracted.blocks.find((b) => b.id === blockId)?.rawBody ?? null
+  const fm = splitFrontmatter(content)
+  if (fm.isErr()) return undefined
+  const extracted = extractMdxArtifacts(fm.value.body, format, docId)
+  return extracted.blocks.find((b) => b.id === blockId)?.rawBody
 }
 
 function safeRealpath(p: string): string {
@@ -381,28 +389,30 @@ export async function getBlockDiff(
   index: DocsIndex,
   blockId: string,
   options: { cacheRoot?: string } = {},
-): Promise<BlockDiffResult> {
+): Promise<Result<BlockDiffResult, BlockNotFoundError>> {
   const block = index.blocksById.get(blockId)
-  if (!block) throw new ReviewError(`ブロックが見つかりません: ${blockId}`, 404)
+  if (!block) {
+    return Result.err(new BlockNotFoundError({ blockId, message: `ブロックが見つかりません: ${blockId}` }))
+  }
 
   const reviews = await loadReviews(docsDir, [])
   const rec = reviews.blocks[blockId]
   if (!rec || !rec.hash) {
-    return { blockId, hasBase: false, baseSource: 'none', changed: false, lines: [] }
+    return Result.ok({ blockId, hasBase: false, baseSource: 'none', changed: false, lines: [] })
   }
 
-  let baseBody: string | null = null
+  let baseBody: string | undefined
   let baseSource: 'git' | 'cache' | 'none' = 'none'
 
   if (rec.approvedCommit && rec.docPath) {
     const fromGit = readBlockFromGitCommit(docsDir, rec.approvedCommit, rec.docPath, blockId)
-    if (fromGit !== null && computeContentHash(fromGit) === rec.hash) {
+    if (fromGit !== undefined && computeContentHash(fromGit) === rec.hash) {
       baseBody = fromGit
       baseSource = 'git'
     }
   }
 
-  if (baseBody === null) {
+  if (baseBody === undefined) {
     const cache = await readBodyCache(docsDir, options.cacheRoot)
     const fromCache = cache[blockId]
     if (typeof fromCache === 'string') {
@@ -411,27 +421,27 @@ export async function getBlockDiff(
     }
   }
 
-  if (baseBody === null) {
-    return {
+  if (baseBody === undefined) {
+    return Result.ok({
       blockId,
       hasBase: false,
       baseSource: 'none',
       baseCommit: rec.approvedCommit,
       changed: rec.hash !== block.contentHash,
       lines: [],
-    }
+    })
   }
 
   const lines = computeLineDiff(baseBody, block.rawBody)
   const changed = lines.some((l) => l.type !== 'context')
-  return {
+  return Result.ok({
     blockId,
     hasBase: true,
     baseSource,
     baseCommit: rec.approvedCommit,
     changed,
     lines,
-  }
+  })
 }
 
 /** LCS ベースのシンプルな行単位 diff を計算する */

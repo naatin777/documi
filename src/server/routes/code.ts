@@ -1,9 +1,9 @@
 import { Hono } from 'hono'
 import { z } from 'zod'
 import { buildCodeTree, readCodeFile } from '../../core/code'
-import { SourceError } from '../../core/source'
+import { codeFileErrorToHttp } from '../errors'
 import type { DocsStore } from '../store'
-import { zValidator, type ErrorStatusCode } from '../validator'
+import { zValidator } from '../validator'
 
 const codeFileQuerySchema = z.object({
   path: z.string().min(1, 'path パラメータが必要です'),
@@ -17,12 +17,11 @@ export function createCodeRoutes(store: DocsStore, projectRoot: string) {
     })
     .get('/file', zValidator('query', codeFileQuerySchema), async (c) => {
       const { path: filePath } = c.req.valid('query')
-      try {
-        const result = await readCodeFile(projectRoot, store.getIndex(), filePath)
-        return c.json(result, 200)
-      } catch (e) {
-        if (e instanceof SourceError) return c.json({ error: e.message }, e.status as ErrorStatusCode)
-        throw e
+      const res = await readCodeFile(projectRoot, store.getIndex(), filePath)
+      if (res.isErr()) {
+        const http = codeFileErrorToHttp(res.error)
+        return c.json(http.body, http.status)
       }
+      return c.json(res.value, 200)
     })
 }

@@ -6,7 +6,7 @@ type ZodTarget = 'json' | 'query' | 'param'
 type HasUndefined<T> = undefined extends T ? true : false
 
 /** エラー応答専用のステータスコード型（200/201 成功型へ { error } が混入するのを防ぐ） */
-export type ErrorStatusCode = 400 | 403 | 404 | 409 | 500 | 501
+export type ErrorStatusCode = 400 | 403 | 404 | 409 | 413 | 422 | 500 | 501
 
 type TargetMap<Target extends ZodTarget, In, Out> = {
   in: HasUndefined<In> extends true ? { [K in Target]?: In } : { [K in Target]: In }

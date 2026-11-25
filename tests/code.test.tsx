@@ -7,7 +7,6 @@ import { MemoryRouter } from 'react-router'
 import { stringify } from 'yaml'
 import { buildCodeTree, readCodeFile } from '../src/core/code'
 import { loadDocuments } from '../src/core/loader'
-import { SourceError } from '../src/core/source'
 import { enrichWithRealization } from '../src/core/trace'
 import { createApp } from '../src/server/app'
 import type { MaterialIconManifest } from '../src/server/routes/icons'
@@ -104,7 +103,7 @@ describe('Read-only Code Explorer', () => {
     const index = await loadDocuments(docsDir)
     await enrichWithRealization(index, { projectRoot: projectDir })
 
-    const file = await readCodeFile(projectDir, index, 'src/auth.ts')
+    const file = (await readCodeFile(projectDir, index, 'src/auth.ts')).unwrap()
     expect(file.path).toBe('src/auth.ts')
     expect(file.language).toBe('typescript')
     expect(file.totalLines).toBe(6)
@@ -113,24 +112,34 @@ describe('Read-only Code Explorer', () => {
     expect(file.docRefs.some((d) => d.docId === 'designs/auth' && d.symbol === 'AuthService')).toBe(true)
     expect(file.termLinks.some((t) => t.termId === 'AuthService' && t.symbol === 'AuthService')).toBe(true)
 
-    // パストラバーサルは 403
-    await expect(readCodeFile(projectDir, index, '../secret.ts')).rejects.toMatchObject({ status: 403 })
-    await expect(readCodeFile(projectDir, index, '/etc/passwd')).rejects.toMatchObject({ status: 403 })
+    // パストラバーサルは PathOutsideRootError (traversal)
+    const relEscape = await readCodeFile(projectDir, index, '../secret.ts')
+    expect(relEscape.isErr()).toBe(true)
+    if (relEscape.isErr()) expect(relEscape.error).toMatchObject({ _tag: 'PathOutsideRootError', reason: 'traversal' })
 
-    // 未存在は 404
-    await expect(readCodeFile(projectDir, index, 'src/missing.ts')).rejects.toMatchObject({ status: 404 })
+    const absEscape = await readCodeFile(projectDir, index, '/etc/passwd')
+    expect(absEscape.isErr()).toBe(true)
+    if (absEscape.isErr()) expect(absEscape.error).toMatchObject({ _tag: 'PathOutsideRootError', reason: 'traversal' })
 
-    // バイナリは 400
-    await expect(readCodeFile(projectDir, index, 'src/bin.dat')).rejects.toMatchObject({ status: 400 })
+    // 未存在は SourceFileNotFoundError
+    const missing = await readCodeFile(projectDir, index, 'src/missing.ts')
+    expect(missing.isErr()).toBe(true)
+    if (missing.isErr()) expect(missing.error._tag).toBe('SourceFileNotFoundError')
 
-    // ルート外シンボリックリンクは 403
+    // バイナリは BinaryFileError
+    const bin = await readCodeFile(projectDir, index, 'src/bin.dat')
+    expect(bin.isErr()).toBe(true)
+    if (bin.isErr()) expect(bin.error._tag).toBe('BinaryFileError')
+
+    // ルート外シンボリックリンクは PathOutsideRootError (symlink)
     const outsideDir = await mkdtemp(path.join(tmpdir(), 'documi-outside-'))
     try {
       const outsideFile = path.join(outsideDir, 'leak.ts')
       await writeFile(outsideFile, 'export const secret = 1\n')
       await symlink(outsideFile, path.join(projectDir, 'src/leak.ts'))
-      await expect(readCodeFile(projectDir, index, 'src/leak.ts')).rejects.toBeInstanceOf(SourceError)
-      await expect(readCodeFile(projectDir, index, 'src/leak.ts')).rejects.toMatchObject({ status: 403 })
+      const symEscape = await readCodeFile(projectDir, index, 'src/leak.ts')
+      expect(symEscape.isErr()).toBe(true)
+      if (symEscape.isErr()) expect(symEscape.error).toMatchObject({ _tag: 'PathOutsideRootError', reason: 'symlink' })
     } finally {
       await rm(outsideDir, { recursive: true, force: true })
     }

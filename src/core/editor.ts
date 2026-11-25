@@ -1,20 +1,25 @@
 import type { Dirent } from 'node:fs'
 import { access, mkdir, readdir, readFile, realpath, stat, writeFile } from 'node:fs/promises'
 import path from 'node:path'
+import { Result } from 'better-result'
 import type { MdxJsxFlowElement, MdxJsxTextElement } from 'mdast-util-mdx'
 import { stringify } from 'yaml'
+import {
+  DocPathOutsideRootError,
+  EditConflictError,
+  EditTargetNotFoundError,
+  InvalidDocPathError,
+  InvalidEditInputError,
+  ProtectedPathWriteError,
+  UnsafeMdxError,
+  type EditDomainError,
+  type UnclosedFrontmatterError,
+} from './errors'
 import { splitFrontmatter } from './frontmatter'
 import { parseMarkdownAst } from './mdast-parser'
 import { extractMdxArtifacts } from './mdx'
 import { BLOCK_ID_PATTERN, isArtifactType, isNoteIntent, isSpecIntent, isStability } from './types'
 import type { ArtifactType, BlockKind, DocFormat, DocsIndex, NoteIntent, SpecIntent, Stability } from './types'
-
-export class EditError extends Error {
-  constructor(message: string) {
-    super(message)
-    this.name = 'EditError'
-  }
-}
 
 const BLOCK_TAG_NAME: Record<BlockKind, string> = {
   spec: 'Spec',
@@ -168,29 +173,56 @@ export interface RenameBlockResult {
  * docsDir 内の安全な .mdx / .md パスであることを検証する。
  * パストラバーサル、ルート外シンボリックリンク、および `guard/`・`.documi/`・`reviews.json` への書き込みを絶対拒否する。
  */
-async function resolveSafeDocFile(docsDir: string, relPath: string): Promise<{ absPath: string; relPath: string }> {
+async function resolveSafeDocFile(
+  docsDir: string,
+  relPath: string,
+): Promise<
+  Result<{ absPath: string; relPath: string }, InvalidDocPathError | ProtectedPathWriteError | DocPathOutsideRootError>
+> {
   const cleaned = relPath.replace(/\\/g, '/').replace(/^\/+/, '').trim()
   if (!cleaned || cleaned.includes('\0') || path.isAbsolute(relPath)) {
-    throw new EditError(`不正なドキュメントパスです: ${relPath}`)
+    return Result.err(new InvalidDocPathError({ path: relPath, message: `不正なドキュメントパスです: ${relPath}` }))
   }
   const segments = cleaned.split('/')
   if (segments.some((s) => s === '' || s === '.' || s === '..')) {
-    throw new EditError(`パスに相対参照 (..) を含めることはできません: ${relPath}`)
+    return Result.err(
+      new DocPathOutsideRootError({
+        path: relPath,
+        reason: 'traversal',
+        message: `パスに相対参照 (..) を含めることはできません: ${relPath}`,
+      }),
+    )
   }
   if (
     segments.some((s) => s.toLowerCase() === '.documi' || s.toLowerCase() === 'guard') ||
     cleaned.toLowerCase().endsWith('reviews.json')
   ) {
-    throw new EditError('docs/guard/・.documi/ および reviews.json への書き込みは禁止されています')
+    return Result.err(
+      new ProtectedPathWriteError({
+        path: relPath,
+        message: 'docs/guard/・.documi/ および reviews.json への書き込みは禁止されています',
+      }),
+    )
   }
   if (!/\.(mdx|md)$/i.test(cleaned)) {
-    throw new EditError(`ドキュメントは .mdx または .md である必要があります: ${relPath}`)
+    return Result.err(
+      new InvalidDocPathError({
+        path: relPath,
+        message: `ドキュメントは .mdx または .md である必要があります: ${relPath}`,
+      }),
+    )
   }
 
   const rootReal = await realpath(docsDir)
   const abs = path.resolve(rootReal, cleaned)
   if (abs !== rootReal && !abs.startsWith(rootReal + path.sep)) {
-    throw new EditError('ドキュメントパスが docs ディレクトリ外を指しています')
+    return Result.err(
+      new DocPathOutsideRootError({
+        path: relPath,
+        reason: 'traversal',
+        message: 'ドキュメントパスが docs ディレクトリ外を指しています',
+      }),
+    )
   }
 
   // 既存ファイルまたは最寄り既存親ディレクトリがシンボリックリンク脱出していないか確認
@@ -199,57 +231,82 @@ async function resolveSafeDocFile(docsDir: string, relPath: string): Promise<{ a
     try {
       const realProbe = await realpath(probe)
       if (realProbe !== rootReal && !realProbe.startsWith(rootReal + path.sep)) {
-        throw new EditError('シンボリックリンクが docs ディレクトリ外を指しています')
+        return Result.err(
+          new DocPathOutsideRootError({
+            path: relPath,
+            reason: 'symlink',
+            message: 'シンボリックリンクが docs ディレクトリ外を指しています',
+          }),
+        )
       }
       break
-    } catch (e) {
-      if (e instanceof EditError) throw e
+    } catch {
       const parent = path.dirname(probe)
       if (parent === probe) break
       probe = parent
     }
   }
 
-  return { absPath: abs, relPath: cleaned }
+  return Result.ok({ absPath: abs, relPath: cleaned })
 }
 
 /** 候補ソースに対して MDX 安全性（式・ESM・未許可コンポーネント・パースエラー）を事前検証する */
-function assertSafeDocumentSource(source: string, format: DocFormat, docId: string): void {
-  const fm = splitFrontmatter(source)
+function validateSafeDocumentSource(
+  source: string,
+  format: DocFormat,
+  docId: string,
+): Result<void, UnsafeMdxError | UnclosedFrontmatterError> {
+  const fmRes = splitFrontmatter(source)
+  if (fmRes.isErr()) return fmRes
+  const fm = fmRes.value
   const extracted = extractMdxArtifacts(fm.body, format, docId, fm.bodyStartLine - 1)
   const fatal = extracted.issues.filter(
     (issue) =>
       issue.code === 'mdx-parse-error' || issue.code === 'mdx-unsupported' || issue.code === 'invalid-block-id',
   )
   if (fatal.length > 0) {
-    throw new EditError(`MDX 安全性検証に失敗しました: ${fatal.map((f) => f.message).join('; ')}`)
+    return Result.err(
+      new UnsafeMdxError({
+        docId,
+        message: `MDX 安全性検証に失敗しました: ${fatal.map((f) => f.message).join('; ')}`,
+      }),
+    )
   }
+  return Result.ok(undefined)
 }
 
-function escapeAttrValue(value: string): string {
+function escapeAttrValue(value: string): Result<string, InvalidEditInputError> {
   if (value.includes('"') || value.includes('\n') || value.includes('\r')) {
-    throw new EditError(`属性値に改行またはダブルクォートは使用できません: ${value}`)
+    return Result.err(
+      new InvalidEditInputError({ message: `属性値に改行またはダブルクォートは使用できません: ${value}` }),
+    )
   }
-  return value
+  return Result.ok(value)
 }
 
-function formatBlockMdx(kind: BlockKind, attrs: Array<[string, string | undefined]>, body: string): string {
+function formatBlockMdx(
+  kind: BlockKind,
+  attrs: Array<[string, string | undefined]>,
+  body: string,
+): Result<string, InvalidEditInputError> {
   const tag = BLOCK_TAG_NAME[kind]
   const attrParts: string[] = []
   for (const [key, val] of attrs) {
     if (val === undefined || val === '') continue
-    attrParts.push(`${key}="${escapeAttrValue(val)}"`)
+    const escaped = escapeAttrValue(val)
+    if (escaped.isErr()) return escaped
+    attrParts.push(`${key}="${escaped.value}"`)
   }
   const openTag = attrParts.length > 0 ? `<${tag} ${attrParts.join(' ')}>` : `<${tag}>`
   const trimmedBody = body.replace(/\r\n/g, '\n').trim()
   if (!trimmedBody) {
-    throw new EditError('ブロック本文は空にできません')
+    return Result.err(new InvalidEditInputError({ message: 'ブロック本文は空にできません' }))
   }
   const indented = trimmedBody
     .split('\n')
     .map((line) => (line.trim() === '' ? '' : `  ${line}`))
     .join('\n')
-  return `${openTag}\n${indented}\n</${tag}>`
+  return Result.ok(`${openTag}\n${indented}\n</${tag}>`)
 }
 
 function findBlockJsxNode(
@@ -257,10 +314,10 @@ function findBlockJsxNode(
   format: DocFormat,
   kind: BlockKind,
   blockId: string,
-): { startOffset: number; endOffset: number; existingAttrs: Record<string, string> } | null {
+): { startOffset: number; endOffset: number; existingAttrs: Record<string, string> } | undefined {
   const { tree } = parseMarkdownAst(body, format)
   const expectedTag = BLOCK_TAG_NAME[kind]
-  let found: { startOffset: number; endOffset: number; existingAttrs: Record<string, string> } | null = null
+  let found: { startOffset: number; endOffset: number; existingAttrs: Record<string, string> } | undefined
 
   const walk = (node: GenericMdxNode): void => {
     if (found) return
@@ -288,15 +345,19 @@ function findBlockJsxNode(
   return found
 }
 
-function validateBlockAttributes(kind: BlockKind, input: { stability?: string; intent?: string }): void {
+function validateBlockAttributes(
+  kind: BlockKind,
+  input: { stability?: string; intent?: string },
+): Result<void, InvalidEditInputError> {
   if (input.stability !== undefined && !isStability(input.stability)) {
-    throw new EditError(`不正な stability です: ${input.stability}`)
+    return Result.err(new InvalidEditInputError({ message: `不正な stability です: ${input.stability}` }))
   }
   if (input.intent !== undefined) {
     if (kind === 'note' ? !isNoteIntent(input.intent) : !isSpecIntent(input.intent)) {
-      throw new EditError(`不正な intent です: ${input.intent}`)
+      return Result.err(new InvalidEditInputError({ message: `不正な intent です: ${input.intent}` }))
     }
   }
+  return Result.ok(undefined)
 }
 
 function computeLineRangeFromOffsets(
@@ -320,124 +381,165 @@ export async function updateBlockInDocs(
   docsDir: string,
   index: DocsIndex,
   input: UpdateBlockInput,
-): Promise<BlockEditResult> {
-  const block = index.blocksById.get(input.id)
-  if (!block) throw new EditError(`ブロックが見つかりません: ${input.id}`)
-  const doc = index.byId.get(block.docId)
-  if (!doc) throw new EditError(`所属ドキュメントが見つかりません: ${block.docId}`)
+): Promise<Result<BlockEditResult, EditDomainError>> {
+  return Result.gen(async function* () {
+    const block = index.blocksById.get(input.id)
+    if (!block) {
+      return Result.err(
+        new EditTargetNotFoundError({ target: input.id, message: `ブロックが見つかりません: ${input.id}` }),
+      )
+    }
+    const doc = index.byId.get(block.docId)
+    if (!doc) {
+      return Result.err(
+        new EditTargetNotFoundError({
+          target: block.docId,
+          message: `所属ドキュメントが見つかりません: ${block.docId}`,
+        }),
+      )
+    }
 
-  validateBlockAttributes(block.kind, input)
+    yield* validateBlockAttributes(block.kind, input)
 
-  const { absPath, relPath } = await resolveSafeDocFile(docsDir, doc.path)
-  const raw = await readFile(absPath, 'utf-8')
-  const normalized = raw.replace(/\r\n/g, '\n')
-  const fm = splitFrontmatter(normalized)
+    const { absPath, relPath } = yield* Result.await(resolveSafeDocFile(docsDir, doc.path))
+    const raw = await readFile(absPath, 'utf-8')
+    const normalized = raw.replace(/\r\n/g, '\n')
+    const fm = yield* splitFrontmatter(normalized)
 
-  const located = findBlockJsxNode(fm.body, doc.format, block.kind, block.id)
-  if (!located) {
-    throw new EditError(
-      `ファイル内でブロック定義 <${BLOCK_TAG_NAME[block.kind]} id="${block.id}"> を特定できませんでした`,
-    )
-  }
+    const located = findBlockJsxNode(fm.body, doc.format, block.kind, block.id)
+    if (!located) {
+      return Result.err(
+        new EditTargetNotFoundError({
+          target: block.id,
+          message: `ファイル内でブロック定義 <${BLOCK_TAG_NAME[block.kind]} id="${block.id}"> を特定できませんでした`,
+        }),
+      )
+    }
 
-  const prev = located.existingAttrs
-  const mergedAttrs: Array<[string, string | undefined]> = [
-    ['id', block.id],
-    ['title', input.title !== undefined ? input.title : prev.title],
-    ['intent', input.intent !== undefined ? input.intent : prev.intent],
-    ['stability', input.stability !== undefined ? input.stability : prev.stability],
-    ['scope', input.scope !== undefined ? input.scope : prev.scope],
-    ['derives', input.derives !== undefined ? input.derives.join(', ') : prev.derives],
-    ['supersedes', input.supersedes !== undefined ? input.supersedes.join(', ') : prev.supersedes],
-    ['aliases', input.aliases !== undefined ? input.aliases.join(', ') : prev.aliases],
-    ['symbols', input.symbols !== undefined ? input.symbols.join(', ') : prev.symbols],
-  ]
+    const prev = located.existingAttrs
+    const mergedAttrs: Array<[string, string | undefined]> = [
+      ['id', block.id],
+      ['title', input.title !== undefined ? input.title : prev.title],
+      ['intent', input.intent !== undefined ? input.intent : prev.intent],
+      ['stability', input.stability !== undefined ? input.stability : prev.stability],
+      ['scope', input.scope !== undefined ? input.scope : prev.scope],
+      ['derives', input.derives !== undefined ? input.derives.join(', ') : prev.derives],
+      ['supersedes', input.supersedes !== undefined ? input.supersedes.join(', ') : prev.supersedes],
+      ['aliases', input.aliases !== undefined ? input.aliases.join(', ') : prev.aliases],
+      ['symbols', input.symbols !== undefined ? input.symbols.join(', ') : prev.symbols],
+    ]
 
-  const replacement = formatBlockMdx(block.kind, mergedAttrs, input.body)
-  const absStart = fm.bodyOffset + located.startOffset
-  const absEnd = fm.bodyOffset + located.endOffset
-  const nextSource = `${normalized.slice(0, absStart)}${replacement}${normalized.slice(absEnd)}`
+    const replacement = yield* formatBlockMdx(block.kind, mergedAttrs, input.body)
+    const absStart = fm.bodyOffset + located.startOffset
+    const absEnd = fm.bodyOffset + located.endOffset
+    const nextSource = `${normalized.slice(0, absStart)}${replacement}${normalized.slice(absEnd)}`
 
-  assertSafeDocumentSource(nextSource, doc.format, doc.id)
-  await writeFile(absPath, nextSource, 'utf-8')
+    yield* validateSafeDocumentSource(nextSource, doc.format, doc.id)
+    await writeFile(absPath, nextSource, 'utf-8')
 
-  const { startLine, endLine } = computeLineRangeFromOffsets(nextSource, absStart, absStart + replacement.length)
-  return { id: block.id, docId: doc.id, path: relPath, startLine, endLine }
+    const { startLine, endLine } = computeLineRangeFromOffsets(nextSource, absStart, absStart + replacement.length)
+    return Result.ok({ id: block.id, docId: doc.id, path: relPath, startLine, endLine })
+  })
 }
 
 /**
  * 指定ドキュメント末尾（または指定見出し直下）にセマンティックブロックを 1 件追記する。
  * @implements core.mcp-surgical-edit
  */
-export async function addBlockToDoc(docsDir: string, index: DocsIndex, input: AddBlockInput): Promise<BlockEditResult> {
-  if (!BLOCK_ID_PATTERN.test(input.id)) {
-    throw new EditError(`ブロック ID が不正です: "${input.id}" (英字始まり、英数字と . _ - のみ使用可能)`)
-  }
-  if (index.blocksById.has(input.id)) {
-    throw new EditError(`ブロック ID "${input.id}" はすでに存在します`)
-  }
+export async function addBlockToDoc(
+  docsDir: string,
+  index: DocsIndex,
+  input: AddBlockInput,
+): Promise<Result<BlockEditResult, EditDomainError>> {
+  return Result.gen(async function* () {
+    if (!BLOCK_ID_PATTERN.test(input.id)) {
+      return Result.err(
+        new InvalidEditInputError({
+          message: `ブロック ID が不正です: "${input.id}" (英字始まり、英数字と . _ - のみ使用可能)`,
+        }),
+      )
+    }
+    if (index.blocksById.has(input.id)) {
+      return Result.err(
+        new EditConflictError({ target: input.id, message: `ブロック ID "${input.id}" はすでに存在します` }),
+      )
+    }
 
-  const doc = index.byId.get(input.docId.replace(/^\/+|\/+$/g, '').replace(/\.(mdx|md)$/i, ''))
-  if (!doc) throw new EditError(`ドキュメントが見つかりません: ${input.docId}`)
+    const doc = index.byId.get(input.docId.replace(/^\/+|\/+$/g, '').replace(/\.(mdx|md)$/i, ''))
+    if (!doc) {
+      return Result.err(
+        new EditTargetNotFoundError({ target: input.docId, message: `ドキュメントが見つかりません: ${input.docId}` }),
+      )
+    }
 
-  validateBlockAttributes(input.kind, input)
+    yield* validateBlockAttributes(input.kind, input)
 
-  const { absPath, relPath } = await resolveSafeDocFile(docsDir, doc.path)
-  const raw = await readFile(absPath, 'utf-8')
-  const normalized = raw.replace(/\r\n/g, '\n')
+    const { absPath, relPath } = yield* Result.await(resolveSafeDocFile(docsDir, doc.path))
+    const raw = await readFile(absPath, 'utf-8')
+    const normalized = raw.replace(/\r\n/g, '\n')
 
-  const blockText = formatBlockMdx(
-    input.kind,
-    [
-      ['id', input.id],
-      ['title', input.title],
-      ['intent', input.intent],
-      ['stability', input.stability],
-      ['scope', input.scope],
-      ['derives', input.derives?.join(', ')],
-      ['supersedes', input.supersedes?.join(', ')],
-      ['aliases', input.aliases?.join(', ')],
-      ['symbols', input.symbols?.join(', ')],
-    ],
-    input.body,
-  )
+    const blockText = yield* formatBlockMdx(
+      input.kind,
+      [
+        ['id', input.id],
+        ['title', input.title],
+        ['intent', input.intent],
+        ['stability', input.stability],
+        ['scope', input.scope],
+        ['derives', input.derives?.join(', ')],
+        ['supersedes', input.supersedes?.join(', ')],
+        ['aliases', input.aliases?.join(', ')],
+        ['symbols', input.symbols?.join(', ')],
+      ],
+      input.body,
+    )
 
-  let nextSource: string
-  let insertOffset: number
+    let nextSource: string
+    let insertOffset: number
 
-  if (input.afterHeading?.trim()) {
-    const targetHeading = input.afterHeading.trim().toLowerCase()
-    const fm = splitFrontmatter(normalized)
-    const lines = fm.body.split('\n')
-    let matchLineIdx = -1
-    for (let i = 0; i < lines.length; i++) {
-      const m = /^#{1,6}\s+(.+?)\s*$/.exec(lines[i]!)
-      if (m && m[1]!.trim().toLowerCase() === targetHeading) {
-        matchLineIdx = i
-        break
+    if (input.afterHeading?.trim()) {
+      const targetHeading = input.afterHeading.trim().toLowerCase()
+      const fm = yield* splitFrontmatter(normalized)
+      const lines = fm.body.split('\n')
+      let matchLineIdx = -1
+      for (let i = 0; i < lines.length; i++) {
+        const m = /^#{1,6}\s+(.+?)\s*$/.exec(lines[i]!)
+        if (m && m[1]!.trim().toLowerCase() === targetHeading) {
+          matchLineIdx = i
+          break
+        }
       }
+      if (matchLineIdx < 0) {
+        return Result.err(
+          new EditTargetNotFoundError({
+            target: input.afterHeading,
+            message: `指定された見出しが見つかりません: "${input.afterHeading}"`,
+          }),
+        )
+      }
+      const beforeLines = lines.slice(0, matchLineIdx + 1).join('\n')
+      const afterLines = lines.slice(matchLineIdx + 1).join('\n')
+      const prefix = `${normalized.slice(0, fm.bodyOffset)}${beforeLines}\n\n`
+      insertOffset = prefix.length
+      const suffix = afterLines.startsWith('\n') ? `\n${afterLines}` : afterLines ? `\n\n${afterLines}` : '\n'
+      nextSource = `${prefix}${blockText}${suffix}`
+    } else {
+      const trimmed = normalized.replace(/\n+$/, '')
+      const prefix = `${trimmed}\n\n`
+      insertOffset = prefix.length
+      nextSource = `${prefix}${blockText}\n`
     }
-    if (matchLineIdx < 0) {
-      throw new EditError(`指定された見出しが見つかりません: "${input.afterHeading}"`)
-    }
-    const beforeLines = lines.slice(0, matchLineIdx + 1).join('\n')
-    const afterLines = lines.slice(matchLineIdx + 1).join('\n')
-    const prefix = `${normalized.slice(0, fm.bodyOffset)}${beforeLines}\n\n`
-    insertOffset = prefix.length
-    const suffix = afterLines.startsWith('\n') ? `\n${afterLines}` : afterLines ? `\n\n${afterLines}` : '\n'
-    nextSource = `${prefix}${blockText}${suffix}`
-  } else {
-    const trimmed = normalized.replace(/\n+$/, '')
-    const prefix = `${trimmed}\n\n`
-    insertOffset = prefix.length
-    nextSource = `${prefix}${blockText}\n`
-  }
 
-  assertSafeDocumentSource(nextSource, doc.format, doc.id)
-  await writeFile(absPath, nextSource, 'utf-8')
+    yield* validateSafeDocumentSource(nextSource, doc.format, doc.id)
+    await writeFile(absPath, nextSource, 'utf-8')
 
-  const { startLine, endLine } = computeLineRangeFromOffsets(nextSource, insertOffset, insertOffset + blockText.length)
-  return { id: input.id, docId: doc.id, path: relPath, startLine, endLine }
+    const { startLine, endLine } = computeLineRangeFromOffsets(
+      nextSource,
+      insertOffset,
+      insertOffset + blockText.length,
+    )
+    return Result.ok({ id: input.id, docId: doc.id, path: relPath, startLine, endLine })
+  })
 }
 
 /**
@@ -448,39 +550,55 @@ export async function upsertTermInDocs(
   docsDir: string,
   index: DocsIndex,
   input: UpsertTermInput,
-): Promise<UpsertTermResult> {
-  if (!BLOCK_ID_PATTERN.test(input.id)) {
-    throw new EditError(`用語 ID が不正です: "${input.id}"`)
-  }
-  const existing = index.blocksById.get(input.id)
-  if (existing) {
-    if (existing.kind !== 'term') {
-      throw new EditError(`ID "${input.id}" はすでに ${existing.kind} ブロックとして使用されています`)
+): Promise<Result<UpsertTermResult, EditDomainError>> {
+  return Result.gen(async function* () {
+    if (!BLOCK_ID_PATTERN.test(input.id)) {
+      return Result.err(new InvalidEditInputError({ message: `用語 ID が不正です: "${input.id}"` }))
     }
-    const updated = await updateBlockInDocs(docsDir, index, {
-      id: input.id,
-      body: input.definition,
-      aliases: input.aliases,
-      symbols: input.symbols,
-    })
-    return { action: 'updated', ...updated }
-  }
+    const existing = index.blocksById.get(input.id)
+    if (existing) {
+      if (existing.kind !== 'term') {
+        return Result.err(
+          new EditConflictError({
+            target: input.id,
+            message: `ID "${input.id}" はすでに ${existing.kind} ブロックとして使用されています`,
+          }),
+        )
+      }
+      const updated = yield* Result.await(
+        updateBlockInDocs(docsDir, index, {
+          id: input.id,
+          body: input.definition,
+          aliases: input.aliases,
+          symbols: input.symbols,
+        }),
+      )
+      return Result.ok({ action: 'updated' as const, ...updated })
+    }
 
-  const preferredDocId = input.docId ?? 'domain/glossary'
-  const targetDoc = index.byId.get(preferredDocId) ?? index.documents.find((d) => d.type === 'domain')
-  if (!targetDoc) {
-    throw new EditError(`用語集ドキュメントが見つかりません (${preferredDocId})`)
-  }
+    const preferredDocId = input.docId ?? 'domain/glossary'
+    const targetDoc = index.byId.get(preferredDocId) ?? index.documents.find((d) => d.type === 'domain')
+    if (!targetDoc) {
+      return Result.err(
+        new EditTargetNotFoundError({
+          target: preferredDocId,
+          message: `用語集ドキュメントが見つかりません (${preferredDocId})`,
+        }),
+      )
+    }
 
-  const created = await addBlockToDoc(docsDir, index, {
-    docId: targetDoc.id,
-    kind: 'term',
-    id: input.id,
-    body: input.definition,
-    aliases: input.aliases,
-    symbols: input.symbols,
+    const created = yield* Result.await(
+      addBlockToDoc(docsDir, index, {
+        docId: targetDoc.id,
+        kind: 'term',
+        id: input.id,
+        body: input.definition,
+        aliases: input.aliases,
+        symbols: input.symbols,
+      }),
+    )
+    return Result.ok({ action: 'created' as const, ...created })
   })
-  return { action: 'created', ...created }
 }
 
 /**
@@ -491,44 +609,55 @@ export async function scaffoldDocument(
   docsDir: string,
   _index: DocsIndex,
   input: ScaffoldDocumentInput,
-): Promise<ScaffoldDocumentResult> {
-  const normalizedPath = /\.(mdx|md)$/i.test(input.path.trim()) ? input.path.trim() : `${input.path.trim()}.mdx`
-  const { absPath, relPath } = await resolveSafeDocFile(docsDir, normalizedPath)
+): Promise<Result<ScaffoldDocumentResult, EditDomainError>> {
+  return Result.gen(async function* () {
+    const normalizedPath = /\.(mdx|md)$/i.test(input.path.trim()) ? input.path.trim() : `${input.path.trim()}.mdx`
+    const { absPath, relPath } = yield* Result.await(resolveSafeDocFile(docsDir, normalizedPath))
 
-  try {
-    await access(absPath)
-    throw new EditError(`ファイルはすでに存在します（上書きは禁止されています）: ${relPath}`)
-  } catch (e) {
-    if (e instanceof EditError) throw e
-  }
+    const exists = await access(absPath)
+      .then(() => true)
+      .catch(() => false)
+    if (exists) {
+      return Result.err(
+        new EditConflictError({
+          target: relPath,
+          message: `ファイルはすでに存在します（上書きは禁止されています）: ${relPath}`,
+        }),
+      )
+    }
 
-  if (input.type !== undefined && !isArtifactType(input.type)) {
-    throw new EditError(`不正な Artifact Type です: ${String(input.type)}`)
-  }
-  if (input.date !== undefined && !/^\d{4}-\d{2}(?:-\d{2})?$/.test(input.date.trim())) {
-    throw new EditError(`date は YYYY-MM-DD または YYYY-MM 形式で指定してください: ${input.date}`)
-  }
+    if (input.type !== undefined && !isArtifactType(input.type)) {
+      return Result.err(new InvalidEditInputError({ message: `不正な Artifact Type です: ${String(input.type)}` }))
+    }
+    if (input.date !== undefined && !/^\d{4}-\d{2}(?:-\d{2})?$/.test(input.date.trim())) {
+      return Result.err(
+        new InvalidEditInputError({
+          message: `date は YYYY-MM-DD または YYYY-MM 形式で指定してください: ${input.date}`,
+        }),
+      )
+    }
 
-  const fmObj: Record<string, unknown> = {}
-  if (input.type) fmObj.type = input.type
-  fmObj.title = input.title.trim()
-  if (input.description?.trim()) fmObj.description = input.description.trim()
-  if (input.date?.trim()) fmObj.date = input.date.trim()
-  if (input.tags && input.tags.length > 0) fmObj.tags = input.tags
-  if (input.derives && input.derives.length > 0) fmObj.derives = input.derives
-  if (input.satisfies && input.satisfies.length > 0) fmObj.satisfies = input.satisfies
-  if (input.verifies && input.verifies.length > 0) fmObj.verifies = input.verifies
+    const fmObj: Record<string, unknown> = {}
+    if (input.type) fmObj.type = input.type
+    fmObj.title = input.title.trim()
+    if (input.description?.trim()) fmObj.description = input.description.trim()
+    if (input.date?.trim()) fmObj.date = input.date.trim()
+    if (input.tags && input.tags.length > 0) fmObj.tags = input.tags
+    if (input.derives && input.derives.length > 0) fmObj.derives = input.derives
+    if (input.satisfies && input.satisfies.length > 0) fmObj.satisfies = input.satisfies
+    if (input.verifies && input.verifies.length > 0) fmObj.verifies = input.verifies
 
-  const bodySection = input.body?.trim() ? `\n${input.body.replace(/\r\n/g, '\n').trim()}\n` : '\n'
-  const source = `---\n${stringify(fmObj).trim()}\n---\n\n# ${input.title.trim()}\n${bodySection}`
-  const docId = relPath.replace(/\.(mdx|md)$/i, '')
-  const format: DocFormat = relPath.toLowerCase().endsWith('.mdx') ? 'mdx' : 'markdown'
+    const bodySection = input.body?.trim() ? `\n${input.body.replace(/\r\n/g, '\n').trim()}\n` : '\n'
+    const source = `---\n${stringify(fmObj).trim()}\n---\n\n# ${input.title.trim()}\n${bodySection}`
+    const docId = relPath.replace(/\.(mdx|md)$/i, '')
+    const format: DocFormat = relPath.toLowerCase().endsWith('.mdx') ? 'mdx' : 'markdown'
 
-  assertSafeDocumentSource(source, format, docId)
-  await mkdir(path.dirname(absPath), { recursive: true })
-  await writeFile(absPath, source, 'utf-8')
+    yield* validateSafeDocumentSource(source, format, docId)
+    await mkdir(path.dirname(absPath), { recursive: true })
+    await writeFile(absPath, source, 'utf-8')
 
-  return { docId, path: relPath }
+    return Result.ok({ docId, path: relPath })
+  })
 }
 
 function escapeRegExp(str: string): string {
@@ -567,44 +696,43 @@ function rewriteDocForRename(
   oldId: string,
   newId: string,
   isTerm: boolean,
-): {
-  next: string
-  count: number
-} {
-  let count = 0
-  const normalized = source.replace(/\r\n/g, '\n')
-  const fm = splitFrontmatter(normalized)
+): Result<{ next: string; count: number }, UnclosedFrontmatterError> {
+  return Result.gen(function* () {
+    let count = 0
+    const normalized = source.replace(/\r\n/g, '\n')
+    const fm = yield* splitFrontmatter(normalized)
 
-  let nextFmPrefix = normalized.slice(0, fm.bodyOffset)
-  if (fm.hasFrontmatter) {
-    const idRe = buildIdTokenRegex(oldId)
-    nextFmPrefix = nextFmPrefix.replace(
-      /^(\s*(?:-\s*|(?:derives|satisfies|verifies|supersedes):\s*(?:\[[^\]]*\]|.*)))$/gm,
-      (line) =>
-        line.replace(idRe, () => {
-          count++
-          return newId
-        }),
-    )
-  }
+    let nextFmPrefix = normalized.slice(0, fm.bodyOffset)
+    if (fm.hasFrontmatter) {
+      const idRe = buildIdTokenRegex(oldId)
+      nextFmPrefix = nextFmPrefix.replace(
+        /^(\s*(?:-\s*|(?:derives|satisfies|verifies|supersedes):\s*(?:\[[^\]]*\]|.*)))$/gm,
+        (line) =>
+          line.replace(idRe, () => {
+            count++
+            return newId
+          }),
+      )
+    }
 
-  let nextBody = fm.body
-  // 1. MDX 属性 (id / derives / supersedes / satisfies / verifies / name)
-  const attrNames = isTerm
-    ? ['id', 'derives', 'supersedes', 'satisfies', 'verifies', 'name']
-    : ['id', 'derives', 'supersedes', 'satisfies', 'verifies']
-  const attrResult = replaceInCsvAttr(nextBody, attrNames, oldId, newId)
-  nextBody = attrResult.text
-  count += attrResult.count
+    let nextBody = fm.body
+    // 1. MDX 属性 (id / derives / supersedes / satisfies / verifies / name)
+    const attrNames = isTerm
+      ? ['id', 'derives', 'supersedes', 'satisfies', 'verifies', 'name']
+      : ['id', 'derives', 'supersedes', 'satisfies', 'verifies']
+    const attrResult = replaceInCsvAttr(nextBody, attrNames, oldId, newId)
+    nextBody = attrResult.text
+    count += attrResult.count
 
-  // 2. #block-<oldId> アンカー
-  const anchorRe = new RegExp(`#block-${escapeRegExp(oldId)}(?![A-Za-z0-9._-])`, 'g')
-  nextBody = nextBody.replace(anchorRe, () => {
-    count++
-    return `#block-${newId}`
+    // 2. #block-<oldId> アンカー
+    const anchorRe = new RegExp(`#block-${escapeRegExp(oldId)}(?![A-Za-z0-9._-])`, 'g')
+    nextBody = nextBody.replace(anchorRe, () => {
+      count++
+      return `#block-${newId}`
+    })
+
+    return Result.ok({ next: `${nextFmPrefix}${nextBody}`, count })
   })
-
-  return { next: `${nextFmPrefix}${nextBody}`, count }
 }
 
 function rewriteCodeForRename(source: string, oldId: string, newId: string): { next: string; count: number } {
@@ -650,7 +778,7 @@ async function collectCodeFilesForRename(root: string, relDir: string, docsRel: 
 
 /**
  * 全 docs/ および projectRoot 配下のコード・テストからブロック ID を一括リネームする。
- * `docs/.documi/reviews.json` は一切変更しない。
+ * `docs/guard/reviews.json` は一切変更しない。
  * @implements core.mcp-surgical-edit
  */
 export async function renameBlockIdAcrossProject(
@@ -658,68 +786,82 @@ export async function renameBlockIdAcrossProject(
   projectRoot: string | undefined,
   index: DocsIndex,
   input: RenameBlockInput,
-): Promise<RenameBlockResult> {
-  const block = index.blocksById.get(input.oldId)
-  if (!block) throw new EditError(`リネーム元のブロックが見つかりません: ${input.oldId}`)
-  if (!BLOCK_ID_PATTERN.test(input.newId)) {
-    throw new EditError(`新しいブロック ID が不正です: "${input.newId}"`)
-  }
-  if (input.oldId === input.newId) {
-    throw new EditError('oldId と newId が同じです')
-  }
-  if (index.blocksById.has(input.newId)) {
-    throw new EditError(`新しいブロック ID "${input.newId}" はすでに存在します`)
-  }
-
-  const dryRun = input.dryRun === true
-  const isTerm = block.kind === 'term'
-  const pendingWrites: Array<{ absPath: string; displayPath: string; content: string; occurrences: number }> = []
-
-  // 1. docs/ 配下の全ドキュメントを検査
-  for (const doc of index.documents) {
-    const { absPath, relPath } = await resolveSafeDocFile(docsDir, doc.path)
-    const raw = await readFile(absPath, 'utf-8')
-    const { next, count } = rewriteDocForRename(raw, input.oldId, input.newId, isTerm)
-    if (count > 0) {
-      assertSafeDocumentSource(next, doc.format, doc.id)
-      pendingWrites.push({ absPath, displayPath: `docs/${relPath}`, content: next, occurrences: count })
+): Promise<Result<RenameBlockResult, EditDomainError>> {
+  return Result.gen(async function* () {
+    const block = index.blocksById.get(input.oldId)
+    if (!block) {
+      return Result.err(
+        new EditTargetNotFoundError({
+          target: input.oldId,
+          message: `リネーム元のブロックが見つかりません: ${input.oldId}`,
+        }),
+      )
     }
-  }
+    if (!BLOCK_ID_PATTERN.test(input.newId)) {
+      return Result.err(new InvalidEditInputError({ message: `新しいブロック ID が不正です: "${input.newId}"` }))
+    }
+    if (input.oldId === input.newId) {
+      return Result.err(new InvalidEditInputError({ message: 'oldId と newId が同じです' }))
+    }
+    if (index.blocksById.has(input.newId)) {
+      return Result.err(
+        new EditConflictError({
+          target: input.newId,
+          message: `新しいブロック ID "${input.newId}" はすでに存在します`,
+        }),
+      )
+    }
 
-  // 2. projectRoot 配下のソース・テストを検査
-  if (projectRoot) {
-    const root = path.resolve(projectRoot)
-    const docsRel = path.relative(root, path.resolve(docsDir)).split(path.sep).join('/')
-    const codeFiles = await collectCodeFilesForRename(root, '', docsRel.startsWith('..') ? '' : docsRel)
-    for (const relFile of codeFiles) {
-      const abs = path.join(root, relFile)
-      let text: string
-      try {
-        const st = await stat(abs)
-        if (st.size > MAX_RENAME_FILE_BYTES) continue
-        text = await readFile(abs, 'utf-8')
-      } catch {
-        continue
-      }
-      const { next, count } = rewriteCodeForRename(text, input.oldId, input.newId)
+    const dryRun = input.dryRun === true
+    const isTerm = block.kind === 'term'
+    const pendingWrites: Array<{ absPath: string; displayPath: string; content: string; occurrences: number }> = []
+
+    // 1. docs/ 配下の全ドキュメントを検査
+    for (const doc of index.documents) {
+      const { absPath, relPath } = yield* Result.await(resolveSafeDocFile(docsDir, doc.path))
+      const raw = await readFile(absPath, 'utf-8')
+      const { next, count } = yield* rewriteDocForRename(raw, input.oldId, input.newId, isTerm)
       if (count > 0) {
-        pendingWrites.push({ absPath: abs, displayPath: relFile, content: next, occurrences: count })
+        yield* validateSafeDocumentSource(next, doc.format, doc.id)
+        pendingWrites.push({ absPath, displayPath: `docs/${relPath}`, content: next, occurrences: count })
       }
     }
-  }
 
-  if (!dryRun) {
-    for (const item of pendingWrites) {
-      await writeFile(item.absPath, item.content, 'utf-8')
+    // 2. projectRoot 配下のソース・テストを検査
+    if (projectRoot) {
+      const root = path.resolve(projectRoot)
+      const docsRel = path.relative(root, path.resolve(docsDir)).split(path.sep).join('/')
+      const codeFiles = await collectCodeFilesForRename(root, '', docsRel.startsWith('..') ? '' : docsRel)
+      for (const relFile of codeFiles) {
+        const abs = path.join(root, relFile)
+        let text: string
+        try {
+          const st = await stat(abs)
+          if (st.size > MAX_RENAME_FILE_BYTES) continue
+          text = await readFile(abs, 'utf-8')
+        } catch {
+          continue
+        }
+        const { next, count } = rewriteCodeForRename(text, input.oldId, input.newId)
+        if (count > 0) {
+          pendingWrites.push({ absPath: abs, displayPath: relFile, content: next, occurrences: count })
+        }
+      }
     }
-  }
 
-  return {
-    dryRun,
-    oldId: input.oldId,
-    newId: input.newId,
-    changes: pendingWrites
-      .map((w) => ({ path: w.displayPath, occurrences: w.occurrences }))
-      .toSorted((a, b) => a.path.localeCompare(b.path)),
-  }
+    if (!dryRun) {
+      for (const item of pendingWrites) {
+        await writeFile(item.absPath, item.content, 'utf-8')
+      }
+    }
+
+    return Result.ok({
+      dryRun,
+      oldId: input.oldId,
+      newId: input.newId,
+      changes: pendingWrites
+        .map((w) => ({ path: w.displayPath, occurrences: w.occurrences }))
+        .toSorted((a, b) => a.path.localeCompare(b.path)),
+    })
+  })
 }

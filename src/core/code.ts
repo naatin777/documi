@@ -1,13 +1,9 @@
 import type { Dirent } from 'node:fs'
 import { readdir } from 'node:fs/promises'
 import path from 'node:path'
-import {
-  detectSourceLanguage,
-  extractExportedSymbolsFromSource,
-  loadSourceFile,
-  SourceError,
-  TEXT_EXTS,
-} from './source'
+import { Result } from 'better-result'
+import { UnsupportedExtensionError, type ReadCodeFileError } from './errors'
+import { detectSourceLanguage, extractExportedSymbolsFromSource, loadSourceFile, TEXT_EXTS } from './source'
 import type { ExportedSymbolEntry } from './source'
 import type { ArtifactType, DocsIndex } from './types'
 
@@ -337,59 +333,54 @@ export async function buildCodeTree(projectRoot: string, index: DocsIndex): Prom
 
 /**
  * 指定 POSIX 相対パスのソースファイル全文と、紐づく Spec・ドキュメント・用語の逆リンクを返す。
- * 境界違反 (`projectRoot` 外) は 403、未存在は 404、バイナリ・サイズ超過・非対応拡張子は 400 を送出する。
+ * 境界違反・未存在・バイナリ・サイズ超過・非対応拡張子は型付き Result Err として返す。
  * @implements ui.code-explorer
  */
-export async function readCodeFile(projectRoot: string, index: DocsIndex, filePath: string): Promise<CodeFileResult> {
-  if (typeof filePath !== 'string' || filePath.trim() === '' || filePath.includes('\0')) {
-    throw new SourceError('path パラメータが不正です', 400)
-  }
-  if (path.isAbsolute(filePath) || filePath.split(/[\\/]/).includes('..')) {
-    throw new SourceError('パスがプロジェクトルート外を指しています', 403)
-  }
+export async function readCodeFile(
+  projectRoot: string,
+  index: DocsIndex,
+  filePath: string,
+): Promise<Result<CodeFileResult, ReadCodeFileError>> {
+  return Result.gen(async function* () {
+    const loaded = yield* Result.await(loadSourceFile(projectRoot, filePath))
 
-  let loaded
-  try {
-    loaded = await loadSourceFile(projectRoot, filePath)
-  } catch (e) {
-    if (e instanceof SourceError) {
-      if (e.status === 413) throw new SourceError(e.message, 400)
-      if (e.message.includes('ルート外')) throw new SourceError(e.message, 403)
-      throw e
+    const baseName = path.posix.basename(loaded.relPath).toLowerCase()
+    if (!SPECIAL_TEXT_NAMES.has(baseName) && (!loaded.ext || !TEXT_EXTS.has(loaded.ext))) {
+      return Result.err(
+        new UnsupportedExtensionError({
+          file: loaded.relPath,
+          ext: loaded.ext,
+          message: `対応していない拡張子です: .${loaded.ext || '(none)'}`,
+        }),
+      )
     }
-    throw e
-  }
 
-  const baseName = path.posix.basename(loaded.relPath).toLowerCase()
-  if (!SPECIAL_TEXT_NAMES.has(baseName) && (!loaded.ext || !TEXT_EXTS.has(loaded.ext))) {
-    throw new SourceError(`対応していない拡張子です: .${loaded.ext || '(none)'}`, 400)
-  }
+    const rev = buildFileReverseIndex(index)
+    const specLinks = [...(rev.specs.get(loaded.relPath) ?? [])].toSorted((a, b) => {
+      if ((a.line ?? Infinity) !== (b.line ?? Infinity)) return (a.line ?? Infinity) - (b.line ?? Infinity)
+      return a.specId.localeCompare(b.specId)
+    })
+    const docRefs = [...(rev.docs.get(loaded.relPath) ?? [])].toSorted((a, b) => a.docId.localeCompare(b.docId))
+    const termLinks = [...(rev.terms.get(loaded.relPath) ?? [])].toSorted((a, b) => a.termId.localeCompare(b.termId))
 
-  const rev = buildFileReverseIndex(index)
-  const specLinks = [...(rev.specs.get(loaded.relPath) ?? [])].toSorted((a, b) => {
-    if ((a.line ?? Infinity) !== (b.line ?? Infinity)) return (a.line ?? Infinity) - (b.line ?? Infinity)
-    return a.specId.localeCompare(b.specId)
+    const totalLines =
+      loaded.source === ''
+        ? 0
+        : loaded.source.endsWith('\n')
+          ? loaded.source.split('\n').length - 1
+          : loaded.source.split('\n').length
+
+    const { symbols: exportedSymbols } = extractExportedSymbolsFromSource(loaded.relPath, loaded.ext, loaded.source)
+
+    return Result.ok({
+      path: loaded.relPath,
+      language: detectSourceLanguage(loaded.ext),
+      totalLines,
+      code: loaded.source,
+      specLinks,
+      docRefs,
+      termLinks,
+      exportedSymbols,
+    })
   })
-  const docRefs = [...(rev.docs.get(loaded.relPath) ?? [])].toSorted((a, b) => a.docId.localeCompare(b.docId))
-  const termLinks = [...(rev.terms.get(loaded.relPath) ?? [])].toSorted((a, b) => a.termId.localeCompare(b.termId))
-
-  const totalLines =
-    loaded.source === ''
-      ? 0
-      : loaded.source.endsWith('\n')
-        ? loaded.source.split('\n').length - 1
-        : loaded.source.split('\n').length
-
-  const { symbols: exportedSymbols } = extractExportedSymbolsFromSource(loaded.relPath, loaded.ext, loaded.source)
-
-  return {
-    path: loaded.relPath,
-    language: detectSourceLanguage(loaded.ext),
-    totalLines,
-    code: loaded.source,
-    specLinks,
-    docRefs,
-    termLinks,
-    exportedSymbols,
-  }
 }

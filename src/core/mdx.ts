@@ -211,7 +211,7 @@ function extractSemanticBlock(
   nextNoteNum: () => number,
   issues: DocIssue[],
   lineOffset: number,
-): SemanticBlock | null {
+): SemanticBlock | undefined {
   const startLine = (node.position?.start?.line ?? 1) + lineOffset
   const endLine = (node.position?.end?.line ?? node.position?.start?.line ?? 1) + lineOffset
   const rawId = props.id?.trim()
@@ -224,14 +224,14 @@ function extractSemanticBlock(
       code: 'missing-block-id',
       message: `<${capitalizeKind(kind)}> (L${startLine}) に id 属性が必要です`,
     })
-    return null
+    return undefined
   } else if (!BLOCK_ID_PATTERN.test(rawId)) {
     issues.push({
       code: 'invalid-block-id',
       message: `ブロック ID が不正です: "${rawId}" (英字始まり、英数字と . _ - のみ使用可能)`,
       blockId: rawId,
     })
-    return null
+    return undefined
   } else {
     id = rawId
   }

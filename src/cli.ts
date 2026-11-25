@@ -4,17 +4,16 @@ import { mkdir, readFile, writeFile } from 'node:fs/promises'
 import path from 'node:path'
 import { parseArgs as parseNodeArgs } from 'node:util'
 import { runDocsCheck } from './core/checker'
-import { ConfigError, ONNX_DTYPES, RAG_PROVIDERS, resolveProjectPaths } from './core/config'
+import { ONNX_DTYPES, RAG_PROVIDERS, resolveProjectPaths } from './core/config'
 import type { OnnxDtype, RagConfig, RagProvider } from './core/config'
 import {
   addBlockToDoc,
-  EditError,
   renameBlockIdAcrossProject,
   scaffoldDocument,
   updateBlockInDocs,
   upsertTermInDocs,
 } from './core/editor'
-import { createEmbeddingProvider, EmbeddingError } from './core/embeddings'
+import { createEmbeddingProvider } from './core/embeddings'
 import { retrieveContextHybrid, searchIndexHybrid } from './core/hybrid-retrieval'
 import { initDocumiProject } from './core/init'
 import type { InitLanguage } from './core/init'
@@ -31,7 +30,7 @@ import {
   searchDocuments,
 } from './core/query'
 import { retrieveContext } from './core/retrieval'
-import { approveBlock, ReviewError, unapproveBlock } from './core/reviews'
+import { approveBlock, unapproveBlock } from './core/reviews'
 import {
   ARTIFACT_TYPES,
   BLOCK_KINDS,
@@ -263,11 +262,13 @@ function parseCliArgs(argv: string[]): ParsedArgs {
 }
 
 function resolveCliPaths(flags: CliFlags) {
-  return resolveProjectPaths({
+  const res = resolveProjectPaths({
     docs: typeof flags.docs === 'string' ? flags.docs : undefined,
     project: typeof flags.project === 'string' ? flags.project : undefined,
     testReport: typeof flags['test-report'] === 'string' ? flags['test-report'] : undefined,
   })
+  if (res.isErr()) throw new CliArgError(res.error.message)
+  return res.value
 }
 
 function getStringFlag(flags: CliFlags, key: keyof CliFlags): string | undefined {
@@ -582,14 +583,15 @@ async function cmdApprove(ids: string[], flags: CliFlags, io: CliIo): Promise<nu
 
   let failed = 0
   for (const id of ids) {
-    try {
-      const rec = await approveBlock(docsDir, index, id, { author, note, cacheRoot: projectRoot })
-      io.out(`✓ Approved ${id} (${rec.hash.slice(0, 19)}… by ${rec.approvedBy ?? 'human'})`)
-    } catch (e) {
-      const msg = e instanceof ReviewError ? e.message : String(e)
-      io.err(`✗ ${id}: ${msg}`)
+    const res = await approveBlock(docsDir, index, id, { author, note, cacheRoot: projectRoot })
+    if (res.isErr()) {
+      io.err(`✗ ${id}: ${res.error.message}`)
       failed++
+      continue
     }
+    const rec = res.value
+    const bySuffix = rec.approvedBy ? ` by ${rec.approvedBy}` : ''
+    io.out(`✓ Approved ${id} (${rec.hash.slice(0, 19)}…${bySuffix})`)
   }
   return failed > 0 ? 1 : 0
 }
@@ -604,14 +606,13 @@ async function cmdUnapprove(ids: string[], flags: CliFlags, io: CliIo): Promise<
 
   let failed = 0
   for (const id of ids) {
-    try {
-      const { removed } = await unapproveBlock(docsDir, index, id, { cacheRoot: projectRoot })
-      io.out(removed ? `✓ Unapproved ${id}` : `- ${id} は未承認のため変更ありません`)
-    } catch (e) {
-      const msg = e instanceof ReviewError ? e.message : String(e)
-      io.err(`✗ ${id}: ${msg}`)
+    const res = await unapproveBlock(docsDir, index, id, { cacheRoot: projectRoot })
+    if (res.isErr()) {
+      io.err(`✗ ${id}: ${res.error.message}`)
       failed++
+      continue
     }
+    io.out(res.value.removed ? `✓ Unapproved ${id}` : `- ${id} は未承認のため変更ありません`)
   }
   return failed > 0 ? 1 : 0
 }
@@ -834,10 +835,15 @@ async function cmdIndex(flags: CliFlags, io: CliIo): Promise<number> {
   const ragConfig = resolveCliRagConfig(flags, config.rag)
   const provider = createEmbeddingProvider(ragConfig)
   const index = await loadDocuments(docsDir)
-  const res = await syncVectorIndex(docsDir, index, provider, {
+  const syncRes = await syncVectorIndex(docsDir, index, provider, {
     cachePath: ragConfig.cachePath,
     projectRoot,
   })
+  if (syncRes.isErr()) {
+    io.err(`✗ ${syncRes.error.message}`)
+    return 1
+  }
+  const res = syncRes.value
 
   if (flags.json === true) {
     printJson(io, res)
@@ -1136,7 +1142,7 @@ async function cmdBlock(positionals: string[], flags: CliFlags, io: CliIo): Prom
     if (!id) throw new CliArgError('--id を指定してください')
     const body = (await resolveBodyContent(flags, io, { required: true }))!
 
-    const result = await addBlockToDoc(store.rootDir, store.getIndex(), {
+    const addRes = await addBlockToDoc(store.rootDir, store.getIndex(), {
       docId,
       kind,
       id,
@@ -1151,6 +1157,11 @@ async function cmdBlock(positionals: string[], flags: CliFlags, io: CliIo): Prom
       aliases: parseCsvFlag(flags, 'aliases'),
       symbols: parseCsvFlag(flags, 'symbols'),
     })
+    if (addRes.isErr()) {
+      io.err(`✗ ${addRes.error.message}`)
+      return 1
+    }
+    const result = addRes.value
     const nextIndex = await store.reload()
     const validation = await buildValidationPayload(nextIndex, projectRoot)
     const payload = { ...result, validation }
@@ -1171,7 +1182,7 @@ async function cmdBlock(positionals: string[], flags: CliFlags, io: CliIo): Prom
       )
     const body = (await resolveBodyContent(flags, io, { required: true }))!
 
-    const result = await updateBlockInDocs(store.rootDir, store.getIndex(), {
+    const updateRes = await updateBlockInDocs(store.rootDir, store.getIndex(), {
       id,
       body,
       title: getStringFlag(flags, 'title'),
@@ -1183,6 +1194,11 @@ async function cmdBlock(positionals: string[], flags: CliFlags, io: CliIo): Prom
       aliases: parseCsvFlag(flags, 'aliases'),
       symbols: parseCsvFlag(flags, 'symbols'),
     })
+    if (updateRes.isErr()) {
+      io.err(`✗ ${updateRes.error.message}`)
+      return 1
+    }
+    const result = updateRes.value
     const nextIndex = await store.reload()
     const validation = await buildValidationPayload(nextIndex, projectRoot)
     const payload = { ...result, validation }
@@ -1204,11 +1220,16 @@ async function cmdBlock(positionals: string[], flags: CliFlags, io: CliIo): Prom
     )
   }
   const dryRun = flags['dry-run'] === true
-  const result = await renameBlockIdAcrossProject(store.rootDir, projectRoot, store.getIndex(), {
+  const renameRes = await renameBlockIdAcrossProject(store.rootDir, projectRoot, store.getIndex(), {
     oldId,
     newId,
     dryRun,
   })
+  if (renameRes.isErr()) {
+    io.err(`✗ ${renameRes.error.message}`)
+    return 1
+  }
+  const result = renameRes.value
   if (!result.dryRun && result.changes.length > 0) {
     const nextIndex = await store.reload()
     const validation = await buildValidationPayload(nextIndex, projectRoot)
@@ -1243,13 +1264,18 @@ async function cmdTerm(positionals: string[], flags: CliFlags, io: CliIo): Promi
 
   const { docsDir, projectRoot, testReportPath } = resolveCliPaths(flags)
   const store = await DocsStore.open(docsDir, { projectRoot, testReportPath, enrichTrace: false })
-  const result = await upsertTermInDocs(store.rootDir, store.getIndex(), {
+  const upsertRes = await upsertTermInDocs(store.rootDir, store.getIndex(), {
     id,
     definition,
     aliases: parseCsvFlag(flags, 'aliases'),
     symbols: parseCsvFlag(flags, 'symbols'),
     docId: getStringFlag(flags, 'doc'),
   })
+  if (upsertRes.isErr()) {
+    io.err(`✗ ${upsertRes.error.message}`)
+    return 1
+  }
+  const result = upsertRes.value
   const nextIndex = await store.reload()
   const validation = await buildValidationPayload(nextIndex, projectRoot)
   const payload = { ...result, validation }
@@ -1272,7 +1298,7 @@ async function cmdScaffold(positionals: string[], flags: CliFlags, io: CliIo): P
 
   const { docsDir, projectRoot, testReportPath } = resolveCliPaths(flags)
   const store = await DocsStore.open(docsDir, { projectRoot, testReportPath, enrichTrace: false })
-  const result = await scaffoldDocument(store.rootDir, store.getIndex(), {
+  const scaffoldRes = await scaffoldDocument(store.rootDir, store.getIndex(), {
     path: relPath,
     title,
     type: parseOptionalArtifactType(flags),
@@ -1284,6 +1310,11 @@ async function cmdScaffold(positionals: string[], flags: CliFlags, io: CliIo): P
     verifies: parseCsvFlag(flags, 'verifies'),
     body,
   })
+  if (scaffoldRes.isErr()) {
+    io.err(`✗ ${scaffoldRes.error.message}`)
+    return 1
+  }
+  const result = scaffoldRes.value
   const nextIndex = await store.reload()
   const validation = await buildValidationPayload(nextIndex, projectRoot)
   const payload = { ...result, validation }
@@ -1356,12 +1387,7 @@ export async function runCli(argv: string[], io: CliIo = DEFAULT_IO): Promise<nu
     usage(io)
     return 1
   } catch (error) {
-    if (
-      error instanceof ConfigError ||
-      error instanceof EditError ||
-      error instanceof CliArgError ||
-      error instanceof EmbeddingError
-    ) {
+    if (error instanceof CliArgError) {
       io.err(`✗ ${error.message}`)
       return 1
     }

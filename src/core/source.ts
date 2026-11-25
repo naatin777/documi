@@ -8,6 +8,25 @@ import rustLang from '@ast-grep/lang-rust'
 import swiftLang from '@ast-grep/lang-swift'
 import { parse, registerDynamicLanguage } from '@ast-grep/napi'
 import type { SgNode } from '@ast-grep/napi'
+import { Result } from 'better-result'
+import {
+  AmbiguousSymbolError,
+  AstParseError,
+  BinaryFileError,
+  FileTooLargeError,
+  InvalidLineRangeError,
+  InvalidSourcePathError,
+  InvalidSymbolQueryError,
+  NotAFileError,
+  PathOutsideRootError,
+  SourceFileNotFoundError,
+  SymbolNotFoundError,
+  UnsupportedExtensionError,
+  type ExtractExportsError,
+  type LoadSourceError,
+  type ResolveLinesError,
+  type ResolveSymbolError,
+} from './errors'
 
 registerDynamicLanguage({
   go: goLang,
@@ -17,16 +36,6 @@ registerDynamicLanguage({
   kotlin: kotlinLang,
   swift: swiftLang,
 })
-
-export class SourceError extends Error {
-  constructor(
-    message: string,
-    public status = 400,
-  ) {
-    super(message)
-    this.name = 'SourceError'
-  }
-}
 
 interface SourceSymbolInfo {
   name: string
@@ -318,39 +327,78 @@ export interface LoadedSource {
 }
 
 /** file をプロジェクトルート内に限定して安全に読み込む */
-export async function loadSourceFile(projectRoot: string, file: string): Promise<LoadedSource> {
+export async function loadSourceFile(
+  projectRoot: string,
+  file: string,
+): Promise<Result<LoadedSource, LoadSourceError>> {
   if (typeof file !== 'string' || file.trim() === '' || file.includes('\0')) {
-    throw new SourceError('file パラメータが不正です', 400)
+    return Result.err(
+      new InvalidSourcePathError({ file: typeof file === 'string' ? file : '', message: 'file パラメータが不正です' }),
+    )
+  }
+  if (path.isAbsolute(file) || file.split(/[\\/]/).includes('..')) {
+    return Result.err(
+      new PathOutsideRootError({
+        file,
+        reason: 'traversal',
+        message: 'パスがプロジェクトルート外を指しています',
+      }),
+    )
   }
   const rootReal = await fs.realpath(projectRoot)
   const abs = path.resolve(rootReal, file)
   if (abs !== rootReal && !abs.startsWith(rootReal + path.sep)) {
-    throw new SourceError('パスがプロジェクトルート外を指しています', 400)
+    return Result.err(
+      new PathOutsideRootError({
+        file,
+        reason: 'traversal',
+        message: 'パスがプロジェクトルート外を指しています',
+      }),
+    )
   }
   let real: string
   try {
     real = await fs.realpath(abs)
   } catch {
-    throw new SourceError(`ファイルが見つかりません: ${file}`, 404)
+    return Result.err(new SourceFileNotFoundError({ file, message: `ファイルが見つかりません: ${file}` }))
   }
   if (real !== rootReal && !real.startsWith(rootReal + path.sep)) {
-    throw new SourceError('シンボリックリンクがプロジェクトルート外を指しています', 403)
+    return Result.err(
+      new PathOutsideRootError({
+        file,
+        reason: 'symlink',
+        message: 'シンボリックリンクがプロジェクトルート外を指しています',
+      }),
+    )
   }
 
   const stat = await fs.stat(real)
-  if (!stat.isFile()) throw new SourceError(`ファイルではありません: ${file}`, 400)
-  if (stat.size > MAX_FILE_BYTES) throw new SourceError(`ファイルが大きすぎます (上限 ${MAX_FILE_BYTES / 1024}KB)`, 413)
+  if (!stat.isFile()) {
+    return Result.err(new NotAFileError({ file, message: `ファイルではありません: ${file}` }))
+  }
+  if (stat.size > MAX_FILE_BYTES) {
+    return Result.err(
+      new FileTooLargeError({
+        file,
+        maxBytes: MAX_FILE_BYTES,
+        actualBytes: stat.size,
+        message: `ファイルが大きすぎます (上限 ${MAX_FILE_BYTES / 1024}KB)`,
+      }),
+    )
+  }
 
   const buf = await fs.readFile(real)
   const head = buf.subarray(0, BINARY_SNIFF_BYTES)
-  if (head.includes(0)) throw new SourceError('バイナリファイルは読み込めません', 400)
+  if (head.includes(0)) {
+    return Result.err(new BinaryFileError({ file, message: 'バイナリファイルは読み込めません' }))
+  }
 
-  return {
+  return Result.ok({
     absPath: real,
     relPath: path.relative(rootReal, real).split(path.sep).join('/'),
     source: buf.toString('utf8'),
     ext: path.extname(real).slice(1).toLowerCase(),
-  }
+  })
 }
 
 /** 実在する行数を返す。末尾の改行は余分な空行として数えない。 */
@@ -370,34 +418,66 @@ function sliceLines(source: string, start: number, end: number, total: number): 
 }
 
 /** `lines="10-40"` / `lines="10"` を解釈する (1始まり・両端含む) */
-export async function resolveSourceLines(projectRoot: string, file: string, linesParam: string): Promise<SourceResult> {
-  const loaded = await loadSourceFile(projectRoot, file)
-  if (!TEXT_EXTS.has(loaded.ext)) {
-    throw new SourceError(`対応していない拡張子です: .${loaded.ext}`, 400)
-  }
-  const m = /^(\d+)(?:-(\d+))?$/.exec(linesParam.trim())
-  if (!m) throw new SourceError(`lines の形式が不正です: ${linesParam}`, 400)
-  const start = Number(m[1])
-  const end = m[2] !== undefined ? Number(m[2]) : start
-  if (start < 1 || end < start || end - start + 1 > MAX_RANGE_LINES) {
-    throw new SourceError(`lines の範囲が不正です (1〜${MAX_RANGE_LINES} 行): ${linesParam}`, 400)
-  }
-  const total = totalLines(loaded.source)
-  if (total === 0 || start > total) {
-    throw new SourceError(`行範囲がファイルを超えています (全 ${total} 行): ${linesParam}`, 400)
-  }
+export async function resolveSourceLines(
+  projectRoot: string,
+  file: string,
+  linesParam: string,
+): Promise<Result<SourceResult, ResolveLinesError>> {
+  return Result.gen(async function* () {
+    const loaded = yield* Result.await(loadSourceFile(projectRoot, file))
+    if (!TEXT_EXTS.has(loaded.ext)) {
+      return Result.err(
+        new UnsupportedExtensionError({
+          file: loaded.relPath,
+          ext: loaded.ext,
+          message: `対応していない拡張子です: .${loaded.ext}`,
+        }),
+      )
+    }
+    const m = /^(\d+)(?:-(\d+))?$/.exec(linesParam.trim())
+    if (!m) {
+      return Result.err(
+        new InvalidLineRangeError({
+          file: loaded.relPath,
+          lines: linesParam,
+          message: `lines の形式が不正です: ${linesParam}`,
+        }),
+      )
+    }
+    const start = Number(m[1])
+    const end = m[2] !== undefined ? Number(m[2]) : start
+    if (start < 1 || end < start || end - start + 1 > MAX_RANGE_LINES) {
+      return Result.err(
+        new InvalidLineRangeError({
+          file: loaded.relPath,
+          lines: linesParam,
+          message: `lines の範囲が不正です (1〜${MAX_RANGE_LINES} 行): ${linesParam}`,
+        }),
+      )
+    }
+    const total = totalLines(loaded.source)
+    if (total === 0 || start > total) {
+      return Result.err(
+        new InvalidLineRangeError({
+          file: loaded.relPath,
+          lines: linesParam,
+          message: `行範囲がファイルを超えています (全 ${total} 行): ${linesParam}`,
+        }),
+      )
+    }
 
-  // sliceLines が end > 実在行数も含めて切り詰め、truncated を設定する
-  const { code, truncated } = sliceLines(loaded.source, start, end, total)
-  return {
-    file: loaded.relPath,
-    language: EXT_TO_LANG.get(loaded.ext)?.display ?? loaded.ext,
-    startLine: start,
-    endLine: start + code.split('\n').length - 1,
-    totalLines: total,
-    code,
-    truncated: truncated || undefined,
-  }
+    // sliceLines が end > 実在行数も含めて切り詰め、truncated を設定する
+    const { code, truncated } = sliceLines(loaded.source, start, end, total)
+    return Result.ok({
+      file: loaded.relPath,
+      language: EXT_TO_LANG.get(loaded.ext)?.display ?? loaded.ext,
+      startLine: start,
+      endLine: start + code.split('\n').length - 1,
+      totalLines: total,
+      code,
+      truncated: truncated || undefined,
+    })
+  })
 }
 
 interface Candidate {
@@ -408,9 +488,9 @@ interface Candidate {
   kindRule: KindRule
 }
 
-function fieldText(node: SgNode, name: string): string | null {
+function fieldText(node: SgNode, name: string): string | undefined {
   const f = (node as unknown as { field(n: string): SgNode | null }).field(name)
-  return f ? f.text().trim() : null
+  return f ? f.text().trim() || undefined : undefined
 }
 
 /** impl Foo<T> / impl Trait for Foo のような修飾をベース型名に正規化する */
@@ -420,18 +500,19 @@ function cleanTypeName(text: string): string {
   return (parts[parts.length - 1] ?? noGeneric).replace(/^\*+/, '')
 }
 
-function goReceiverName(node: SgNode): string | null {
+function goReceiverName(node: SgNode): string | undefined {
   const recv = (node as unknown as { field(n: string): SgNode | null }).field('receiver')
-  if (!recv) return null
+  if (!recv) return undefined
   const text = recv.text()
   const inner = text.replace(/^\(/, '').replace(/\)$/, '').trim()
   const tokens = inner.split(/\s+/).filter(Boolean)
-  const typeToken = tokens[tokens.length - 1] ?? ''
-  return cleanTypeName(typeToken)
+  const typeToken = tokens[tokens.length - 1]
+  if (!typeToken) return undefined
+  return cleanTypeName(typeToken) || undefined
 }
 
 /** スコープ名を取得する。name フィールドが無い言語 (Kotlin 等) は identifier 系の子ノードを使う */
-function scopeNameText(node: SgNode, field: string): string | null {
+function scopeNameText(node: SgNode, field: string): string | undefined {
   const f = fieldText(node, field)
   if (f) return f
   for (const c of node.children()) {
@@ -440,7 +521,7 @@ function scopeNameText(node: SgNode, field: string): string | null {
       if (t) return t
     }
   }
-  return null
+  return undefined
 }
 
 function computeQualified(node: SgNode, name: string, rule: KindRule, def: LangDef): string {
@@ -517,47 +598,84 @@ function nodeCode(source: string, node: SgNode): { code: string; startLine: numb
 }
 
 /** `symbol="Registry.register"` を AST で解決する */
-export async function resolveSourceSymbol(projectRoot: string, file: string, symbol: string): Promise<SourceResult> {
-  const loaded = await loadSourceFile(projectRoot, file)
-  const def = EXT_TO_LANG.get(loaded.ext)
-  if (!def) {
-    const supported = [...new Set(EXT_TO_LANG.keys())].toSorted().join(', ')
-    throw new SourceError(`シンボル検索に対応していない拡張子です: .${loaded.ext} (対応: ${supported})`, 400)
-  }
-  if (!symbol || !symbol.trim()) throw new SourceError('symbol パラメータが必要です', 400)
+export async function resolveSourceSymbol(
+  projectRoot: string,
+  file: string,
+  symbol: string,
+): Promise<Result<SourceResult, ResolveSymbolError>> {
+  return Result.gen(async function* () {
+    const loaded = yield* Result.await(loadSourceFile(projectRoot, file))
+    const def = EXT_TO_LANG.get(loaded.ext)
+    if (!def) {
+      const supported = [...new Set(EXT_TO_LANG.keys())].toSorted().join(', ')
+      return Result.err(
+        new UnsupportedExtensionError({
+          file: loaded.relPath,
+          ext: loaded.ext,
+          message: `シンボル検索に対応していない拡張子です: .${loaded.ext} (対応: ${supported})`,
+        }),
+      )
+    }
+    if (!symbol || !symbol.trim()) {
+      return Result.err(new InvalidSymbolQueryError({ file: loaded.relPath, message: 'symbol パラメータが必要です' }))
+    }
 
-  let root: ReturnType<typeof parse>
-  try {
-    root = parse(def.astLang as never, loaded.source)
-  } catch (e) {
-    throw new SourceError(`AST の解析に失敗しました: ${e instanceof Error ? e.message : String(e)}`, 422)
-  }
+    let root: ReturnType<typeof parse>
+    try {
+      root = parse(def.astLang as never, loaded.source)
+    } catch (e) {
+      return Result.err(
+        new AstParseError({
+          file: loaded.relPath,
+          language: def.display,
+          message: `AST の解析に失敗しました: ${e instanceof Error ? e.message : String(e)}`,
+        }),
+      )
+    }
 
-  const candidates = collectCandidates(root, def)
-  const found = findSymbol(candidates, symbol)
-  if ('none' in found) {
-    const similar = candidates.filter((c) => c.name === symbol.split('.').pop()).slice(0, 5)
-    const hint = similar.length ? ` 候補: ${similar.map((c) => c.qualifiedName).join(', ')}` : ''
-    throw new SourceError(`シンボルが見つかりません: ${symbol}${hint}`, 404)
-  }
-  if ('many' in found) {
-    const list = found.many.map((c) => `${c.qualifiedName} (${c.kind}, L${c.node.range().start.line + 1})`).join('; ')
-    throw new SourceError(`シンボルが曖昧です: ${symbol} — ${list}`, 409)
-  }
+    const candidates = collectCandidates(root, def)
+    const found = findSymbol(candidates, symbol)
+    if ('none' in found) {
+      const similar = candidates
+        .filter((c) => c.name === symbol.split('.').pop())
+        .slice(0, 5)
+        .map((c) => c.qualifiedName)
+      const hint = similar.length ? ` 候補: ${similar.join(', ')}` : ''
+      return Result.err(
+        new SymbolNotFoundError({
+          file: loaded.relPath,
+          symbol,
+          candidates: similar,
+          message: `シンボルが見つかりません: ${symbol}${hint}`,
+        }),
+      )
+    }
+    if ('many' in found) {
+      const matches = found.many.map((c) => `${c.qualifiedName} (${c.kind}, L${c.node.range().start.line + 1})`)
+      return Result.err(
+        new AmbiguousSymbolError({
+          file: loaded.relPath,
+          symbol,
+          matches,
+          message: `シンボルが曖昧です: ${symbol} — ${matches.join('; ')}`,
+        }),
+      )
+    }
 
-  const c = found.one
-  const { code, startLine } = nodeCode(loaded.source, c.node)
-  const { code: finalCode, truncated } = capCode(code)
-  return {
-    file: loaded.relPath,
-    language: def.display,
-    symbol: { name: c.name, qualifiedName: c.qualifiedName === c.name ? undefined : c.qualifiedName, kind: c.kind },
-    startLine,
-    endLine: startLine + finalCode.split('\n').length - 1,
-    totalLines: totalLines(loaded.source),
-    code: finalCode,
-    truncated: truncated || undefined,
-  }
+    const c = found.one
+    const { code, startLine } = nodeCode(loaded.source, c.node)
+    const { code: finalCode, truncated } = capCode(code)
+    return Result.ok({
+      file: loaded.relPath,
+      language: def.display,
+      symbol: { name: c.name, qualifiedName: c.qualifiedName === c.name ? undefined : c.qualifiedName, kind: c.kind },
+      startLine,
+      endLine: startLine + finalCode.split('\n').length - 1,
+      totalLines: totalLines(loaded.source),
+      code: finalCode,
+      truncated: truncated || undefined,
+    })
+  })
 }
 
 function capCode(code: string): { code: string; truncated: boolean } {
@@ -718,11 +836,22 @@ export function extractExportedSymbolsFromSource(relPath: string, ext: string, s
  * プロジェクトルート内のソースファイルから公開シンボル（class / interface / type / function 等）を AST 抽出する。
  * @implements core.ast-exports
  */
-export async function extractExportedSymbols(projectRoot: string, file: string): Promise<SourceExportsResult> {
-  const loaded = await loadSourceFile(projectRoot, file)
-  if (!EXT_TO_LANG.has(loaded.ext)) {
-    const supported = [...new Set(EXT_TO_LANG.keys())].toSorted().join(', ')
-    throw new SourceError(`シンボル抽出に対応していない拡張子です: .${loaded.ext} (対応: ${supported})`, 400)
-  }
-  return extractExportedSymbolsFromSource(loaded.relPath, loaded.ext, loaded.source)
+export async function extractExportedSymbols(
+  projectRoot: string,
+  file: string,
+): Promise<Result<SourceExportsResult, ExtractExportsError>> {
+  return Result.gen(async function* () {
+    const loaded = yield* Result.await(loadSourceFile(projectRoot, file))
+    if (!EXT_TO_LANG.has(loaded.ext)) {
+      const supported = [...new Set(EXT_TO_LANG.keys())].toSorted().join(', ')
+      return Result.err(
+        new UnsupportedExtensionError({
+          file: loaded.relPath,
+          ext: loaded.ext,
+          message: `シンボル抽出に対応していない拡張子です: .${loaded.ext} (対応: ${supported})`,
+        }),
+      )
+    }
+    return Result.ok(extractExportedSymbolsFromSource(loaded.relPath, loaded.ext, loaded.source))
+  })
 }
