@@ -69,7 +69,7 @@ function extractEmbeddingChunks(index: DocsIndex, typeFilter?: ArtifactType): Em
 
     for (const block of doc.blocks) {
       const blockTitle = block.title ? `${block.id} — ${block.title}` : block.id
-      const aliasLine = block.aliases && block.aliases.length > 0 ? `aliases: ${block.aliases.join(', ')}` : ''
+      const aliasLine = block.kind === 'term' && block.aliases.length > 0 ? `aliases: ${block.aliases.join(', ')}` : ''
       const blockText = [aliasLine, block.rawBody].filter(Boolean).join('\n').slice(0, 3000)
 
       chunks.push({

@@ -193,8 +193,8 @@ describe('Web UI & Live Spec Dogfooding', () => {
       supersedes: [],
       realization: {
         status: 'verified',
-        implementations: [{ kind: 'implements', specId: 'sample.rule', file: 'src/a.ts', line: 1 }],
-        verifications: [{ kind: 'verifies', specId: 'sample.rule', file: 'tests/a.test.ts', line: 1 }],
+        implementations: [{ kind: 'implements', specId: 'sample.rule', file: 'src/a.ts', line: 1, fromDoc: false }],
+        verifications: [{ kind: 'verifies', specId: 'sample.rule', file: 'tests/a.test.ts', line: 1, fromDoc: false }],
         testResults: [{ specId: 'sample.rule', name: '[sample.rule] ok', status: 'passed' }],
         pullRequests: [],
         reasons: [],

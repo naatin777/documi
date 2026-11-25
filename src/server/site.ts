@@ -344,11 +344,13 @@ export async function buildStaticSite(options: BuildStaticSiteOptions): Promise<
           exportFiles.add(ref.file)
           continue
         }
-        const params = { file: ref.file, symbol: ref.symbol, lines: ref.lines }
+        const params =
+          ref.mode === 'symbol' ? { file: ref.file, symbol: ref.symbol } : { file: ref.file, lines: ref.lines }
         sourceQueries.set(sourceKey(params), params)
       }
       for (const block of doc.blocks) {
-        for (const symSpec of block.symbols ?? []) {
+        if (block.kind !== 'term') continue
+        for (const symSpec of block.symbols) {
           const hashIdx = symSpec.indexOf('#')
           if (hashIdx <= 0) continue
           const file = symSpec.slice(0, hashIdx)

@@ -51,7 +51,7 @@ export interface SourceResult {
   endLine: number
   totalLines: number
   code: string
-  truncated?: boolean
+  truncated: boolean
 }
 
 export interface ExportedSymbolEntry {
@@ -475,7 +475,7 @@ export async function resolveSourceLines(
       endLine: start + code.split('\n').length - 1,
       totalLines: total,
       code,
-      truncated: truncated || undefined,
+      truncated,
     })
   })
 }
@@ -673,7 +673,7 @@ export async function resolveSourceSymbol(
       endLine: startLine + finalCode.split('\n').length - 1,
       totalLines: totalLines(loaded.source),
       code: finalCode,
-      truncated: truncated || undefined,
+      truncated,
     })
   })
 }

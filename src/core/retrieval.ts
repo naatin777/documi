@@ -185,7 +185,7 @@ export function expandQueryWithGlossary(
 
   for (const block of index.blocksById.values()) {
     if (block.kind !== 'term') continue
-    const variants = [block.id, ...(block.aliases ?? [])].map((v) => v.trim()).filter(Boolean)
+    const variants = [block.id, ...block.aliases].map((v) => v.trim()).filter(Boolean)
     if (variants.length < 2) continue
 
     const matched = variants.some((v) => {
@@ -330,9 +330,10 @@ function buildCorpusEntries(index: DocsIndex, typeFilter?: ArtifactType): Corpus
     })
 
     for (const block of doc.blocks) {
+      const aliasText = block.kind === 'term' ? block.aliases.join(' ') : ''
       const bFields = [
         { weight: 5.5, tokens: tokenizeForSearch(block.id) },
-        { weight: 4.5, tokens: tokenizeForSearch((block.aliases ?? []).join(' ')) },
+        { weight: 4.5, tokens: tokenizeForSearch(aliasText) },
         { weight: 3.2, tokens: tokenizeForSearch(block.title ?? '') },
         { weight: 1.6, tokens: tokenizeForSearch(block.rawBody) },
       ]
@@ -351,7 +352,7 @@ function buildCorpusEntries(index: DocsIndex, typeFilter?: ArtifactType): Corpus
         fieldFreqs: bFields.map((f) => ({ weight: f.weight, tf: countFreqs(f.tokens), len: f.tokens.length })),
         rawExactTexts: [
           { weight: 14, text: block.id.normalize('NFKC').toLowerCase() },
-          { weight: 10, text: (block.aliases ?? []).join(' ').normalize('NFKC').toLowerCase() },
+          { weight: 10, text: aliasText.normalize('NFKC').toLowerCase() },
           { weight: 8, text: (block.title ?? '').normalize('NFKC').toLowerCase() },
           { weight: 3.5, text: block.rawBody.normalize('NFKC').toLowerCase() },
         ],
@@ -743,14 +744,14 @@ export function assembleGraphContext(
 
   for (const b of index.blocksById.values()) {
     if (b.kind !== 'term') continue
-    const variants = [b.id, ...(b.aliases ?? [])].map((v) => v.normalize('NFKC').toLowerCase()).filter(Boolean)
+    const variants = [b.id, ...b.aliases].map((v) => v.normalize('NFKC').toLowerCase()).filter(Boolean)
     if (!variants.some((v) => v.length >= 2 && combinedHay.includes(v))) continue
     const definition = summarize(b.rawBody, 160)
     if (!tryConsume(`${b.id} ${definition}`)) break
     relevantTerms.push({
       id: b.id,
-      aliases: b.aliases ?? [],
-      symbols: b.symbols ?? [],
+      aliases: b.aliases,
+      symbols: b.symbols,
       definition,
     })
     if (relevantTerms.length >= 8) break
@@ -781,7 +782,12 @@ export function assembleGraphContext(
     const doc = index.byId.get(hit.docId)
     if (doc) {
       for (const ref of doc.sourceRefs) {
-        pushRef(ref.file, doc.id, ref.symbol, ref.lines)
+        pushRef(
+          ref.file,
+          doc.id,
+          ref.mode === 'symbol' ? ref.symbol : undefined,
+          ref.mode === 'lines' ? ref.lines : undefined,
+        )
       }
     }
   }
@@ -789,7 +795,12 @@ export function assembleGraphContext(
     const doc = index.byId.get(rel.id)
     if (!doc) continue
     for (const ref of doc.sourceRefs) {
-      pushRef(ref.file, doc.id, ref.symbol, ref.lines)
+      pushRef(
+        ref.file,
+        doc.id,
+        ref.mode === 'symbol' ? ref.symbol : undefined,
+        ref.mode === 'lines' ? ref.lines : undefined,
+      )
       if (sourceRefs.length >= 16) break
     }
     if (sourceRefs.length >= 16) break

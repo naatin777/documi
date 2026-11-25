@@ -276,14 +276,14 @@ export default function BlockReviewControls({ block, onMutate }: { block: Semant
           <div className="sem-diff-header">
             <span>
               {t('blocks.diffTitle')}
-              {diff.baseSource === 'git' && diff.baseCommit && ` (git ${diff.baseCommit})`}
+              {diff.baseSource === 'git' && ` (git ${diff.baseCommit})`}
               {diff.baseSource === 'cache' && ` ${t('blocks.diffCache')}`}
             </span>
             <button type="button" className="sem-diff-close" onClick={() => setShowDiff(false)}>
               {t('common.close')}
             </button>
           </div>
-          {!diff.hasBase ? (
+          {diff.baseSource === 'none' ? (
             <p className="muted sem-diff-empty">{t('blocks.diffNoBase')}</p>
           ) : !diff.changed ? (
             <p className="muted sem-diff-empty">{t('blocks.diffNoChanges')}</p>

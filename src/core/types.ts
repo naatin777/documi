@@ -105,7 +105,7 @@ export interface BlockReviewRecord {
   docPath: string
   hash: string
   approvedCommit?: string
-  approvedAt?: string
+  approvedAt: string
   approvedBy?: string
   /** 人間が最終確認・承認時に残した確認メモ (任意) */
   note?: string
@@ -122,14 +122,28 @@ export interface DiffLine {
   text: string
 }
 
-export interface BlockDiffResult {
-  blockId: string
-  hasBase: boolean
-  baseSource: 'git' | 'cache' | 'none'
-  baseCommit?: string
-  changed: boolean
-  lines: DiffLine[]
-}
+export type BlockDiffResult =
+  | {
+      blockId: string
+      baseSource: 'none'
+      baseCommit?: string
+      changed: boolean
+      lines: []
+    }
+  | {
+      blockId: string
+      baseSource: 'git'
+      baseCommit: string
+      changed: boolean
+      lines: DiffLine[]
+    }
+  | {
+      blockId: string
+      baseSource: 'cache'
+      baseCommit?: string
+      changed: boolean
+      lines: DiffLine[]
+    }
 
 export type WorkingTreeStatus = 'modified' | 'added' | 'untracked'
 
@@ -165,20 +179,21 @@ export interface ChangedLineRange {
   kind: 'added' | 'modified'
 }
 
-export interface DocumentHistory {
+interface DocumentHistoryBase {
   docId: string
   path: string
   gitAvailable: boolean
   freshness: DocumentFreshness
-  /** 最新変更ハイライトの対象基準 */
-  highlightBasis: 'working' | 'last-commit' | 'none'
-  /** highlightBasis === 'last-commit' 時の対象コミット */
-  highlightCommit?: GitCommitEntry
   /** 本文（frontmatter 除外後）基準の最新変更行レンジ一覧 */
   changedRanges: ChangedLineRange[]
   /** 対象文書のコミット履歴（新しい順） */
   commits: GitCommitEntry[]
 }
+
+export type DocumentHistory =
+  | (DocumentHistoryBase & { highlightBasis: 'none' })
+  | (DocumentHistoryBase & { highlightBasis: 'working' })
+  | (DocumentHistoryBase & { highlightBasis: 'last-commit'; highlightCommit: GitCommitEntry })
 
 export interface DocumentRevision {
   docId: string
@@ -197,7 +212,7 @@ export interface CodeAnchor {
   file: string
   line: number
   testName?: string
-  fromDoc?: boolean
+  fromDoc: boolean
 }
 
 export interface TestCaseResult {
@@ -236,9 +251,8 @@ export interface IndexIssue extends DocIssue {
   path?: string
 }
 
-export interface SemanticBlock {
+interface SemanticBlockBase {
   id: string
-  kind: BlockKind
   docId: string
   startLine: number
   endLine: number
@@ -246,7 +260,6 @@ export interface SemanticBlock {
   contentHash: string
   rawBody: string
   title?: string
-  intent: SpecIntent | NoteIntent
   stability: Stability
   /** 人間レビュー状態 (guard/reviews.json と contentHash から自動算出) */
   review: ReviewStatus
@@ -263,25 +276,57 @@ export interface SemanticBlock {
   derives: string[]
   /** 置き換え対象 (supersedes) */
   supersedes: string[]
-  /** Constraint 用の適用範囲 */
-  scope?: string
-  /** TermDef 用の別名一覧 */
-  aliases?: string[]
-  /** TermDef 用のコードシンボル参照一覧 (例: src/core/types.ts#Document) */
-  symbols?: string[]
 }
 
-export type SourceRefMode = 'snippet' | 'exports'
+export interface SpecSemanticBlock extends SemanticBlockBase {
+  kind: 'spec'
+  intent: SpecIntent
+}
 
-export interface SourceRefDecl {
+export interface ConstraintSemanticBlock extends SemanticBlockBase {
+  kind: 'constraint'
+  intent: SpecIntent
+  /** Constraint 用の適用範囲 */
+  scope?: string
+}
+
+export interface OutcomeSemanticBlock extends SemanticBlockBase {
+  kind: 'outcome'
+  intent: SpecIntent
+}
+
+export interface NoteSemanticBlock extends SemanticBlockBase {
+  kind: 'note'
+  intent: NoteIntent
+}
+
+export interface TermSemanticBlock extends SemanticBlockBase {
+  kind: 'term'
+  intent: SpecIntent
+  /** TermDef 用の別名一覧 */
+  aliases: string[]
+  /** TermDef 用のコードシンボル参照一覧 (例: src/core/types.ts#Document) */
+  symbols: string[]
+}
+
+export type SemanticBlock =
+  | SpecSemanticBlock
+  | ConstraintSemanticBlock
+  | OutcomeSemanticBlock
+  | NoteSemanticBlock
+  | TermSemanticBlock
+
+interface SourceRefBase {
   file: string
-  symbol?: string
-  lines?: string
-  mode?: SourceRefMode
   satisfies: string[]
   verifies: string[]
   startLine: number
 }
+
+export type SourceRefDecl =
+  | (SourceRefBase & { mode: 'exports' })
+  | (SourceRefBase & { mode: 'symbol'; symbol: string })
+  | (SourceRefBase & { mode: 'lines'; lines: string })
 
 export interface GraphEdge {
   /** 参照元 (docId または blockId) */
@@ -384,7 +429,7 @@ export interface DocsIndex {
   byId: Map<string, Document>
   blocksById: Map<string, SemanticBlock>
   /** 用語名および別名 (小文字正規化) -> TermDef ブロック */
-  termsByName: Map<string, SemanticBlock>
+  termsByName: Map<string, TermSemanticBlock>
   edges: GraphEdge[]
   issues: IndexIssue[]
 }

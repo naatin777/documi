@@ -16,6 +16,7 @@ import type {
   DocsIndex,
   IndexIssue,
   SemanticBlock,
+  TermSemanticBlock,
   TraceEdgeKind,
 } from './types'
 
@@ -32,7 +33,7 @@ export async function loadDocuments(rootDir: string): Promise<DocsIndex> {
   const entries: RawDocEntry[] = []
   const byId = new Map<string, Document>()
   const blocksById = new Map<string, SemanticBlock>()
-  const termsByName = new Map<string, SemanticBlock>()
+  const termsByName = new Map<string, TermSemanticBlock>()
 
   const relFiles = await collectMarkdownFiles(root, '', issues)
   // .mdx を .md より優先処理して同名衝突時に .mdx を採用する
@@ -351,8 +352,8 @@ function parseDeclaredEdges(
   return declared
 }
 
-function registerTerm(block: SemanticBlock, termsByName: Map<string, SemanticBlock>, issues: DocIssue[]): void {
-  const names = [block.id, ...(block.aliases ?? [])]
+function registerTerm(block: TermSemanticBlock, termsByName: Map<string, TermSemanticBlock>, issues: DocIssue[]): void {
+  const names = [block.id, ...block.aliases]
   for (const name of names) {
     const key = name.toLowerCase()
     const existing = termsByName.get(key)
