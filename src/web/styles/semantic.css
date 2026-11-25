@@ -277,11 +277,6 @@
   cursor: default;
 }
 
-.sem-action-btn.has-feedback {
-  border-color: var(--status-info);
-  color: var(--status-info-fg);
-}
-
 .sem-approve-btn {
   margin-left: auto;
   background: #15803d;
@@ -367,70 +362,6 @@
   user-select: none;
   font-weight: 700;
   flex-shrink: 0;
-}
-
-.sem-feedback-panel {
-  padding: 10px 12px;
-  border-bottom: 1px solid var(--border);
-  background: var(--bg);
-}
-
-.sem-feedback-list {
-  list-style: none;
-  margin: 0 0 8px;
-  padding: 0;
-  display: grid;
-  gap: 6px;
-}
-
-.sem-feedback-item {
-  padding: 8px 10px;
-  border: 1px solid var(--border);
-  border-radius: 6px;
-  background: var(--bg-sidebar);
-  font-size: 12.5px;
-}
-
-.sem-feedback-item.resolved {
-  opacity: 0.6;
-}
-
-.sem-feedback-item.resolved .sem-feedback-text {
-  text-decoration: line-through;
-}
-
-.sem-feedback-meta {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-top: 4px;
-  font-size: 11px;
-  color: var(--text-muted);
-}
-
-.sem-feedback-toggle {
-  border: none;
-  background: transparent;
-  color: var(--status-info-fg);
-  cursor: pointer;
-  font-size: 11px;
-  padding: 0;
-}
-
-.sem-feedback-form {
-  display: flex;
-  gap: 6px;
-}
-
-.sem-feedback-input {
-  flex: 1;
-  min-width: 0;
-  padding: 5px 9px;
-  border: 1px solid var(--border);
-  border-radius: 6px;
-  background: var(--bg);
-  color: var(--text);
-  font-size: 12.5px;
 }
 
 .rp-review-dot {

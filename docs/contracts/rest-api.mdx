@@ -30,7 +30,7 @@ satisfies:
 | Endpoint | 役割 |
 |---|---|
 | `GET /api/health` | ヘルスチェック (`{ ok: true }`) |
-| `GET /api/overview` | 全体統計・Type 別件数・Review & Realization 内訳・ドキュメント健全性 (`health`)・要確認ブロック・未解決フィードバック・Goals・Outcomes・Orphan Specs |
+| `GET /api/overview` | 全体統計・Type 別件数・Review & Realization 内訳・ドキュメント健全性 (`health`)・要確認ブロック・Goals・Outcomes・Orphan Specs |
 | `GET /api/status` | `rootDir`, `loadedAt`, `documentCount`, `blockCount`, `issues` |
 | `GET /api/tree` | 階層ツリー (`DocTreeNode[]`) と全ドキュメントサマリ |
 | `GET /api/documents` | サマリ一覧 (`?type=` 絞り込み対応) |
@@ -41,13 +41,11 @@ satisfies:
 | `GET /api/search` | ドキュメント＆セマンティックブロック横断検索 (`?q=&type=&limit=&semantic=true\|false`、BM25＋用語展開または `rag.enabled` 時 RRF ハイブリッド) |
 | `GET /api/terms` | 全 `<TermDef>` 用語定義一覧 |
 | `GET /api/check` | AST シンボル検証・ドキュメント健全性 (`health`) を含む一括整合性チェック (`?strict=true`) |
-| `GET /api/blocks` | レビュー対象セマンティックブロック一覧（Git 変更分フラグ `changed` 付き）と Review 集計 (`/review` 受信箱用) |
+| `GET /api/blocks` | レビュー対象セマンティックブロック一覧（Git 変更分フラグ `changed`・承認メモ付き）と Review 集計 (`/review` 受信箱用) |
+| `POST /api/blocks/approve-batch` | 指定した複数ブロック ID を確認メモ（任意 `note`）付きで一括承認し `docs/guard/reviews.json` を更新 |
 | `GET /api/blocks/:id/diff` | 承認時点コミット (またはローカルキャッシュ) と現在本文の行 diff |
-| `POST /api/blocks/:id/approve` | ブロックを承認し `docs/.documi/reviews.json` を更新 |
-| `DELETE /api/blocks/:id/approve` | ブロックの承認を取り消し未承認 (`unreviewed`) へ戻す（既存フィードバック・Stability 上書きは保持） |
-| `POST /api/blocks/:id/feedback` | AI 向けフィードバックコメントを追加 |
-| `PATCH /api/blocks/:id/feedback/:feedbackId` | フィードバックの解決状態を切替 |
-| `PATCH /api/blocks/:id/stability` | Stability 上書き設定 (`stable` / `evolving` / `volatile` / `null`) |
+| `POST /api/blocks/:id/approve` | ブロックを承認し `docs/guard/reviews.json` を更新（任意 `author` / `note`） |
+| `DELETE /api/blocks/:id/approve` | ブロックの承認を取り消し未承認 (`unreviewed`) へ戻す |
 | `GET /api/events` | SSE ライブ更新ストリーム (`connected` / `reload` イベント) |
 | `GET /api/source` | `<SourceRef>` 用の AST シンボル / 行範囲コード取得 |
 | `GET /api/source/exports` | `<SourceRef mode="exports">` 用の AST 公開シンボル（class / interface / type / function 等）自動抽出 (`?file=src/...`) |
@@ -64,9 +62,9 @@ satisfies:
 - **エラーレスポンス形式**: エラー時は JSON `{ error: string }` を返し、用途別に以下の HTTP ステータスを用いる。
   - `400`: クエリ・JSON ボディの Zod バリデーション違反、不正なパラメータ
   - `403`: 許可されない Origin、または `projectRoot` 外参照・非ループバック URL などの境界違反
-  - `404`: 指定されたドキュメント・ブロック・フィードバック・ソースファイル／シンボルが存在しない
+  - `404`: 指定されたドキュメント・ブロック・ソースファイル／シンボルが存在しない
   - `409`: 状態競合
   - `500` / `501`: サーバー内部エラー、または実行環境で未対応の PDF 出力機能
 - **副作用の範囲**:
   - すべての `GET` エンドポイントは読み取り専用（副作用なし）。
-  - 書き込み系エンドポイント（`POST /api/blocks/:id/approve`・`DELETE /api/blocks/:id/approve`・`POST /api/blocks/:id/feedback`・`PATCH /api/blocks/:id/feedback/:feedbackId`・`PATCH /api/blocks/:id/stability`）の副作用は **`docs/.documi/reviews.json`（および `.documi/cache/`）の更新と SSE `reload` 配信に限定** され、MDX 本文は一切変更しない。
+  - 書き込み系エンドポイント（`POST /api/blocks/:id/approve`・`POST /api/blocks/approve-batch`・`DELETE /api/blocks/:id/approve`）の副作用は **`docs/guard/reviews.json`（および `.documi/cache/`）の更新と SSE `reload` 配信に限定** され、MDX 本文は一切変更しない。

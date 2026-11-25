@@ -59,10 +59,6 @@ export default function OverviewLayout() {
                 <span className="text-2xl leading-[1.2] font-bold">{data.reviews.stale + data.reviews.suspect}</span>
                 <span className="text-xs text-fg-muted">{t('overview.stats.staleSuspect')}</span>
               </div>
-              <div className={statCard(data.reviews.openFeedback > 0)}>
-                <span className="text-2xl leading-[1.2] font-bold">{data.reviews.openFeedback}</span>
-                <span className="text-xs text-fg-muted">{t('overview.stats.openFeedback')}</span>
-              </div>
               <div className={statCard(totalIssues > 0)}>
                 <span className="text-2xl leading-[1.2] font-bold">{totalIssues}</span>
                 <span className="text-xs text-fg-muted">{t('overview.stats.issues')}</span>
@@ -146,31 +142,6 @@ export default function OverviewLayout() {
                           {t('overview.upstreamChanged', { sources: b.suspectSources.join(', ') })}
                         </p>
                       )}
-                    </Link>
-                  ))}
-                </div>
-              </section>
-            )}
-
-            {data.openFeedbackItems.length > 0 && (
-              <section className="mb-7">
-                <h2 className="m-0 mb-3 text-[15px] font-bold text-fg">
-                  {t('overview.openFeedbackTitle', { count: data.openFeedbackItems.length })}
-                </h2>
-                <div className="grid gap-2.5">
-                  {data.openFeedbackItems.map((fb) => (
-                    <Link
-                      key={fb.feedbackId}
-                      to={`/docs/${encodeDocId(fb.docId)}#block-${encodeURIComponent(fb.blockId)}`}
-                      className={`${cardClass} type-spec`}
-                    >
-                      <div className="mb-1 flex items-center gap-2">
-                        <code className="sem-id">{fb.blockId}</code>
-                        <span className="text-xs text-fg-muted">
-                          {fb.docTitle} · {fb.author}
-                        </span>
-                      </div>
-                      <p className="mt-1 mb-1.5 text-[13.5px] text-fg-muted">{fb.body}</p>
                     </Link>
                   ))}
                 </div>

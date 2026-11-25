@@ -128,7 +128,7 @@ describe('documi init & Agent Skills', () => {
 
       const skillBody = await readFile(path.join(customSkillsDir, 'documi/SKILL.md'), 'utf-8')
       expect(skillBody).toContain('`spec/`')
-      expect(skillBody).toContain('`spec/.documi/reviews.json`')
+      expect(skillBody).toContain('`spec/guard/reviews.json`')
     } finally {
       await rm(repo, { recursive: true, force: true })
     }

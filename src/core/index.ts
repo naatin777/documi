@@ -9,9 +9,6 @@ export {
   saveReviews,
   approveBlock,
   unapproveBlock,
-  addBlockFeedback,
-  setFeedbackResolved,
-  setBlockStabilityOverride,
   getBlockDiff,
   computeLineDiff,
 } from './reviews'

@@ -38,7 +38,7 @@ flowchart LR
 |---|---|---|
 | `src/core/retrieval.ts` | 日英・識別子トークナイズ、`<TermDef aliases>` 同義語展開、BM25 スコアリング、RRF 順位統合、ヒット中心スニペット生成、明示グラフ展開と文字数予算制御 | なし（完全純粋・ゼロ外部依存） |
 | `src/core/embeddings.ts` | `EmbeddingProvider` 抽象、モデル別プロンプト接頭辞（EmbeddingGemma / E5 / BGE / Nomic 等）、L2 正規化・内積計算、ONNX（`@huggingface/transformers` 遅延 `import`）・Ollama・OpenAI 互換 HTTP 実装 | モデル読込・HTTP 通信（呼び出し時のみ遅延発生） |
-| `src/core/vector-store.ts` | `docs/.documi/cache/embeddings.sqlite` のスキーマ管理、`contentHash` ベースの差分同期（追加・更新・削除）、正規化 `Float32Array` の内積検索 | `bun:sqlite` によるローカルキャッシュ I/O |
+| `src/core/vector-store.ts` | `.documi/cache/embeddings.sqlite` のスキーマ管理、`contentHash` ベースの差分同期（追加・更新・削除）、正規化 `Float32Array` の内積検索 | `bun:sqlite` によるローカルキャッシュ I/O |
 | `src/core/hybrid-retrieval.ts` | BM25 とベクトル検索の RRF 統合、自動差分同期、プロバイダ障害時の BM25 フォールバックと `mode` / `fallbackReason` 付与 | `embeddings.ts` / `vector-store.ts` の調停 |
 
 ## 3. チャンク設計と重複排除

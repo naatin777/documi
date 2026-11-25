@@ -34,5 +34,5 @@ description: 既存コードベース（Brownfield）に Documi の Living Speci
 ## 4. 検証して人間へ引き継ぐ
 
 1. `documi check` を実行し、`<SourceRef>` パス切れ・`derives` 漏れ（`orphan-spec`）・MDX 構文エラーをすべて解消する。
-2. **`docs/.documi/reviews.json` は絶対に編集しない。** 生成した仕様はすべて `unreviewed` のまま残し、人間オーナーが `documi serve` 上で確認・修正・承認できるようにする。
+2. **`docs/guard/reviews.json` は絶対に編集しない。** 生成した仕様はすべて `unreviewed` のまま残し、人間オーナーが `documi serve` 上で確認・修正・承認できるようにする。
 3. 作成したドキュメント・Spec ID 一覧と、既存コードから判断がつかなかった曖昧点（人間の意思決定が必要な点）を簡潔に報告する。

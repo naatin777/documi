@@ -32,8 +32,8 @@ AI エージェント向けに **2 種類のトランスポート** で同一の
 | `list_documents` | `type?` | ドキュメントサマリ一覧を取得 |
 | `get_document` | `id` | パス ID から本文・セマンティックブロック（`startLine` / `endLine` 含む）・関係・問題一覧を取得 |
 | `get_relations` | `id` | ドキュメント ID またはブロック ID の外向き/逆参照を取得 |
-| `query_specs` | `kind?`, `intent?`, `stability?`, `review?`, `realization?`, `suspect?`, `hasFeedback?`, `query?`, `full?` | セマンティックブロックを多軸フィルタ検索（既定は `docPath`・`startLine`・`endLine`・要約付き軽量サマリ、`full: true` で詳細配列込み） |
-| `get_spec_context` | `id`, `full?` | 指定 Spec の本文・`docPath`・`startLine`・`endLine`・上流 Goal 概要・未解決フィードバック・関連 Design/Contract・Decision `<Outcome>`・関連用語・`<SourceRef>` を一括集約（`full: true` で完全展開） |
+| `query_specs` | `kind?`, `intent?`, `stability?`, `review?`, `realization?`, `suspect?`, `query?`, `full?` | セマンティックブロックを多軸フィルタ検索（既定は `docPath`・`startLine`・`endLine`・要約付き軽量サマリ、`full: true` で詳細配列込み） |
+| `get_spec_context` | `id`, `full?` | 指定 Spec の本文・`docPath`・`startLine`・`endLine`・上流 Goal 概要・関連 Design/Contract・Decision `<Outcome>`・関連用語・`<SourceRef>` を一括集約（`full: true` で完全展開） |
 | `search_documents` | `query`, `type?`, `limit?`, `semantic?` | ドキュメントとセマンティックブロックを BM25＋用語集同義語展開（`semantic: true` または `rag.enabled` 時はローカル Embedding＋RRF）で横断全文検索 |
 | `retrieve_context` | `query`, `type?`, `limit?`, `budget?`, `includeGraph?`, `semantic?` | 自然文から BM25（＋任意でローカル Embedding RRF）＋明示グラフ展開（上流 Goal・Decision `<Outcome>`・関連 Contract/Design・用語・`<SourceRef>`）を文字数予算内で 1 発取得 |
 | `validate_docs` | なし | `orphan-spec`・参照切れ・循環・重複 ID・MDX 未対応構文・AST `<SourceRef>` / `<TermDef>` シンボル切れを一括検証 |
@@ -52,10 +52,10 @@ AI が 1 ブロック修正するために無関係な文書全体を読み込�
 
 ## 事前・事後条件・副作用・エラー規約
 
-- **読み取りツールの純粋性**: 読み取り・検証ツール 8 種は完全に読み取り専用であり、MDX 本文・`docs/.documi/reviews.json`・ソースコードを一切書き換えない。
+- **読み取りツールの純粋性**: 読み取り・検証ツールは完全に読み取り専用であり、MDX 本文・`docs/guard/reviews.json`・ソースコードを一切書き換えない。
 - **書き込みツールの副作用境界（絶対不変）**:
   - 変更対象は `docs/` 配下の `.mdx` / `.md`（および `rename_block_id` 実行時に限り `projectRoot` 配下の対象ソース・テストファイル）に厳格に限定する。
-  - **`docs/.documi/reviews.json` および `.documi/` 配下は一切変更しない**（人間の承認・フィードバック変更は Web UI / CLI 専用）。
+  - **`docs/guard/reviews.json`・`docs/guard/`・`.documi/` 配下は一切変更しない**（人間の承認変更は Web UI / CLI 専用）。
   - 書き込み成功後は `DocsStore.reload()` を実行し、最新の `issues` / 検証サマリをレスポンスに含めて返す。
 - **事前検証とロールバック**:
   - すべてのツール引数は Zod スキーマで検証し、型・必須項目・ブロック ID 形式（`BLOCK_ID_PATTERN`）違反は `isError: true` を返す。

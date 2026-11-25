@@ -2,7 +2,7 @@ import { hc } from 'hono/client'
 import type { ClientResponse, InferResponseType } from 'hono/client'
 import type { SearchHit } from '../core/bundle'
 import type { CodeTreeNode } from '../core/code'
-import type { ArtifactType, BlockKind, Document, DocTreeNode, Stability } from '../core/types'
+import type { ArtifactType, BlockKind, Document, DocTreeNode } from '../core/types'
 import type { ApiRoutes } from '../server/app'
 import type { StaticSearchEntry } from '../server/site'
 
@@ -312,12 +312,26 @@ export const api = {
     isStaticSite()
       ? fetchStaticJson<BlockDiffResponse>(`data/block-diffs/${encodeURIComponent(blockId)}.json`)
       : unwrap(rpc.api.blocks[':id'].diff.$get({ param: { id: encodeURIComponent(blockId) } })),
-  approveBlock: (blockId: string, author?: string) => {
+  approveBlock: (blockId: string, options?: { author?: string; note?: string }) => {
     if (isStaticSite()) return Promise.reject(new Error('静的サイトでは承認操作は利用できません'))
+    const payload: { author?: string; note?: string } = {}
+    if (options?.author) payload.author = options.author
+    if (options?.note) payload.note = options.note
     return unwrap(
       rpc.api.blocks[':id'].approve.$post({
         param: { id: encodeURIComponent(blockId) },
-        json: author ? { author } : {},
+        json: payload,
+      }),
+    )
+  },
+  approveBlocksBatch: (ids: string[], options?: { author?: string; note?: string }) => {
+    if (isStaticSite()) return Promise.reject(new Error('静的サイトでは承認操作は利用できません'))
+    const payload: { ids: string[]; author?: string; note?: string } = { ids }
+    if (options?.author) payload.author = options.author
+    if (options?.note) payload.note = options.note
+    return unwrap(
+      rpc.api.blocks['approve-batch'].$post({
+        json: payload,
       }),
     )
   },
@@ -326,33 +340,6 @@ export const api = {
     return unwrap(
       rpc.api.blocks[':id'].approve.$delete({
         param: { id: encodeURIComponent(blockId) },
-      }),
-    )
-  },
-  addFeedback: (blockId: string, body: string, author?: string) => {
-    if (isStaticSite()) return Promise.reject(new Error('静的サイトではフィードバック投稿は利用できません'))
-    return unwrap(
-      rpc.api.blocks[':id'].feedback.$post({
-        param: { id: encodeURIComponent(blockId) },
-        json: author ? { body, author } : { body },
-      }),
-    )
-  },
-  setFeedbackResolved: (blockId: string, feedbackId: string, resolved: boolean) => {
-    if (isStaticSite()) return Promise.reject(new Error('静的サイトでは更新操作は利用できません'))
-    return unwrap(
-      rpc.api.blocks[':id'].feedback[':feedbackId'].$patch({
-        param: { id: encodeURIComponent(blockId), feedbackId: encodeURIComponent(feedbackId) },
-        json: { resolved },
-      }),
-    )
-  },
-  setStability: (blockId: string, stability: Stability | null) => {
-    if (isStaticSite()) return Promise.reject(new Error('静的サイトでは安定度変更は利用できません'))
-    return unwrap(
-      rpc.api.blocks[':id'].stability.$patch({
-        param: { id: encodeURIComponent(blockId) },
-        json: { stability },
       }),
     )
   },

@@ -9,7 +9,7 @@ tags: [ui, frontend]
 
 <Spec id="ui.web-viewer" stability="stable" derives="goals/human-comprehension">
   **When** ユーザーがルート `/` または `/docs/*` を開いたとき、
-  **the** Web UI **shall** `/` では全幅の Overview ダッシュボード（プロジェクト統計・レビュー＆Realization 内訳・要確認ブロック・未解決フィードバック・Goals・Decision Outcomes・Orphan Specs）を表示し、`/docs/*` では右側に開閉可能な 2 タブ Context Inspector（`Outline` / `Links`）と関連文書を並べて読む Side-by-Side プレビュー (`DocPeekPane`) を提供する。
+  **the** Web UI **shall** `/` では全幅の Overview ダッシュボード（プロジェクト統計・レビュー＆Realization 内訳・要確認ブロック・Goals・Decision Outcomes・Orphan Specs）を表示し、`/docs/*` では右側に開閉可能な 2 タブ Context Inspector（`Outline` / `Links`）と関連文書を並べて読む Side-by-Side プレビュー (`DocPeekPane`) を提供する。
 </Spec>
 
 <Spec id="ui.explorer-modes" stability="stable" derives="goals/human-comprehension">
@@ -18,13 +18,13 @@ tags: [ui, frontend]
 </Spec>
 
 <Spec id="ui.live-reload" stability="stable" derives="goals/low-friction-governance">
-  **When** `docs/` 配下の Markdown / MDX、`reviews.json`、または `test-results.xml` が更新されたとき、
+  **When** `docs/` 配下の Markdown / MDX、`docs/guard/reviews.json`、または `test-results.xml` が更新されたとき、
   **the** サーバーと Web UI **shall** `fs.watch` と SSE (`/api/events`) を通じて再起動なしに最新内容へ自動更新する。
 </Spec>
 
 <Spec id="ui.human-review" stability="stable" derives="goals/low-friction-governance">
   **When** 人間が Web UI でセマンティックブロックまたは専用 `/review` 受信箱を閲覧するとき、
-  **the** Web UI **shall** `docs/.documi/reviews.json` と連動した承認・承認取り消しボタン・Markdown/MDX レンダリング・承認時点コミットからの Diff 表示（`/review` の `stale` は自動展開）・Stability 切替・その場での AI 向けフィードバック投稿＆解決切替・Git 変更分フィルタおよび URL 絞り込み（`/review?ids=...`）・未解決コメントや選択ブロックを AI チャット（`documi-review` 等）へ渡すワンクリックプロンプトコピー・ブロック種別フィルタ・Realization トレース詳細を提供し、MDX 本文自体は変更しない。
+  **the** Web UI **shall** `docs/guard/reviews.json` と連動した承認・承認取り消し・Markdown/MDX レンダリング・承認時点コミットからの Diff 表示（`/review` の `stale` は自動展開）・Git 変更分フィルタ・最終確認 URL モード（`/review?ids=...&note=...` で対象確認と編集可能な確認メモ付きまとめて承認）・AI チャットへ渡す参照コピーおよび `documi-review` クイズ依頼コピー・ブロック種別フィルタ・Realization トレース詳細を提供し、MDX 本文自体は変更しない。
 </Spec>
 
 <Spec id="ui.glossary-autolink" stability="stable" derives="goals/human-comprehension">

@@ -1,23 +1,21 @@
-import { useState, type FormEvent } from 'react'
+import { useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Link } from 'react-router'
-import { STABILITIES } from '../../core/types'
-import type { BlockDiffResult, SemanticBlock, Stability } from '../../core/types'
+import type { BlockDiffResult, SemanticBlock } from '../../core/types'
 import { api, isStaticSite } from '../api'
 
-/** ブロック単位の承認・Diff・Stability 変更・Realization 詳細・AI 向けフィードバック操作 UI */
+/** ブロック単位の承認・承認取消・Diff・Realization 詳細・AI 向け参照コピー UI */
 export default function BlockReviewControls({ block, onMutate }: { block: SemanticBlock; onMutate: () => void }) {
-  const { t } = useTranslation()
+  const { t, i18n } = useTranslation()
   const readOnly = isStaticSite()
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [showDiff, setShowDiff] = useState(false)
   const [diff, setDiff] = useState<BlockDiffResult | null>(null)
-  const [showFeedback, setShowFeedback] = useState(false)
   const [showTrace, setShowTrace] = useState(false)
-  const [draft, setDraft] = useState('')
+  const [copiedAi, setCopiedAi] = useState(false)
+  const copyTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
-  const openCount = block.feedback.filter((f) => !f.resolved).length
   const realization = block.realization
 
   const handleApprove = async () => {
@@ -68,47 +66,18 @@ export default function BlockReviewControls({ block, onMutate }: { block: Semant
     }
   }
 
-  const handleCycleStability = async () => {
-    const idx = STABILITIES.indexOf(block.stability)
-    const next: Stability = STABILITIES[(idx + 1) % STABILITIES.length]!
-    setBusy(true)
-    setError(null)
+  const handleCopyForAi = async () => {
+    const isJa = (i18n.resolvedLanguage ?? 'ja').startsWith('ja')
+    const prompt = isJa
+      ? `Documi ブロック \`${block.id}\` (${block.docId}) を \`documi context ${block.id}\` で確認して、`
+      : `Inspect Documi block \`${block.id}\` (${block.docId}) via \`documi context ${block.id}\` and `
     try {
-      await api.setStability(block.id, next)
-      onMutate()
+      await navigator.clipboard.writeText(prompt)
+      setCopiedAi(true)
+      if (copyTimerRef.current) clearTimeout(copyTimerRef.current)
+      copyTimerRef.current = setTimeout(() => setCopiedAi(false), 2000)
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e))
-    } finally {
-      setBusy(false)
-    }
-  }
-
-  const handleSubmitFeedback = async (e: FormEvent) => {
-    e.preventDefault()
-    if (!draft.trim()) return
-    setBusy(true)
-    setError(null)
-    try {
-      await api.addFeedback(block.id, draft.trim())
-      setDraft('')
-      onMutate()
-    } catch (err) {
-      setError(err instanceof Error ? err.message : String(err))
-    } finally {
-      setBusy(false)
-    }
-  }
-
-  const handleResolveFeedback = async (feedbackId: string, resolved: boolean) => {
-    setBusy(true)
-    setError(null)
-    try {
-      await api.setFeedbackResolved(block.id, feedbackId, resolved)
-      onMutate()
-    } catch (err) {
-      setError(err instanceof Error ? err.message : String(err))
-    } finally {
-      setBusy(false)
     }
   }
 
@@ -122,11 +91,11 @@ export default function BlockReviewControls({ block, onMutate }: { block: Semant
           className={`sem-review-badge sem-review-${block.review}`}
           title={
             block.approvedAt
-              ? t('blocks.approvedTooltip', {
+              ? `${t('blocks.approvedTooltip', {
                   by: block.approvedBy ?? '',
                   commit: block.approvedCommit ?? 'uncommitted',
                   at: block.approvedAt,
-                })
+                })}${block.approvedNote ? `\n${block.approvedNote}` : ''}`
               : t('blocks.unreviewedTooltip')
           }
         >
@@ -164,19 +133,7 @@ export default function BlockReviewControls({ block, onMutate }: { block: Semant
           </button>
         )}
 
-        {readOnly ? (
-          <span className={`sem-pill sem-pill-${block.stability}`}>{t(`status.stability.${block.stability}`)}</span>
-        ) : (
-          <button
-            type="button"
-            className={`sem-action-btn sem-pill-${block.stability}`}
-            disabled={busy}
-            onClick={() => void handleCycleStability()}
-            title={t('blocks.stabilityTooltip')}
-          >
-            {t(`status.stability.${block.stability}`)}
-          </button>
-        )}
+        <span className={`sem-pill sem-pill-${block.stability}`}>{t(`status.stability.${block.stability}`)}</span>
 
         {block.review === 'stale' && (
           <button
@@ -189,14 +146,9 @@ export default function BlockReviewControls({ block, onMutate }: { block: Semant
           </button>
         )}
 
-        {(!readOnly || block.feedback.length > 0) && (
-          <button
-            type="button"
-            className={`sem-action-btn${showFeedback || openCount > 0 ? ' has-feedback' : ''}`}
-            disabled={busy}
-            onClick={() => setShowFeedback((v) => !v)}
-          >
-            💬 {openCount > 0 ? openCount : ''}
+        {!readOnly && (
+          <button type="button" className="sem-action-btn" disabled={busy} onClick={() => void handleCopyForAi()}>
+            {copiedAi ? t('review.copied') : t('blocks.copyForAi')}
           </button>
         )}
 
@@ -217,6 +169,12 @@ export default function BlockReviewControls({ block, onMutate }: { block: Semant
           </button>
         )}
       </div>
+
+      {block.approvedNote && block.review === 'approved' && (
+        <div className="mt-1 text-[11.5px] text-fg-muted">
+          {t('blocks.approvedNoteLabel')}: {block.approvedNote}
+        </div>
+      )}
 
       {block.suspect && block.suspectSources.length > 0 && (
         <div className="sem-suspect-banner">
@@ -338,48 +296,6 @@ export default function BlockReviewControls({ block, onMutate }: { block: Semant
                 </div>
               ))}
             </pre>
-          )}
-        </div>
-      )}
-
-      {showFeedback && (
-        <div className="sem-feedback-panel">
-          {block.feedback.length > 0 && (
-            <ul className="sem-feedback-list">
-              {block.feedback.map((fb) => (
-                <li key={fb.id} className={`sem-feedback-item${fb.resolved ? ' resolved' : ''}`}>
-                  <div className="sem-feedback-text">{fb.body}</div>
-                  <div className="sem-feedback-meta">
-                    <span>{fb.author}</span>
-                    {!readOnly && (
-                      <button
-                        type="button"
-                        className="sem-feedback-toggle"
-                        disabled={busy}
-                        onClick={() => void handleResolveFeedback(fb.id, !fb.resolved)}
-                      >
-                        {fb.resolved ? t('blocks.reopenFeedback') : t('blocks.resolveFeedback')}
-                      </button>
-                    )}
-                  </div>
-                </li>
-              ))}
-            </ul>
-          )}
-          {!readOnly && (
-            <form className="sem-feedback-form" onSubmit={(e) => void handleSubmitFeedback(e)}>
-              <input
-                type="text"
-                className="sem-feedback-input"
-                value={draft}
-                onChange={(e) => setDraft(e.target.value)}
-                placeholder={t('blocks.feedbackPlaceholder')}
-                disabled={busy}
-              />
-              <button type="submit" className="sem-action-btn sem-approve-btn" disabled={busy || !draft.trim()}>
-                {t('common.submit')}
-              </button>
-            </form>
           )}
         </div>
       )}

@@ -54,7 +54,7 @@ verifies:
 PR および変更完了時は、以下をすべてエラー・警告 0 件で通過させる。
 
 ```bash
-bun test --reporter=junit --reporter-outfile=docs/.documi/test-results.xml
+mkdir -p .documi && bun test --reporter=junit --reporter-outfile=.documi/test-results.xml
 bun run check
 bun run lint
 bun run format:check

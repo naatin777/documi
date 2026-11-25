@@ -133,7 +133,7 @@ export async function renderStandaloneHtmlFromUrl(
       const root = document.querySelector('.bundle-root');
       if (!root) return '';
       const clone = root.cloneNode(true);
-      for (const el of clone.querySelectorAll('button, .bundle-toolbar, .codeblock-toolbar, .sem-feedback-form, .term-popover')) el.remove();
+      for (const el of clone.querySelectorAll('button, .bundle-toolbar, .codeblock-toolbar, .term-popover')) el.remove();
       const chunks = [];
       for (const sheet of Array.from(document.styleSheets)) {
         try {
