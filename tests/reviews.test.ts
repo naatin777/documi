@@ -7,16 +7,7 @@ import { stringify } from 'yaml'
 import { runDocsCheck } from '../src/core/checker'
 import { getChangedBlockIds } from '../src/core/git'
 import { loadDocuments } from '../src/core/loader'
-import {
-  addBlockFeedback,
-  approveBlock,
-  computeLineDiff,
-  getBlockDiff,
-  loadReviews,
-  setBlockStabilityOverride,
-  setFeedbackResolved,
-  unapproveBlock,
-} from '../src/core/reviews'
+import { approveBlock, computeLineDiff, getBlockDiff, loadReviews, unapproveBlock } from '../src/core/reviews'
 import { enrichWithRealization } from '../src/core/trace'
 
 let root: string
@@ -35,7 +26,7 @@ async function writeDoc(relPath: string, fm: Record<string, unknown>, body: stri
   await writeFile(file, `---\n${stringify(fm)}---\n\n${body}`)
 }
 
-describe('人間レビュー・Stale・Suspect・Diff・Feedback', () => {
+describe('人間レビュー・Stale・Suspect・Diff・承認メモ', () => {
   test('[core.human-review] 承認 → 本文変更で stale 化 → ローカルキャッシュから行 diff を取得できる', async () => {
     await writeDoc('goals/main.mdx', { title: 'Main Goal' }, '# Main Goal\n')
     await writeDoc(
@@ -239,72 +230,33 @@ describe('人間レビュー・Stale・Suspect・Diff・Feedback', () => {
     expect(changed.has('extra.rule')).toBe(true)
   })
 
-  test('フィードバックの追加・解決・Stability 上書きが動作する', async () => {
-    await writeDoc('goals/main.mdx', { title: 'Goal' }, '# Goal\n')
-    await writeDoc(
-      'specs/auth.mdx',
-      { title: 'Auth', derives: ['goals/main'] },
-      '<Spec id="auth.rate" stability="evolving">毎分20回制限</Spec>\n',
-    )
-
-    let idx = await loadDocuments(root)
-    const fb = await addBlockFeedback(root, idx, 'auth.rate', '60回に緩和したい', 'bob')
-    await setBlockStabilityOverride(root, idx, 'auth.rate', 'volatile')
-
-    idx = await loadDocuments(root)
-    const block = idx.blocksById.get('auth.rate')!
-    expect(block.stability).toBe('volatile')
-    expect(block.stabilitySource).toBe('override')
-    expect(block.feedback).toHaveLength(1)
-    expect(block.feedback[0]?.resolved).toBe(false)
-
-    await setFeedbackResolved(root, 'auth.rate', fb.id, true)
-    idx = await loadDocuments(root)
-    expect(idx.blocksById.get('auth.rate')?.feedback[0]?.resolved).toBe(true)
-  })
-
-  test('[core.human-review] unapproveBlock は承認を取り消し、フィードバックや Stability 上書きは保持しつつ空レコードを削除する', async () => {
+  test('[core.human-review] approveBlock は guard/reviews.json へ確認メモ付きで保存し、unapproveBlock はレコードを削除して unreviewed に戻す', async () => {
     await writeDoc('goals/core.mdx', { title: 'Core' }, '# Core\n')
     await writeDoc(
       'specs/auth.mdx',
       { title: 'Auth', derives: ['goals/core'] },
-      [
-        '<Spec id="auth.clean" stability="stable">クリーンな仕様</Spec>',
-        '<Spec id="auth.withfb" stability="evolving">FB付き仕様</Spec>',
-      ].join('\n\n') + '\n',
+      '<Spec id="auth.clean" stability="stable">クリーンな仕様</Spec>\n',
     )
 
     let idx = await loadDocuments(root)
-    await approveBlock(root, idx, 'auth.clean', { author: 'alice' })
-    await approveBlock(root, idx, 'auth.withfb', { author: 'alice' })
-    await addBlockFeedback(root, idx, 'auth.withfb', '境界値を確認したい', 'alice')
-    await setBlockStabilityOverride(root, idx, 'auth.withfb', 'volatile')
+    await approveBlock(root, idx, 'auth.clean', { author: 'alice', note: '境界条件を確認済み' })
 
     idx = await loadDocuments(root)
-    expect(idx.blocksById.get('auth.clean')?.review).toBe('approved')
-    expect(idx.blocksById.get('auth.withfb')?.review).toBe('approved')
+    const approved = idx.blocksById.get('auth.clean')!
+    expect(approved.review).toBe('approved')
+    expect(approved.approvedNote).toBe('境界条件を確認済み')
 
-    // 1. FB・Stability 上書きが無いブロックはレコード自体が綺麗に削除される
     const r1 = await unapproveBlock(root, idx, 'auth.clean')
     expect(r1.removed).toBe(true)
     const r1Again = await unapproveBlock(root, idx, 'auth.clean')
     expect(r1Again.removed).toBe(false)
 
-    // 2. FB・Stability 上書きがあるブロックは承認情報のみ解除して残す
-    const r2 = await unapproveBlock(root, idx, 'auth.withfb')
-    expect(r2.removed).toBe(true)
-
     const saved = await loadReviews(root, [])
     expect(saved.blocks['auth.clean']).toBeUndefined()
-    expect(saved.blocks['auth.withfb']?.hash).toBe('')
-    expect(saved.blocks['auth.withfb']?.feedback).toHaveLength(1)
-    expect(saved.blocks['auth.withfb']?.stabilityOverride).toBe('volatile')
 
     idx = await loadDocuments(root)
     expect(idx.blocksById.get('auth.clean')?.review).toBe('unreviewed')
-    expect(idx.blocksById.get('auth.withfb')?.review).toBe('unreviewed')
-    expect(idx.blocksById.get('auth.withfb')?.stability).toBe('volatile')
-    expect(idx.blocksById.get('auth.withfb')?.feedback).toHaveLength(1)
+    expect(idx.blocksById.get('auth.clean')?.approvedNote).toBeUndefined()
   })
 
   test('computeLineDiff は追加・削除・一致行を正しく算出する', () => {

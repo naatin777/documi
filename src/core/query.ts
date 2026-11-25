@@ -23,7 +23,6 @@ export interface QuerySpecsFilter {
   review?: ReviewStatus
   realization?: RealizationStatus
   suspect?: boolean
-  hasFeedback?: boolean
   query?: string
   /** true のとき各ブロックの全文および realization 詳細配列まで含める（既定: false の軽量サマリ） */
   full?: boolean
@@ -60,7 +59,6 @@ function toCompactBlock(index: DocsIndex, b: SemanticBlock) {
     review: b.review,
     suspect: b.suspect,
     ...(b.realization ? { realizationStatus: b.realization.status } : {}),
-    openFeedbackCount: b.feedback.filter((f) => !f.resolved).length,
     ...(b.derives.length > 0 ? { derives: b.derives } : {}),
     summary: summarizeText(b.rawBody, 180),
   }
@@ -109,7 +107,7 @@ export function buildProjectMap(index: DocsIndex, options: { full?: boolean } = 
       definition: full ? b.rawBody : summarizeText(b.rawBody, 160),
     }))
 
-  const reviewSummary = { approved: 0, unreviewed: 0, stale: 0, suspect: 0, openFeedback: 0 }
+  const reviewSummary = { approved: 0, unreviewed: 0, stale: 0, suspect: 0 }
   const realizationSummary: Record<RealizationStatus, number> = {
     unimplemented: 0,
     'in-progress': 0,
@@ -123,7 +121,6 @@ export function buildProjectMap(index: DocsIndex, options: { full?: boolean } = 
       if (b.suspect) reviewSummary.suspect++
     }
     if (b.realization) realizationSummary[b.realization.status]++
-    reviewSummary.openFeedback += b.feedback.filter((f) => !f.resolved).length
   }
 
   const health = computeDocumentHealth(index)
@@ -197,10 +194,6 @@ export function querySpecs(index: DocsIndex, filters: QuerySpecsFilter = {}) {
     if (filters.review && b.review !== filters.review) return false
     if (filters.realization && b.realization?.status !== filters.realization) return false
     if (filters.suspect !== undefined && b.suspect !== filters.suspect) return false
-    if (filters.hasFeedback !== undefined) {
-      const open = b.feedback.some((f) => !f.resolved)
-      if (open !== filters.hasFeedback) return false
-    }
     if (q && !b.id.toLowerCase().includes(q) && !b.rawBody.toLowerCase().includes(q)) return false
     return true
   })
@@ -272,10 +265,6 @@ export function getSpecContext(index: DocsIndex, id: string, options: { full?: b
         (b.aliases ?? []).some((a) => doc.body.toLowerCase().includes(a.toLowerCase()))),
   )
 
-  const openFeedback = (block ? [block] : doc.blocks).flatMap((b) =>
-    b.feedback.filter((f) => !f.resolved).map((f) => Object.assign({ blockId: b.id }, f)),
-  )
-
   const compactTarget = block
     ? {
         id: block.id,
@@ -315,7 +304,6 @@ export function getSpecContext(index: DocsIndex, id: string, options: { full?: b
     document: full
       ? toDocumentSummary(doc)
       : { id: doc.id, type: doc.type, title: doc.title, description: doc.description, path: doc.path },
-    openFeedback,
     upstreamGoals,
     relatedDocuments: full
       ? relatedDocs.map(toDocumentSummary)

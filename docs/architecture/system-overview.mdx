@@ -38,7 +38,7 @@ flowchart TB
         Init["Project Init & Agent Skills Generator (init.ts)"]
     end
 
-    FS["projectRoot (docs/ + .documi.json + .agents/skills/ + docs/.documi/reviews.json + cache/embeddings.sqlite + src/ + tests/)"]
+    FS["projectRoot (docs/ + docs/guard/reviews.json + .documi.json + .agents/skills/ + .documi/cache/ + src/ + tests/)"]
 
     UI --> ClientAdapter
     BundleUI --> ClientAdapter
@@ -83,12 +83,12 @@ flowchart TB
 | パス | 役割 | Git 管理 | 書き込み主体 |
 |---|---|---|---|
 | `docs/**/*.mdx` / `.md` | Living Specification 本文（単一の真実の源） | コミット対象 | 人間・AI（ファイル直書き / CLI / MCP 精密編集） |
-| `docs/.documi/reviews.json` | 人間承認記録・フィードバック専用サイドカー | コミット対象 | **人間専用**（AI 書き込み禁止、`--no-review-edit` で検証） |
+| `docs/guard/reviews.json` | 人間承認記録・確認メモ専用ガードファイル | コミット対象 | **人間専用**（AI 書き込み禁止、`--no-review-edit` / `CODEOWNERS` で検証） |
 | `.documi.json` | プロジェクト設定（`docs` / `testReport` / 任意 `rag`） | コミット対象 | 人間・`documi init` |
 | `.agents/skills/*` | AI エージェント向け CLI 運用スキル (`--en` / `--ja`) | コミット対象 | `documi init`（既存 `AGENTS.md` には非干渉） |
-| `docs/.documi/test-results.xml` | テスト実行結果（JUnit XML） | 任意（ローカル／CI） | テストランナー |
-| `docs/.documi/cache/embeddings.sqlite` | <Term name="HybridRAG" /> 用の `contentHash` 差分ベクトルキャッシュ | `.gitignore` 対象 | `documi index` / `--semantic` 実行時に自動生成 |
-| `docs/.documi/cache/approved-bodies.json` | 未コミット承認時の Diff 算出用本文キャッシュ | `.gitignore` 対象 | Web UI / `documi approve` |
+| `.documi/test-results.xml` | テスト実行結果（JUnit XML） | `.gitignore` 対象 | テストランナー |
+| `.documi/cache/embeddings.sqlite` | <Term name="HybridRAG" /> 用の `contentHash` 差分ベクトルキャッシュ | `.gitignore` 対象 | `documi index` / `--semantic` 実行時に自動生成 |
+| `.documi/cache/approved-bodies.json` | 未コミット承認時の Diff 算出用本文キャッシュ | `.gitignore` 対象 | Web UI / `documi approve` |
 
 ## 3. 3 つの利用チャネル（人間 Web UI / AI CLI & MCP / 静的サイト）
 

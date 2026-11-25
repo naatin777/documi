@@ -146,67 +146,35 @@ describe('REST API', () => {
     expect(res.status).toBe(400)
   })
 
-  test('ブロックの承認・フィードバック・Stability・Diff API が動作する', async () => {
-    // 承認
+  test('ブロックの承認・一括承認・確認メモ・Diff・承認取り消し API が動作する', async () => {
+    // 承認 (確認メモ付き)
     const approveRes = await app.fetch(
       new Request('http://localhost/api/blocks/auth.lockout/approve', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ author: 'reviewer' }),
+        body: JSON.stringify({ author: 'reviewer', note: '境界条件を確認済み' }),
       }),
     )
     expect(approveRes.status).toBe(200)
-    const approved = (await approveRes.json()) as { block: { review: string; approvedBy: string } }
+    const approved = (await approveRes.json()) as {
+      block: { review: string; approvedBy: string; approvedNote?: string }
+    }
     expect(approved.block.review).toBe('approved')
     expect(approved.block.approvedBy).toBe('reviewer')
+    expect(approved.block.approvedNote).toBe('境界条件を確認済み')
 
-    // フィードバック追加 & 解決
-    const fbRes = await app.fetch(
-      new Request('http://localhost/api/blocks/auth.lockout/feedback', {
+    // 一括承認 API (最終確認 URL 向け)
+    const batchRes = await app.fetch(
+      new Request('http://localhost/api/blocks/approve-batch', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ body: 'ロック時間を調整したい', author: 'reviewer' }),
+        body: JSON.stringify({ ids: ['dec.bun', 'Artifact'], author: 'reviewer', note: 'クイズ合意' }),
       }),
     )
-    expect(fbRes.status).toBe(201)
-    const fbBody = (await fbRes.json()) as { feedback: { id: string } }
-
-    // MCP の query_specs(hasFeedback: true) で拾えることを確認
-    const mcpRes = await app.fetch(
-      new Request('http://localhost/mcp', {
-        method: 'POST',
-        headers: { 'content-type': 'application/json', accept: 'application/json, text/event-stream' },
-        body: JSON.stringify({
-          jsonrpc: '2.0',
-          id: 99,
-          method: 'tools/call',
-          params: { name: 'query_specs', arguments: { hasFeedback: true } },
-        }),
-      }),
-    )
-    const mcpBody = (await mcpRes.json()) as { result?: { structuredContent?: { blocks: { id: string }[] } } }
-    expect(mcpBody.result?.structuredContent?.blocks.map((b) => b.id)).toEqual(['auth.lockout'])
-
-    const resolveRes = await app.fetch(
-      new Request(`http://localhost/api/blocks/auth.lockout/feedback/${fbBody.feedback.id}`, {
-        method: 'PATCH',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ resolved: true }),
-      }),
-    )
-    expect(resolveRes.status).toBe(200)
-
-    // Stability 上書き
-    const stabRes = await app.fetch(
-      new Request('http://localhost/api/blocks/auth.lockout/stability', {
-        method: 'PATCH',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ stability: 'volatile' }),
-      }),
-    )
-    expect(stabRes.status).toBe(200)
-    const stabBody = (await stabRes.json()) as { block: { stability: string } }
-    expect(stabBody.block.stability).toBe('volatile')
+    expect(batchRes.status).toBe(200)
+    const batchBody = (await batchRes.json()) as { approvedIds: string[]; count: number }
+    expect(batchBody.count).toBe(2)
+    expect(batchBody.approvedIds).toEqual(['dec.bun', 'Artifact'])
 
     // 本文変更後の Diff API
     await writeDoc(
@@ -221,27 +189,29 @@ describe('REST API', () => {
     expect(diffBody.changed).toBe(true)
     expect(diffBody.lines.some((l) => l.type === 'add' && l.text.includes('3回失敗'))).toBe(true)
 
-    // GET /api/blocks に Markdown 描画用メタデータが含まれる
+    // GET /api/blocks に Markdown 描画用メタデータと確認メモが含まれる
     const blocksRes = await app.fetch(new Request('http://localhost/api/blocks'))
     expect(blocksRes.status).toBe(200)
     const blocksJson = (await blocksRes.json()) as {
-      blocks: Array<{ id: string; docFormat: string; docDir: string }>
+      blocks: Array<{ id: string; docFormat: string; docDir: string; approvedNote?: string }>
     }
     const lockoutSummary = blocksJson.blocks.find((b) => b.id === 'auth.lockout')
     expect(lockoutSummary?.docFormat).toBe('mdx')
     expect(lockoutSummary?.docDir).toBe('specs/auth')
+    const bunSummary = blocksJson.blocks.find((b) => b.id === 'dec.bun')
+    expect(bunSummary?.approvedNote).toBe('クイズ合意')
 
-    // 承認取り消し API (DELETE /api/blocks/:id/approve) はフィードバックと Stability を保持しつつ unreviewed に戻す
+    // 承認取り消し API (DELETE /api/blocks/:id/approve) で unreviewed に戻る
     const unapproveRes = await app.fetch(
       new Request('http://localhost/api/blocks/auth.lockout/approve', { method: 'DELETE' }),
     )
     expect(unapproveRes.status).toBe(200)
     const unapproved = (await unapproveRes.json()) as {
-      block: { review: string; stability: string; feedback: unknown[] }
+      block: { review: string; stability: string; approvedNote?: string }
     }
     expect(unapproved.block.review).toBe('unreviewed')
-    expect(unapproved.block.stability).toBe('volatile')
-    expect(unapproved.block.feedback).toHaveLength(1)
+    expect(unapproved.block.stability).toBe('stable')
+    expect(unapproved.block.approvedNote).toBeUndefined()
   })
 
   test('Hono RPC (hc<ApiRoutes>) と Zod バリデーションが型安全に動作する', async () => {
@@ -269,7 +239,7 @@ describe('REST API', () => {
     expect(sourceErr.error).toContain('symbol')
 
     const malformedJson = await app.fetch(
-      new Request('http://localhost/api/blocks/auth.lockout/feedback', {
+      new Request('http://localhost/api/blocks/approve-batch', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
         body: '{invalid-json',

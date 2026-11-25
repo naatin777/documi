@@ -1,4 +1,4 @@
-# 人間承認サイドカーの変更にメンテナのレビューを紐づける設定
-# チーム運用時に Branch Protection の "Require review from Code Owners" を有効化してください
-# （個人リポジトリでは PR 作成者自身の承認が GitHub 仕様上できないため、チーム化時に有効化推奨）
-/docs/.documi/reviews.json @naatin777
+# 人間承認ガード・ADR の変更にメンテナレビューを紐づける設定
+# チーム運用時に Branch Protection / Rulesets で Code Owners の承認必須を有効化してください
+/docs/guard/** @naatin777
+/docs/decisions/** @naatin777

@@ -68,7 +68,7 @@ function AppShell() {
     maxWidth: 480,
   })
   const { data: overview } = useOverviewQuery()
-  const reviewBadgeCount = overview ? overview.attentionBlocks.length + overview.openFeedbackItems.length : 0
+  const reviewBadgeCount = overview ? overview.attentionBlocks.length : 0
 
   // Cmd+K / Ctrl+K (全文検索) および Cmd+B / Ctrl+B (サイドバー開閉)
   useEffect(() => {

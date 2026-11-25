@@ -153,8 +153,8 @@ describe('MCP Surgical Editing', () => {
     // 他のブロックや見出しは無傷
     expect(updated).toContain('<Spec id="auth.lockout.notify" stability="evolving">')
     expect(updated).toContain('ロック時に通知を送る。')
-    // reviews.json には一切触れない
-    expect(existsSync(path.join(docsDir, '.documi/reviews.json'))).toBe(false)
+    // guard/reviews.json には一切触れない
+    expect(existsSync(path.join(docsDir, 'guard/reviews.json'))).toBe(false)
   })
 
   test('[core.mcp-surgical-edit] add_block と upsert_term と scaffold_document が動作し重複・上書きを拒否する', async () => {
@@ -281,7 +281,7 @@ describe('MCP Surgical Editing', () => {
     })
     expect(compRes.isError).toBe(true)
 
-    // パストラバーサルと .documi/reviews.json 書き込みは拒否
+    // パストラバーサルと guard/・.documi/・reviews.json 書き込みは拒否
     const travRes = await callTool('scaffold_document', {
       path: '../outside.mdx',
       title: 'Escape',
@@ -289,10 +289,16 @@ describe('MCP Surgical Editing', () => {
     expect(travRes.isError).toBe(true)
 
     const revRes = await callTool('scaffold_document', {
-      path: '.documi/reviews.json',
+      path: 'guard/reviews.json',
       title: 'Forbidden',
     })
     expect(revRes.isError).toBe(true)
+
+    const guardMdxRes = await callTool('scaffold_document', {
+      path: 'guard/hack.mdx',
+      title: 'Forbidden',
+    })
+    expect(guardMdxRes.isError).toBe(true)
 
     const revMdxRes = await callTool('scaffold_document', {
       path: '.documi/hack.mdx',

@@ -1,6 +1,6 @@
 ---
 name: documi-review
-description: 未承認・stale・suspect な仕様を 2〜3 件ずつ取り上げ、具体シナリオやエッジケースの選択式クイズで人間と AI の認識ズレを炙り出し、合意後に人間専用の承認コマンドを引き継ぐ対話レビュースキル。仕様レビュー・承認前の理解確認に使用します。
+description: 未承認・stale・suspect な仕様を 2〜3 件ずつ取り上げ、具体シナリオやエッジケースの選択式クイズで人間と AI の認識ズレを炙り出し、合意後に人間専用の最終確認 URL・承認コマンドを引き継ぐ対話レビュースキル。仕様レビュー・承認前の理解確認に使用します。
 ---
 
 # Documi 対話型仕様レビュー・認識合わせクイズ（CLI）
@@ -14,7 +14,6 @@ description: 未承認・stale・suspect な仕様を 2〜3 件ずつ取り上�
 2. 指定が無ければ、以下の優先順で `documi query` を実行し、**未処理の 2〜3 件**だけを選ぶ（1 度に大量の仕様を並べない）：
    - `documi query --review stale`（承認後に変更されたブロック）
    - `documi query --suspect`（上流変更が波及したブロック）
-   - `documi query --has-feedback`（未解決フィードバックがあるブロック）
    - `documi query --review unreviewed --kind spec`（未承認の正式仕様）
 3. 選んだ各ブロックについて `documi context <spec-id>` を実行し、上流 Goal・Decision `<Outcome>`・関連制約・`<SourceRef>`（実コード）を把握する。
 
@@ -26,7 +25,7 @@ description: 未承認・stale・suspect な仕様を 2〜3 件ずつ取り上�
   - **障害・フォールバック**: 外部依存や入力が欠けたとき、エラー終了するかフォールバックするか？
   - **境界・セキュリティ拒否**: プロジェクトルート外パスや不正フラグを渡されたとき、どう拒否するか？
   - **優先順位・競合解決**: 設定ファイルと CLI 引数、あるいは `.mdx` と `.md` が衝突したとき、どちらが勝つか？
-  - **副作用・不変条件**: 承認取り消し時に既存フィードバックを残すか消すか、書き込み範囲はどこまでか？
+  - **副作用・不変条件**: 書き込み範囲はどこまでか、MDX 本文とサイドカーの責務はどう分かれているか？
 - **禁止する出題**:
   - 仕様文面の単語穴埋めや、読んでいれば誰でも分かるトリビア問題。
   - 仕様の全文を丸ごと貼り付けて「これで合っていますか？」と聞くだけの形式。
@@ -42,13 +41,15 @@ description: 未承認・stale・suspect な仕様を 2〜3 件ずつ取り上�
    - 人間の意図に合わせて `documi block update <block-id> --body - <<'EOF'` で仕様を精密修正する（コード・テスト変更も必要なら続けて提案・修正する）。
    - 修正後に `documi check --no-review-edit` でエラー 0 件を確認する。
 
-## 4. 人間専用の承認コマンドを引き継ぐ（不変ルール）
+## 4. 人間専用の最終確認 URL・承認コマンドを引き継ぐ（不変ルール）
 
-- **AI は絶対に `docs/.documi/reviews.json` を編集せず、`documi approve` / `documi unapprove` も実行しない。** 承認の最終決定と記録は必ず人間が行う。
-- 認識が 100% 一致したブロックだけを選び、人間がそのままターミナルで実行できる承認コマンドと、Web UI で対象ブロックだけを開けるディープリンク（`/review?ids=<aligned-id-1>,<aligned-id-2>`）を併せて提示する：
+- **AI は絶対に `docs/guard/reviews.json` を編集せず、`documi approve` / `documi unapprove` も実行しない。** 承認の最終決定と記録は必ず人間が行う。
+- 認識が 100% 一致したブロックだけを選び、人間が 1 クリックで最終確認・まとめて承認できる **Web UI 最終確認 URL**（確認した内容の短い要約を `note` クエリに載せる）と、CLI コマンドを併せて提示する：
 
-```bash
-documi approve <aligned-id-1> <aligned-id-2>
-```
+  - Web UI 最終確認 URL: `/review?ids=<aligned-id-1>,<aligned-id-2>&note=<URLエンコード済み確認メモ>`
+  - CLI コマンド:
+    ```bash
+    documi approve <aligned-id-1> <aligned-id-2> --note "<確認した内容の要約>"
+    ```
 
 - 最後に「次の 2〜3 件も続けますか？」と尋ね、ユーザーのペースで段階的に承認を進められるようにする。

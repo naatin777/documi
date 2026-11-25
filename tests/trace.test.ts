@@ -150,7 +150,7 @@ describe('Trace / Realization / AST Check / PR / CLI', () => {
     expect(guarded.errors.some((e) => e.code === 'review-file-modified')).toBe(true)
 
     // 承認ファイルをコミット後は --strict も --no-review-edit も通過
-    execFileSync('git', ['add', 'docs/.documi/reviews.json'], { cwd: projectDir, stdio: 'ignore' })
+    execFileSync('git', ['add', 'docs/guard/reviews.json'], { cwd: projectDir, stdio: 'ignore' })
     execFileSync('git', ['commit', '-m', 'approve'], { cwd: projectDir, stdio: 'ignore' })
     const strictAfter = await runDocsCheck({ docsDir, projectRoot: projectDir, strict: true, noReviewEdit: true })
     expect(strictAfter.ok).toBe(true)

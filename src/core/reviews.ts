@@ -1,25 +1,21 @@
 import { execFileSync } from 'node:child_process'
-import { randomUUID } from 'node:crypto'
 import { realpathSync } from 'node:fs'
 import { mkdir, readFile, writeFile } from 'node:fs/promises'
 import path from 'node:path'
 import { z } from 'zod'
 import { splitFrontmatter } from './frontmatter'
 import { computeContentHash, extractMdxArtifacts } from './mdx'
-import { STABILITIES } from './types'
 import type {
   BlockDiffResult,
   BlockReviewRecord,
   DiffLine,
   DocsIndex,
   IndexIssue,
-  ReviewFeedback,
   ReviewsFile,
   SemanticBlock,
-  Stability,
 } from './types'
 
-export const REVIEWS_REL_PATH = '.documi/reviews.json'
+export const REVIEWS_REL_PATH = 'guard/reviews.json'
 const SNAPSHOT_CACHE_REL_PATH = '.documi/cache/approved-bodies.json'
 
 const UPSTREAM_EDGE_KINDS = new Set(['derives', 'satisfies', 'verifies'])
@@ -64,16 +60,6 @@ export async function loadReviews(docsDir: string, issues: IndexIssue[]): Promis
   }
 }
 
-const reviewFeedbackSchema = z.object({
-  id: z.string(),
-  body: z.string(),
-  author: z.string(),
-  createdAt: z.string(),
-  resolved: z.boolean(),
-})
-
-const stabilitySchema = z.enum(STABILITIES)
-
 const rawBlockRecordSchema = z
   .object({
     docPath: z.string().optional(),
@@ -81,9 +67,8 @@ const rawBlockRecordSchema = z
     approvedCommit: z.string().optional(),
     approvedAt: z.string().optional(),
     approvedBy: z.string().optional(),
+    note: z.string().optional(),
     upstreamHashes: z.record(z.string(), z.unknown()).optional(),
-    stabilityOverride: z.unknown().optional(),
-    feedback: z.array(z.unknown()).optional(),
   })
   .loose()
 
@@ -110,27 +95,20 @@ function validateReviewsFile(parsed: unknown, issues: IndexIssue[]): ReviewsFile
     if (!recResult.success) continue
     const e = recResult.data
 
-    const feedback: ReviewFeedback[] = (e.feedback ?? []).flatMap((item) => {
-      const f = reviewFeedbackSchema.safeParse(item)
-      return f.success ? [f.data] : []
-    })
-
     const upstreamHashes: Record<string, string> = {}
     for (const [k, v] of Object.entries(e.upstreamHashes ?? {})) {
       if (typeof v === 'string') upstreamHashes[k] = v
     }
 
-    const stabilityParsed = stabilitySchema.safeParse(e.stabilityOverride)
-
+    const note = e.note?.trim()
     blocks[id] = {
       docPath: e.docPath ?? '',
       hash: e.hash ?? '',
       approvedCommit: e.approvedCommit,
       approvedAt: e.approvedAt,
       approvedBy: e.approvedBy,
+      ...(note ? { note } : {}),
       upstreamHashes: Object.keys(upstreamHashes).length > 0 ? upstreamHashes : undefined,
-      stabilityOverride: stabilityParsed.success ? stabilityParsed.data : undefined,
-      feedback,
     }
   }
   return { version: 1, blocks }
@@ -152,15 +130,15 @@ export async function saveReviews(docsDir: string, reviews: ReviewsFile): Promis
               .map((k) => [k, rec.upstreamHashes![k]!]),
           )
         : undefined
+    const note = rec.note?.trim()
     sortedBlocks[id] = {
       docPath: rec.docPath,
       hash: rec.hash,
       ...(rec.approvedCommit ? { approvedCommit: rec.approvedCommit } : {}),
       ...(rec.approvedAt ? { approvedAt: rec.approvedAt } : {}),
       ...(rec.approvedBy ? { approvedBy: rec.approvedBy } : {}),
+      ...(note ? { note } : {}),
       ...(sortedUpstreams ? { upstreamHashes: sortedUpstreams } : {}),
-      ...(rec.stabilityOverride ? { stabilityOverride: rec.stabilityOverride } : {}),
-      feedback: rec.feedback,
     }
   }
 
@@ -168,9 +146,13 @@ export async function saveReviews(docsDir: string, reviews: ReviewsFile): Promis
   await writeFile(filePath, `${JSON.stringify(normalized, null, 2)}\n`, 'utf-8')
 }
 
-async function readBodyCache(docsDir: string): Promise<Record<string, string>> {
+function resolveSnapshotCachePath(docsDir: string, cacheRoot?: string): string {
+  return path.join(cacheRoot ?? docsDir, SNAPSHOT_CACHE_REL_PATH)
+}
+
+async function readBodyCache(docsDir: string, cacheRoot?: string): Promise<Record<string, string>> {
   try {
-    const raw = await readFile(path.join(docsDir, SNAPSHOT_CACHE_REL_PATH), 'utf-8')
+    const raw = await readFile(resolveSnapshotCachePath(docsDir, cacheRoot), 'utf-8')
     const parsed: unknown = JSON.parse(raw)
     if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed)) return {}
     const out: Record<string, string> = {}
@@ -183,17 +165,17 @@ async function readBodyCache(docsDir: string): Promise<Record<string, string>> {
   }
 }
 
-async function writeBodyCache(docsDir: string, blockId: string, rawBody: string): Promise<void> {
-  const cachePath = path.join(docsDir, SNAPSHOT_CACHE_REL_PATH)
-  const current = await readBodyCache(docsDir)
+async function writeBodyCache(docsDir: string, blockId: string, rawBody: string, cacheRoot?: string): Promise<void> {
+  const cachePath = resolveSnapshotCachePath(docsDir, cacheRoot)
+  const current = await readBodyCache(docsDir, cacheRoot)
   current[blockId] = rawBody
   await mkdir(path.dirname(cachePath), { recursive: true })
   await writeFile(cachePath, `${JSON.stringify(current, null, 2)}\n`, 'utf-8')
 }
 
-async function removeBodyCache(docsDir: string, blockId: string): Promise<void> {
-  const cachePath = path.join(docsDir, SNAPSHOT_CACHE_REL_PATH)
-  const current = await readBodyCache(docsDir)
+async function removeBodyCache(docsDir: string, blockId: string, cacheRoot?: string): Promise<void> {
+  const cachePath = resolveSnapshotCachePath(docsDir, cacheRoot)
+  const current = await readBodyCache(docsDir, cacheRoot)
   if (!(blockId in current)) return
   delete current[blockId]
   await mkdir(path.dirname(cachePath), { recursive: true })
@@ -222,7 +204,7 @@ function collectUpstreamHashes(index: DocsIndex, block: SemanticBlock): Record<s
 }
 
 /**
- * DocsIndex に reviews.json の承認状態・Stability 上書き・フィードバック・Suspect Links を適用する。
+ * DocsIndex に guard/reviews.json の承認状態・確認メモ・Suspect Links を適用する。
  */
 export function applyReviewsAndSuspects(index: DocsIndex, reviews: ReviewsFile): void {
   // 1. 孤立レビューレコード検出
@@ -237,19 +219,15 @@ export function applyReviewsAndSuspects(index: DocsIndex, reviews: ReviewsFile):
     }
   }
 
-  // 2. 各ブロックに review / stability / feedback を反映
+  // 2. 各ブロックに review / 承認メタデータを反映
   for (const block of index.blocksById.values()) {
     const rec = reviews.blocks[block.id]
     if (!rec) continue
 
-    if (rec.stabilityOverride) {
-      block.stability = rec.stabilityOverride
-      block.stabilitySource = 'override'
-    }
-    block.feedback = rec.feedback
     block.approvedAt = rec.approvedAt
     block.approvedBy = rec.approvedBy
     block.approvedCommit = rec.approvedCommit
+    block.approvedNote = rec.note
 
     if (rec.hash) {
       block.review = rec.hash === block.contentHash ? 'approved' : 'stale'
@@ -308,12 +286,12 @@ function getGitUserName(cwd: string): string {
   return runGit(cwd, ['config', 'user.name']) || process.env.USER || 'human'
 }
 
-/** ブロックを承認し reviews.json とローカルキャッシュを更新する */
+/** ブロックを承認し guard/reviews.json とローカルキャッシュを更新する */
 export async function approveBlock(
   docsDir: string,
   index: DocsIndex,
   blockId: string,
-  options: { author?: string } = {},
+  options: { author?: string; note?: string; cacheRoot?: string } = {},
 ): Promise<BlockReviewRecord> {
   const block = index.blocksById.get(blockId)
   if (!block) throw new ReviewError(`ブロックが見つかりません: ${blockId}`, 404)
@@ -322,8 +300,8 @@ export async function approveBlock(
 
   const issues: IndexIssue[] = []
   const reviews = await loadReviews(docsDir, issues)
-  const prev = reviews.blocks[blockId]
   const upstreamHashes = collectUpstreamHashes(index, block)
+  const note = options.note?.trim()
 
   const record: BlockReviewRecord = {
     docPath: doc.path,
@@ -331,25 +309,25 @@ export async function approveBlock(
     approvedCommit: getHeadCommit(docsDir),
     approvedAt: new Date().toISOString(),
     approvedBy: options.author?.trim() || getGitUserName(docsDir),
+    ...(note ? { note } : {}),
     upstreamHashes: Object.keys(upstreamHashes).length > 0 ? upstreamHashes : undefined,
-    stabilityOverride: prev?.stabilityOverride,
-    feedback: prev?.feedback ?? [],
   }
 
   reviews.blocks[blockId] = record
   await saveReviews(docsDir, reviews)
-  await writeBodyCache(docsDir, blockId, block.rawBody)
+  await writeBodyCache(docsDir, blockId, block.rawBody, options.cacheRoot)
   return record
 }
 
 /**
  * ブロックの承認を取り消し未承認 (unreviewed) へ戻す。
- * 既存のフィードバックや Stability 上書きは保持し、どちらも無ければレコード自体を整理削除する。
+ * 承認レコードとローカルスナップショットキャッシュを綺麗に削除する。
  */
 export async function unapproveBlock(
   docsDir: string,
   index: DocsIndex,
   blockId: string,
+  options: { cacheRoot?: string } = {},
 ): Promise<{ removed: boolean }> {
   const block = index.blocksById.get(blockId)
   if (!block) throw new ReviewError(`ブロックが見つかりません: ${blockId}`, 404)
@@ -360,106 +338,10 @@ export async function unapproveBlock(
     return { removed: false }
   }
 
-  if (prev.feedback.length === 0 && !prev.stabilityOverride) {
-    delete reviews.blocks[blockId]
-  } else {
-    reviews.blocks[blockId] = {
-      docPath: prev.docPath,
-      hash: '',
-      stabilityOverride: prev.stabilityOverride,
-      feedback: prev.feedback,
-    }
-  }
-
+  delete reviews.blocks[blockId]
   await saveReviews(docsDir, reviews)
-  await removeBodyCache(docsDir, blockId)
+  await removeBodyCache(docsDir, blockId, options.cacheRoot)
   return { removed: true }
-}
-
-/** ブロックへ AI 向けフィードバックコメントを追加する */
-export async function addBlockFeedback(
-  docsDir: string,
-  index: DocsIndex,
-  blockId: string,
-  body: string,
-  author?: string,
-): Promise<ReviewFeedback> {
-  const block = index.blocksById.get(blockId)
-  if (!block) throw new ReviewError(`ブロックが見つかりません: ${blockId}`, 404)
-  const doc = index.byId.get(block.docId)
-  if (!doc) throw new ReviewError(`所属ドキュメントが見つかりません: ${block.docId}`, 404)
-  const text = body.trim()
-  if (!text) throw new ReviewError('フィードバック本文を入力してください', 400)
-
-  const reviews = await loadReviews(docsDir, [])
-  const prev = reviews.blocks[blockId]
-  const entry: ReviewFeedback = {
-    id: `fb-${randomUUID().slice(0, 8)}`,
-    body: text,
-    author: author?.trim() || getGitUserName(docsDir),
-    createdAt: new Date().toISOString(),
-    resolved: false,
-  }
-
-  reviews.blocks[blockId] = {
-    docPath: doc.path,
-    hash: prev?.hash ?? '',
-    approvedCommit: prev?.approvedCommit,
-    approvedAt: prev?.approvedAt,
-    approvedBy: prev?.approvedBy,
-    upstreamHashes: prev?.upstreamHashes,
-    stabilityOverride: prev?.stabilityOverride,
-    feedback: [...(prev?.feedback ?? []), entry],
-  }
-
-  await saveReviews(docsDir, reviews)
-  return entry
-}
-
-/** フィードバックの解決状態を切り替える */
-export async function setFeedbackResolved(
-  docsDir: string,
-  blockId: string,
-  feedbackId: string,
-  resolved: boolean,
-): Promise<ReviewFeedback> {
-  const reviews = await loadReviews(docsDir, [])
-  const rec = reviews.blocks[blockId]
-  if (!rec) throw new ReviewError(`レビュー記録が見つかりません: ${blockId}`, 404)
-  const target = rec.feedback.find((f) => f.id === feedbackId)
-  if (!target) throw new ReviewError(`フィードバックが見つかりません: ${feedbackId}`, 404)
-
-  target.resolved = resolved
-  await saveReviews(docsDir, reviews)
-  return target
-}
-
-/** Stability のサイドカー上書きを設定 (null で解除) */
-export async function setBlockStabilityOverride(
-  docsDir: string,
-  index: DocsIndex,
-  blockId: string,
-  stability: Stability | null,
-): Promise<void> {
-  const block = index.blocksById.get(blockId)
-  if (!block) throw new ReviewError(`ブロックが見つかりません: ${blockId}`, 404)
-  const doc = index.byId.get(block.docId)
-  if (!doc) throw new ReviewError(`所属ドキュメントが見つかりません: ${block.docId}`, 404)
-
-  const reviews = await loadReviews(docsDir, [])
-  const prev = reviews.blocks[blockId]
-  reviews.blocks[blockId] = {
-    docPath: doc.path,
-    hash: prev?.hash ?? '',
-    approvedCommit: prev?.approvedCommit,
-    approvedAt: prev?.approvedAt,
-    approvedBy: prev?.approvedBy,
-    upstreamHashes: prev?.upstreamHashes,
-    stabilityOverride: stability ?? undefined,
-    feedback: prev?.feedback ?? [],
-  }
-
-  await saveReviews(docsDir, reviews)
 }
 
 /** Git コミットから指定ブロックの本文を取り出す */
@@ -494,7 +376,12 @@ function safeRealpath(p: string): string {
 }
 
 /** 承認時点の本文 (Git またはローカルキャッシュ) と現在の本文の行 diff を算出する */
-export async function getBlockDiff(docsDir: string, index: DocsIndex, blockId: string): Promise<BlockDiffResult> {
+export async function getBlockDiff(
+  docsDir: string,
+  index: DocsIndex,
+  blockId: string,
+  options: { cacheRoot?: string } = {},
+): Promise<BlockDiffResult> {
   const block = index.blocksById.get(blockId)
   if (!block) throw new ReviewError(`ブロックが見つかりません: ${blockId}`, 404)
 
@@ -516,7 +403,7 @@ export async function getBlockDiff(docsDir: string, index: DocsIndex, blockId: s
   }
 
   if (baseBody === null) {
-    const cache = await readBodyCache(docsDir)
+    const cache = await readBodyCache(docsDir, options.cacheRoot)
     const fromCache = cache[blockId]
     if (typeof fromCache === 'string') {
       baseBody = fromCache
@@ -566,29 +453,29 @@ export function computeLineDiff(before: string, after: string): DiffLine[] {
     }
   }
 
-  const out: DiffLine[] = []
+  const lines: DiffLine[] = []
   let i = 0
   let j = 0
   while (i < m && j < n) {
     if (a[i] === b[j]) {
-      out.push({ type: 'context', text: a[i]! })
+      lines.push({ type: 'context', text: a[i]! })
       i++
       j++
     } else if (dp[i + 1]![j]! >= dp[i]![j + 1]!) {
-      out.push({ type: 'del', text: a[i]! })
+      lines.push({ type: 'del', text: a[i]! })
       i++
     } else {
-      out.push({ type: 'add', text: b[j]! })
+      lines.push({ type: 'add', text: b[j]! })
       j++
     }
   }
   while (i < m) {
-    out.push({ type: 'del', text: a[i]! })
+    lines.push({ type: 'del', text: a[i]! })
     i++
   }
   while (j < n) {
-    out.push({ type: 'add', text: b[j]! })
+    lines.push({ type: 'add', text: b[j]! })
     j++
   }
-  return out
+  return lines
 }

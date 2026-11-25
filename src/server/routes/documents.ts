@@ -76,16 +76,6 @@ interface OverviewAttentionBlock {
   suspectSources: string[]
 }
 
-interface OverviewFeedbackItem {
-  feedbackId: string
-  blockId: string
-  docId: string
-  docTitle: string
-  body: string
-  author: string
-  createdAt: string
-}
-
 interface TermPayload {
   id: string
   docId: string
@@ -127,8 +117,7 @@ export function createDocumentsRoutes(store: DocsStore, projectRoot?: string, ra
         const orphanSpecs: OverviewIssueEntry[] = []
         const docIssues: OverviewIssueEntry[] = []
         const attentionBlocks: OverviewAttentionBlock[] = []
-        const openFeedbackItems: OverviewFeedbackItem[] = []
-        const reviews = { approved: 0, unreviewed: 0, stale: 0, suspect: 0, openFeedback: 0 }
+        const reviews = { approved: 0, unreviewed: 0, stale: 0, suspect: 0 }
         const realizations = Object.fromEntries(REALIZATION_STATUSES.map((s) => [s, 0])) as Record<
           RealizationStatus,
           number
@@ -154,20 +143,6 @@ export function createDocumentsRoutes(store: DocsStore, projectRoot?: string, ra
                   review: block.review,
                   suspect: block.suspect,
                   suspectSources: block.suspectSources,
-                })
-              }
-            }
-            for (const fb of block.feedback) {
-              if (!fb.resolved) {
-                reviews.openFeedback++
-                openFeedbackItems.push({
-                  feedbackId: fb.id,
-                  blockId: block.id,
-                  docId: doc.id,
-                  docTitle: doc.title,
-                  body: fb.body,
-                  author: fb.author,
-                  createdAt: fb.createdAt,
                 })
               }
             }
@@ -223,7 +198,6 @@ export function createDocumentsRoutes(store: DocsStore, projectRoot?: string, ra
             realizations,
             health,
             attentionBlocks,
-            openFeedbackItems,
             goals,
             outcomes,
             orphanSpecs,

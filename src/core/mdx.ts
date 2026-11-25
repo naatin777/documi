@@ -284,11 +284,9 @@ function extractSemanticBlock(
     title: props.title?.trim() || undefined,
     intent,
     stability,
-    stabilitySource: 'mdx',
     review: 'unreviewed',
     suspect: false,
     suspectSources: [],
-    feedback: [],
     derives: splitCsv(props.derives),
     supersedes: splitCsv(props.supersedes),
   }

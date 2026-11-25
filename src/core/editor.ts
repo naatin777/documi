@@ -166,7 +166,7 @@ export interface RenameBlockResult {
 
 /**
  * docsDir 内の安全な .mdx / .md パスであることを検証する。
- * パストラバーサル、ルート外シンボリックリンク、および `.documi/` / `reviews.json` への書き込みを絶対拒否する。
+ * パストラバーサル、ルート外シンボリックリンク、および `guard/`・`.documi/`・`reviews.json` への書き込みを絶対拒否する。
  */
 async function resolveSafeDocFile(docsDir: string, relPath: string): Promise<{ absPath: string; relPath: string }> {
   const cleaned = relPath.replace(/\\/g, '/').replace(/^\/+/, '').trim()
@@ -177,8 +177,11 @@ async function resolveSafeDocFile(docsDir: string, relPath: string): Promise<{ a
   if (segments.some((s) => s === '' || s === '.' || s === '..')) {
     throw new EditError(`パスに相対参照 (..) を含めることはできません: ${relPath}`)
   }
-  if (segments.some((s) => s.toLowerCase() === '.documi') || cleaned.toLowerCase().endsWith('reviews.json')) {
-    throw new EditError('docs/.documi/ および reviews.json への書き込みは禁止されています')
+  if (
+    segments.some((s) => s.toLowerCase() === '.documi' || s.toLowerCase() === 'guard') ||
+    cleaned.toLowerCase().endsWith('reviews.json')
+  ) {
+    throw new EditError('docs/guard/・.documi/ および reviews.json への書き込みは禁止されています')
   }
   if (!/\.(mdx|md)$/i.test(cleaned)) {
     throw new EditError(`ドキュメントは .mdx または .md である必要があります: ${relPath}`)
