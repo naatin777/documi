@@ -1,31 +1,57 @@
 ---
 type: spec
 title: Web UI ビューア・可視化・バンドル出力
-description: Overview・Flow/Files サイドバー・Review Inbox・用語ホバー・Graph・複数まとめ Export・Cmd+K 全文検索の仕様
+description: Overview・Flow/Files サイドバー・Review Inbox・用語ホバー・Graph・Code Explorer・複数まとめ Export・Cmd+K 全文検索・Git 鮮度履歴の仕様
 tags: [ui, frontend]
 ---
 
 # Web UI ビューア・可視化・バンドル出力
 
+## 1. Overview とドキュメント閲覧・並べて比較
+
 <Spec id="ui.web-viewer" stability="stable" derives="goals/human-comprehension">
   **When** ユーザーがルート `/` または `/docs/*` を開いたとき、
-  **the** Web UI **shall** `/` では全幅の Overview ダッシュボード（プロジェクト統計・レビュー＆Realization 内訳・要確認ブロック・Goals・Decision Outcomes・Orphan Specs）を表示し、`/docs/*` では右側に開閉可能な 2 タブ Context Inspector（`Outline` / `Links`）と関連文書を並べて読む Side-by-Side プレビュー (`DocPeekPane`) を提供する。
+  **the** Web UI **shall** `/` では全幅の Overview ダッシュボード（プロジェクト統計・レビュー＆Realization 内訳・要確認ブロック・Goals・Decision Outcomes・Orphan Specs）を表示し、`/docs/*` では右側に開閉可能な 3 タブ Context Inspector（`Outline` / `Links` / `History`）と関連文書を並べて読む Side-by-Side プレビュー (`DocPeekPane`) を提供する。
 </Spec>
+
+- **`/` (Overview)**: 統計カード（文書数・承認済み・未承認・要再確認・問題数）、最近更新されたドキュメント（未コミットバッジ付き）、要確認ブロック、ドキュメント健全性＆カバレッジ（Design / Verification カバレッジ・Advisory ヒント）、Goals、Decision `<Outcome>`、Orphan Specs、Realization・Stability 内訳を表示する。
+- **`/docs/*` (Document View)**: 右側 Context Inspector は幅をドラッグ伸縮（ダブルクリックでリセット）・開閉可能。`Links` の分割ボタンまたはリンクの `Shift+クリック` で `DocPeekPane` を右側へ開き、元の文書を離れず比較できる。
 
 <Spec id="ui.explorer-modes" stability="stable" derives="goals/human-comprehension">
   **When** ユーザーが左サイドバーを操作するとき、
   **the** Web UI **shall** 読む・レビューする体験に統一した 1 本の開閉式サイドバー（`Cmd+B` / `Ctrl+B` 開閉）を提供し、上部に 4 大ビュー（Home / Review Queue（要確認バッジ付き）/ Graph / Code Explorer）、下部にドキュメント一覧（上流→下流の読み順で並ぶ **Flow** とフォルダ階層そのままの **Files** 切替）を配置する。
 </Spec>
 
+- **Flow 読み順**: `goal → architecture → domain → spec → contract → design → decision (date 降順) → verification → guide`。
+- サイドバー幅はドラッグ伸縮・ダブルクリックリセット対応。ヘッダーにテーマ切替（Light/Dark/System）・言語切替（`ja` / `en`）・`Cmd+K` 検索・Export ボタンを配置する。
+
 <Spec id="ui.live-reload" stability="stable" derives="goals/low-friction-governance">
   **When** `docs/` 配下の Markdown / MDX、`docs/guard/reviews.json`、または `test-results.xml` が更新されたとき、
   **the** サーバーと Web UI **shall** `fs.watch` と SSE (`/api/events`) を通じて再起動なしに最新内容へ自動更新する。
 </Spec>
 
+- 接続直後に `event: connected` を送信し、ファイル変更デバウンス（150ms）後に `DocsStore.reload()` を実行して全接続クライアントへ `event: reload` を配信する。Web UI は React Query キャッシュを一括無効化して最新表示へ更新する。
+
+## 2. 人間レビュー受信箱・最終確認 URL・AI チャット連携
+
 <Spec id="ui.human-review" stability="stable" derives="goals/low-friction-governance">
   **When** 人間が Web UI でセマンティックブロックまたは専用 `/review` 受信箱を閲覧するとき、
   **the** Web UI **shall** `docs/guard/reviews.json` と連動した承認・承認取り消し・Markdown/MDX レンダリング・承認時点コミットからの Diff 表示（`/review` の `stale` は自動展開）・Git 変更分フィルタ・最終確認 URL モード（`/review?ids=...&note=...` で対象確認と編集可能な確認メモ付きまとめて承認）・AI チャットへ渡す参照コピーおよび `documi-review` クイズ依頼コピー・ブロック種別フィルタ・Realization トレース詳細を提供し、MDX 本文自体は変更しない。
 </Spec>
+
+- **`/review` のタブと初期表示優先順位**:
+  - タブ一覧: `変更あり (changed)` / `要再確認 (stale / suspect)` / `未承認 (unreviewed)` / `承認済み (approved)` / `すべて (all)` ＋ ブロック種別チップ（`ALL` / `SPEC` / `OUTCOME` / `CONSTRAINT` / `TERM`）。
+  - URL `?ids=` 未指定時の初期タブ自動選択順: **変更あり (`changed > 0`) → 要再確認 (`attention > 0`) → 未承認 (`unreviewed > 0`) → 要再確認**（空画面回避）。
+  - `?filter=changed|attention|unreviewed|approved|all` による直接遷移に対応。
+- **最終確認 URL モード (`/review?ids=id1,id2&note=...`)**:
+  - URL を開いただけ（GET）では一切承認せず、上部に最終確認パネル（対象件数・`note` 初期値入りの編集可能メモ欄・**「この N 件をまとめて承認」** ボタン・絞り込み解除ボタン）を表示する。
+  - ボタン押下で `POST /api/blocks/approve-batch` を呼び、対象ブロックを確認メモ付きで `docs/guard/reviews.json` へ記録する。
+- **カード表示と AI 往復補助**:
+  - `stale` カードは承認時点からの行 Diff を初期展開し枠線を強調する。`suspect` のみのカードは控えめな参考通知バナーに留める。
+  - ローカルモード時のみ、複数選択チェックボックス＋「選択した N 件を AI クイズでレビュー」コピー、各カードの「AI クイズ」「AI へ伝える」コピー、承認・承認取り消しボタンを表示する（静的サイトモードでは非表示）。
+  - Stability は MDX 由来の読み取り専用バッジとして表示する（`reviews.json` 側の上書き UI は持たない）。
+
+## 3. 用語自動リンク・力学グラフ・Export・全文検索
 
 <Spec id="ui.glossary-autolink" stability="stable" derives="goals/human-comprehension">
   **When** 本文中に `<TermDef>` で登録された用語または別名が出現するとき、
@@ -34,8 +60,10 @@ tags: [ui, frontend]
 
 <Spec id="ui.graph-matrix" stability="evolving" derives="goals/human-comprehension">
   **When** ユーザーが `/graph` を開いたとき、
-  **the** Web UI **shall** **Sigma.js (WebGL) + Graphology** によるフルビューポートのリアルタイム力学ネットワークグラフ（円形展開・ノードドラッグ時の弾性追従・Forces スライダー・パン/ズーム・ホバー枠ハイライト・クリック時の右側ドキュメント即時プレビュー＆繋がりタブ・検索フォーカス・粒度切替 `Documents` / `Docs + Blocks`・リンク層切替 `All Links` / `Traceability Only`）を提供する。
+  **the** Web UI **shall** **Sigma.js (WebGL) + Graphology** によるフルビューポートのリアルタイム力学ネットワークグラフ（円形展開・ノードドラッグ時の弾性追従・Forces スライダー・Figma 風トラックパッドパン／ピンチズーム・ホバー枠ハイライト・クリック時の右側ドキュメント即時プレビュー＆繋がりタブ・検索フォーカス・粒度切替 `Documents` / `Docs + Blocks`・リンク層切替 `All Links` / `Traceability Only`）を提供する。
 </Spec>
+
+- **操作規約**: トラックパッド 2 本指スワイプ＝慣性付きパン、ピンチ操作または `⌘`/`Ctrl`＋ホイール＝カーソル位置中心のズーム、ノードドラッグ＝接続ノードの弾性追従、ノードクリック＝右ペインへ文書本文＆繋がりを即時プレビュー。
 
 <Spec id="ui.bundle-export" stability="evolving" derives="goals/human-comprehension">
   **When** ユーザーが Export モーダルまたは `/bundle` を操作するとき、
@@ -44,13 +72,18 @@ tags: [ui, frontend]
 
 <Spec id="ui.search-palette" stability="evolving" derives="goals/human-comprehension">
   **When** ユーザーが `Cmd+K` / `Ctrl+K` または検索ボタンを押したとき、
-  **the** Web UI **shall** ドキュメントとセマンティックブロックを横断検索できるクイック検索モーダルを開き、キーボード操作で該当文書・ブロックへ即座に遷移できるようにする。
+  **the** Web UI **shall** ドキュメントとセマンティックブロックを横断検索できるクイック検索モーダルを開き、キーボード操作（上下矢印・Enter・Esc）で該当文書・ブロックへ即座に遷移できるようにする。
 </Spec>
+
+## 4. Code Explorer と Git 鮮度・履歴比較
 
 <Spec id="ui.code-explorer" stability="evolving" derives="goals/human-comprehension">
   **When** ユーザーが Code Explorer（`/code`）を開くか、`<SourceRef>`・`SidePanel` の関連コード・`Realization` のファイル参照をクリックしたとき、
-  **the** Web UI **shall** `projectRoot` 配下のソースファイルツリーと Shiki ハイライト・行番号付きの読み取り専用ソースコード全文を表示し、指定行範囲の強調スクロールおよびそのファイルに紐づく `<Spec>`・ドキュメント・`<TermDef>` への逆リンクと仕様カバレッジ有無を提示する。`projectRoot` 外参照・バイナリ・上限超過ファイルは安全にエラー表示し、Web UI 上でのコード編集機能は提供しない。
+  **the** Web UI **shall** `projectRoot` 配下の開閉式ソースファイルツリー、Shiki ハイライト・行番号付きの読み取り専用ソースコード全文、および右側インスペクタ（AST 抽出した公開シンボルジャンプ `Symbols` タブと、そのファイルに紐づく `<Spec>`・ドキュメント・`<TermDef>` への逆リンク `Links` タブ）を提供し、指定行範囲の強調スクロールおよび仕様カバレッジ有無を提示する。`projectRoot` 外参照・バイナリ・上限超過ファイルは安全にエラー表示し、Web UI 上でのコード編集機能は提供しない。
 </Spec>
+
+- **ツリー除外対象**: `node_modules`, `.git`, `dist`, `coverage`, `.documi`, `.next`, `.turbo`, `target`, `build`, `public`, `docs/` 配下、およびドット始まりディレクトリ。
+- **フィルタと URL 遷移**: ファイル名インクリメンタル検索およびカバレッジフィルタ（`すべて` / `リンクあり` / `その他`）。`/code?file=src/...&line=10&end=25` クエリで対象ファイル・強調行へ直接ジャンプする。
 
 <Spec id="ui.doc-history" stability="evolving" derives="goals/human-comprehension">
   **When** ユーザーが Overview・Explorer・ドキュメント閲覧画面を操作するとき、

@@ -41,7 +41,7 @@ flowchart TB
 
 ## 3. Agent Skills 配布と Brownfield 初期化 (`src/core/init.ts`)
 
-- `initDocumiProject()` は `docs/` 初期雛形（未存在時のみ）と `<projectRoot>/.agents/skills/` 配下の 3 つのスキル（日常運用用 `documi/SKILL.md`・既存コードベース棚卸し用 `documi-bootstrap/SKILL.md`・対話型仕様レビュー＆認識合わせクイズ用 `documi-review/SKILL.md`）を、指定言語（`en` 既定 / `ja`）で冪等に生成する。
+- `initDocumiProject()` は `docs/` 初期雛形（未存在時のみ）と `<projectRoot>/.agents/skills/` 配下の 4 つのスキル（日常運用用 `documi/SKILL.md`・既存コードベース棚卸し用 `documi-bootstrap/SKILL.md`・対話型仕様レビュー＆認識合わせクイズ用 `documi-review/SKILL.md`・再現性監査＆肉付け用 `documi-audit/SKILL.md`）を、指定言語（`en` 既定 / `ja`）で冪等に生成する。
 - 既存の `AGENTS.md` / `CLAUDE.md` は一切読み書きせず、既存のスキルファイルも `--force-skills` 指定時のみ上書きする。
 
 ## 4. コア実装参照

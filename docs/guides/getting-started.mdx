@@ -24,11 +24,12 @@ documi serve --project /path/to/repo          # Web UI + API + HTTP MCP 起動
 documi mcp --project /path/to/repo            # stdio MCP サーバー起動 (MCP 派向け・Skill 不要)
 ```
 
-`documi init` は `AGENTS.md` 等と競合させないよう、標準 **Agent Skills** 形式（`.agents/skills/`）で CLI ベースの以下 3 つのスキルを自動配置します：
+`documi init` は `AGENTS.md` 等と競合させないよう、標準 **Agent Skills** 形式（`.agents/skills/`）で CLI ベースの以下 4 つのスキルを自動配置します：
 
-- **`documi/SKILL.md`**: 日常開発で `documi map` → `documi query` / `search` / `retrieve` → `documi context` → 精密編集（`documi block` / `term` / `scaffold`）→ `documi check` を使う運用スキル
+- **`documi/SKILL.md`**: 日常開発で `documi map` → `documi query` / `search` / `retrieve` → `documi context` → 精密編集（`documi block` / `term` / `scaffold`）→ `documi check` を使う運用スキル（再現性 4 チェック込み）
 - **`documi-bootstrap/SKILL.md`**: 既存コードベース（Brownfield）を棚卸しし、初期 Goal・Architecture・用語集・コア仕様を段階的に立ち上げるスキル
-- **`documi-review/SKILL.md`**: 未承認・`stale`・`suspect` な仕様を 2〜3 件ずつ取り上げ、エッジケースの選択式クイズで人間と AI の認識ズレを炙り出し、合意後に人間専用の承認コマンドを引き継ぐ対話レビュースキル
+- **`documi-review/SKILL.md`**: 未承認・`stale`・`suspect` な仕様を 2〜3 件ずつ取り上げ、エッジケースの選択式クイズで人間と AI の認識ズレを炙り出し、合意後に人間専用の最終確認 URL・承認コマンドを引き継ぐ対話レビュースキル
+- **`documi-audit/SKILL.md`**: 実コード・テストと `docs/` を突き合わせ、「別 AI でも同じ挙動を再現できる解像度」に不足している境界条件・優先順位・スキーマ・外部契約・ADR 漏れを監査して肉付けするスキル
 
 言語は `--en`（既定）または `--ja`（`--lang ja`）で切り替えられます。既存の `docs/` があるプロジェクトやスキルだけ更新したい場合は `--skills-only` / `--force-skills` を利用できます。また既存の `docs/` と分けたい場合はプロジェクトルート直下に `.documi.json`（または `.documi.yml`）を置くことで `--project` 1 つで自動認識されます。
 

@@ -27,7 +27,7 @@ Documi は **AI が CLI / MCP で仕様・設計・コード・テストを同�
 - **Living Glossary**: 登録済み `<TermDef>` 用語・別名を本文中で自動リンクし、ホバー時に定義＋AST 抽出した実コード型定義をポップオーバー表示
 - **コード・テスト・PR からの `realization` 自動算出 & 健全性ヒント**: `@implements` / `@verifies` / `test("[spec.id] ...")` / `<SourceRef mode="exports">` / JUnit XML / `gh` PR 連携から `unimplemented` 〜 `verified` / `drifted` と Design・Verification カバレッジを自動算出
 - **Sigma.js (WebGL) ライブ力学ネットワークグラフ (`/graph`)**: フルビューポート・角丸長方形ノード・弾性ドラッグ・Figma 風トラックパッドパン／ピンチズーム・Forces スライダー・**ノードクリックで右側に本文を即時プレビュー**
-- **AI デュアルチャネル連携**: **CLI + Agent Skills**（`documi` / `documi-bootstrap` / `documi-review` を `documi init` で配布）と **MCP Server 14 ツール**（HTTP `/mcp` および stdio `documi mcp`）の両方を同一 Document Core で提供
+- **AI デュアルチャネル連携**: **CLI + Agent Skills 4 種**（`documi` / `documi-bootstrap` / `documi-review` / `documi-audit` を `documi init` で配布）と **MCP Server 14 ツール**（HTTP `/mcp` および stdio `documi mcp`）の両方を同一 Document Core で提供
 - **ローカル Hybrid RAG & 全文検索 (`Cmd+K`)**: ゼロ依存 BM25＋用語集同義語展開＋明示グラフ展開に加え、任意のローカル ONNX / Ollama / OpenAI 互換 Embedding による RRF ハイブリッド検索 (`documi retrieve` / `documi index`)
 - **まとめ Export (HTML / PDF) & 静的サイト書き出し**: `/bundle` + `documi export` で 1 冊の HTML/PDF 出力、`documi build-site` で任意の静的ホスティングへ配置できる読み取り専用静的サイトを生成
 
@@ -47,7 +47,7 @@ bun run documi:build-site -- --out dist-site
 ### CLI サブコマンド (`documi` / `bun src/cli.ts`)
 
 ```bash
-bun src/cli.ts init --project . --ja                       # docs/ 雛形 + .agents/skills/ (3スキル) 生成
+bun src/cli.ts init --project . --ja                       # docs/ 雛形 + .agents/skills/ (4スキル) 生成
 bun src/cli.ts serve --docs ./docs --project . --port 3000 # Web UI + REST API + HTTP MCP 起動
 bun src/cli.ts mcp --docs ./docs --project .               # stdio MCP サーバー起動 (AI エディタ連携)
 bun src/cli.ts retrieve "承認記録の改ざん防止ルール"        # BM25 (+Embedding) + グラフ展開で関連文脈を 1 発取得
