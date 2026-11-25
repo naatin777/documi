@@ -23,6 +23,11 @@ export function isStaticSite(): boolean {
   return typeof window !== 'undefined' && window.__DOCUMI_STATIC__?.mode === 'static'
 }
 
+/** 静的サイトで `--no-code` 指定時は Code Explorer・ソース全文を同梱していないため false を返す */
+export function isCodeIncluded(): boolean {
+  return !isStaticSite() || window.__DOCUMI_STATIC__?.includeCode !== false
+}
+
 export function staticAssetUrl(relPath: string): string {
   const base = (typeof window !== 'undefined' && window.__DOCUMI_STATIC__?.basePath) || './'
   const cleanBase = base.endsWith('/') ? base : `${base}/`
@@ -75,7 +80,7 @@ async function unwrap<R extends ClientResponse<unknown, number>>(promise: Promis
 async function fetchStaticJson<T>(relPath: string): Promise<T> {
   const res = await fetch(staticAssetUrl(relPath))
   if (!res.ok) {
-    throw new Error(`静的データの読み込みに失敗しました (${res.status}): ${relPath}`)
+    throw new Error(`Failed to load static data (${res.status}): ${relPath}`)
   }
   return (await res.json()) as T
 }
@@ -313,7 +318,7 @@ export const api = {
       ? fetchStaticJson<BlockDiffResponse>(`data/block-diffs/${encodeURIComponent(blockId)}.json`)
       : unwrap(rpc.api.blocks[':id'].diff.$get({ param: { id: encodeURIComponent(blockId) } })),
   approveBlock: (blockId: string, options?: { author?: string; note?: string }) => {
-    if (isStaticSite()) return Promise.reject(new Error('静的サイトでは承認操作は利用できません'))
+    if (isStaticSite()) return Promise.reject(new Error('Approval is not available on a static site'))
     const payload: { author?: string; note?: string } = {}
     if (options?.author) payload.author = options.author
     if (options?.note) payload.note = options.note
@@ -325,7 +330,7 @@ export const api = {
     )
   },
   approveBlocksBatch: (ids: string[], options?: { author?: string; note?: string }) => {
-    if (isStaticSite()) return Promise.reject(new Error('静的サイトでは承認操作は利用できません'))
+    if (isStaticSite()) return Promise.reject(new Error('Approval is not available on a static site'))
     const payload: { ids: string[]; author?: string; note?: string } = { ids }
     if (options?.author) payload.author = options.author
     if (options?.note) payload.note = options.note
@@ -336,7 +341,7 @@ export const api = {
     )
   },
   unapproveBlock: (blockId: string) => {
-    if (isStaticSite()) return Promise.reject(new Error('静的サイトでは承認取り消し操作は利用できません'))
+    if (isStaticSite()) return Promise.reject(new Error('Revoking approval is not available on a static site'))
     return unwrap(
       rpc.api.blocks[':id'].approve.$delete({
         param: { id: encodeURIComponent(blockId) },
@@ -349,7 +354,7 @@ export const api = {
       const key = `${params.file}|${params.symbol ?? ''}|${params.lines ?? ''}`
       const hash = idx[key]
       if (!hash) {
-        throw new Error(`ソースコードは静的サイトに同梱されていません: ${params.file}`)
+        throw new Error(`Source code is not bundled in this static site: ${params.file}`)
       }
       return fetchStaticJson<SourceResponse>(`data/sources/${hash}.json`)
     }
@@ -368,7 +373,7 @@ export const api = {
       const idx = await loadStaticSourceExportsIndex()
       const hash = idx[file]
       if (!hash) {
-        throw new Error(`公開シンボル一覧は静的サイトに同梱されていません: ${file}`)
+        throw new Error(`Exported symbols are not bundled in this static site: ${file}`)
       }
       return fetchStaticJson<SourceExportsResponse>(`data/source-exports/${hash}.json`)
     }
@@ -386,7 +391,7 @@ export const api = {
       const idx = await loadStaticCodeFileIndex()
       const hash = idx[filePath]
       if (!hash) {
-        throw new Error(`ソースファイルは静的サイトに同梱されていません: ${filePath}`)
+        throw new Error(`Source file is not bundled in this static site: ${filePath}`)
       }
       return fetchStaticJson<CodeFileResponse>(`data/code/files/${hash}.json`)
     }
