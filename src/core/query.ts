@@ -152,7 +152,7 @@ export function listDocuments(index: DocsIndex, type?: ArtifactType) {
  */
 export function getDocumentDetail(index: DocsIndex, id: string) {
   const doc = getDocument(index, id)
-  if (!doc) return null
+  if (!doc) return undefined
   return {
     ...toDocumentSummary(doc),
     body: doc.body,
@@ -178,7 +178,7 @@ export function getNodeRelations(index: DocsIndex, id: string) {
     const incoming = index.edges.filter((e) => e.to === block.id)
     return { id: block.id, kind: 'block' as const, docId: block.docId, outgoing, incoming }
   }
-  return null
+  return undefined
 }
 
 /**
@@ -215,7 +215,7 @@ export function getSpecContext(index: DocsIndex, id: string, options: { full?: b
   const full = options.full === true
   const block = index.blocksById.get(id)
   const doc = block ? index.byId.get(block.docId) : getDocument(index, id)
-  if (!doc) return null
+  if (!doc) return undefined
 
   const targetIds = new Set<string>([doc.id, ...(block ? [block.id] : doc.blocks.map((b) => b.id))])
   const relatedDocIds = new Set<string>()
@@ -341,17 +341,13 @@ export async function collectSourceRefExports(
   const uniqueFiles = [...new Set(sourceRefs.map((r) => r.file))]
   const results: Array<{ file: string; language: string; symbols: ExportedSymbolEntry[] }> = []
   for (const file of uniqueFiles) {
-    try {
-      const extracted = await extractExportedSymbols(projectRoot, file)
-      if (extracted.symbols.length > 0) {
-        results.push({
-          file: extracted.file,
-          language: extracted.language,
-          symbols: extracted.symbols,
-        })
-      }
-    } catch {
-      // 未対応拡張子や存在しないファイルは文脈集約を失敗させずスキップ
+    const extracted = await extractExportedSymbols(projectRoot, file)
+    if (extracted.isOk() && extracted.value.symbols.length > 0) {
+      results.push({
+        file: extracted.value.file,
+        language: extracted.value.language,
+        symbols: extracted.value.symbols,
+      })
     }
   }
   return results

@@ -322,9 +322,9 @@ function resolveTarget(
   fromDoc: Document,
   byId: Map<string, Document>,
   blocksById: Map<string, SemanticBlock>,
-): ResolvedTarget | null {
+): ResolvedTarget | undefined {
   const cleaned = raw.trim().split('#')[0]?.split('?')[0]?.trim() ?? ''
-  if (!cleaned) return null
+  if (!cleaned) return undefined
 
   // 1. ブロック ID に完全一致
   const block = blocksById.get(cleaned)
@@ -345,7 +345,7 @@ function resolveTarget(
     if (relDoc) return { ref: relDoc.id, kind: 'doc', doc: relDoc }
   }
 
-  return null
+  return undefined
 }
 
 function isExternalOrAnchorHref(href: string): boolean {

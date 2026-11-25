@@ -82,11 +82,16 @@ if (import.meta.main) {
   const portFlag = parseFlag(args, 'port')
   const hostFlag = parseFlag(args, 'host')
 
-  const resolved = resolveProjectPaths({
+  const resolvedRes = resolveProjectPaths({
     docs: docsFlag,
     project: projectFlag,
     testReport: testReportFlag,
   })
+  if (resolvedRes.isErr()) {
+    console.error(`✗ ${resolvedRes.error.message}`)
+    process.exit(1)
+  }
+  const resolved = resolvedRes.value
   const port = portFlag ? Number(portFlag) : undefined
 
   await startServer({

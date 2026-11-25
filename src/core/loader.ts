@@ -1,7 +1,7 @@
 import type { Dirent } from 'node:fs'
 import { readdir, readFile } from 'node:fs/promises'
 import path from 'node:path'
-import { FrontmatterError, parseYamlFrontmatter, splitFrontmatter } from './frontmatter'
+import { parseYamlFrontmatter, splitFrontmatter } from './frontmatter'
 import { applyGitFreshness } from './git'
 import { buildGraphAndValidate, stripDocExt, type RawDocEntry } from './graph'
 import { extractMdxArtifacts } from './mdx'
@@ -146,7 +146,7 @@ async function parseDocumentFile(
   relPath: string,
   docId: string,
   indexIssues: IndexIssue[],
-): Promise<RawDocEntry | null> {
+): Promise<RawDocEntry | undefined> {
   let source: string
   try {
     source = await readFile(path.join(root, relPath), 'utf-8')
@@ -156,41 +156,48 @@ async function parseDocumentFile(
       message: `ファイルを読み込めません: ${errorMessage(error)}`,
       path: relPath,
     })
-    return null
+    return undefined
   }
 
   const format: DocFormat = relPath.toLowerCase().endsWith('.mdx') ? 'mdx' : 'markdown'
   const docIssues: DocIssue[] = []
 
   let rawFm: Record<string, unknown> = {}
-  let body = source
-  let bodyLineOffset = 0
-  try {
-    const fm = splitFrontmatter(source)
-    body = fm.body
-    bodyLineOffset = fm.bodyStartLine - 1
-    if (fm.hasFrontmatter) {
-      const parsed = parseYamlFrontmatter(fm.data)
-      if (parsed === null || parsed === undefined) {
-        rawFm = {}
-      } else if (typeof parsed === 'object' && !Array.isArray(parsed)) {
-        rawFm = parsed as Record<string, unknown>
-      } else {
-        docIssues.push({ code: 'invalid-frontmatter', message: 'frontmatter は YAML オブジェクトである必要があります' })
-      }
-    } else {
-      docIssues.push({
-        code: 'missing-frontmatter',
-        message: 'YAML frontmatter がありません (パスから型を推論しました)',
-      })
-    }
-  } catch (error) {
+  const fmRes = splitFrontmatter(source)
+  if (fmRes.isErr()) {
     indexIssues.push({
       code: 'invalid-frontmatter',
-      message: error instanceof FrontmatterError ? error.message : errorMessage(error),
+      message: fmRes.error.message,
       path: relPath,
     })
-    return null
+    return undefined
+  }
+  const fm = fmRes.value
+  const body = fm.body
+  const bodyLineOffset = fm.bodyStartLine - 1
+  if (fm.hasFrontmatter) {
+    const parsedRes = parseYamlFrontmatter(fm.data)
+    if (parsedRes.isErr()) {
+      indexIssues.push({
+        code: 'invalid-frontmatter',
+        message: parsedRes.error.message,
+        path: relPath,
+      })
+      return undefined
+    }
+    const parsed = parsedRes.value
+    if (parsed === null || parsed === undefined) {
+      rawFm = {}
+    } else if (typeof parsed === 'object' && !Array.isArray(parsed)) {
+      rawFm = parsed as Record<string, unknown>
+    } else {
+      docIssues.push({ code: 'invalid-frontmatter', message: 'frontmatter は YAML オブジェクトである必要があります' })
+    }
+  } else {
+    docIssues.push({
+      code: 'missing-frontmatter',
+      message: 'YAML frontmatter がありません (パスから型を推論しました)',
+    })
   }
 
   const extracted = extractMdxArtifacts(body, format, docId, bodyLineOffset)
@@ -293,7 +300,7 @@ function formatUnknown(value: unknown): string {
 
 function parseDateField(value: unknown, issues: DocIssue[]): string | undefined {
   if (value === undefined || value === null || value === '') return undefined
-  let normalized: string | null = null
+  let normalized: string | undefined
   if (value instanceof Date) {
     if (!Number.isNaN(value.getTime())) {
       normalized = value.toISOString().slice(0, 10)
@@ -361,9 +368,9 @@ function registerTerm(block: SemanticBlock, termsByName: Map<string, SemanticBlo
   }
 }
 
-function normalizeDocId(raw: string): string | null {
+function normalizeDocId(raw: string): string | undefined {
   const cleaned = raw.replace(/^\/+/, '').replace(/\/+$/, '')
-  if (!cleaned || cleaned.includes('..') || cleaned.includes('\0')) return null
+  if (!cleaned || cleaned.includes('..') || cleaned.includes('\0')) return undefined
   return stripDocExt(cleaned)
 }
 

@@ -25,7 +25,8 @@ tags: [core, spec, governance, export]
   1. `approvedCommit` と `docPath` がある場合、`git show <commit>:<relPath>` から対象ブロック本文を抽出し、`computeContentHash` が `record.hash` と一致すれば採用（`baseSource: "git"`）。
   2. 取得できないまたはハッシュ不一致の場合、`.documi/cache/approved-bodies.json` のキャッシュ本文へフォールバック（`baseSource: "cache"`）。
   3. いずれも無い場合はエラーにせず `hasBase: false, baseSource: "none"` を返す。
-- **承認取り消し (`unapproveBlock`)**: 対象ブロックが未存在なら `404`、未承認なら `{ removed: false }`（冪等）、承認済み／`stale` なら `reviews.json` からキーを削除しローカルキャッシュも掃除して `{ removed: true }` を返す。
+- **承認者名の決定ルール (`approvedBy`)**: 明示指定された `author` を最優先し、未指定時は `git config user.name` を使用する。いずれも取得できない場合は `undefined`（`reviews.json` へキーを出力しない）とし、OS ユーザー名（`process.env.USER`）や固定ダミー値（`"human"`）へフォールバックしない。
+- **承認取り消し (`unapproveBlock`)**: 対象ブロックが未存在なら `BlockNotFoundError`（REST API では `404`）、未承認なら `{ removed: false }`（冪等）、承認済み／`stale` なら `reviews.json` からキーを削除しローカルキャッシュも掃除して `{ removed: true }` を返す。
 
 ## 2. コード・テスト・PR 連携と実装状態の自動算出
 

@@ -2,7 +2,7 @@ import { Hono } from 'hono'
 import { z } from 'zod'
 import { resolveBundleDocuments, searchIndex } from '../../core/bundle'
 import type { RagConfig } from '../../core/config'
-import { getDocumentHistory, getDocumentRevision, HistoryError } from '../../core/git'
+import { getDocumentHistory, getDocumentRevision } from '../../core/git'
 import { computeDocumentHealth } from '../../core/health'
 import { searchIndexHybrid } from '../../core/hybrid-retrieval'
 import { buildDocTree, getDocument, toDocumentSummary } from '../../core/loader'
@@ -17,8 +17,9 @@ import type {
   SpecIntent,
   Stability,
 } from '../../core/types'
+import { historyErrorToHttp } from '../errors'
 import type { DocsStore } from '../store'
-import { zValidator, type ErrorStatusCode } from '../validator'
+import { zValidator } from '../validator'
 
 const artifactTypeSchema = z.enum(ARTIFACT_TYPES)
 
@@ -263,15 +264,12 @@ export function createDocumentsRoutes(store: DocsStore, projectRoot?: string, ra
         }
         const doc = getDocument(index, docId)
         if (!doc) return c.json({ error: `ドキュメントが見つかりません: ${docId}` }, 404)
-        try {
-          const revision = getDocumentRevision(index.rootDir, doc, commit)
-          return c.json(revision, 200)
-        } catch (error) {
-          if (error instanceof HistoryError) {
-            return c.json({ error: error.message }, error.status as ErrorStatusCode)
-          }
-          return c.json({ error: error instanceof Error ? error.message : String(error) }, 500)
+        const revisionRes = getDocumentRevision(index.rootDir, doc, commit)
+        if (revisionRes.isErr()) {
+          const http = historyErrorToHttp(revisionRes.error)
+          return c.json(http.body, http.status)
         }
+        return c.json(revisionRes.value, 200)
       })
       .get('/terms', (c) => {
         return c.json({ terms: collectTerms(store.getIndex()) }, 200)

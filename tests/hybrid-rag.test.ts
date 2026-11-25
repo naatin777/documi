@@ -3,10 +3,12 @@ import { existsSync } from 'node:fs'
 import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
+import { Result } from 'better-result'
 import { stringify } from 'yaml'
 import { runCli } from '../src/cli'
-import { createEmbeddingProvider, EmbeddingError, formatEmbeddingPrompt, normalizeVector } from '../src/core/embeddings'
+import { createEmbeddingProvider, formatEmbeddingPrompt, normalizeVector } from '../src/core/embeddings'
 import type { EmbeddingProvider } from '../src/core/embeddings'
+import { EmbeddingRequestError } from '../src/core/errors'
 import { retrieveContextHybrid, searchIndexHybrid } from '../src/core/hybrid-retrieval'
 import { loadDocuments } from '../src/core/loader'
 import { DEFAULT_EMBEDDINGS_CACHE_REL, syncVectorIndex } from '../src/core/vector-store'
@@ -46,11 +48,11 @@ function createConceptMockProvider(id = 'mock:concept-v1'): {
     model: 'mock-concept',
     async embedDocuments(items) {
       state.embedDocCalls += items.length
-      return items.map((i) => toConceptVector(`${i.title}\n${i.text}`))
+      return Result.ok(items.map((i) => toConceptVector(`${i.title}\n${i.text}`)))
     },
     async embedQuery(query) {
       state.embedQueryCalls++
-      return toConceptVector(query)
+      return Result.ok(toConceptVector(query))
     },
   }
 
@@ -129,7 +131,7 @@ describe('Local Hybrid RAG (bun:sqlite + RRF + Providers)', () => {
     const index1 = await loadDocuments(docsDir)
 
     // 初回は全チャンク (4 docs + 2 blocks = 6) を埋め込み
-    const first = await syncVectorIndex(docsDir, index1, mock.provider)
+    const first = (await syncVectorIndex(docsDir, index1, mock.provider)).unwrap()
     expect(first.totalChunks).toBe(6)
     expect(first.embedded).toBe(6)
     expect(first.cached).toBe(0)
@@ -137,7 +139,7 @@ describe('Local Hybrid RAG (bun:sqlite + RRF + Providers)', () => {
     expect(existsSync(path.join(docsDir, DEFAULT_EMBEDDINGS_CACHE_REL))).toBe(true)
 
     // 2 回目（変更なし）はすべてキャッシュヒット（0 件再埋め込み）
-    const second = await syncVectorIndex(docsDir, index1, mock.provider)
+    const second = (await syncVectorIndex(docsDir, index1, mock.provider)).unwrap()
     expect(second.embedded).toBe(0)
     expect(second.cached).toBe(6)
     expect(mock.embedDocCalls).toBe(6)
@@ -163,14 +165,14 @@ describe('Local Hybrid RAG (bun:sqlite + RRF + Providers)', () => {
       ].join('\n'),
     )
     const index2 = await loadDocuments(docsDir)
-    const third = await syncVectorIndex(docsDir, index2, mock.provider)
+    const third = (await syncVectorIndex(docsDir, index2, mock.provider)).unwrap()
     expect(third.embedded).toBe(2)
     expect(third.cached).toBe(4)
 
     // ドキュメント削除 → 古いベクトル行が掃除される
     await rm(path.join(docsDir, 'specs/billing.mdx'))
     const index3 = await loadDocuments(docsDir)
-    const fourth = await syncVectorIndex(docsDir, index3, mock.provider)
+    const fourth = (await syncVectorIndex(docsDir, index3, mock.provider)).unwrap()
     expect(fourth.totalChunks).toBe(4)
     expect(fourth.embedded).toBe(0)
     expect(fourth.removed).toBe(2)
@@ -199,10 +201,14 @@ describe('Local Hybrid RAG (bun:sqlite + RRF + Providers)', () => {
       provider: 'ollama',
       model: 'broken',
       async embedDocuments() {
-        throw new EmbeddingError('connection refused')
+        return Result.err(
+          new EmbeddingRequestError({ provider: 'ollama', model: 'broken', message: 'connection refused' }),
+        )
       },
       async embedQuery() {
-        throw new EmbeddingError('connection refused')
+        return Result.err(
+          new EmbeddingRequestError({ provider: 'ollama', model: 'broken', message: 'connection refused' }),
+        )
       },
     }
     const fallback = await searchIndexHybrid(docsDir, store.getIndex(), 'Stripe invoice', {
@@ -237,7 +243,7 @@ describe('Local Hybrid RAG (bun:sqlite + RRF + Providers)', () => {
         }) as unknown as typeof fetch,
       },
     )
-    const ollamaVecs = await ollamaProvider.embedDocuments([{ title: 'T', text: 'hello' }])
+    const ollamaVecs = (await ollamaProvider.embedDocuments([{ title: 'T', text: 'hello' }])).unwrap()
     expect(capturedOllamaUrl).toBe('http://127.0.0.1:11434/api/embed')
     expect(ollamaVecs[0]![0]).toBeCloseTo(0.6, 5)
     expect(ollamaVecs[0]![1]).toBeCloseTo(0.8, 5)
@@ -261,10 +267,12 @@ describe('Local Hybrid RAG (bun:sqlite + RRF + Providers)', () => {
         }) as unknown as typeof fetch,
       },
     )
-    const openaiVecs = await openaiProvider.embedDocuments([
-      { title: 'A', text: 'a' },
-      { title: 'B', text: 'b' },
-    ])
+    const openaiVecs = (
+      await openaiProvider.embedDocuments([
+        { title: 'A', text: 'a' },
+        { title: 'B', text: 'b' },
+      ])
+    ).unwrap()
     expect(capturedOpenAiUrl).toBe('http://127.0.0.1:8000/v1/embeddings')
     expect(openaiVecs[0]![0]).toBeCloseTo(1, 5)
     expect(openaiVecs[1]![1]).toBeCloseTo(1, 5)
