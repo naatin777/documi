@@ -97,7 +97,7 @@ export function loadProjectConfig(projectRoot: string): Result<LoadedDocumiConfi
       catch: (error) =>
         new ConfigReadError({
           configPath: filePath,
-          message: `設定ファイルを読み込めません (${name}): ${error instanceof Error ? error.message : String(error)}`,
+          message: `Failed to read config file (${name}): ${error instanceof Error ? error.message : String(error)}`,
         }),
     })
     if (rawResult.isErr()) return rawResult
@@ -108,7 +108,7 @@ export function loadProjectConfig(projectRoot: string): Result<LoadedDocumiConfi
       catch: (error) =>
         new ConfigParseError({
           configPath: filePath,
-          message: `設定ファイルの構文が不正です (${name}): ${error instanceof Error ? error.message : String(error)}`,
+          message: `Invalid syntax in config file (${name}): ${error instanceof Error ? error.message : String(error)}`,
         }),
     })
     if (parsedResult.isErr()) return parsedResult
@@ -124,7 +124,7 @@ export function loadProjectConfig(projectRoot: string): Result<LoadedDocumiConfi
       return Result.err(
         new ConfigValidationError({
           configPath: filePath,
-          message: `設定ファイルのスキーマが不正です (${name}): ${detail}`,
+          message: `Invalid config schema (${name}): ${detail}`,
         }),
       )
     }

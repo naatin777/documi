@@ -203,9 +203,7 @@ export async function buildStaticSite(options: BuildStaticSiteOptions): Promise<
 
   const distIndexPath = path.join(clientDist, 'index.html')
   if (!existsSync(distIndexPath)) {
-    throw new Error(
-      `ビルド済みフロントエンドが見つかりません (${clientDist})。先に "bun run build" を実行してください。`,
-    )
+    throw new Error(`Built frontend assets not found (${clientDist}). Run "bun run build" first.`)
   }
 
   const store = await DocsStore.open(docsDir, {

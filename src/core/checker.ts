@@ -86,7 +86,7 @@ export async function runDocsCheck(options: CheckOptions): Promise<CheckReport> 
     warnings.push({
       severity: 'warning',
       code: 'unknown-anchor-spec',
-      message: `${anchor.file}:L${anchor.line} の @${anchor.kind} "${anchor.specId}" に対応する仕様ブロックが存在しません`,
+      message: `Unknown spec ID "${anchor.specId}" referenced by @${anchor.kind} at ${anchor.file}:L${anchor.line}`,
       path: anchor.file,
       blockId: anchor.specId,
     })
@@ -96,7 +96,7 @@ export async function runDocsCheck(options: CheckOptions): Promise<CheckReport> 
     errors.push({
       severity: 'error',
       code: 'review-file-modified',
-      message: `${REVIEWS_REL_PATH} が変更されています (--no-review-edit により禁止)`,
+      message: `${REVIEWS_REL_PATH} has uncommitted modifications (disallowed by --no-review-edit)`,
       path: REVIEWS_REL_PATH,
     })
   }
@@ -121,7 +121,7 @@ export async function runDocsCheck(options: CheckOptions): Promise<CheckReport> 
         const finding: CheckFinding = {
           severity: options.strict ? 'error' : 'warning',
           code: 'spec-drifted',
-          message: `<Spec id="${block.id}"> が drifted 状態です: ${block.realization.reasons.join(' / ')}`,
+          message: `<Spec id="${block.id}"> is drifted: ${block.realization.reasons.join(' / ')}`,
           path: index.byId.get(block.docId)?.path,
           blockId: block.id,
         }
@@ -134,7 +134,7 @@ export async function runDocsCheck(options: CheckOptions): Promise<CheckReport> 
         errors.push({
           severity: 'error',
           code: `review-${block.review}`,
-          message: `ブロック "${block.id}" が未承認 (${block.review}) です (--strict)`,
+          message: `Block "${block.id}" is not approved (${block.review}) (--strict)`,
           path: index.byId.get(block.docId)?.path,
           blockId: block.id,
         })

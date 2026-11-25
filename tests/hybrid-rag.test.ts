@@ -285,7 +285,7 @@ describe('Local Hybrid RAG (bun:sqlite + RRF + Providers)', () => {
       readStdin: async () => '',
     })
     expect(badCode).toBe(1)
-    expect(errs.join('\n')).toContain('--semantic と --no-semantic は同時に指定できません')
+    expect(errs.join('\n')).toContain('--semantic and --no-semantic cannot be used together')
 
     const badProviderErrs: string[] = []
     const badProviderCode = await runCli(['index', '--project', projectDir, '--provider', 'unknown'], {
@@ -294,6 +294,6 @@ describe('Local Hybrid RAG (bun:sqlite + RRF + Providers)', () => {
       readStdin: async () => '',
     })
     expect(badProviderCode).toBe(1)
-    expect(badProviderErrs.join('\n')).toContain('不正な --provider')
+    expect(badProviderErrs.join('\n')).toContain('Invalid --provider')
   })
 })

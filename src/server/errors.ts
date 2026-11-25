@@ -4,7 +4,7 @@ import type { ErrorStatusCode } from './validator'
 
 export interface HttpErrorResponse {
   status: ErrorStatusCode
-  body: { error: string }
+  body: { code: string; error: string }
 }
 
 /** Review ドメインエラーを網羅的に HTTP ステータスへ変換する */
@@ -13,7 +13,7 @@ export function reviewErrorToHttp(error: ReviewDomainError): HttpErrorResponse {
     BlockNotFoundError: () => 404 as const,
     DocumentNotFoundError: () => 404 as const,
   })
-  return { status, body: { error: error.message } }
+  return { status, body: { code: error._tag, error: error.message } }
 }
 
 /** Git 履歴ドメインエラーを網羅的に HTTP ステータスへ変換する */
@@ -24,7 +24,7 @@ export function historyErrorToHttp(error: HistoryDomainError): HttpErrorResponse
     CommitNotFoundError: () => 404 as const,
     DocumentNotInCommitError: () => 404 as const,
   })
-  return { status, body: { error: error.message } }
+  return { status, body: { code: error._tag, error: error.message } }
 }
 
 /** Source 抽出エンドポイント (/api/source, /api/source/exports) 向けの網羅的 HTTP 変換 */
@@ -43,7 +43,7 @@ export function sourceErrorToHttp(error: SourceDomainError): HttpErrorResponse {
     SymbolNotFoundError: () => 404 as const,
     AmbiguousSymbolError: () => 409 as const,
   })
-  return { status, body: { error: error.message } }
+  return { status, body: { code: error._tag, error: error.message } }
 }
 
 /** Code Explorer (/api/code/file) 向けの網羅的 HTTP 変換（境界違反は常に 403、サイズ超過は 400） */
@@ -57,5 +57,5 @@ export function codeFileErrorToHttp(error: ReadCodeFileError): HttpErrorResponse
     BinaryFileError: () => 400 as const,
     UnsupportedExtensionError: () => 400 as const,
   })
-  return { status, body: { error: error.message } }
+  return { status, body: { code: error._tag, error: error.message } }
 }

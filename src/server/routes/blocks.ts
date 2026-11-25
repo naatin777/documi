@@ -37,7 +37,7 @@ const approveBodySchema = z
   .default({})
 
 const approveBatchBodySchema = z.object({
-  ids: z.array(z.string().min(1)).min(1, '承認対象のブロック ID を 1 件以上指定してください'),
+  ids: z.array(z.string().min(1)).min(1, 'Specify at least one block ID to approve'),
   author: z.string().optional(),
   note: z.string().optional(),
 })
@@ -89,7 +89,7 @@ export function createBlocksRoutes(store: DocsStore) {
       const index = store.getIndex()
       for (const blockId of uniqueIds) {
         if (!index.blocksById.has(blockId)) {
-          return c.json({ error: `ブロックが見つかりません: ${blockId}` }, 404)
+          return c.json({ code: 'BlockNotFoundError', error: `Block not found: ${blockId}` }, 404)
         }
       }
       for (const blockId of uniqueIds) {
@@ -128,7 +128,7 @@ export function createBlocksRoutes(store: DocsStore) {
       }
       const next = await store.reload()
       const block = next.blocksById.get(blockId)
-      if (!block) return c.json({ error: `ブロックが見つかりません: ${blockId}` }, 404)
+      if (!block) return c.json({ code: 'BlockNotFoundError', error: `Block not found: ${blockId}` }, 404)
       return c.json({ block }, 200)
     })
     .delete('/:id/approve', async (c) => {
@@ -140,7 +140,7 @@ export function createBlocksRoutes(store: DocsStore) {
       }
       const next = await store.reload()
       const block = next.blocksById.get(blockId)
-      if (!block) return c.json({ error: `ブロックが見つかりません: ${blockId}` }, 404)
+      if (!block) return c.json({ code: 'BlockNotFoundError', error: `Block not found: ${blockId}` }, 404)
       return c.json({ block }, 200)
     })
 }

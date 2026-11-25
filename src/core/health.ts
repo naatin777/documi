@@ -84,7 +84,7 @@ export function computeDocumentHealth(index: DocsIndex, options: ComputeHealthOp
       uncoveredByDesign.push(block.id)
       hints.push({
         code: 'missing-design',
-        message: `<Spec id="${block.id}"> を satisfies する design ドキュメントがありません`,
+        message: `<Spec id="${block.id}"> has no design document satisfying it`,
         path: ownerDoc?.path,
         docId: block.docId,
         blockId: block.id,
@@ -98,7 +98,7 @@ export function computeDocumentHealth(index: DocsIndex, options: ComputeHealthOp
       uncoveredByVerification.push(block.id)
       hints.push({
         code: 'missing-verification',
-        message: `<Spec id="${block.id}"> を verifies する verification ドキュメントがありません`,
+        message: `<Spec id="${block.id}"> has no verification document verifying it`,
         path: ownerDoc?.path,
         docId: block.docId,
         blockId: block.id,
@@ -122,7 +122,7 @@ export function computeDocumentHealth(index: DocsIndex, options: ComputeHealthOp
       })
       hints.push({
         code: 'bloated-spec-doc',
-        message: `${doc.path} に <Spec> が ${specCount} 件集中しています（推奨上限 ${maxSpecsPerDoc} 件。機能領域ごとに分割を検討してください）`,
+        message: `${doc.path} contains ${specCount} <Spec> blocks (recommended max: ${maxSpecsPerDoc}; consider splitting by domain)`,
         path: doc.path,
         docId: doc.id,
       })
@@ -152,7 +152,7 @@ export function computeDocumentHealth(index: DocsIndex, options: ComputeHealthOp
       })
       hints.push({
         code: 'stale-architecture',
-        message: `${arch.path} の最終更新以降に ${newerDocsCount} 件の spec / design が更新されています（全体構成図の見直しを推奨）`,
+        message: `${newerDocsCount} spec/design documents were updated after ${arch.path} (consider refreshing the architecture overview)`,
         path: arch.path,
         docId: arch.id,
       })

@@ -261,7 +261,7 @@ describe('AI & Human CLI commands', () => {
       // --ja と --en の同時指定はエラー
       const conflict = await execCli(['init', '--project', freshRepo, '--ja', '--en'])
       expect(conflict.code).toBe(1)
-      expect(conflict.stderr).toContain('--ja と --en は同時に指定できません')
+      expect(conflict.stderr).toContain('--ja and --en cannot be used together')
 
       // --ja で日本語スキル生成
       const jaRes = await execCli(['init', '--project', freshRepo, '--ja', '--json'])

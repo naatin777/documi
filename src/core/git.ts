@@ -434,19 +434,17 @@ export function getDocumentRevision(
 ): Result<DocumentRevision, HistoryDomainError> {
   const trimmed = commitSha.trim()
   if (!SHA_PATTERN.test(trimmed)) {
-    return Result.err(new InvalidCommitShaError({ commitSha, message: `不正なコミット SHA です: ${commitSha}` }))
+    return Result.err(new InvalidCommitShaError({ commitSha, message: `Invalid commit SHA: ${commitSha}` }))
   }
 
   const ctx = resolveGitContext(docsDir)
   if (!ctx) {
-    return Result.err(
-      new GitRepoUnavailableError({ message: 'このドキュメントディレクトリは Git リポジトリではありません' }),
-    )
+    return Result.err(new GitRepoUnavailableError({ message: 'Document directory is not inside a Git repository' }))
   }
 
   const commitHeaderRaw = runGit(ctx.gitRoot, ['log', '-1', '--format=%H%x1f%aI%x1f%an%x1f%s', trimmed])
   if (!commitHeaderRaw?.trim()) {
-    return Result.err(new CommitNotFoundError({ commitSha: trimmed, message: `コミットが見つかりません: ${trimmed}` }))
+    return Result.err(new CommitNotFoundError({ commitSha: trimmed, message: `Commit not found: ${trimmed}` }))
   }
   const [sha = '', date = '', author = '', subject = ''] = commitHeaderRaw.trim().split('\x1f')
 
@@ -469,7 +467,7 @@ export function getDocumentRevision(
       new DocumentNotInCommitError({
         commitSha: sha,
         docPath: doc.path,
-        message: `コミット ${sha.slice(0, 7)} 時点にこの文書は存在しません`,
+        message: `Document does not exist at commit ${sha.slice(0, 7)}`,
       }),
     )
   }

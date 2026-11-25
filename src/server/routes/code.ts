@@ -6,7 +6,7 @@ import type { DocsStore } from '../store'
 import { zValidator } from '../validator'
 
 const codeFileQuerySchema = z.object({
-  path: z.string().min(1, 'path パラメータが必要です'),
+  path: z.string().min(1, 'path parameter is required'),
 })
 
 export function createCodeRoutes(store: DocsStore, projectRoot: string) {

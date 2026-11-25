@@ -65,8 +65,9 @@ Documi はフレームワーク非依存の `src/core/` を REST API（Hono）�
   - 2 値フラグを `boolean | undefined` の 3 値にしない（`SourceResult.truncated: boolean`, `CodeAnchor.fromDoc: boolean`）。
   - 排他モードや状態依存フィールドはオプショナル群ではなく **Discriminated Union** で表現する（`SourceRefDecl` の `mode: 'exports' | 'symbol' | 'lines'`、`BlockDiffResult` の `baseSource: 'none' | 'git' | 'cache'`、`DocumentHistory` の `highlightBasis: 'none' | 'working' | 'last-commit'`、`SemanticBlock` の `kind` 別バリアントと `TermSemanticBlock` の非オプショナル `aliases` / `symbols` 配列）。
 
-### 3. アダプタ層での網羅マッピング
-- `src/server/errors.ts` で `matchError` を使い、各 `TaggedError` の `_tag` を HTTP ステータスコードへ網羅的に変換する（エンドポイント固有の上書きが必要な場合のみ `matchErrorPartial` 等で明示する）。新しいエラータグを `src/core/` に追加すると、サーバー側の型チェックが即座に未対応箇所を検出する。
+### 3. アダプタ層での網羅マッピングと英語ランタイムメッセージ
+- `src/server/errors.ts` で `matchError` を使い、各 `TaggedError` の `_tag` を HTTP ステータスコードおよびレスポンス JSON `{ code: error._tag, error: error.message }` へ網羅的に変換する（エンドポイント固有の上書きが必要な場合のみ `matchErrorPartial` 等で明示する）。新しいエラータグを `src/core/` に追加すると、サーバー側の型チェックが即座に未対応箇所を検出する。
+- **ランタイムメッセージは英語に統一する**: `src/core/` のエラー文・`DocIssue` / `IndexIssue` / `HealthHint`・`RealizationSummary.reasons`・REST API / MCP ツール説明とエラー・CLI ヘルプ／エラーはすべて英語で出力する（`documi init` の既定言語 `en` およびグローバルな OSS / AI エージェント利用と整合させる）。Web UI（`src/web/`）は引き続き `i18next` で日英バイリンガル表示を維持し、必要に応じて REST エラーの `code`（`_tag`）をもとにローカライズできる。
 
 ## 影響・受け入れるトレードオフ・見直し条件
 

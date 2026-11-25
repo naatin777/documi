@@ -82,7 +82,7 @@ satisfies:
 
 ## 共通エラー規約と副作用の範囲
 
-- **エラーレスポンス形式**: エラー時は JSON `{ error: string }` を返し、用途別に以下の HTTP ステータスを用いる。
+- **エラーレスポンス形式**: エラー時は JSON `{ code?: string, error: string }` を返し、`error` は英語の診断メッセージ、`code` には `src/core/errors.ts` の `TaggedError` タグ（例: `BlockNotFoundError`, `SourceOutOfRootError`, `SourceFileNotFoundError`, `DocumentNotFoundError`）を格納する（Zod バリデーションや単純なルートエラーでは `code` 省略可）。用途別に以下の HTTP ステータスを用いる。
   - `400`: クエリ・JSON ボディの Zod バリデーション違反、不正なパラメータ
   - `403`: 許可されない Origin、または `projectRoot` 外参照・非ループバック URL などの境界違反
   - `404`: 指定されたドキュメント・ブロック・ソースファイル／シンボルが存在しない

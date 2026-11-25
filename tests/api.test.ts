@@ -94,8 +94,26 @@ describe('REST API', () => {
     expect(body.document.incoming.some((r) => r.docId === 'designs/auth' && r.kind === 'satisfies')).toBe(true)
   })
 
-  test('存在しない・不正なパスは 404 / 400', async () => {
-    expect((await app.fetch(new Request('http://localhost/api/documents/no/such/doc'))).status).toBe(404)
+  test('存在しない・不正なパスは 404 / 400 と構造化エラーコードを返す', async () => {
+    const missingDoc = await app.fetch(new Request('http://localhost/api/documents/no/such/doc'))
+    expect(missingDoc.status).toBe(404)
+    expect((await missingDoc.json()) as { code?: string; error?: string }).toEqual({
+      code: 'DocumentNotFoundError',
+      error: 'Document not found: no/such/doc',
+    })
+
+    const missingBlock = await app.fetch(
+      new Request('http://localhost/api/blocks/no.such.block/approve', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({}),
+      }),
+    )
+    expect(missingBlock.status).toBe(404)
+    const missingBlockBody = (await missingBlock.json()) as { code?: string; error?: string }
+    expect(missingBlockBody.code).toBe('BlockNotFoundError')
+    expect(missingBlockBody.error).toContain('no.such.block')
+
     expect((await app.fetch(new Request('http://localhost/api/documents?type=bogus'))).status).toBe(400)
   })
 
