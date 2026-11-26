@@ -46,7 +46,7 @@ Documi の仕様・設計・ソースコードで共有される共通語彙を�
 </TermDef>
 
 <TermDef id="HybridRAG" aliases="ローカル Hybrid RAG, セマンティック検索, グラフ検索" symbols="src/core/retrieval.ts#retrieveContext, src/core/hybrid-retrieval.ts#retrieveContextHybrid, src/core/vector-store.ts#syncVectorIndex">
-  日本語・英語・コード識別子トークナイザによる BM25 検索と `<TermDef aliases>` 自動同義語展開に、任意のローカル Embedding（組み込み ONNX / Ollama / OpenAI 互換 HTTP）と `bun:sqlite` `contentHash` 差分キャッシュを RRF で統合し、さらに明示グラフに沿って上流 Goal・Decision `<Outcome>`・`<SourceRef>` まで 1 発で収集する検索基盤。
+  日本語・英語・コード識別子トークナイザによる BM25 検索と `<TermDef aliases>` 自動同義語展開に、任意のローカル Embedding（Ollama / OpenAI 互換 HTTP）と `bun:sqlite` `contentHash` 差分キャッシュを RRF で統合し、さらに明示グラフに沿って上流 Goal・Decision `<Outcome>`・`<SourceRef>` まで 1 発で収集する検索基盤。
 </TermDef>
 
 <TermDef id="AgentSkills" aliases="エージェントスキル, スキル" symbols="src/core/init.ts#initDocumiProject">

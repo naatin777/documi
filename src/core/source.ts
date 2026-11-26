@@ -1,11 +1,5 @@
 import { promises as fs } from 'node:fs'
 import path from 'node:path'
-import goLang from '@ast-grep/lang-go'
-import javaLang from '@ast-grep/lang-java'
-import kotlinLang from '@ast-grep/lang-kotlin'
-import pythonLang from '@ast-grep/lang-python'
-import rustLang from '@ast-grep/lang-rust'
-import swiftLang from '@ast-grep/lang-swift'
 import { parse, registerDynamicLanguage } from '@ast-grep/napi'
 import type { SgNode } from '@ast-grep/napi'
 import { Result } from 'better-result'
@@ -28,14 +22,36 @@ import {
   type ResolveSymbolError,
 } from './errors'
 
-registerDynamicLanguage({
-  go: goLang,
-  rust: rustLang,
-  python: pythonLang,
-  java: javaLang,
-  kotlin: kotlinLang,
-  swift: swiftLang,
-})
+const DYNAMIC_LANG_NAMES = new Set(['go', 'rust', 'python', 'java', 'kotlin', 'swift'])
+let dynamicLangsPromise: Promise<void> | undefined
+
+/**
+ * `@ast-grep/napi` の `registerDynamicLanguage` はプロセス内 1 回限りの初期化（Rust OnceLock）のため、
+ * TS/JS 以外のファイルを初めて解析するタイミングで 6 言語を遅延ロードして一括登録する。
+ * TS/JS のみのプロジェクトではこれらを一切読み込まない。
+ */
+async function ensureDynamicLanguage(astLang: string): Promise<void> {
+  if (!DYNAMIC_LANG_NAMES.has(astLang)) return
+  dynamicLangsPromise ??= (async () => {
+    const [go, rust, python, java, kotlin, swift] = await Promise.all([
+      import('@ast-grep/lang-go'),
+      import('@ast-grep/lang-rust'),
+      import('@ast-grep/lang-python'),
+      import('@ast-grep/lang-java'),
+      import('@ast-grep/lang-kotlin'),
+      import('@ast-grep/lang-swift'),
+    ])
+    registerDynamicLanguage({
+      go: go.default,
+      rust: rust.default,
+      python: python.default,
+      java: java.default,
+      kotlin: kotlin.default,
+      swift: swift.default,
+    })
+  })()
+  await dynamicLangsPromise
+}
 
 interface SourceSymbolInfo {
   name: string
@@ -621,6 +637,7 @@ export async function resolveSourceSymbol(
 
     let root: ReturnType<typeof parse>
     try {
+      await ensureDynamicLanguage(def.astLang)
       root = parse(def.astLang as never, loaded.source)
     } catch (e) {
       return Result.err(
@@ -762,7 +779,11 @@ function isExportedCandidate(c: Candidate, def: LangDef, source: string): boolea
  * `@ast-grep/napi` で自動抽出する。非対応拡張子や解析不能時は空配列を返す。
  * @implements core.ast-exports
  */
-export function extractExportedSymbolsFromSource(relPath: string, ext: string, source: string): SourceExportsResult {
+export async function extractExportedSymbolsFromSource(
+  relPath: string,
+  ext: string,
+  source: string,
+): Promise<SourceExportsResult> {
   const def = EXT_TO_LANG.get(ext)
   const lines = totalLines(source)
   if (!def) {
@@ -771,6 +792,7 @@ export function extractExportedSymbolsFromSource(relPath: string, ext: string, s
 
   let root: ReturnType<typeof parse>
   try {
+    await ensureDynamicLanguage(def.astLang)
     root = parse(def.astLang as never, source)
   } catch {
     return { file: relPath, language: def.display, totalLines: lines, symbols: [] }
@@ -851,6 +873,6 @@ export async function extractExportedSymbols(
         }),
       )
     }
-    return Result.ok(extractExportedSymbolsFromSource(loaded.relPath, loaded.ext, loaded.source))
+    return Result.ok(await extractExportedSymbolsFromSource(loaded.relPath, loaded.ext, loaded.source))
   })
 }

@@ -44,7 +44,7 @@ function createConceptMockProvider(id = 'mock:concept-v1'): {
 
   const provider: EmbeddingProvider = {
     id,
-    provider: 'onnx',
+    provider: 'ollama',
     model: 'mock-concept',
     async embedDocuments(items) {
       state.embedDocCalls += items.length
@@ -221,14 +221,14 @@ describe('Local Hybrid RAG (bun:sqlite + RRF + Providers)', () => {
 
   test('[core.hybrid-rag] モデル別プロンプト接頭辞（EmbeddingGemma / Qwen3 / ruri-v3）および Ollama / OpenAI HTTP プロバイダと CLI 引数検証が動作する', async () => {
     // EmbeddingGemma 公式プロンプト形式
-    expect(formatEmbeddingPrompt('onnx-community/embeddinggemma-300m-ONNX', 'query', 'auth rules')).toBe(
+    expect(formatEmbeddingPrompt('embeddinggemma', 'query', 'auth rules')).toBe(
       'task: search result | query: auth rules',
     )
-    expect(formatEmbeddingPrompt('onnx-community/embeddinggemma-300m-ONNX', 'document', 'body text', 'Auth')).toBe(
+    expect(formatEmbeddingPrompt('embeddinggemma', 'document', 'body text', 'Auth')).toBe(
       'title: Auth | text: body text',
     )
-    expect(formatEmbeddingPrompt('onnx-community/ruri-v3-130m-ONNX', 'query', '認証')).toBe('検索クエリ: 認証')
-    expect(formatEmbeddingPrompt('onnx-community/Qwen3-Embedding-0.6B-ONNX', 'query', 'auth')).toContain('Instruct:')
+    expect(formatEmbeddingPrompt('ruri-v3-130m', 'query', '認証')).toBe('検索クエリ: 認証')
+    expect(formatEmbeddingPrompt('qwen3-embedding:0.6b', 'query', 'auth')).toContain('Instruct:')
 
     // Ollama プロバイダ (/api/embed)
     let capturedOllamaUrl = ''

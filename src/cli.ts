@@ -4,8 +4,8 @@ import { mkdir, readFile, writeFile } from 'node:fs/promises'
 import path from 'node:path'
 import { parseArgs as parseNodeArgs } from 'node:util'
 import { runDocsCheck } from './core/checker'
-import { ONNX_DTYPES, RAG_PROVIDERS, resolveProjectPaths } from './core/config'
-import type { OnnxDtype, RagConfig, RagProvider } from './core/config'
+import { RAG_PROVIDERS, resolveProjectPaths } from './core/config'
+import type { RagConfig, RagProvider } from './core/config'
 import {
   addBlockToDoc,
   renameBlockIdAcrossProject,
@@ -140,9 +140,8 @@ Options:
   --budget <chars>        Character budget for retrieve output (default: 6000)
   --no-graph              Disable graph neighborhood expansion in retrieve
   --semantic              Enable local Embedding + RRF hybrid search in search / retrieve (--no-semantic to disable)
-  --provider <name>       Embedding provider: onnx|ollama|openai (index / search / retrieve, default: onnx)
-  --model <id>            Embedding model ID (ONNX default: onnx-community/embeddinggemma-300m-ONNX)
-  --dtype <level>         ONNX quantization dtype: q4|q8|fp16|fp32 (default: q4)
+  --provider <name>       Embedding provider: ollama|openai (index / search / retrieve, default: ollama)
+  --model <id>            Embedding model ID (Ollama default: embeddinggemma / OpenAI default: text-embedding-3-small)
   --endpoint <url>        Ollama / OpenAI-compatible endpoint URL
   --api-key-env <var>     Environment variable name holding the OpenAI-compatible API key (default: OPENAI_API_KEY)
   --kind <kind>           Block kind: spec|constraint|outcome|note|term (query / block add)
@@ -214,7 +213,6 @@ const CLI_OPTIONS = {
   'no-semantic': { type: 'boolean' },
   provider: { type: 'string' },
   model: { type: 'string' },
-  dtype: { type: 'string' },
   endpoint: { type: 'string' },
   'api-key-env': { type: 'string' },
   kind: { type: 'string' },
@@ -821,20 +819,10 @@ function resolveCliRagConfig(flags: CliFlags, baseConfig?: RagConfig): RagConfig
     provider = rawProvider as RagProvider
   }
 
-  const rawDtype = getStringFlag(flags, 'dtype')
-  let dtype: OnnxDtype | undefined = baseConfig?.dtype
-  if (rawDtype !== undefined) {
-    if (!(ONNX_DTYPES as readonly string[]).includes(rawDtype)) {
-      throw new CliArgError(`Invalid --dtype: "${rawDtype}" (allowed: ${ONNX_DTYPES.join(', ')})`)
-    }
-    dtype = rawDtype as OnnxDtype
-  }
-
   return {
     ...baseConfig,
     ...(provider ? { provider } : {}),
     ...(getStringFlag(flags, 'model') ? { model: getStringFlag(flags, 'model') } : {}),
-    ...(dtype ? { dtype } : {}),
     ...(getStringFlag(flags, 'endpoint') ? { endpoint: getStringFlag(flags, 'endpoint') } : {}),
     ...(getStringFlag(flags, 'api-key-env') ? { apiKeyEnv: getStringFlag(flags, 'api-key-env') } : {}),
   }

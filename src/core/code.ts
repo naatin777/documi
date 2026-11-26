@@ -372,7 +372,11 @@ export async function readCodeFile(
           ? loaded.source.split('\n').length - 1
           : loaded.source.split('\n').length
 
-    const { symbols: exportedSymbols } = extractExportedSymbolsFromSource(loaded.relPath, loaded.ext, loaded.source)
+    const { symbols: exportedSymbols } = await extractExportedSymbolsFromSource(
+      loaded.relPath,
+      loaded.ext,
+      loaded.source,
+    )
 
     return Result.ok({
       path: loaded.relPath,

@@ -79,9 +79,8 @@ describe('Project Config & Bidirectional Path Resolution', () => {
           'testReport: out/test.xml',
           'rag:',
           '  enabled: true',
-          '  provider: onnx',
-          '  model: onnx-community/embeddinggemma-300m-ONNX',
-          '  dtype: q4',
+          '  provider: ollama',
+          '  model: embeddinggemma',
           '',
         ].join('\n'),
       )
@@ -90,8 +89,8 @@ describe('Project Config & Bidirectional Path Resolution', () => {
       expect(fromYml.testReportPath).toBe(path.join(path.resolve(repoYml), 'out/test.xml'))
       expect(fromYml.configPath).toBe(path.join(path.resolve(repoYml), '.documi.yml'))
       expect(fromYml.config.rag?.enabled).toBe(true)
-      expect(fromYml.config.rag?.provider).toBe('onnx')
-      expect(fromYml.config.rag?.dtype).toBe('q4')
+      expect(fromYml.config.rag?.provider).toBe('ollama')
+      expect(fromYml.config.rag?.model).toBe('embeddinggemma')
     } finally {
       await rm(work, { recursive: true, force: true })
       await rm(repoJson, { recursive: true, force: true })

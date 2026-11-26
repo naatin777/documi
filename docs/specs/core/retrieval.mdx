@@ -33,11 +33,11 @@ tags: [core, spec, search, rag]
   - 既定ヒット上限 `limit = 8`、既定文字数予算 `budget = 6000` 文字（`includeGraph: false` / `--no-graph` で一次ヒットのみ返却）。
   - 一次ヒットのブロック／文書から明示エッジを辿り、上流 `goal`、関連 `decision` `<Outcome>`、関連 `contract` / `design`、関連 `<TermDef>`、および `<SourceRef>` を優先順に予算内で梱包する。
 
-## 3. ローカル Hybrid RAG（`bun:sqlite` 差分キャッシュ・RRF・ONNX / Ollama / OpenAI 互換）
+## 3. ローカル Hybrid RAG（`bun:sqlite` 差分キャッシュ・RRF・Ollama / OpenAI 互換 HTTP）
 
 <Spec id="core.hybrid-rag" stability="evolving" derives="goals/ai-reproducibility">
   **When** `.documi.json` の `rag` 設定または `--semantic` / `documi index` によりローカル Hybrid RAG が有効化されたとき、
-  **the** Document Core および CLI / MCP / REST API **shall** 組み込み ONNX（既定 `onnx-community/embeddinggemma-300m-ONNX` `q4`）・Ollama・OpenAI 互換 HTTP のいずれかの Embedding プロバイダを用いて `contentHash` 差分のみを `bun:sqlite` キャッシュ（`.documi/cache/embeddings.sqlite`）へ保存し、BM25 順位とベクトル類似度順位を RRF（Reciprocal Rank Fusion）で統合してグラフ展開結果を返却する。プロバイダが利用できない場合は BM25 結果へ安全にフォールバックする。
+  **the** Document Core および CLI / MCP / REST API **shall** Ollama（既定 `embeddinggemma`）または OpenAI 互換 HTTP のいずれかの Embedding プロバイダを用いて `contentHash` 差分のみを `bun:sqlite` キャッシュ（`.documi/cache/embeddings.sqlite`）へ保存し、BM25 順位とベクトル類似度順位を RRF（Reciprocal Rank Fusion）で統合してグラフ展開結果を返却する。プロバイダが利用できない場合は BM25 結果へ安全にフォールバックする。
 </Spec>
 
 - **有効化優先順位**: 明示 `--semantic` / `--no-semantic`（API/MCP は `semantic: true | false`）→ `.documi.json` の `rag.enabled`（既定 `false`）。
@@ -45,8 +45,7 @@ tags: [core, spec, search, rag]
 
 | Provider | 既定モデル | 既定エンドポイント / 認証 | 備考 |
 |---|---|---|---|
-| `onnx`（既定） | `onnx-community/embeddinggemma-300m-ONNX`（`dtype: q4`） | ローカル遅延 import（API キー不要） | `q4` / `q8` / `fp16` / `fp32` 選択可 |
-| `ollama` | `embeddinggemma` | `http://localhost:11434` | ローカル Ollama HTTP API |
+| `ollama`（既定） | `embeddinggemma` | `http://localhost:11434`（`OLLAMA_HOST` で上書き可） | ローカル Ollama HTTP API（ネイティブ ML 依存なし） |
 | `openai` | `text-embedding-3-small` | `https://api.openai.com/v1` / 環境変数 `OPENAI_API_KEY`（`apiKeyEnv` で変更可） | OpenAI 互換 API / LM Studio 等 |
 
 - **モデル系列別プロンプト接頭辞 (`formatEmbeddingPrompt`)**:
