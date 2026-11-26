@@ -1,14 +1,14 @@
-## 概要
+## 概要・背景
+<!-- 何を・なぜ変える PR か（1〜3 行）。コミット履歴の書き写しではなく背景と意図を書く -->
 
-- 何を変更する PR か（1〜3 行）
+## 関連する仕様・ADR
+<!-- 該当する Spec ID を書くと `documi check --prs` で自動紐づけされます（不要な行は削除） -->
+<!-- Implements: spec.id -->
+<!-- Verifies: spec.id -->
+<!-- 関連ドキュメント / ADR: docs/... -->
 
-## 関連する仕様・ADR（先にこちらから確認）
+## レビュー観点・リスク
+<!-- レビュアーに特に確認してほしい判断・エッジケース・破壊的変更・今回あえて見送ったもの（不要なら削除） -->
 
-- Spec / Contract: `docs/specs/...`
-- ADR (`decision`): `docs/decisions/...`（構造判断がない場合は「なし」）
-
-## チェックリスト（仕様・ADR → コードの順で確認）
-
-- [ ] 振る舞い・契約・構造の変更に合わせて `docs/` を同期した
-- [ ] AI 作業ブランチでは `docs/guard/reviews.json` を改変していない（`documi check --no-review-edit`）
-- [ ] `bun test` / `check` / `lint` / `format:check` / `knip` / `build` / `documi:check` がすべて通過した
+## 手動確認・スクリーンショット
+<!-- CI 以外に手動で確認したことや、UI 変更がある場合の Before/After スクショ（不要なら削除） -->
