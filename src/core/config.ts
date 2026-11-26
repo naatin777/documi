@@ -11,6 +11,9 @@ const CONFIG_FILE_NAMES = ['.documi.json', '.documi.yml', '.documi.yaml', 'docum
 export const RAG_PROVIDERS = ['ollama', 'openai'] as const
 export type RagProvider = (typeof RAG_PROVIDERS)[number]
 
+export const REVIEW_GATES = ['none', 'stable', 'all'] as const
+export type ReviewGate = (typeof REVIEW_GATES)[number]
+
 export const DEFAULT_OLLAMA_MODEL = 'embeddinggemma'
 export const DEFAULT_OPENAI_MODEL = 'text-embedding-3-small'
 
@@ -39,6 +42,8 @@ const documiConfigSchema = z
     docs: z.string().trim().min(1).optional(),
     /** JUnit XML テストレポートのパス（projectRoot からの相対パス） */
     testReport: z.string().trim().min(1).optional(),
+    /** `documi check` の既定レビュー承認ゲート ("none" | "stable" | "all"、既定: "none") */
+    reviewGate: z.enum(REVIEW_GATES).optional(),
     /** ローカル Hybrid RAG（BM25 + Embedding + RRF）設定（任意） */
     rag: ragConfigSchema.optional(),
   })

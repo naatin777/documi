@@ -1,6 +1,7 @@
 import { Hono } from 'hono'
 import { z } from 'zod'
 import { runDocsCheck } from '../../core/checker'
+import { REVIEW_GATES } from '../../core/config'
 import { extractExportedSymbols, resolveSourceLines, resolveSourceSymbol } from '../../core/source'
 import { sourceErrorToHttp } from '../errors'
 import { PdfError, renderPdf, renderPdfFromUrl } from '../pdf'
@@ -9,6 +10,7 @@ import { zValidator, type ErrorStatusCode } from '../validator'
 
 const checkQuerySchema = z.object({
   strict: z.enum(['true', 'false']).optional(),
+  reviewGate: z.enum(REVIEW_GATES).optional(),
 })
 
 const sourceQuerySchema = z
@@ -51,8 +53,13 @@ export function createSystemRoutes(store: DocsStore, projectRoot: string) {
     new Hono()
       .get('/health', (c) => c.json({ ok: true as const }, 200))
       .get('/check', zValidator('query', checkQuerySchema), async (c) => {
-        const { strict } = c.req.valid('query')
-        const report = await runDocsCheck({ docsDir: store.rootDir, projectRoot, strict: strict === 'true' })
+        const { strict, reviewGate } = c.req.valid('query')
+        const report = await runDocsCheck({
+          docsDir: store.rootDir,
+          projectRoot,
+          strict: strict === 'true',
+          reviewGate,
+        })
         return c.json(
           {
             ok: report.ok,

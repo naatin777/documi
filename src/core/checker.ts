@@ -1,4 +1,5 @@
 import path from 'node:path'
+import type { ReviewGate } from './config'
 import { isGitPathDirty } from './git'
 import { computeDocumentHealth } from './health'
 import type { DocumentHealthSummary } from './health'
@@ -11,8 +12,10 @@ export interface CheckOptions {
   docsDir: string
   projectRoot?: string
   testReportPath?: string
-  /** true のとき未承認・stale・drifted もエラー扱いにする（suspect は参考通知のまま） */
+  /** true のとき全 normative ブロックの未承認・stale・drifted もエラー扱いにする（suspect は参考通知のまま） */
   strict?: boolean
+  /** 段階的な承認ゲート ("none" | "stable" | "all")。strict: true の場合は常に "all" として扱う */
+  reviewGate?: ReviewGate
   /** true のとき Git 作業ツリー／ステージに reviews.json の変更があるとエラーにする (AI 改ざん防止用) */
   noReviewEdit?: boolean
   /** true のとき gh CLI から PR 情報も取得する */
@@ -110,6 +113,8 @@ export async function runDocsCheck(options: CheckOptions): Promise<CheckReport> 
   }
   const reviewCounts = { approved: 0, unreviewed: 0, stale: 0, suspect: 0 }
 
+  const effectiveReviewGate: ReviewGate = options.strict ? 'all' : (options.reviewGate ?? 'none')
+
   for (const block of index.blocksById.values()) {
     if (block.kind !== 'note') {
       reviewCounts[block.review]++
@@ -129,12 +134,15 @@ export async function runDocsCheck(options: CheckOptions): Promise<CheckReport> 
         else warnings.push(finding)
       }
     }
-    if (options.strict && block.kind !== 'note' && block.intent === 'normative') {
+    const requiresApproval =
+      effectiveReviewGate === 'all' || (effectiveReviewGate === 'stable' && block.stability === 'stable')
+    if (requiresApproval && block.kind !== 'note' && block.intent === 'normative') {
       if (block.review !== 'approved') {
+        const reason = options.strict ? '--strict' : `--review-gate ${effectiveReviewGate}`
         errors.push({
           severity: 'error',
           code: `review-${block.review}`,
-          message: `Block "${block.id}" is not approved (${block.review}) (--strict)`,
+          message: `Block "${block.id}" is not approved (${block.review}) (${reason})`,
           path: index.byId.get(block.docId)?.path,
           blockId: block.id,
         })

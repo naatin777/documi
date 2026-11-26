@@ -77,6 +77,7 @@ describe('Project Config & Bidirectional Path Resolution', () => {
         [
           'docs: specs-root',
           'testReport: out/test.xml',
+          'reviewGate: stable',
           'rag:',
           '  enabled: true',
           '  provider: ollama',
@@ -88,6 +89,7 @@ describe('Project Config & Bidirectional Path Resolution', () => {
       expect(fromYml.docsDir).toBe(path.join(path.resolve(repoYml), 'specs-root'))
       expect(fromYml.testReportPath).toBe(path.join(path.resolve(repoYml), 'out/test.xml'))
       expect(fromYml.configPath).toBe(path.join(path.resolve(repoYml), '.documi.yml'))
+      expect(fromYml.config.reviewGate).toBe('stable')
       expect(fromYml.config.rag?.enabled).toBe(true)
       expect(fromYml.config.rag?.provider).toBe('ollama')
       expect(fromYml.config.rag?.model).toBe('embeddinggemma')
