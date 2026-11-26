@@ -1,15 +1,15 @@
 ---
 type: decision
-title: ローカル Hybrid RAG（BM25 + RRF + 組み込み ONNX / bun:sqlite 差分キャッシュ）を採用する
-description: 外部クラウドや常駐ベクトル DB に依存せず、docs/ の意味検索と明示グラフ展開をローカル完結で実現する設計判断
+title: ローカル Hybrid RAG（BM25 + RRF + Ollama / OpenAI 互換 HTTP + bun:sqlite 差分キャッシュ）を採用する
+description: 外部クラウドや重いネイティブ ML ランタイムに依存せず、docs/ の意味検索と明示グラフ展開をローカル完結で実現する設計判断
 date: 2026-11-24
-tags: [adr, rag, search, sqlite, onnx]
+tags: [adr, rag, search, sqlite, ollama]
 ---
 
-# ローカル Hybrid RAG（BM25 + RRF + 組み込み ONNX / bun:sqlite 差分キャッシュ）を採用する
+# ローカル Hybrid RAG（BM25 + RRF + Ollama / OpenAI 互換 HTTP + bun:sqlite 差分キャッシュ）を採用する
 
 <Outcome id="dec.local-hybrid-rag" stability="stable">
-  Documi の高度な文脈検索（<Term name="HybridRAG" />）は **2 段階のローカル完結構成** を採用する。（1）依存ゼロの日本語・英語・識別子 BM25 トークナイザ ＋ `<TermDef aliases>` 自動同義語展開 ＋ 明示グラフ展開（`documi retrieve` / MCP `retrieve_context`）を標準基盤とし、（2）セマンティック検索は `.documi.json` の `rag` 設定または `--semantic` による **オプトイン** として、遅延インポートされる組み込み ONNX（既定 `onnx-community/embeddinggemma-300m-ONNX` `q4`）・Ollama・OpenAI 互換 HTTP の 3 プロバイダと `bun:sqlite` 差分キャッシュ（`docs/.documi/cache/embeddings.sqlite`）を RRF で統合する。プロバイダ障害時は必ず BM25 結果へ安全にフォールバックし、**検索対象は `docs/` のみ** とする（ソースコードは `<SourceRef>` / `@implements` から辿る）。
+  Documi の高度な文脈検索（<Term name="HybridRAG" />）は **2 段階のローカル完結構成** を採用する。（1）依存ゼロの日本語・英語・識別子 BM25 トークナイザ ＋ `<TermDef aliases>` 自動同義語展開 ＋ 明示グラフ展開（`documi retrieve` / MCP `retrieve_context`）を標準基盤とし、（2）セマンティック検索は `.documi.json` の `rag` 設定または `--semantic` による **オプトイン** として、ネイティブ ML 依存を持たない HTTP プロバイダ（Ollama 既定 `embeddinggemma`・OpenAI 互換 HTTP）と `bun:sqlite` 差分キャッシュ（`.documi/cache/embeddings.sqlite`）を RRF で統合する。プロバイダ障害時は必ず BM25 結果へ安全にフォールバックし、**検索対象は `docs/` のみ** とする（ソースコードは `<SourceRef>` / `@implements` から辿る）。
 </Outcome>
 
 ## 背景と課題
@@ -22,8 +22,8 @@ tags: [adr, rag, search, sqlite, onnx]
 
 - **採用: 依存ゼロ BM25＋用語展開＋グラフ展開を基盤にし、オプトインのローカル Hybrid RAG を重ねる**
   - 日常の既定検索は起動コスト・ダウンロードゼロで即座に動作する。
-  - セマンティック検索有効化時は `@huggingface/transformers` を遅延 `import()` するため、未利用ユーザーへのメモリ・起動影響がゼロ。
-  - 既定モデルに `onnx-community/embeddinggemma-300m-ONNX` (`q4`) を採用することで、多言語（日英混在）・軽量（約 200MB）・クエリ/ドキュメント別プロンプト接頭辞対応・完全オフライン実行（初回キャッシュ後）を両立できる。
+  - セマンティック検索は外部 ML ネイティブ依存（`@huggingface/transformers` / `onnxruntime-node` 約 460MB）を本体へ同梱せず、標準 `fetch` による Ollama / OpenAI 互換 HTTP プロバイダに絞ることで、インストール軽量化と単一バイナリ配布（`bun build --compile`）との両立を実現する。
+  - ローカル実行の既定モデルに Ollama `embeddinggemma` を採用し、モデル系列別プロンプト接頭辞（EmbeddingGemma / Qwen3-Embedding / ruri）に対応することで日英混在仕様の検索精度を確保する。
   - `bun:sqlite` に `contentHash` 単位でベクトルをキャッシュするため、編集された文書・ブロックのみを差分再計算できる。
 - **棄却: クラウド Embedding API（OpenAI / Gemini API）のみ対応する**
   - API キー管理と社外への仕様送信が必要になり、ローカル完結・機密仕様リポジトリでの利用を阻害する（ただし OpenAI 互換 HTTP は選択肢の 1 つとしてサポートする）。

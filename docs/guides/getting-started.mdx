@@ -108,20 +108,19 @@ bun run documi:export -- --scope all --format html --out spec.html
 
 ```bash
 documi retrieve "承認記録の改ざん防止ルール"           # ゼロ依存 BM25 + グラフ展開（既定）
-documi index                                         # ローカル ONNX (EmbeddingGemma 300M q4) で差分インデックス構築
+documi index                                         # ローカル Ollama (embeddinggemma) で差分インデックス構築
 documi retrieve "アカウント凍結時の挙動" --semantic  # BM25 + ローカル Embedding の RRF ハイブリッド検索
 ```
 
-プロジェクト全体で Hybrid RAG を既定有効化したり、Ollama / OpenAI 互換エンドポイントへ切り替える場合は `.documi.json` に `rag` を追加します（ベクトルキャッシュは `.documi/cache/embeddings.sqlite` に `contentHash` 差分で保存されます）：
+プロジェクト全体で Hybrid RAG を既定有効化したり、Ollama / OpenAI 互換エンドポイントを設定する場合は `.documi.json` に `rag` を追加します（ベクトルキャッシュは `.documi/cache/embeddings.sqlite` に `contentHash` 差分で保存されます）：
 
 ```json
 {
   "docs": "docs",
   "rag": {
     "enabled": true,
-    "provider": "onnx",
-    "model": "onnx-community/embeddinggemma-300m-ONNX",
-    "dtype": "q4"
+    "provider": "ollama",
+    "model": "embeddinggemma"
   }
 }
 ```

@@ -131,7 +131,7 @@ describe('Document Health & Coverage (core.doc-health)', () => {
 })
 
 describe('AST Exported Symbols & <SourceRef mode="exports"> (core.ast-exports)', () => {
-  test('[core.ast-exports] TypeScript / Go / Python / Rust から公開シンボルだけを AST 抽出し非公開ヘルパーを除外する', () => {
+  test('[core.ast-exports] TypeScript / Go / Python / Rust から公開シンボルだけを AST 抽出し非公開ヘルパーを除外する', async () => {
     const tsSource = `
 interface InternalOnly { a: string }
 function privateHelper(x: number): number { return x + 1 }
@@ -153,7 +153,7 @@ export async function createWidget(cfg: WidgetConfig): Promise<WidgetEngine> {
 export const DEFAULT_TIMEOUT = 5000
 export const makeId = (n: number): string => String(n)
 `
-    const tsRes = extractExportedSymbolsFromSource('src/widget.ts', 'ts', tsSource)
+    const tsRes = await extractExportedSymbolsFromSource('src/widget.ts', 'ts', tsSource)
     expect(tsRes.symbols.map((s) => `${s.kind}:${s.name}`)).toEqual([
       'interface:WidgetConfig',
       'type:WidgetMode',
@@ -172,7 +172,7 @@ type PublicService struct{}
 func helper() {}
 func StartServer(addr string) error { return nil }
 `
-    const goRes = extractExportedSymbolsFromSource('svc/server.go', 'go', goSource)
+    const goRes = await extractExportedSymbolsFromSource('svc/server.go', 'go', goSource)
     expect(goRes.symbols.map((s) => s.name)).toEqual(['PublicService', 'StartServer'])
 
     const pySource = `
@@ -186,7 +186,7 @@ class PublicClient:
 def run_pipeline(x: int) -> int:
     return x
 `
-    const pyRes = extractExportedSymbolsFromSource('pkg/client.py', 'py', pySource)
+    const pyRes = await extractExportedSymbolsFromSource('pkg/client.py', 'py', pySource)
     expect(pyRes.symbols.map((s) => `${s.kind}:${s.name}`)).toEqual(['class:PublicClient', 'function:run_pipeline'])
 
     const rsSource = `
@@ -195,7 +195,7 @@ pub struct PublicEngine {}
 fn private_fn() {}
 pub fn run_engine() {}
 `
-    const rsRes = extractExportedSymbolsFromSource('src/lib.rs', 'rs', rsSource)
+    const rsRes = await extractExportedSymbolsFromSource('src/lib.rs', 'rs', rsSource)
     expect(rsRes.symbols.map((s) => `${s.kind}:${s.name}`)).toEqual(['struct:PublicEngine', 'function:run_engine'])
   })
 

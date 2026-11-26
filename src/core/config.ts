@@ -8,14 +8,9 @@ import { ConfigParseError, ConfigReadError, ConfigValidationError, type ConfigDo
 /** プロジェクトルート直下で探索する設定ファイル名（優先順） */
 const CONFIG_FILE_NAMES = ['.documi.json', '.documi.yml', '.documi.yaml', 'documi.json'] as const
 
-export const RAG_PROVIDERS = ['onnx', 'ollama', 'openai'] as const
+export const RAG_PROVIDERS = ['ollama', 'openai'] as const
 export type RagProvider = (typeof RAG_PROVIDERS)[number]
 
-export const ONNX_DTYPES = ['q4', 'q8', 'fp16', 'fp32'] as const
-export type OnnxDtype = (typeof ONNX_DTYPES)[number]
-
-export const DEFAULT_ONNX_MODEL = 'onnx-community/embeddinggemma-300m-ONNX'
-export const DEFAULT_ONNX_DTYPE: OnnxDtype = 'q4'
 export const DEFAULT_OLLAMA_MODEL = 'embeddinggemma'
 export const DEFAULT_OPENAI_MODEL = 'text-embedding-3-small'
 
@@ -23,18 +18,14 @@ const ragConfigSchema = z
   .object({
     /** true のとき documi retrieve / search / MCP / /api/search で既定でハイブリッド検索 (BM25 + Embedding RRF) を使う */
     enabled: z.boolean().optional(),
-    /** Embedding プロバイダ (既定: "onnx") */
+    /** Embedding プロバイダ (既定: "ollama") */
     provider: z.enum(RAG_PROVIDERS).optional(),
-    /** モデル ID (ONNX 既定: "onnx-community/embeddinggemma-300m-ONNX") */
+    /** モデル ID (Ollama 既定: "embeddinggemma" / OpenAI 既定: "text-embedding-3-small") */
     model: z.string().trim().min(1).optional(),
-    /** ONNX 量子化精度 (既定: "q4") */
-    dtype: z.enum(ONNX_DTYPES).optional(),
     /** Ollama / OpenAI 互換 HTTP エンドポイント URL */
     endpoint: z.string().trim().min(1).optional(),
     /** OpenAI 互換 API キーを読み取る環境変数名 (既定: "OPENAI_API_KEY") */
     apiKeyEnv: z.string().trim().min(1).optional(),
-    /** ONNX モデルキャッシュディレクトリ (任意) */
-    cacheDir: z.string().trim().min(1).optional(),
     /** SQLite ベクトルキャッシュファイルパス (projectRoot 相対または絶対、既定: <projectRoot>/.documi/cache/embeddings.sqlite) */
     cachePath: z.string().trim().min(1).optional(),
   })

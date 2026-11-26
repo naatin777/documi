@@ -1,9 +1,7 @@
-import os from 'node:os'
-import path from 'node:path'
 import { Result } from 'better-result'
-import { DEFAULT_OLLAMA_MODEL, DEFAULT_ONNX_DTYPE, DEFAULT_ONNX_MODEL, DEFAULT_OPENAI_MODEL } from './config'
-import type { OnnxDtype, RagConfig, RagProvider } from './config'
-import { EmbeddingInitError, EmbeddingRequestError, EmbeddingResponseError, type EmbeddingDomainError } from './errors'
+import { DEFAULT_OLLAMA_MODEL, DEFAULT_OPENAI_MODEL } from './config'
+import type { RagConfig, RagProvider } from './config'
+import { EmbeddingRequestError, EmbeddingResponseError, type EmbeddingDomainError } from './errors'
 
 interface EmbeddingDocumentInput {
   title: string
@@ -11,7 +9,7 @@ interface EmbeddingDocumentInput {
 }
 
 export interface EmbeddingProvider {
-  /** キャッシュ分離キー（例: "onnx:onnx-community/embeddinggemma-300m-ONNX:q4"） */
+  /** キャッシュ分離キー（例: "ollama:embeddinggemma"） */
   readonly id: string
   readonly provider: RagProvider
   readonly model: string
@@ -75,134 +73,6 @@ export function formatEmbeddingPrompt(model: string, role: 'query' | 'document',
     return `${cleanTitle}\n${cleanText}`
   }
   return cleanText
-}
-
-type FeatureExtractionOutput = {
-  tolist(): unknown
-}
-
-type FeatureExtractor = (
-  texts: string | string[],
-  options?: { pooling?: 'mean' | 'last_token' | 'cls' | 'none'; normalize?: boolean },
-) => Promise<FeatureExtractionOutput>
-
-const onnxPipelineCache = new Map<string, Promise<Result<FeatureExtractor, EmbeddingInitError>>>()
-
-async function loadOnnxExtractor(
-  model: string,
-  dtype: OnnxDtype,
-  cacheDir: string,
-): Promise<Result<FeatureExtractor, EmbeddingInitError>> {
-  const cacheKey = `${model}|${dtype}|${cacheDir}`
-  const existing = onnxPipelineCache.get(cacheKey)
-  if (existing) return existing
-
-  const promise = Result.tryPromise<FeatureExtractor, EmbeddingInitError>({
-    try: async () => {
-      const transformers = await import('@huggingface/transformers')
-      transformers.env.cacheDir = cacheDir
-      const pipe = await transformers.pipeline('feature-extraction', model, { dtype })
-      return pipe
-    },
-    catch: (error) => {
-      onnxPipelineCache.delete(cacheKey)
-      return new EmbeddingInitError({
-        provider: 'onnx',
-        model,
-        message: `Failed to initialize ONNX embedding model (${model}, dtype=${dtype}): ${error instanceof Error ? error.message : String(error)}`,
-      })
-    },
-  })
-
-  onnxPipelineCache.set(cacheKey, promise)
-  return promise
-}
-
-function extractMatrixRows(
-  provider: string,
-  model: string,
-  raw: unknown,
-  expectedCount: number,
-): Result<Float32Array[], EmbeddingResponseError> {
-  if (!Array.isArray(raw)) {
-    return Result.err(new EmbeddingResponseError({ provider, model, message: 'Embedding output is not an array' }))
-  }
-  if (raw.length === 0) return Result.ok([])
-  if (typeof raw[0] === 'number') {
-    return Result.ok([normalizeVector(raw as number[])])
-  }
-  const rows = (raw as number[][]).map((row) => normalizeVector(row))
-  if (rows.length !== expectedCount) {
-    return Result.err(
-      new EmbeddingResponseError({
-        provider,
-        model,
-        message: `Embedding count mismatch (expected=${expectedCount}, got=${rows.length})`,
-      }),
-    )
-  }
-  return Result.ok(rows)
-}
-
-/**
- * 組み込み ONNX (`@huggingface/transformers`) プロバイダ。外部デーモン不要でローカル完結する。
- * 既定モデル: `onnx-community/embeddinggemma-300m-ONNX` (`q4`)
- * @implements core.hybrid-rag
- */
-function createOnnxEmbeddingProvider(options: {
-  model?: string
-  dtype?: OnnxDtype
-  cacheDir?: string
-}): EmbeddingProvider {
-  const model = options.model ?? DEFAULT_ONNX_MODEL
-  const dtype = options.dtype ?? DEFAULT_ONNX_DTYPE
-  const cacheDir =
-    options.cacheDir ?? process.env.DOCUMI_MODEL_CACHE_DIR ?? path.join(os.homedir(), '.cache', 'documi', 'models')
-  const pooling = model.toLowerCase().includes('qwen3-embedding') ? 'last_token' : 'mean'
-
-  return {
-    id: `onnx:${model}:${dtype}`,
-    provider: 'onnx',
-    model,
-    async embedDocuments(items) {
-      if (items.length === 0) return Result.ok([])
-      return Result.gen(async function* () {
-        const extractor = yield* Result.await(loadOnnxExtractor(model, dtype, cacheDir))
-        const prompts = items.map((item) => formatEmbeddingPrompt(model, 'document', item.text, item.title))
-        const output = yield* Result.await(
-          Result.tryPromise({
-            try: () => extractor(prompts, { pooling, normalize: true }),
-            catch: (error) =>
-              new EmbeddingRequestError({
-                provider: 'onnx',
-                model,
-                message: `ONNX embedding inference failed: ${error instanceof Error ? error.message : String(error)}`,
-              }),
-          }),
-        )
-        return extractMatrixRows('onnx', model, output.tolist(), items.length)
-      })
-    },
-    async embedQuery(query) {
-      return Result.gen(async function* () {
-        const extractor = yield* Result.await(loadOnnxExtractor(model, dtype, cacheDir))
-        const prompt = formatEmbeddingPrompt(model, 'query', query)
-        const output = yield* Result.await(
-          Result.tryPromise({
-            try: () => extractor([prompt], { pooling, normalize: true }),
-            catch: (error) =>
-              new EmbeddingRequestError({
-                provider: 'onnx',
-                model,
-                message: `ONNX embedding inference failed: ${error instanceof Error ? error.message : String(error)}`,
-              }),
-          }),
-        )
-        const rows = yield* extractMatrixRows('onnx', model, output.tolist(), 1)
-        return Result.ok(rows[0]!)
-      })
-    },
-  }
 }
 
 /**
@@ -417,14 +287,7 @@ export function createEmbeddingProvider(
   config: RagConfig = {},
   options: { fetchFn?: typeof fetch } = {},
 ): EmbeddingProvider {
-  const provider: RagProvider = config.provider ?? 'onnx'
-  if (provider === 'ollama') {
-    return createOllamaEmbeddingProvider({
-      model: config.model,
-      endpoint: config.endpoint,
-      fetchFn: options.fetchFn,
-    })
-  }
+  const provider: RagProvider = config.provider ?? 'ollama'
   if (provider === 'openai') {
     return createOpenAiEmbeddingProvider({
       model: config.model,
@@ -433,9 +296,9 @@ export function createEmbeddingProvider(
       fetchFn: options.fetchFn,
     })
   }
-  return createOnnxEmbeddingProvider({
+  return createOllamaEmbeddingProvider({
     model: config.model,
-    dtype: config.dtype,
-    cacheDir: config.cacheDir,
+    endpoint: config.endpoint,
+    fetchFn: options.fetchFn,
   })
 }

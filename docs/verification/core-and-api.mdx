@@ -92,4 +92,4 @@ bun run documi:check
 以下は CI 自動テストの既定対象外とし、過剰なテスト維持コストや環境依存フレーキーを避ける：
 
 - ヘッドレスブラウザによるピクセル単位のビジュアル回帰テスト（WebGL グラフ描画・PDF レイアウト・静的サイト配信の目視確認はローカルスモーク検証で行う）
-- 外部 GitHub API (`gh pr list`) や外部 Embedding API（Hugging Face モデル初回ダウンロード・実 Ollama / OpenAI サーバー）への実ネットワーク通信を伴う CI 結合テスト（CI では決定論的モックプロバイダで検証し、実 ONNX モデル `embeddinggemma-300m-ONNX` による推論・キャッシュ確認はローカルスモークで行う）
+- 外部 GitHub API (`gh pr list`) や外部 Embedding API（実 Ollama / OpenAI サーバー）への実ネットワーク通信を伴う CI 結合テスト（CI では決定論的モックプロバイダおよびモック `fetch` で検証する）
