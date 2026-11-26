@@ -142,7 +142,7 @@ Options:
   --budget <chars>        Character budget for retrieve output (default: 6000)
   --no-graph              Disable graph neighborhood expansion in retrieve
   --semantic              Enable local Embedding + RRF hybrid search in search / retrieve (--no-semantic to disable)
-  --provider <name>       Embedding provider: ollama|openai (index / search / retrieve, default: ollama)
+  --provider <name>       Embedding provider: ollama|openai|gemini (index / search / retrieve, default: ollama)
   --model <id>            Embedding model ID (Ollama default: embeddinggemma / OpenAI default: text-embedding-3-small)
   --endpoint <url>        Ollama / OpenAI-compatible endpoint URL
   --api-key-env <var>     Environment variable name holding the OpenAI-compatible API key (default: OPENAI_API_KEY)
