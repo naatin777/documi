@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from 'react'
+import { useState, type CSSProperties, type ReactNode } from 'react'
 
 const CALLOUT_TYPES = new Set(['note', 'tip', 'info', 'warning', 'danger', 'success'])
 
@@ -74,6 +74,62 @@ export function StepsBlock({ steps }: { steps: StepItem[] }) {
         <li key={i}>
           <div className="mdx-step-title">{step.title}</div>
           <div className="mdx-step-body">{step.content}</div>
+        </li>
+      ))}
+    </ol>
+  )
+}
+
+interface DetailsBlockProps {
+  title: string
+  defaultOpen?: boolean
+  children?: ReactNode
+}
+
+export function DetailsBlock({ title, defaultOpen = false, children }: DetailsBlockProps) {
+  return (
+    <details className="mdx-details" open={defaultOpen || undefined}>
+      <summary className="mdx-details-summary">{title}</summary>
+      <div className="mdx-details-body">{children}</div>
+    </details>
+  )
+}
+
+export interface ColumnItem {
+  title?: string
+  content: ReactNode
+}
+
+export function ColumnsBlock({ columns }: { columns: ColumnItem[] }) {
+  const colCount = Math.max(1, Math.min(columns.length, 3))
+  return (
+    <div className="mdx-columns" style={{ '--mdx-cols': colCount } as CSSProperties}>
+      {columns.map((col, i) => (
+        <div key={i} className="mdx-column">
+          {col.title && <div className="mdx-column-title">{col.title}</div>}
+          <div className="mdx-column-body">{col.content}</div>
+        </div>
+      ))}
+    </div>
+  )
+}
+
+export interface TimelineItemData {
+  title: string
+  date?: string
+  content: ReactNode
+}
+
+export function TimelineBlock({ items }: { items: TimelineItemData[] }) {
+  return (
+    <ol className="mdx-timeline">
+      {items.map((item, i) => (
+        <li key={i} className="mdx-timeline-item">
+          <div className="mdx-timeline-header">
+            <span className="mdx-timeline-title">{item.title}</span>
+            {item.date && <span className="mdx-timeline-date">{item.date}</span>}
+          </div>
+          <div className="mdx-timeline-body">{item.content}</div>
         </li>
       ))}
     </ol>

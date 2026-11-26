@@ -146,6 +146,44 @@ describe('MDX コンポーネント', () => {
     expect(bad).toContain('source-ref-error')
   })
 
+  test('[ui.web-viewer] Details / Columns / Timeline の視覚 MDX コンポーネントを描画する', () => {
+    const md = `
+<Details title="詳細 JSON">
+  補足テキストです。
+</Details>
+
+<Columns>
+  <Column title="Before">旧仕様</Column>
+  <Column title="After">新仕様</Column>
+</Columns>
+
+<Timeline>
+  <Timeline.Item title="Step A" date="2026-11">最初の段階</Timeline.Item>
+  <TimelineItem title="Step B">次の段階</TimelineItem>
+</Timeline>
+`
+    const html = render(md)
+    expect(html).toContain('mdx-details')
+    expect(html).toContain('詳細 JSON')
+    expect(html).toContain('mdx-columns')
+    expect(html).toContain('Before')
+    expect(html).toContain('After')
+    expect(html).toContain('mdx-timeline')
+    expect(html).toContain('Step A')
+    expect(html).toContain('2026-11')
+    expect(html).toContain('Step B')
+    expect(html).not.toContain('mdx-error')
+
+    const expanded = renderToStaticMarkup(
+      <MemoryRouter>
+        <LiveProvider>
+          <Markdown body={md} format="mdx" currentDir="specs" expandAllTabs />
+        </LiveProvider>
+      </MemoryRouter>,
+    )
+    expect(expanded).toContain('<details class="mdx-details" open="">')
+  })
+
   test('未対応コンポーネント・式・ESM をエラー表示し実行しない', () => {
     const html = render('import x from "y"\n\n<Unknown>hi</Unknown>\n\n値は {alert(1)} です\n')
     expect(html).toContain('mdx-error')

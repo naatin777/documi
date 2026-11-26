@@ -26,6 +26,12 @@ export default function MermaidBlock({ code }: MermaidBlockProps) {
   const [rendered, setRendered] = useState<{ key: string; svg: string | null; error: string | null } | null>(null)
   const [showSource, setShowSource] = useState(false)
   const [zoomed, setZoomed] = useState(false)
+  const [scale, setScale] = useState(1)
+
+  const openZoom = () => {
+    setScale(1)
+    setZoomed(true)
+  }
 
   const isCurrent = rendered?.key === renderKey
   const loading = !isCurrent
@@ -63,7 +69,7 @@ export default function MermaidBlock({ code }: MermaidBlockProps) {
             <button type="button" className="codeblock-copy" onClick={() => setShowSource((v) => !v)}>
               {showSource ? t('mermaid.showDiagram') : t('mermaid.showSource')}
             </button>
-            <button type="button" className="codeblock-copy" onClick={() => setZoomed(true)}>
+            <button type="button" className="codeblock-copy" onClick={openZoom}>
               {t('mermaid.zoom')}
             </button>
           </>
@@ -79,12 +85,14 @@ export default function MermaidBlock({ code }: MermaidBlockProps) {
         </div>
       )}
       {svg && !showSource && (
-        <div
-          className="mermaid-svg"
-          role="img"
-          aria-label={t('mermaid.diagramAria')}
-          dangerouslySetInnerHTML={{ __html: svg }}
-        />
+        <button
+          type="button"
+          className="mermaid-svg mermaid-svg-trigger"
+          aria-label={t('mermaid.zoomAria')}
+          onClick={openZoom}
+        >
+          <span dangerouslySetInnerHTML={{ __html: svg }} />
+        </button>
       )}
       {svg && showSource && (
         <pre className="codeblock-plain">
@@ -97,15 +105,38 @@ export default function MermaidBlock({ code }: MermaidBlockProps) {
           onOpenChange={setZoomed}
           ariaLabel={t('mermaid.zoomAria')}
           align="center"
-          className="relative max-h-[90vh] w-auto max-w-[90vw] overflow-auto p-8"
+          className="relative max-h-[90vh] w-auto max-w-[92vw] overflow-auto p-8 pt-12"
         >
+          <div className="mermaid-zoom-toolbar">
+            <button
+              type="button"
+              className="codeblock-copy"
+              onClick={() => setScale((s) => Math.max(0.5, Math.round((s - 0.25) * 100) / 100))}
+            >
+              -
+            </button>
+            <button type="button" className="codeblock-copy" onClick={() => setScale(1)}>
+              {Math.round(scale * 100)}%
+            </button>
+            <button
+              type="button"
+              className="codeblock-copy"
+              onClick={() => setScale((s) => Math.min(2.5, Math.round((s + 0.25) * 100) / 100))}
+            >
+              +
+            </button>
+          </div>
           <DialogClose
             className="absolute top-2.5 right-3 flex h-7 w-7 cursor-pointer items-center justify-center rounded-md border-0 bg-transparent text-fg-muted hover:bg-hover hover:text-fg"
             aria-label={t('common.close')}
           >
             <X size={16} strokeWidth={1.85} aria-hidden="true" />
           </DialogClose>
-          <div className="mermaid-zoom-svg" dangerouslySetInnerHTML={{ __html: svg }} />
+          <div
+            className="mermaid-zoom-svg"
+            style={{ transform: `scale(${scale})`, transformOrigin: 'top left' }}
+            dangerouslySetInnerHTML={{ __html: svg }}
+          />
         </AppDialog>
       )}
     </div>
