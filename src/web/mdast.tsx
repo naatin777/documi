@@ -5,8 +5,9 @@ import 'katex/dist/katex.min.css'
 import { Fragment, type ReactNode } from 'react'
 import { Link } from 'react-router'
 import { parseMarkdownAst } from '../core/mdast-parser'
+import { getMediaKind, isSafeExternalMediaUrl, resolveLocalMediaPath } from '../core/media'
 import type { ChangedLineRange, DocFormat } from '../core/types'
-import { encodeDocId, type TermEntry } from './api'
+import { encodeDocId, mediaUrl, type TermEntry } from './api'
 import CodeBlock from './components/CodeBlock'
 import { CalloutBlock, StepsBlock, TabsBlock, type TabItem } from './components/MdxBlocks'
 import MermaidBlock from './components/MermaidBlock'
@@ -262,11 +263,11 @@ function renderInline(node: AnyNode, ctx: Ctx): ReactNode {
       return renderLink(def.url, def.title ?? node.label, node.children, ctx)
     }
     case 'image':
-      return <img src={node.url} alt={node.alt ?? ''} title={node.title ?? undefined} />
+      return renderMedia(node.url, node.alt, node.title, ctx)
     case 'imageReference': {
       const def = ctx.definitions.get(node.identifier)
-      if (!def) return null
-      return <img src={def.url} alt={node.alt ?? ''} title={def.title ?? undefined} />
+      if (!def) return <span className="md-broken-ref">{node.alt || node.label || node.identifier}</span>
+      return renderMedia(def.url, node.alt, def.title, ctx)
     }
     case 'footnoteReference':
       return (
@@ -289,6 +290,56 @@ function renderInline(node: AnyNode, ctx: Ctx): ReactNode {
     default:
       return null
   }
+}
+
+function renderMedia(
+  rawUrl: string,
+  alt: string | null | undefined,
+  title: string | null | undefined,
+  ctx: Ctx,
+): ReactNode {
+  const resolved = resolveLocalMediaPath(rawUrl, ctx.currentDir ?? '')
+  let src: string | undefined
+  if (resolved.ok) {
+    src = mediaUrl(resolved.relPath)
+  } else if (resolved.reason === 'external' && isSafeExternalMediaUrl(rawUrl)) {
+    src = rawUrl.trim()
+  }
+  if (!src) {
+    return <span className="md-broken-ref">{alt || rawUrl}</span>
+  }
+
+  const kind = getMediaKind(rawUrl)
+  if (kind === 'video') {
+    return (
+      <video
+        className="md-media md-video"
+        src={src}
+        controls
+        playsInline
+        preload="metadata"
+        title={title ?? undefined}
+        aria-label={alt || undefined}
+      >
+        <track kind="captions" />
+      </video>
+    )
+  }
+  if (kind === 'audio') {
+    return (
+      <audio
+        className="md-media md-audio"
+        src={src}
+        controls
+        preload="metadata"
+        title={title ?? undefined}
+        aria-label={alt || undefined}
+      >
+        <track kind="captions" />
+      </audio>
+    )
+  }
+  return <img className="md-media md-image" src={src} alt={alt ?? ''} title={title ?? undefined} loading="lazy" />
 }
 
 function renderLink(url: string, title: string | null | undefined, children: readonly AnyNode[], ctx: Ctx): ReactNode {

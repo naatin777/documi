@@ -53,6 +53,7 @@ satisfies:
 | `GET /api/code/file` | Code Explorer 用：POSIX 相対パス (`?path=src/...`) の読み取り専用ソース全文・言語・総行数・公開シンボル (`exportedSymbols`)・紐づき `<Spec>` / ドキュメント / `<TermDef>` 逆リンク一覧（`projectRoot` 外は `403`、未存在は `404`、バイナリ・サイズ上限超過は `400`） |
 | `GET /api/icons/manifest` | Material Icon Theme のファイル・フォルダ名／拡張子マッピング（ライトテーマ上書き込み）を返す |
 | `GET /api/icons/:name` | Material Icon Theme の SVG アイコン（allowlist 登録済みアイコン ID のみ配信・長期キャッシュ付き） |
+| `GET /api/media/*path` | `docs/` 配下のローカルメディア（画像・動画・音声）を安全配信（`docs/` 外・symlink 脱出・未許可拡張子は `403`、`X-Content-Type-Options: nosniff`、SVG には `Content-Security-Policy: sandbox`、動画・音声シーク用に HTTP `Range` / `206 Partial Content` 対応） |
 | `GET /api/bundle` | 複数ドキュメントバンドル解決 (`?scope=all\|dir:...\|goal:...` または `?ids=...`) |
 | `POST /api/export/pdf` | 単一文書の描画済み HTML から PDF 生成 |
 | `POST /api/export/bundle-pdf` | ローカル `/bundle` URL を `Bun.WebView` で開いて複数文書 PDF 生成 |

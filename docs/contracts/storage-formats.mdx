@@ -90,6 +90,7 @@ Documi がファイルシステム上で読み書きする永続ファイル・�
   - `.nojekyll`: GitHub Pages 向け空ファイル
   - `_headers`: `/assets/*` に `public, max-age=31536000, immutable`、`/data/*` と `index.html` に `no-cache` を指定
   - `assets/*`: ビルド済み SPA アセット（CSS フォント URL・動的チャンク preload パスをベースパス対応化）
+  - `media/*`: `docs/` 配下のローカルメディアファイル（画像・動画・音声の許可拡張子のみ、元の相対パス構造を維持してコピー）
   - `data/*.json`: `overview.json`, `tree.json`, `blocks.json`, `terms.json`, `search-index.json`, `graph-*.json`, `documents/<docId>.json`, `history/<docId>.json`, `revisions/<docId>/<sha>.json`, `block-diffs/<blockId>.json`, `icons/manifest.json`, `icons/<name>.svg`
   - コード関連（`--no-code` 未指定時のみ）: `data/code/tree.json`, `data/code/file-index.json`, `data/code/files/<sha>.json`, `data/source-index.json`, `data/sources/<sha>.json`, `data/source-exports-index.json`, `data/source-exports/<sha>.json`（ドットファイルや特殊文字衝突を避けるためハッシュ索引化）
 - **`--no-code` 保証**: 指定時は `includeCode: false` となり、ソースコード全文・`<SourceRef>` スニペット JSON を一切出力しない。

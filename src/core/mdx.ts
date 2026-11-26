@@ -28,6 +28,8 @@ export interface ExtractedMdx {
   sourceRefs: SourceRefDecl[]
   /** 本文中の通常 Markdown リンク先 URL */
   links: string[]
+  /** 本文中の Markdown メディア（画像・動画・音声）参照 URL */
+  mediaRefs: string[]
   /** 本文中の <Term name="..." /> 参照名 */
   termRefs: string[]
   /** 最初の H1 見出しテキスト (title 省略時の補完用) */
@@ -79,6 +81,7 @@ export function extractMdxArtifacts(body: string, format: DocFormat, docId: stri
   const blocks: SemanticBlock[] = []
   const sourceRefs: SourceRefDecl[] = []
   const links: string[] = []
+  const mediaRefs: string[] = []
   const termRefs: string[] = []
   let firstHeading: string | undefined
   let noteCounter = 0
@@ -106,6 +109,19 @@ export function extractMdxArtifacts(body: string, format: DocFormat, docId: stri
         if (node.identifier) {
           const resolved = definitions.get(node.identifier.toLowerCase())
           if (resolved) links.push(resolved.trim())
+        }
+        break
+      }
+      case 'image': {
+        if (typeof node.url === 'string' && node.url.trim() !== '') {
+          mediaRefs.push(node.url.trim())
+        }
+        break
+      }
+      case 'imageReference': {
+        if (node.identifier) {
+          const resolved = definitions.get(node.identifier.toLowerCase())
+          if (resolved) mediaRefs.push(resolved.trim())
         }
         break
       }
@@ -159,7 +175,7 @@ export function extractMdxArtifacts(body: string, format: DocFormat, docId: stri
     issues.push({ code: 'mdx-unsupported', message: `Unsupported MDX component(s): ${names}` })
   }
 
-  return { blocks, sourceRefs, links, termRefs, firstHeading, issues }
+  return { blocks, sourceRefs, links, mediaRefs, termRefs, firstHeading, issues }
 }
 
 function parseStringAttributes(jsx: MdxJsxFlowElement | MdxJsxTextElement, issues: DocIssue[]): Record<string, string> {

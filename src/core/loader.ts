@@ -1,10 +1,11 @@
 import type { Dirent } from 'node:fs'
-import { readdir, readFile } from 'node:fs/promises'
+import { readdir, readFile, realpath, stat } from 'node:fs/promises'
 import path from 'node:path'
 import { parseYamlFrontmatter, splitFrontmatter } from './frontmatter'
 import { applyGitFreshness } from './git'
 import { buildGraphAndValidate, stripDocExt, type RawDocEntry } from './graph'
 import { extractMdxArtifacts } from './mdx'
+import { isSafeExternalMediaUrl, isSupportedLocalMedia, resolveLocalMediaPath } from './media'
 import { applyReviewsAndSuspects, loadReviews } from './reviews'
 import { sortDocuments } from './tree'
 import { ARTIFACT_TYPE_ALIASES, TRACE_EDGE_KINDS, isArtifactType } from './types'
@@ -29,6 +30,7 @@ export { buildDocTree, toDocumentSummary } from './tree'
  */
 export async function loadDocuments(rootDir: string): Promise<DocsIndex> {
   const root = path.resolve(rootDir)
+  const realRoot = await realpath(root).catch(() => root)
   const issues: IndexIssue[] = []
   const entries: RawDocEntry[] = []
   const byId = new Map<string, Document>()
@@ -55,7 +57,7 @@ export async function loadDocuments(rootDir: string): Promise<DocsIndex> {
       continue
     }
 
-    const parsed = await parseDocumentFile(root, relPath, docId, issues)
+    const parsed = await parseDocumentFile(root, realRoot, relPath, docId, issues)
     if (!parsed) continue
 
     const { doc } = parsed
@@ -144,6 +146,7 @@ async function collectMarkdownFiles(root: string, relDir: string, issues: IndexI
 
 async function parseDocumentFile(
   root: string,
+  realRoot: string,
   relPath: string,
   docId: string,
   indexIssues: IndexIssue[],
@@ -214,6 +217,10 @@ async function parseDocumentFile(
   const slashIdx = docId.lastIndexOf('/')
   const dir = slashIdx >= 0 ? docId.slice(0, slashIdx) : ''
 
+  if (extracted.mediaRefs.length > 0) {
+    await validateMediaRefs(root, realRoot, dir, extracted.mediaRefs, docIssues)
+  }
+
   const doc: Document = {
     id: docId,
     type,
@@ -238,6 +245,77 @@ async function parseDocumentFile(
     doc,
     bodyLinks: extracted.links,
     termRefs: extracted.termRefs,
+  }
+}
+
+async function validateMediaRefs(
+  root: string,
+  realRoot: string,
+  currentDir: string,
+  mediaRefs: readonly string[],
+  docIssues: DocIssue[],
+): Promise<void> {
+  const seen = new Set<string>()
+  const rootPrefix = realRoot.endsWith(path.sep) ? realRoot : `${realRoot}${path.sep}`
+
+  for (const rawUrl of mediaRefs) {
+    if (seen.has(rawUrl)) continue
+    seen.add(rawUrl)
+
+    const resolved = resolveLocalMediaPath(rawUrl, currentDir)
+    if (!resolved.ok) {
+      if (resolved.reason === 'external') {
+        if (!isSafeExternalMediaUrl(rawUrl)) {
+          docIssues.push({
+            code: 'broken-media',
+            message: `Unsupported or unsafe media URL: "${rawUrl}"`,
+          })
+        }
+      } else if (resolved.reason === 'outside-docs') {
+        docIssues.push({
+          code: 'broken-media',
+          message: `Media path escapes docs directory: "${rawUrl}"`,
+        })
+      } else {
+        docIssues.push({
+          code: 'broken-media',
+          message: `Invalid media path: "${rawUrl}"`,
+        })
+      }
+      continue
+    }
+
+    if (!isSupportedLocalMedia(resolved.relPath)) {
+      docIssues.push({
+        code: 'broken-media',
+        message: `Unsupported local media format: "${rawUrl}" (resolved: ${resolved.relPath})`,
+      })
+      continue
+    }
+
+    const absPath = path.join(root, resolved.relPath)
+    try {
+      const realAbs = await realpath(absPath)
+      if (!realAbs.startsWith(rootPrefix)) {
+        docIssues.push({
+          code: 'broken-media',
+          message: `Media path escapes docs directory via symlink: "${rawUrl}"`,
+        })
+        continue
+      }
+      const st = await stat(realAbs)
+      if (!st.isFile()) {
+        docIssues.push({
+          code: 'broken-media',
+          message: `Media target is not a file: "${rawUrl}" (resolved: ${resolved.relPath})`,
+        })
+      }
+    } catch {
+      docIssues.push({
+        code: 'broken-media',
+        message: `Media file not found: "${rawUrl}" (resolved: ${resolved.relPath})`,
+      })
+    }
   }
 }
 

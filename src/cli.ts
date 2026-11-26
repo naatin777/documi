@@ -1357,7 +1357,7 @@ async function cmdBuildSite(flags: CliFlags, io: CliIo): Promise<number> {
     })
     io.out(`✓ Built static site → ${result.outDir}`)
     io.out(
-      `  documents: ${result.documentCount}, revisions: ${result.revisionCount}, code files: ${result.codeFileCount}, snippets: ${result.sourceSnippetCount}, icons: ${result.iconCount}`,
+      `  documents: ${result.documentCount}, revisions: ${result.revisionCount}, code files: ${result.codeFileCount}, snippets: ${result.sourceSnippetCount}, icons: ${result.iconCount}, media: ${result.mediaFileCount}`,
     )
     return 0
   } catch (error) {

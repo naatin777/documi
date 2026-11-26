@@ -252,6 +252,25 @@
 
 .markdown img {
   max-width: 100%;
+  height: auto;
+  border-radius: 6px;
+}
+
+.markdown video.md-video {
+  display: block;
+  max-width: 100%;
+  max-height: 70vh;
+  margin: 1em 0;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: #000;
+}
+
+.markdown audio.md-audio {
+  display: block;
+  width: 100%;
+  max-width: 540px;
+  margin: 0.8em 0;
 }
 
 .markdown hr {
