@@ -16,6 +16,7 @@ tags: [ui, frontend]
 
 - **`/` (Overview)**: 統計カード（文書数・承認済み・未承認・要再確認・問題数）、最近更新されたドキュメント（未コミットバッジ付き）、要確認ブロック、ドキュメント健全性＆カバレッジ（Design / Verification カバレッジ・Advisory ヒント）、Goals、Decision `<Outcome>`、Orphan Specs、Realization・Stability 内訳を表示する。
 - **`/docs/*` (Document View)**: 右側 Context Inspector は幅をドラッグ伸縮（ダブルクリックでリセット）・開閉可能。`Links` の分割ボタンまたはリンクの `Shift+クリック` で `DocPeekPane` を右側へ開き、元の文書を離れず比較できる。
+- **ローカルメディア描画**: 本文中の標準 Markdown 構文 `![alt](./relative/path.ext)` をドキュメントのディレクトリ基準で解決し、拡張子に応じて画像（`<img loading="lazy">`）・動画（`<video controls playsInline preload="metadata">`）・音声（`<audio controls preload="metadata">`）を安全に描画する（ローカルサーバー時は `/api/media/*`、静的サイト時は `media/*` を参照）。
 
 <Spec id="ui.explorer-modes" stability="stable" derives="goals/human-comprehension">
   **When** ユーザーが左サイドバーを操作するとき、

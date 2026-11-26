@@ -1,8 +1,9 @@
 import { createHash } from 'node:crypto'
 import { existsSync } from 'node:fs'
-import { cp, mkdir, readdir, readFile, rm, writeFile } from 'node:fs/promises'
+import { copyFile, cp, mkdir, readdir, readFile, realpath, rm, stat, writeFile } from 'node:fs/promises'
 import path from 'node:path'
 import type { CodeTreeNode } from '../core/code'
+import { isSupportedLocalMedia } from '../core/media'
 import type { DocumentHistory, DocTreeNode } from '../core/types'
 import { createApp } from './app'
 import { resolveDefaultClientDist } from './dist'
@@ -30,6 +31,7 @@ export interface BuildStaticSiteResult {
   codeFileCount: number
   sourceSnippetCount: number
   iconCount: number
+  mediaFileCount: number
 }
 
 export interface StaticSearchEntry {
@@ -55,6 +57,10 @@ const STATIC_HEADERS_FILE = `# Cloudflare Pages / Netlify cache headers (ignored
 
 /data/*
   Cache-Control: public, max-age=0, must-revalidate
+
+/media/*
+  Cache-Control: public, max-age=3600
+  X-Content-Type-Options: nosniff
 `
 
 function encodeDocPathSegments(docId: string): string {
@@ -412,6 +418,20 @@ export async function buildStaticSite(options: BuildStaticSiteOptions): Promise<
     }
   }
 
+  // 4.5. docs/ 配下のローカルメディアファイル（画像・動画・音声）を media/ へ同梱
+  const mediaFiles = await collectLocalMediaFiles(store.rootDir)
+  let mediaFileCount = 0
+  if (mediaFiles.length > 0) {
+    const mediaOutDir = path.join(outDir, 'media')
+    for (const relPath of mediaFiles) {
+      const srcPath = path.join(store.rootDir, relPath)
+      const destPath = path.join(mediaOutDir, relPath)
+      await mkdir(path.dirname(destPath), { recursive: true })
+      await copyFile(srcPath, destPath)
+      mediaFileCount++
+    }
+  }
+
   // 5. index.html / 404.html に静的モード設定を注入し、アセット参照をベースパス対応化
   const rawHtml = await readFile(distIndexPath, 'utf-8')
   const staticConfig = {
@@ -437,5 +457,45 @@ export async function buildStaticSite(options: BuildStaticSiteOptions): Promise<
     codeFileCount,
     sourceSnippetCount,
     iconCount,
+    mediaFileCount,
   }
+}
+
+async function collectLocalMediaFiles(rootDir: string): Promise<string[]> {
+  const absRoot = path.resolve(rootDir)
+  const realRoot = await realpath(absRoot).catch(() => absRoot)
+  const rootPrefix = realRoot.endsWith(path.sep) ? realRoot : `${realRoot}${path.sep}`
+  const found: string[] = []
+
+  async function walk(relDir: string): Promise<void> {
+    const absDir = relDir ? path.join(absRoot, relDir) : absRoot
+    let entries
+    try {
+      entries = await readdir(absDir, { withFileTypes: true })
+    } catch {
+      return
+    }
+    for (const entry of entries) {
+      if (entry.name.startsWith('.') || entry.name === 'node_modules') continue
+      if (!relDir && entry.isDirectory() && entry.name === 'guard') continue
+      const childRel = relDir ? `${relDir}/${entry.name}` : entry.name
+      if (entry.isDirectory()) {
+        await walk(childRel)
+      } else if (isSupportedLocalMedia(childRel)) {
+        const absChild = path.join(absRoot, childRel)
+        try {
+          const realChild = await realpath(absChild)
+          if (!realChild.startsWith(rootPrefix)) continue
+          const st = await stat(realChild)
+          if (st.isFile()) found.push(childRel)
+        } catch {
+          // 壊れたシンボリックリンク等は無視
+        }
+      }
+    }
+  }
+
+  await walk('')
+  found.sort()
+  return found
 }

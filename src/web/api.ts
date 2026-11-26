@@ -92,6 +92,15 @@ export function encodeDocId(docId: string): string {
     .join('/')
 }
 
+/** docs/ 基準の相対メディアパスを配信 URL（静的サイト時は media/...、サーバー時は /api/media/...）へ変換する */
+export function mediaUrl(relPath: string): string {
+  const encoded = encodeDocId(relPath)
+  if (isStaticSite()) {
+    return staticAssetUrl(`media/${encoded}`)
+  }
+  return `/api/media/${encoded}`
+}
+
 let cachedSearchIndex: Promise<StaticSearchEntry[]> | null = null
 let cachedSourceIndex: Promise<Record<string, string>> | null = null
 let cachedSourceExportsIndex: Promise<Record<string, string>> | null = null
