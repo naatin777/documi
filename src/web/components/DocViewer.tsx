@@ -1,8 +1,10 @@
-import { History, Sparkles } from 'lucide-react'
+import { Code2, Eye, History, Sparkles } from 'lucide-react'
+import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import type { Document, DocumentHistory } from '../../core/types'
 import type { TermEntry } from '../api'
 import { formatDateTime, formatRelativeTime, formatShortDate } from '../time'
+import CodeBlock from './CodeBlock'
 import Markdown from './Markdown'
 import { PrintFooter, PrintHeader } from './PrintChrome'
 import { DocReviewProvider } from './SemanticBlocks'
@@ -28,6 +30,12 @@ export default function DocViewer({
   onOpenHistory,
 }: DocViewerProps) {
   const { t, i18n } = useTranslation()
+  const [sourceState, setSourceState] = useState<{ docId: string; mode: 'rendered' | 'source' }>({
+    docId: doc.id,
+    mode: 'rendered',
+  })
+  const viewMode = sourceState.docId === doc.id ? sourceState.mode : 'rendered'
+  const setViewMode = (mode: 'rendered' | 'source') => setSourceState({ docId: doc.id, mode })
   const typeLabel = t(`types.singular.${doc.type}`)
   const freshness = history?.freshness ?? doc.freshness
   const changedRanges = highlightChanges && history ? history.changedRanges : undefined
@@ -77,56 +85,84 @@ export default function DocViewer({
           <span className="meta-item mono">{doc.path}</span>
         </div>
 
-        {(hasLatestHighlights || (onOpenHistory && commitCount > 0)) && (
-          <div className="mt-3 flex flex-wrap items-center gap-2 print:hidden">
-            {hasLatestHighlights && history && (
-              <span className="inline-flex min-w-0 items-center gap-1.5 rounded-md border border-sky-500/30 bg-sky-500/8 px-2 py-1 text-[11.5px] text-fg-muted">
-                <Sparkles
-                  size={12}
-                  strokeWidth={2}
-                  className="shrink-0 text-sky-600 dark:text-sky-400"
-                  aria-hidden="true"
-                />
-                <span className="truncate">
-                  {history.highlightBasis === 'working'
-                    ? t('doc.highlightWorking')
-                    : history.highlightBasis === 'last-commit'
-                      ? t('doc.highlightLastCommit', { sha: history.highlightCommit.shortSha })
-                      : ''}
-                  {history.highlightBasis === 'last-commit' && history.highlightCommit.subject
-                    ? ` · ${history.highlightCommit.subject}`
+        <div className="mt-3 flex flex-wrap items-center gap-2 print:hidden">
+          {hasLatestHighlights && history && (
+            <span className="inline-flex min-w-0 items-center gap-1.5 rounded-md border border-sky-500/30 bg-sky-500/8 px-2 py-1 text-[11.5px] text-fg-muted">
+              <Sparkles
+                size={12}
+                strokeWidth={2}
+                className="shrink-0 text-sky-600 dark:text-sky-400"
+                aria-hidden="true"
+              />
+              <span className="truncate">
+                {history.highlightBasis === 'working'
+                  ? t('doc.highlightWorking')
+                  : history.highlightBasis === 'last-commit'
+                    ? t('doc.highlightLastCommit', { sha: history.highlightCommit.shortSha })
                     : ''}
-                </span>
+                {history.highlightBasis === 'last-commit' && history.highlightCommit.subject
+                  ? ` · ${history.highlightCommit.subject}`
+                  : ''}
               </span>
-            )}
-            <div className="ml-auto flex items-center gap-1.5">
-              {hasLatestHighlights && onToggleHighlight && (
-                <button
-                  type="button"
-                  aria-pressed={highlightChanges}
-                  className={`inline-flex cursor-pointer items-center gap-1 rounded-md border px-2 py-1 text-[11.5px] font-semibold transition-colors ${
-                    highlightChanges
-                      ? 'border-sky-500/50 bg-sky-500/12 text-sky-700 dark:text-sky-300'
-                      : 'border-line bg-subtle text-fg-muted hover:bg-hover hover:text-fg'
-                  }`}
-                  onClick={onToggleHighlight}
-                >
-                  {t('doc.highlightToggle')}
-                </button>
-              )}
-              {onOpenHistory && commitCount > 0 && (
-                <button
-                  type="button"
-                  className="inline-flex cursor-pointer items-center gap-1 rounded-md border border-line bg-subtle px-2 py-1 text-[11.5px] font-semibold text-fg-muted hover:bg-hover hover:text-fg"
-                  onClick={onOpenHistory}
-                >
-                  <History size={12} strokeWidth={1.85} aria-hidden="true" />
-                  <span>{t('doc.openHistory', { count: commitCount })}</span>
-                </button>
-              )}
+            </span>
+          )}
+          <div className="ml-auto flex flex-wrap items-center gap-1.5">
+            <div
+              className="inline-flex rounded-md border border-line bg-subtle p-0.5"
+              role="group"
+              aria-label={t('doc.viewModeAria')}
+            >
+              <button
+                type="button"
+                aria-pressed={viewMode === 'rendered'}
+                className={`inline-flex cursor-pointer items-center gap-1 rounded px-2 py-0.5 text-[11.5px] font-semibold transition-colors ${
+                  viewMode === 'rendered'
+                    ? 'bg-surface text-fg shadow-2xs'
+                    : 'bg-transparent text-fg-muted hover:text-fg'
+                }`}
+                onClick={() => setViewMode('rendered')}
+              >
+                <Eye size={12} strokeWidth={1.85} aria-hidden="true" />
+                <span>{t('doc.viewRendered')}</span>
+              </button>
+              <button
+                type="button"
+                aria-pressed={viewMode === 'source'}
+                className={`inline-flex cursor-pointer items-center gap-1 rounded px-2 py-0.5 text-[11.5px] font-semibold transition-colors ${
+                  viewMode === 'source' ? 'bg-surface text-fg shadow-2xs' : 'bg-transparent text-fg-muted hover:text-fg'
+                }`}
+                onClick={() => setViewMode('source')}
+              >
+                <Code2 size={12} strokeWidth={1.85} aria-hidden="true" />
+                <span>{t('doc.viewSource')}</span>
+              </button>
             </div>
+            {viewMode === 'rendered' && hasLatestHighlights && onToggleHighlight && (
+              <button
+                type="button"
+                aria-pressed={highlightChanges}
+                className={`inline-flex cursor-pointer items-center gap-1 rounded-md border px-2 py-1 text-[11.5px] font-semibold transition-colors ${
+                  highlightChanges
+                    ? 'border-sky-500/50 bg-sky-500/12 text-sky-700 dark:text-sky-300'
+                    : 'border-line bg-subtle text-fg-muted hover:bg-hover hover:text-fg'
+                }`}
+                onClick={onToggleHighlight}
+              >
+                {t('doc.highlightToggle')}
+              </button>
+            )}
+            {onOpenHistory && commitCount > 0 && (
+              <button
+                type="button"
+                className="inline-flex cursor-pointer items-center gap-1 rounded-md border border-line bg-subtle px-2 py-1 text-[11.5px] font-semibold text-fg-muted hover:bg-hover hover:text-fg"
+                onClick={onOpenHistory}
+              >
+                <History size={12} strokeWidth={1.85} aria-hidden="true" />
+                <span>{t('doc.openHistory', { count: commitCount })}</span>
+              </button>
+            )}
           </div>
-        )}
+        </div>
       </header>
 
       {doc.issues.length > 0 && (
@@ -142,15 +178,21 @@ export default function DocViewer({
         </section>
       )}
 
-      <DocReviewProvider blocks={doc.blocks} onMutate={onMutate}>
-        <Markdown
-          body={doc.body}
-          format={doc.format}
-          currentDir={doc.dir}
-          terms={terms}
-          changedRanges={changedRanges}
-        />
-      </DocReviewProvider>
+      {viewMode === 'source' ? (
+        <div className="markdown">
+          <CodeBlock code={doc.body} lang={doc.format === 'mdx' ? 'mdx' : 'markdown'} />
+        </div>
+      ) : (
+        <DocReviewProvider blocks={doc.blocks} onMutate={onMutate}>
+          <Markdown
+            body={doc.body}
+            format={doc.format}
+            currentDir={doc.dir}
+            terms={terms}
+            changedRanges={changedRanges}
+          />
+        </DocReviewProvider>
+      )}
       <PrintFooter meta={doc.id} />
     </article>
   )

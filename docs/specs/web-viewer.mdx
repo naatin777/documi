@@ -15,7 +15,7 @@ tags: [spec, ui, viewer]
 </Spec>
 
 - **`/` (Overview)**: 統計カード（文書数・承認済み・未承認・要再確認・問題数）、最近更新されたドキュメント（未コミットバッジ付き）、要確認ブロック、ドキュメント健全性＆カバレッジ（Design / Verification カバレッジ・Advisory ヒント）、Goals、現行 Decision `<Outcome>`、Orphan Specs、Realization・Stability 内訳を表示する。
-- **`/docs/*` (Document View)**: 右側 Context Inspector は幅をドラッグ伸縮（ダブルクリックでリセット）・開閉可能。`Links` の分割ボタンまたはリンクの `Shift+クリック` で `DocPeekPane` を右側へ開き、元の文書を離れず比較できる。
+- **`/docs/*` (Document View)**: 右側 Context Inspector は幅をドラッグ伸縮（ダブルクリックでリセット）・開閉可能。`Links` の分割ボタンまたはリンクの `Shift+クリック` で `DocPeekPane` を右側へ開き、元の文書を離れず比較できる。ヘッダの **プレビュー / ソース** 切替で、レンダリング前の生 MDX / Markdown 本文を Shiki ハイライト・固定行番号・コピー付きで読み取り専用表示できる（編集機能は持たない）。
 - **ローカルメディア描画**: 本文中の標準 Markdown 構文 `![alt](./relative/path.ext)` をドキュメントのディレクトリ基準で解決し、拡張子に応じて画像（`<img loading="lazy">`）・動画（`<video controls playsInline preload="metadata">`）・音声（`<audio controls preload="metadata">`）を安全に描画する（ローカルサーバー時は `/api/media/*`、静的サイト時は `media/*` を参照）。
 - **視覚 MDX コンポーネントと Mermaid 拡大**: 任意の JS 式を使わず標準 Markdown を内包できる `<Details title="...">`（折りたたみ・印刷/PDF バンドル時は自動展開）、`<Columns>` / `<Column>`（2〜3 カラム並列比較）、`<Timeline>` / `<Timeline.Item>`（縦タイムライン）を描画する。Mermaid 図は図本体クリックまたは拡大ボタンでライトボックスを開き、倍率切替（縮小／100% リセット／拡大）で詳細を確認できる。
 
