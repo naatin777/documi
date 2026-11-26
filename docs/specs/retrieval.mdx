@@ -1,13 +1,13 @@
 ---
 type: spec
-title: 全文検索・グラフ文脈検索・ローカル Hybrid RAG 仕様
-description: 日英・識別子 BM25 全文検索・用語集同義語展開・グラフ連動コンテキスト検索・ローカル Hybrid RAG の仕様
-tags: [core, spec, search, rag]
+title: 全文検索・グラフ文脈検索・Hybrid RAG・クイック検索仕様
+description: 日英・識別子 BM25 全文検索・用語集同義語展開・グラフ連動コンテキスト検索・Hybrid RAG・Cmd+K 検索モーダルの仕様
+tags: [spec, search, rag]
 ---
 
-# 全文検索・グラフ文脈検索・ローカル Hybrid RAG 仕様
+# 全文検索・グラフ文脈検索・Hybrid RAG・クイック検索仕様
 
-## 1. 横断全文検索
+## 1. 横断全文検索と `Cmd+K` クイック検索
 
 <Spec id="core.full-text-search" stability="evolving" derives="goals/human-comprehension">
   **When** 検索クエリが与えられたとき、
@@ -16,6 +16,11 @@ tags: [core, spec, search, rag]
 
 - **検索対象と返却形式**: `kind: "doc" | "block"` 混在の `SearchHit[]`（`id`, `docId`, `type`, `title`, `blockKind?`, `snippet`, `score`）をスコア降順で返す。
 - **空クエリ・上限**: 空白のみのクエリは空配列を返す。`limit` は既定 `20`（REST API は既定 `30`・最大 `100`）、任意の `type` で絞り込み可能。
+
+<Spec id="ui.search-palette" stability="evolving" derives="goals/human-comprehension">
+  **When** ユーザーが `Cmd+K` / `Ctrl+K` または検索ボタンを押したとき、
+  **the** Web UI **shall** ドキュメントとセマンティックブロックを横断検索できるクイック検索モーダルを開き、キーボード操作（上下矢印・Enter・Esc）で該当文書・ブロックへ即座に遷移できるようにする。
+</Spec>
 
 ## 2. BM25・用語集同義語展開・グラフ連動コンテキスト検索
 
@@ -33,7 +38,7 @@ tags: [core, spec, search, rag]
   - 既定ヒット上限 `limit = 8`、既定文字数予算 `budget = 6000` 文字（`includeGraph: false` / `--no-graph` で一次ヒットのみ返却）。
   - 一次ヒットのブロック／文書から明示エッジを辿り、上流 `goal`、関連 `decision` `<Outcome>`、関連 `contract` / `design`、関連 `<TermDef>`、および `<SourceRef>` を優先順に予算内で梱包する。
 
-## 3. ローカル Hybrid RAG（`bun:sqlite` 差分キャッシュ・RRF・Ollama / OpenAI 互換 HTTP）
+## 3. ローカル Hybrid RAG（`bun:sqlite` 差分キャッシュ・RRF・OpenAI 互換 HTTP）
 
 <Spec id="core.hybrid-rag" stability="evolving" derives="goals/ai-reproducibility">
   **When** `.documi.json` の `rag` 設定または `--semantic` / `documi index` によりローカル Hybrid RAG が有効化されたとき、
@@ -54,6 +59,6 @@ tags: [core, spec, search, rag]
   - `qwen3-embedding` 系: query は `Instruct: ... \nQuery: <q>`
   - `ruri` 系: query は `検索クエリ: <q>`、document は `検索文書: <title>\n<text>`
 - **差分同期・RRF・障害フォールバック**:
-  - チャンク（`doc:<id>` / `block:<id>`）は `contentHash` と `model_id` でキャッシュ照合し、変更分のみバッチ埋め込み・削除済みチャンクを自動掃除する（スキーマ詳細は [永続ファイル契約](../../contracts/storage-formats.mdx)）。
+  - チャンク（`doc:<id>` / `block:<id>`）は `contentHash` と `model_id` でキャッシュ照合し、変更分のみバッチ埋め込み・削除済みチャンクを自動掃除する（スキーマ詳細は [永続ファイル契約](../contracts/storage-formats.mdx)）。
   - BM25 順位とベクトル順位（正規化済み `Float32Array` 内積）を RRF（定数 `k = 60`）で統合する。
   - プロバイダ未接続・API キー欠如・タイムアウト・ランタイム例外発生時は、既定（`fallbackOnError: true`）でエラー終了せず BM25＋用語展開＋グラフ展開の結果へ安全にフォールバックし、`mode: "bm25"`（またはフォールバック通知付き）で返す。

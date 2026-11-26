@@ -1,0 +1,41 @@
+---
+type: spec
+title: Web UI 閲覧・ナビゲーション・用語ホバー仕様
+description: Overview・Document View・ローカルメディア描画・Flow/Files サイドバー・SSE ライブ更新・用語自動リンクの仕様
+tags: [spec, ui, viewer]
+---
+
+# Web UI 閲覧・ナビゲーション・用語ホバー仕様
+
+## 1. Overview とドキュメント閲覧・並べて比較
+
+<Spec id="ui.web-viewer" stability="stable" derives="goals/human-comprehension">
+  **When** ユーザーがルート `/` または `/docs/*` を開いたとき、
+  **the** Web UI **shall** `/` では全幅の Overview ダッシュボード（プロジェクト統計・レビュー＆Realization 内訳・要確認ブロック・Goals・現行 Decision Outcomes・Orphan Specs）を表示し、`/docs/*` では右側に開閉可能な 3 タブ Context Inspector（`Outline` / `Links` / `History`）と関連文書を並べて読む Side-by-Side プレビュー (`DocPeekPane`) を提供する。
+</Spec>
+
+- **`/` (Overview)**: 統計カード（文書数・承認済み・未承認・要再確認・問題数）、最近更新されたドキュメント（未コミットバッジ付き）、要確認ブロック、ドキュメント健全性＆カバレッジ（Design / Verification カバレッジ・Advisory ヒント）、Goals、現行 Decision `<Outcome>`、Orphan Specs、Realization・Stability 内訳を表示する。
+- **`/docs/*` (Document View)**: 右側 Context Inspector は幅をドラッグ伸縮（ダブルクリックでリセット）・開閉可能。`Links` の分割ボタンまたはリンクの `Shift+クリック` で `DocPeekPane` を右側へ開き、元の文書を離れず比較できる。
+- **ローカルメディア描画**: 本文中の標準 Markdown 構文 `![alt](./relative/path.ext)` をドキュメントのディレクトリ基準で解決し、拡張子に応じて画像（`<img loading="lazy">`）・動画（`<video controls playsInline preload="metadata">`）・音声（`<audio controls preload="metadata">`）を安全に描画する（ローカルサーバー時は `/api/media/*`、静的サイト時は `media/*` を参照）。
+
+## 2. サイドバー・ライブ更新・用語自動リンク
+
+<Spec id="ui.explorer-modes" stability="stable" derives="goals/human-comprehension">
+  **When** ユーザーが左サイドバーを操作するとき、
+  **the** Web UI **shall** 読む・レビューする体験に統一した 1 本の開閉式サイドバー（`Cmd+B` / `Ctrl+B` 開閉）を提供し、上部に 4 大ビュー（Home / Review Queue（要確認バッジ付き）/ Graph / Code Explorer）、下部にドキュメント一覧（上流→下流の読み順で並ぶ **Flow** とフォルダ階層そのままの **Files** 切替）を配置する。
+</Spec>
+
+- **Flow 読み順**: `goal → architecture → domain → spec → contract → design → decision (date 降順) → verification → guide`。
+- サイドバー幅はドラッグ伸縮・ダブルクリックリセット対応。ヘッダーにテーマ切替（Light/Dark/System）・言語切替（`ja` / `en`）・`Cmd+K` 検索・Export ボタンを配置する。
+
+<Spec id="ui.live-reload" stability="stable" derives="goals/low-friction-governance">
+  **When** `docs/` 配下の Markdown / MDX、`docs/guard/reviews.json`、または `test-results.xml` が更新されたとき、
+  **the** サーバーと Web UI **shall** `fs.watch` と SSE (`/api/events`) を通じて再起動なしに最新内容へ自動更新する。
+</Spec>
+
+- 接続直後に `event: connected` を送信し、ファイル変更デバウンス（150ms）後に `DocsStore.reload()` を実行して全接続クライアントへ `event: reload` を配信する。Web UI は React Query キャッシュを一括無効化して最新表示へ更新する。
+
+<Spec id="ui.glossary-autolink" stability="stable" derives="goals/human-comprehension">
+  **When** 本文中に `<TermDef>` で登録された用語または別名が出現するとき、
+  **the** Web UI **shall** コード・見出し・既存リンク内を除いて自動で用語リンク化し、ホバー時に定義と紐づくコードシンボル定義をポップオーバー表示する。
+</Spec>

@@ -1,0 +1,45 @@
+---
+type: spec
+title: トレーサビリティグラフ・可視化仕様
+description: Rooted DAG・supersedes 現行/廃止分離・自動 mentions・ローカルメディア検証・Sigma.js 力学グラフ可視化の仕様
+tags: [spec, graph, traceability]
+---
+
+# トレーサビリティグラフ・可視化仕様
+
+## 1. Rooted DAG と `supersedes` 現行／廃止分離
+
+<Spec id="core.rooted-dag" stability="stable" derives="goals/low-friction-governance">
+  **When** `intent="normative"` の `<Spec>`（または `<Spec>` を持たない `spec` 文書）が存在するとき、
+  **the** Document Core **shall** `derives` 辺を辿って 1 つ以上の `goal` に到達できることを検証し、到達できない場合は `orphan-spec` として報告する。`intent="idea"` のブロックは対象外とする。
+</Spec>
+
+- **トレーサビリティ辺種別**: `derives`, `satisfies`, `verifies`, `supersedes`（frontmatter およびブロック属性から抽出）。
+- **整合性検証**:
+  - 参照先ドキュメント／ブロックが存在しない場合は `broken-ref` issue を記録。
+  - `derives` / `satisfies` / `verifies` / `supersedes` の有向グラフに循環がある場合は `trace-cycle` issue を記録。
+  - `intent="normative"` の `<Spec>` から `derives` を辿って `type === "goal"` に到達できない場合は `orphan-spec` issue を記録。
+- **`supersedes` による現行／廃止分離**:
+  - 新しいドキュメントまたはブロックから `supersedes` エッジで指された旧ドキュメント・旧ブロックには `supersededBy: string[]` を自動付与する。
+  - 旧 `decision` 文書自体が `supersedes` されている場合、その文書配下の `<Outcome>` ブロックも廃止済み（親文書の `supersededBy` を継承）として扱う。
+  - `get_project_map`・`documi map`・`/api/overview` の `decisionOutcomes` には **現行（未廃止）の `<Outcome>` のみ** を返し、廃止済み決定は `supersededOutcomes` として分離することで、AI・人間の双方が古い決定と現行仕様を混同しないようにする。
+
+## 2. 自動参照 (`mentions`) とローカルメディア検証
+
+<Spec id="core.auto-mentions" stability="stable" derives="goals/human-comprehension">
+  **When** 本文中に他ドキュメントへの相対 Markdown リンクまたは `<Term>` 参照が存在するとき、
+  **the** Document Core **shall** `mentions` エッジを自動構築し、参照先と逆参照 (`incoming`) の双方に反映する。
+</Spec>
+
+- 外部 URL（`http:` / `https:` / `mailto:` 等）やアンカーのみの `#...` リンクは対象外とし、存在しない相対 Markdown リンクは `broken-link` issue を記録する。
+- `<Term name="..." />` は登録済み `<TermDef>` の `id` または `aliases`（大文字小文字無視）を解決して `mentions` 辺を張り、未登録用語は `unknown-term` issue を記録する。
+- **ローカルメディア参照検証**: Markdown の画像構文 `![alt](./path.ext)`（参照形式含む）は画像（`.png` / `.jpg` / `.jpeg` / `.gif` / `.webp` / `.svg` / `.avif` / `.ico`）・動画（`.mp4` / `.m4v` / `.webm` / `.mov`）・音声（`.mp3` / `.wav` / `.ogg` / `.m4a` / `.flac` / `.aac`）を対象とし、`docs/` 外への脱出（`..`・symlink・`guard/`・ドットファイル）・存在しないファイル・未許可拡張子・危険なスキーム（`javascript:` や `data:image/svg+xml`）を `broken-media` issue として検出する。
+
+## 3. 力学ネットワークグラフ (`/graph`)
+
+<Spec id="ui.graph-matrix" stability="evolving" derives="goals/human-comprehension">
+  **When** ユーザーが `/graph` を開いたとき、
+  **the** Web UI **shall** **Sigma.js (WebGL) + Graphology** によるフルビューポートのリアルタイム力学ネットワークグラフ（円形展開・ノードドラッグ時の弾性追従・Forces スライダー・Figma 風トラックパッドパン／ピンチズーム・ホバー枠ハイライト・クリック時の右側ドキュメント即時プレビュー＆繋がりタブ・検索フォーカス・粒度切替 `Documents` / `Docs + Blocks`・リンク層切替 `All Links` / `Traceability Only`）を提供する。
+</Spec>
+
+- **操作規約**: トラックパッド 2 本指スワイプ＝慣性付きパン、ピンチ操作または `⌘`/`Ctrl`＋ホイール＝カーソル位置中心のズーム、ノードドラッグ＝接続ノードの弾性追従、ノードクリック＝右ペインへ文書本文＆繋がりを即時プレビュー。

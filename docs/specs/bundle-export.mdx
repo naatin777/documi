@@ -1,0 +1,24 @@
+---
+type: spec
+title: 複数ドキュメントバンドル Export 仕様
+description: スコープ別バンドル解決および Web UI / CLI の HTML・PDF・印刷まとめ出力の仕様
+tags: [spec, export, pdf]
+---
+
+# 複数ドキュメントバンドル Export 仕様
+
+## 1. スコープ別バンドル解決
+
+<Spec id="core.bundle-export" stability="evolving" derives="goals/human-comprehension">
+  **When** `all` / `dir:<path>` / `goal:<id>` / 明示 `ids` のいずれかでバンドルが要求されたとき、
+  **the** Document Core **shall** 対象ドキュメント一式（Goal 起点時はトレーサビリティ下流および関連用語集・Decision を自動同梱）を解決する。
+</Spec>
+
+- **スコープ解決優先順位**: 明示 `ids`（指定順）→ `scope=goal:<id>`（Goal 配下の全下流＋関連 `domain` / `decision`）→ `scope=dir:<path>`（指定ディレクトリ配下）→ `scope=all`（全文書を Flow 読み順で整列）。
+
+## 2. バンドル描画・HTML / PDF 出力 (`/bundle`)
+
+<Spec id="ui.bundle-export" stability="evolving" derives="goals/human-comprehension">
+  **When** ユーザーが Export モーダルまたは `/bundle` を操作するとき、
+  **the** Web UI **shall** 単一文書・全文書・Goal 関連一式・ディレクトリ配下・任意複数選択を対象に、表紙・自動目次・ページ内アンカー変換・見出し ID 名前空間化・全タブ展開を備えた HTML / PDF / 印刷出力を提供する。
+</Spec>

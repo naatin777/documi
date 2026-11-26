@@ -264,7 +264,7 @@ Diátaxis の 4 象限のうち、Reference は `contract` / `domain` / `spec`�
 | 後戻りコストが高い技術選定・トレードオフ判断 | `decision`（ADR 1 ファイル＋`<Outcome>`＋棄却案） |
 | 新しい振る舞い・制約・エラー・フォールバックの追加変更 | `spec`（`<Spec>`）＋ 外部 I/F 変更なら `contract` |
 | 新しい `<Spec>` やテストスイートの追加 | `verification`（`verifies` 一覧＋テストスイート表） |
-| 1 つの `spec` ファイルが 10 件超の `<Spec>` を超えた | `documi scaffold` で機能領域ごとに分割（`documi check` の健全性ヒントで確認） |
+| 1 つの `spec` ファイルに別 Capability が相乗りした／10 件超の `<Spec>` を超えた | Capability（1 能力＝1 ファイル）単位で `documi scaffold` により分割（技術レイヤー別より能力別を優先、`documi check` の健全性ヒントで確認） |
 
 ---
 

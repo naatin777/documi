@@ -1,0 +1,16 @@
+---
+type: spec
+title: 静的サイト出力仕様
+description: 任意の静的ホスティングへ配置できる読み取り専用 Documi サイト生成 (documi build-site) の仕様
+tags: [spec, static-site]
+---
+
+# 静的サイト出力仕様
+
+<Spec id="core.static-site" stability="evolving" derives="goals/human-comprehension">
+  **When** `documi build-site` が実行されたとき、
+  **the** Documi CLI および Web UI **shall** ビルド済み Web UI アセット（CSS フォント URL・動的チャンク preload ベースパス・favicon を含む相対/任意ベースパス対応済み）と事前計算済みの全読み取り API JSON（Overview・ツリー・ドキュメント詳細・履歴・過去版・グラフ・検索インデックス・任意でハッシュ索引化したコード＆`<SourceRef>` スニペット・アイコン・ローカルメディア）およびホスティング補助ファイル（`_headers`・`.nojekyll`・`404.html`・`window.__DOCUMI_STATIC__` 注入済み `index.html`）を静的ディレクトリへ出力し、Cloudflare Pages / Workers Static Assets・Vercel・Netlify・GitHub Pages・S3 等の任意の静的ホスティング上でサーバーレス・読み取り専用に動作できるようにする。`--no-code` 指定時はソースコード全文を含めない。
+</Spec>
+
+- 出力ファイル構成およびキャッシュヘッダ契約の詳細は [永続ファイル・設定・キャッシュ・静的出力スキーマ契約](../contracts/storage-formats.mdx) を参照する。
+- 静的サイトモードでは `HashRouter` と静的 JSON フェッチへ自動切替し、承認・取り消し・AI プロンプトコピー等の書き込み／ローカル連携操作を非表示にする。
