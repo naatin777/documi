@@ -2,16 +2,28 @@
   "name": "documi",
   "version": "0.1.0",
   "private": true,
-  "description": "Document management tool for specs, designs, decisions, and verification records",
+  "description": "Living Specification platform for AI-assisted engineering",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/naatin777/documi.git"
+  },
   "bin": {
     "documi": "src/cli.ts"
   },
+  "files": [
+    "dist",
+    "src",
+    "LICENSE",
+    "README.md"
+  ],
   "type": "module",
   "scripts": {
     "dev": "bun run --parallel dev:server web",
     "dev:server": "bun --watch src/server/index.ts",
     "web": "vite",
     "build": "vite build",
+    "prepack": "bun run build",
     "start": "bun src/server/index.ts",
     "documi:check": "bun src/cli.ts check",
     "documi:export": "bun src/cli.ts export",
