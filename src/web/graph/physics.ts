@@ -22,8 +22,6 @@ export interface SigmaEdgeAttrs {
   edgeKind: GraphEdgeItem['kind']
 }
 
-export type LodMode = 'dot' | 'doc-card' | 'all-card'
-
 export interface ForceParams {
   centerForce: number
   repelForce: number
@@ -124,7 +122,7 @@ export function buildGraphAndSim(
     const x = Math.cos(theta) * r
     const y = Math.sin(theta) * r
     const deg = degree.get(n.id) ?? 0
-    const size = n.kind === 'doc' ? 4.4 + Math.min(deg * 0.35, 2.2) : 3.0 + Math.min(deg * 0.25, 1.5)
+    const size = n.kind === 'doc' ? 3.2 + Math.min(deg * 0.28, 1.8) : 2.2 + Math.min(deg * 0.2, 1.1)
     const shortLabel = truncateLabel(n.title, n.kind === 'doc' ? 16 : 22)
 
     idxById.set(n.id, simNodes.length)
@@ -169,7 +167,7 @@ export function buildGraphAndSim(
           : EDGE_COLORS[e.kind]
 
     graph.addEdge(e.source, e.target, {
-      size: e.kind === 'contains' ? 0.8 : e.kind === 'mentions' ? 1.0 : 1.4,
+      size: e.kind === 'contains' ? 0.7 : e.kind === 'mentions' ? 0.9 : 1.2,
       color,
       label: e.kind === 'contains' ? '' : e.kind,
       edgeKind: e.kind,

@@ -12,7 +12,6 @@ import {
   stepForceSimulation,
   TYPE_COLORS,
   type ForceParams,
-  type LodMode,
   type SigmaEdgeAttrs,
   type SigmaNodeAttrs,
 } from '../graph/physics'
@@ -25,10 +24,9 @@ interface SigmaGraphProps {
 }
 
 /**
- * セマンティックズーム (LOD) 付き Sigma.js (WebGL) リアルタイム力学グラフ。
- * - 通常〜ズームイン時: 左に Type 色ドット＋右にタイトルを 1 枚のコンパクト角丸長方形カード (GPU backdrop) で描画
- * - ズームアウト / 大規模俯瞰時: 自動で小さい色付きドットへ縮退し、重なりを抑えて全体構造を俯瞰
- * - ホバー／選択時は他ノードを消さず、対象を全文タイトル＋太枠カード、隣接ノードを色枠カードで前面強調
+ * Sigma.js (WebGL) リアルタイム力学グラフ。
+ * - 通常時: 小さめの Type 色ドット＋下中央の短縮ラベル（枠なし）でエッジとクラスタ構造を見渡しやすく描画
+ * - ホバー／選択時: ドット外周を円形リングで囲み、接続エッジ上に向きに沿って流れる光の粒（パルス）を描画
  */
 function ctrlBtnClass(active = false) {
   return `flex h-[30px] w-[30px] cursor-pointer items-center justify-center rounded-lg border text-[15px] font-bold shadow-[0_4px_12px_rgba(0,0,0,0.08)] ${
@@ -39,12 +37,14 @@ function ctrlBtnClass(active = false) {
 export default function SigmaGraph({ data, selectedNodeId, onSelectNode }: SigmaGraphProps) {
   const { t } = useTranslation()
   const containerRef = useRef<HTMLDivElement>(null)
+  const overlayCanvasRef = useRef<HTMLCanvasElement>(null)
   const sigmaRef = useRef<Sigma<SigmaNodeAttrs, SigmaEdgeAttrs> | null>(null)
   const hoveredRef = useRef<string | null>(null)
   const selectedRef = useRef<string | null>(selectedNodeId)
   const forcesRef = useRef<ForceParams>(DEFAULT_FORCES)
   const wakeRef = useRef<((energy?: number) => void) | null>(null)
   const shakeRef = useRef<(() => void) | null>(null)
+  const syncPulseRef = useRef<(() => void) | null>(null)
 
   const navigate = useNavigate()
   const { resolved: theme } = useTheme()
@@ -82,22 +82,9 @@ export default function SigmaGraph({ data, selectedNodeId, onSelectNode }: Sigma
     const { graph, simNodes, simEdges, worldRadius } = buildGraphAndSim(data, isDark)
     const simById = new Map(simNodes.map((n) => [n.id, n]))
 
-    const labelColor = isDark ? '#e2e8f0' : '#1e293b'
-    const cardBg = isDark ? 'rgba(24, 27, 34, 0.92)' : 'rgba(255, 255, 255, 0.94)'
-    const cardBorder = isDark ? 'rgba(148, 163, 184, 0.28)' : 'rgba(148, 163, 184, 0.45)'
-    const focusBg = isDark ? 'rgba(28, 32, 41, 0.97)' : 'rgba(255, 255, 255, 0.98)'
-    const neighborBg = isDark ? 'rgba(24, 27, 34, 0.94)' : 'rgba(255, 255, 255, 0.96)'
-    const shadowColor = isDark ? 'rgba(0, 0, 0, 0.48)' : 'rgba(15, 23, 42, 0.14)'
-
-    // ノード総数に応じてセマンティックズーム (LOD) の切替しきい値を調整
-    const docCardThreshold = data.nodes.length <= 60 ? 1.35 : data.nodes.length <= 180 ? 0.92 : 0.65
-    const blockCardThreshold = 0.65
-    const computeLod = (ratio: number): LodMode => {
-      if (ratio <= blockCardThreshold) return 'all-card'
-      if (ratio <= docCardThreshold) return 'doc-card'
-      return 'dot'
-    }
-    let currentLod: LodMode = computeLod(1.0)
+    const labelColor = isDark ? '#cbd5e1' : '#334155'
+    const focusLabelColor = isDark ? '#f8fafc' : '#0f172a'
+    const mutedLabelColor = isDark ? 'rgba(148, 163, 184, 0.55)' : 'rgba(100, 116, 139, 0.55)'
 
     let renderer: Sigma<SigmaNodeAttrs, SigmaEdgeAttrs>
     try {
@@ -114,43 +101,22 @@ export default function SigmaGraph({ data, selectedNodeId, onSelectNode }: Sigma
           allowInvalidContainer: true,
           autoRescale: 'once',
           stagePadding: 56,
-          labelRenderedSizeThreshold: 2,
-          labelDensity: 0.55,
+          labelRenderedSizeThreshold: 1.5,
+          labelDensity: 0.7,
           minCameraRatio: 0.12,
           maxCameraRatio: 5,
         },
         nodeReducer: (node, displayData, attrs) => {
           const focus = hoveredRef.current ?? selectedRef.current
-          const showAsCard = currentLod === 'all-card' || (currentLod === 'doc-card' && attrs.nodeKind === 'doc')
-
-          const base = showAsCard
-            ? {
-                ...displayData,
-                label: attrs.shortLabel,
-                labelColor,
-                labelFont: "'IBM Plex Sans', 'IBM Plex Sans JP', sans-serif",
-                labelSize: attrs.nodeKind === 'doc' ? 11.5 : 10,
-                labelPosition: 'right' as const,
-                backdropVisibility: 'visible' as const,
-                backdropArea: 'both' as const,
-                backdropColor: cardBg,
-                backdropBorderColor: cardBorder,
-                backdropBorderWidth: 1,
-                backdropCornerRadius: 6,
-                backdropPadding: 4,
-                backdropLabelPadding: 5,
-                backdropShadowColor: shadowColor,
-                backdropShadowBlur: 3,
-              }
-            : {
-                ...displayData,
-                label: attrs.shortLabel,
-                labelColor,
-                labelFont: "'IBM Plex Sans', 'IBM Plex Sans JP', sans-serif",
-                labelSize: attrs.nodeKind === 'doc' ? 11 : 10,
-                labelPosition: 'below' as const,
-                backdropVisibility: 'hidden' as const,
-              }
+          const base = {
+            ...displayData,
+            label: attrs.shortLabel,
+            labelColor,
+            labelFont: "'IBM Plex Sans', 'IBM Plex Sans JP', sans-serif",
+            labelSize: attrs.nodeKind === 'doc' ? 10.5 : 9.5,
+            labelPosition: 'below' as const,
+            backdropVisibility: 'hidden' as const,
+          }
 
           if (!focus || !graph.hasNode(focus)) {
             return base
@@ -160,19 +126,19 @@ export default function SigmaGraph({ data, selectedNodeId, onSelectNode }: Sigma
             return {
               ...base,
               label: attrs.fullLabel,
-              size: displayData.size * 1.15,
-              labelPosition: 'right' as const,
+              size: displayData.size * 1.06,
+              labelColor: focusLabelColor,
+              labelPosition: 'below' as const,
               labelVisibility: 'visible' as const,
               backdropVisibility: 'visible' as const,
-              backdropArea: 'both' as const,
-              backdropColor: focusBg,
+              backdropArea: 'node' as const,
+              backdropColor: 'transparent',
               backdropBorderColor: displayData.color,
-              backdropBorderWidth: 2,
-              backdropCornerRadius: 6,
-              backdropPadding: 5,
-              backdropLabelPadding: 6,
-              backdropShadowColor: shadowColor,
-              backdropShadowBlur: 10,
+              backdropBorderWidth: 1.5,
+              backdropPadding: 3,
+              backdropCornerRadius: 0,
+              backdropShadowColor: 'transparent',
+              backdropShadowBlur: 0,
               zIndex: 3,
             }
           }
@@ -181,32 +147,35 @@ export default function SigmaGraph({ data, selectedNodeId, onSelectNode }: Sigma
             return {
               ...base,
               label: attrs.shortLabel,
-              labelPosition: 'right' as const,
+              labelColor: focusLabelColor,
+              labelPosition: 'below' as const,
               labelVisibility: 'visible' as const,
               backdropVisibility: 'visible' as const,
-              backdropArea: 'both' as const,
-              backdropColor: neighborBg,
+              backdropArea: 'node' as const,
+              backdropColor: 'transparent',
               backdropBorderColor: displayData.color,
-              backdropBorderWidth: 1.25,
-              backdropCornerRadius: 6,
-              backdropPadding: 4,
-              backdropLabelPadding: 5,
-              backdropShadowColor: shadowColor,
-              backdropShadowBlur: 5,
+              backdropBorderWidth: 1,
+              backdropPadding: 2.5,
+              backdropCornerRadius: 0,
+              backdropShadowColor: 'transparent',
+              backdropShadowBlur: 0,
               zIndex: 2,
             }
           }
 
-          // 他ノードは消さず・グレー化せず、そのまま自然な表示を維持する
-          return base
+          return {
+            ...base,
+            opacity: isDark ? 0.65 : 0.68,
+            labelColor: mutedLabelColor,
+          }
         },
         edgeReducer: (edge, displayData) => {
           const focus = hoveredRef.current ?? selectedRef.current
           if (!focus || !graph.hasNode(focus)) {
             return {
               ...displayData,
-              opacity: isDark ? 0.5 : 0.6,
-              head: displayData.size >= 1.3 ? 'arrow' : undefined,
+              opacity: isDark ? 0.42 : 0.52,
+              head: displayData.size >= 1.1 ? 'arrow' : undefined,
             }
           }
           const src = graph.source(edge)
@@ -214,15 +183,15 @@ export default function SigmaGraph({ data, selectedNodeId, onSelectNode }: Sigma
           if (src === focus || dst === focus) {
             return {
               ...displayData,
-              size: Math.max(displayData.size * 1.5, 2.0),
+              size: Math.max(displayData.size * 1.1, 1.2),
               head: 'arrow',
-              opacity: 1,
+              opacity: 0.78,
               zIndex: 2,
             }
           }
           return {
             ...displayData,
-            opacity: isDark ? 0.35 : 0.4,
+            opacity: isDark ? 0.3 : 0.34,
             zIndex: 0,
           }
         },
@@ -242,17 +211,7 @@ export default function SigmaGraph({ data, selectedNodeId, onSelectNode }: Sigma
     }
 
     sigmaRef.current = renderer
-
-    // ズーム倍率に応じたセマンティックズーム (LOD) 切替（状態が変わったときのみ再描画）
     const camera = renderer.getCamera()
-    const onCameraUpdated = () => {
-      const nextLod = computeLod(camera.getState().ratio)
-      if (nextLod !== currentLod) {
-        currentLod = nextLod
-        renderer.refresh()
-      }
-    }
-    camera.on('updated', onCameraUpdated)
 
     // Figma / Miro 方式のトラックパッド＆マウス操作:
     // - 通常 wheel (2本指スワイプ): 上下左右パン
@@ -343,9 +302,117 @@ export default function SigmaGraph({ data, selectedNodeId, onSelectNode }: Sigma
       wake(1.0)
     }
 
+    let pulseRafId: number | null = null
+    const reducedMotion =
+      typeof window !== 'undefined' && window.matchMedia?.('(prefers-reduced-motion: reduce)').matches
+
+    const clearPulseCanvas = () => {
+      const canvas = overlayCanvasRef.current
+      if (!canvas) return
+      const ctx = canvas.getContext('2d')
+      ctx?.clearRect(0, 0, canvas.width, canvas.height)
+    }
+
+    const drawPulses = (now: number) => {
+      pulseRafId = null
+      if (killed || reducedMotion) return
+      const focus = hoveredRef.current ?? selectedRef.current
+      const canvas = overlayCanvasRef.current
+      if (!focus || !graph.hasNode(focus) || !canvas) {
+        clearPulseCanvas()
+        return
+      }
+
+      const dpr = window.devicePixelRatio || 1
+      const width = container.clientWidth
+      const height = container.clientHeight
+      if (width <= 0 || height <= 0) return
+
+      const targetW = Math.round(width * dpr)
+      const targetH = Math.round(height * dpr)
+      if (canvas.width !== targetW || canvas.height !== targetH) {
+        canvas.width = targetW
+        canvas.height = targetH
+      }
+
+      const ctx = canvas.getContext('2d')
+      if (!ctx) return
+      ctx.save()
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0)
+      ctx.clearRect(0, 0, width, height)
+
+      const edges = graph.edges(focus)
+      const periodMs = 1750
+      for (let i = 0; i < edges.length; i++) {
+        const edge = edges[i]!
+        const src = graph.source(edge)
+        const dst = graph.target(edge)
+        const srcAttrs = graph.getNodeAttributes(src)
+        const dstAttrs = graph.getNodeAttributes(dst)
+        const p0 = renderer.graphToViewport({ x: srcAttrs.x, y: srcAttrs.y })
+        const p1 = renderer.graphToViewport({ x: dstAttrs.x, y: dstAttrs.y })
+        const dx = p1.x - p0.x
+        const dy = p1.y - p0.y
+        const len = Math.hypot(dx, dy)
+        if (len < 16) continue
+
+        const phase = (i * 0.27) % 1
+        const progress = (now / periodMs + phase) % 1
+        const tailProgress = Math.max(0, progress - Math.min(0.22, 24 / len))
+
+        const hx = p0.x + dx * progress
+        const hy = p0.y + dy * progress
+        const tx = p0.x + dx * tailProgress
+        const ty = p0.y + dy * tailProgress
+        const edgeColor = graph.getEdgeAttribute(edge, 'color')
+        const fadeEdge = Math.min(progress / 0.12, (1 - progress) / 0.12, 1)
+
+        // 細い尾（フラット・影なし）
+        const grad = ctx.createLinearGradient(tx, ty, hx, hy)
+        grad.addColorStop(0, 'rgba(255, 255, 255, 0)')
+        grad.addColorStop(1, edgeColor)
+        ctx.globalAlpha = 0.55 * fadeEdge
+        ctx.strokeStyle = grad
+        ctx.lineWidth = 1.75
+        ctx.lineCap = 'round'
+        ctx.beginPath()
+        ctx.moveTo(tx, ty)
+        ctx.lineTo(hx, hy)
+        ctx.stroke()
+
+        // 先端の粒（フラット・影なし）
+        ctx.globalAlpha = 0.88 * fadeEdge
+        ctx.fillStyle = edgeColor
+        ctx.beginPath()
+        ctx.arc(hx, hy, 2, 0, Math.PI * 2)
+        ctx.fill()
+      }
+
+      ctx.restore()
+      pulseRafId = requestAnimationFrame(drawPulses)
+    }
+
+    const syncPulse = () => {
+      if (killed || reducedMotion) return
+      const focus = hoveredRef.current ?? selectedRef.current
+      if (focus && graph.hasNode(focus)) {
+        if (pulseRafId === null) {
+          pulseRafId = requestAnimationFrame(drawPulses)
+        }
+      } else {
+        if (pulseRafId !== null) {
+          cancelAnimationFrame(pulseRafId)
+          pulseRafId = null
+        }
+        clearPulseCanvas()
+      }
+    }
+
     wakeRef.current = wake
     shakeRef.current = shake
+    syncPulseRef.current = syncPulse
     wake(1.0)
+    syncPulse()
 
     renderer.on('nodeDragStart', ({ node }) => {
       draggedNodeId = node
@@ -364,11 +431,13 @@ export default function SigmaGraph({ data, selectedNodeId, onSelectNode }: Sigma
     renderer.on('enterNode', ({ node }) => {
       hoveredRef.current = node
       renderer.refresh()
+      syncPulse()
     })
 
     renderer.on('leaveNode', () => {
       hoveredRef.current = null
       renderer.refresh()
+      syncPulse()
     })
 
     renderer.on('clickNode', ({ node }) => {
@@ -392,10 +461,12 @@ export default function SigmaGraph({ data, selectedNodeId, onSelectNode }: Sigma
       container.removeEventListener('wheel', onWheel, { capture: true })
       container.removeEventListener('gesturestart', preventSafariGesture)
       container.removeEventListener('gesturechange', preventSafariGesture)
-      camera.off('updated', onCameraUpdated)
       if (rafId !== null) cancelAnimationFrame(rafId)
+      if (pulseRafId !== null) cancelAnimationFrame(pulseRafId)
+      clearPulseCanvas()
       wakeRef.current = null
       shakeRef.current = null
+      syncPulseRef.current = null
       renderer.kill()
       sigmaRef.current = null
     }
@@ -403,6 +474,7 @@ export default function SigmaGraph({ data, selectedNodeId, onSelectNode }: Sigma
 
   useEffect(() => {
     sigmaRef.current?.refresh()
+    syncPulseRef.current?.()
   }, [selectedNodeId])
 
   const focusNode = (nodeId: string) => {
@@ -569,10 +641,17 @@ export default function SigmaGraph({ data, selectedNodeId, onSelectNode }: Sigma
           <p className="error-text">{webglError}</p>
         </div>
       ) : (
-        <div
-          ref={containerRef}
-          className="relative min-h-[460px] w-full flex-1 bg-[radial-gradient(circle_at_center,var(--bg)_0%,var(--bg-sidebar)_100%)]"
-        />
+        <div className="relative min-h-[460px] w-full flex-1">
+          <div
+            ref={containerRef}
+            className="absolute inset-0 bg-[radial-gradient(circle_at_center,var(--bg)_0%,var(--bg-sidebar)_100%)]"
+          />
+          <canvas
+            ref={overlayCanvasRef}
+            className="pointer-events-none absolute inset-0 h-full w-full"
+            aria-hidden="true"
+          />
+        </div>
       )}
 
       <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 border-t border-line bg-surface px-3 py-2 text-[11.5px] text-fg-muted">
