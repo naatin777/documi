@@ -385,7 +385,9 @@
   },
   "code": {
     "copy": "Copy",
-    "copied": "Copied"
+    "copied": "Copied",
+    "wrap": "Wrap",
+    "unwrap": "Scroll"
   },
   "mermaid": {
     "showDiagram": "Diagram",

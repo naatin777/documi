@@ -385,7 +385,9 @@
   },
   "code": {
     "copy": "コピー",
-    "copied": "コピーしました"
+    "copied": "コピーしました",
+    "wrap": "折り返し",
+    "unwrap": "横スクロール"
   },
   "mermaid": {
     "showDiagram": "図を表示",
