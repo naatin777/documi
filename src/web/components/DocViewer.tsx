@@ -46,7 +46,7 @@ export default function DocViewer({
     <article className="page doc-page">
       <PrintHeader label={typeLabel} title={doc.title} meta={doc.path} />
       <header className="doc-header">
-        <div className="doc-badges">
+        <div className="doc-badges items-center">
           <span className={`badge badge-type type-${doc.type}`}>{typeLabel}</span>
           {doc.typeInferred && <span className="badge badge-format">{t('doc.inferred')}</span>}
           {doc.format === 'mdx' && <span className="badge badge-format">MDX</span>}
@@ -58,6 +58,40 @@ export default function DocViewer({
               {freshness.workingStatus === 'modified' ? t('doc.uncommittedModified') : t('doc.uncommittedNew')}
             </span>
           )}
+          <div
+            className="ml-auto inline-flex items-center gap-0.5 rounded-md border border-line bg-subtle p-0.5 print:hidden"
+            role="tablist"
+            aria-label={t('doc.viewModeAria')}
+          >
+            <button
+              type="button"
+              role="tab"
+              aria-selected={viewMode === 'rendered'}
+              className={`inline-flex cursor-pointer items-center gap-1 rounded border-0 px-2.5 py-0.5 text-[11.5px] font-semibold transition-colors ${
+                viewMode === 'rendered'
+                  ? 'bg-surface text-fg shadow-[0_1px_2px_rgba(15,23,42,0.08)]'
+                  : 'bg-transparent text-fg-muted hover:text-fg'
+              }`}
+              onClick={() => setViewMode('rendered')}
+            >
+              <Eye size={12} strokeWidth={1.85} aria-hidden="true" />
+              <span>{t('doc.viewRendered')}</span>
+            </button>
+            <button
+              type="button"
+              role="tab"
+              aria-selected={viewMode === 'source'}
+              className={`inline-flex cursor-pointer items-center gap-1 rounded border-0 px-2.5 py-0.5 text-[11.5px] font-semibold transition-colors ${
+                viewMode === 'source'
+                  ? 'bg-surface text-fg shadow-[0_1px_2px_rgba(15,23,42,0.08)]'
+                  : 'bg-transparent text-fg-muted hover:text-fg'
+              }`}
+              onClick={() => setViewMode('source')}
+            >
+              <Code2 size={12} strokeWidth={1.85} aria-hidden="true" />
+              <span>{t('doc.viewSource')}</span>
+            </button>
+          </div>
         </div>
         <h1>{doc.title}</h1>
         {doc.description && <p className="doc-description">{doc.description}</p>}
@@ -85,84 +119,56 @@ export default function DocViewer({
           <span className="meta-item mono">{doc.path}</span>
         </div>
 
-        <div className="mt-3 flex flex-wrap items-center gap-2 print:hidden">
-          {hasLatestHighlights && history && (
-            <span className="inline-flex min-w-0 items-center gap-1.5 rounded-md border border-sky-500/30 bg-sky-500/8 px-2 py-1 text-[11.5px] text-fg-muted">
-              <Sparkles
-                size={12}
-                strokeWidth={2}
-                className="shrink-0 text-sky-600 dark:text-sky-400"
-                aria-hidden="true"
-              />
-              <span className="truncate">
-                {history.highlightBasis === 'working'
-                  ? t('doc.highlightWorking')
-                  : history.highlightBasis === 'last-commit'
-                    ? t('doc.highlightLastCommit', { sha: history.highlightCommit.shortSha })
+        {(hasLatestHighlights || (onOpenHistory && commitCount > 0)) && (
+          <div className="mt-3 flex flex-wrap items-center gap-2 print:hidden">
+            {hasLatestHighlights && history && (
+              <span className="inline-flex min-w-0 items-center gap-1.5 rounded-md border border-sky-500/30 bg-sky-500/8 px-2 py-1 text-[11.5px] text-fg-muted">
+                <Sparkles
+                  size={12}
+                  strokeWidth={2}
+                  className="shrink-0 text-sky-600 dark:text-sky-400"
+                  aria-hidden="true"
+                />
+                <span className="truncate">
+                  {history.highlightBasis === 'working'
+                    ? t('doc.highlightWorking')
+                    : history.highlightBasis === 'last-commit'
+                      ? t('doc.highlightLastCommit', { sha: history.highlightCommit.shortSha })
+                      : ''}
+                  {history.highlightBasis === 'last-commit' && history.highlightCommit.subject
+                    ? ` · ${history.highlightCommit.subject}`
                     : ''}
-                {history.highlightBasis === 'last-commit' && history.highlightCommit.subject
-                  ? ` · ${history.highlightCommit.subject}`
-                  : ''}
+                </span>
               </span>
-            </span>
-          )}
-          <div className="ml-auto flex flex-wrap items-center gap-1.5">
-            <div
-              className="inline-flex rounded-md border border-line bg-subtle p-0.5"
-              role="group"
-              aria-label={t('doc.viewModeAria')}
-            >
-              <button
-                type="button"
-                aria-pressed={viewMode === 'rendered'}
-                className={`inline-flex cursor-pointer items-center gap-1 rounded px-2 py-0.5 text-[11.5px] font-semibold transition-colors ${
-                  viewMode === 'rendered'
-                    ? 'bg-surface text-fg shadow-2xs'
-                    : 'bg-transparent text-fg-muted hover:text-fg'
-                }`}
-                onClick={() => setViewMode('rendered')}
-              >
-                <Eye size={12} strokeWidth={1.85} aria-hidden="true" />
-                <span>{t('doc.viewRendered')}</span>
-              </button>
-              <button
-                type="button"
-                aria-pressed={viewMode === 'source'}
-                className={`inline-flex cursor-pointer items-center gap-1 rounded px-2 py-0.5 text-[11.5px] font-semibold transition-colors ${
-                  viewMode === 'source' ? 'bg-surface text-fg shadow-2xs' : 'bg-transparent text-fg-muted hover:text-fg'
-                }`}
-                onClick={() => setViewMode('source')}
-              >
-                <Code2 size={12} strokeWidth={1.85} aria-hidden="true" />
-                <span>{t('doc.viewSource')}</span>
-              </button>
+            )}
+            <div className="ml-auto flex items-center gap-1.5">
+              {viewMode === 'rendered' && hasLatestHighlights && onToggleHighlight && (
+                <button
+                  type="button"
+                  aria-pressed={highlightChanges}
+                  className={`inline-flex cursor-pointer items-center gap-1 rounded-md border px-2 py-1 text-[11.5px] font-semibold transition-colors ${
+                    highlightChanges
+                      ? 'border-sky-500/50 bg-sky-500/12 text-sky-700 dark:text-sky-300'
+                      : 'border-line bg-subtle text-fg-muted hover:bg-hover hover:text-fg'
+                  }`}
+                  onClick={onToggleHighlight}
+                >
+                  {t('doc.highlightToggle')}
+                </button>
+              )}
+              {onOpenHistory && commitCount > 0 && (
+                <button
+                  type="button"
+                  className="inline-flex cursor-pointer items-center gap-1 rounded-md border border-line bg-subtle px-2 py-1 text-[11.5px] font-semibold text-fg-muted hover:bg-hover hover:text-fg"
+                  onClick={onOpenHistory}
+                >
+                  <History size={12} strokeWidth={1.85} aria-hidden="true" />
+                  <span>{t('doc.openHistory', { count: commitCount })}</span>
+                </button>
+              )}
             </div>
-            {viewMode === 'rendered' && hasLatestHighlights && onToggleHighlight && (
-              <button
-                type="button"
-                aria-pressed={highlightChanges}
-                className={`inline-flex cursor-pointer items-center gap-1 rounded-md border px-2 py-1 text-[11.5px] font-semibold transition-colors ${
-                  highlightChanges
-                    ? 'border-sky-500/50 bg-sky-500/12 text-sky-700 dark:text-sky-300'
-                    : 'border-line bg-subtle text-fg-muted hover:bg-hover hover:text-fg'
-                }`}
-                onClick={onToggleHighlight}
-              >
-                {t('doc.highlightToggle')}
-              </button>
-            )}
-            {onOpenHistory && commitCount > 0 && (
-              <button
-                type="button"
-                className="inline-flex cursor-pointer items-center gap-1 rounded-md border border-line bg-subtle px-2 py-1 text-[11.5px] font-semibold text-fg-muted hover:bg-hover hover:text-fg"
-                onClick={onOpenHistory}
-              >
-                <History size={12} strokeWidth={1.85} aria-hidden="true" />
-                <span>{t('doc.openHistory', { count: commitCount })}</span>
-              </button>
-            )}
           </div>
-        </div>
+        )}
       </header>
 
       {doc.issues.length > 0 && (
