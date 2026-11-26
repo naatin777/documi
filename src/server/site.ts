@@ -5,6 +5,7 @@ import path from 'node:path'
 import type { CodeTreeNode } from '../core/code'
 import type { DocumentHistory, DocTreeNode } from '../core/types'
 import { createApp } from './app'
+import { resolveDefaultClientDist } from './dist'
 import type { MaterialIconManifest } from './routes/icons'
 import { DocsStore } from './store'
 
@@ -196,7 +197,7 @@ export async function buildStaticSite(options: BuildStaticSiteOptions): Promise<
   const docsDir = path.resolve(options.docsDir)
   const projectRoot = path.resolve(options.projectRoot ?? path.dirname(docsDir))
   const outDir = path.resolve(options.outDir)
-  const clientDist = path.resolve(options.clientDist ?? path.resolve(import.meta.dir, '../../dist'))
+  const clientDist = path.resolve(options.clientDist ?? resolveDefaultClientDist())
   const basePath = normalizeBasePath(options.basePath)
   const includeCode = options.includeCode !== false
   const maxRevisions = Math.max(0, Math.min(options.maxRevisions ?? 5, 20))

@@ -55,6 +55,7 @@ import type {
 } from './core/types'
 import { syncVectorIndex } from './core/vector-store'
 import { createApp } from './server/app'
+import { resolveDefaultClientDist } from './server/dist'
 import { startServer } from './server/index'
 import { startMcpStdio } from './server/mcp'
 import { PdfError, renderPdfFromUrl, renderStandaloneHtmlFromUrl } from './server/pdf'
@@ -640,7 +641,7 @@ async function cmdUnapprove(ids: string[], flags: CliFlags, io: CliIo): Promise<
 async function cmdExport(flags: CliFlags, io: CliIo): Promise<number> {
   const format = flags.format === 'html' ? 'html' : 'pdf'
   const { docsDir, projectRoot, testReportPath } = resolveCliPaths(flags)
-  const clientDist = path.resolve(import.meta.dir, '../dist')
+  const clientDist = resolveDefaultClientDist()
   if (!existsSync(clientDist)) {
     io.err(`Built frontend not found (${clientDist}). Run "bun run build" first.`)
     return 1

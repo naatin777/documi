@@ -7,7 +7,11 @@ on:
 
 jobs:
   verify:
-    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -39,13 +43,14 @@ jobs:
       - name: Build frontend
         run: bun run build
 
+      - name: Static site build smoke test
+        run: bun src/cli.ts build-site --out .documi/site-smoke
+
       - name: Documi living spec check
-        run: bun run documi:check
-        # 全ブロック承認運用を開始した後は `--strict` を有効化してください:
-        # run: bun src/cli.ts check --strict
+        run: bun src/cli.ts check --no-review-edit
 
       - name: Advisory check for docs sync on PR
-        if: github.event_name == 'pull_request'
+        if: github.event_name == 'pull_request' && matrix.os == 'ubuntu-latest'
         run: |
           BASE_SHA="${{ github.event.pull_request.base.sha }}"
           SRC_CHANGED=$(git diff --name-only "$BASE_SHA" HEAD -- src/ | wc -l)
