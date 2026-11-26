@@ -1,0 +1,17 @@
+---
+type: spec
+title: Code Explorer 仕様
+description: projectRoot 配下の読み取り専用ファイルツリー・Shiki 全文閲覧・AST 公開シンボルジャンプ・仕様逆リンクの仕様
+tags: [spec, ui, code-explorer]
+---
+
+# Code Explorer 仕様
+
+<Spec id="ui.code-explorer" stability="evolving" derives="goals/human-comprehension">
+  **When** ユーザーが Code Explorer（`/code`）を開くか、`<SourceRef>`・`SidePanel` の関連コード・`Realization` のファイル参照をクリックしたとき、
+  **the** Web UI **shall** `projectRoot` 配下の開閉式ソースファイルツリー、Shiki ハイライト・行番号付きの読み取り専用ソースコード全文、および右側インスペクタ（AST 抽出した公開シンボルジャンプ `Symbols` タブと、そのファイルに紐づく `<Spec>`・ドキュメント・`<TermDef>` への逆リンク `Links` タブ）を提供し、指定行範囲の強調スクロールおよび仕様カバレッジ有無を提示する。`projectRoot` 外参照・バイナリ・上限超過ファイルは安全にエラー表示し、Web UI 上でのコード編集機能は提供しない。
+</Spec>
+
+- **ツリー除外対象**: `node_modules`, `.git`, `dist`, `coverage`, `.documi`, `.next`, `.turbo`, `target`, `build`, `public`, `docs/` 配下、およびドット始まりディレクトリ。
+- **フィルタと URL 遷移**: ファイル名インクリメンタル検索およびカバレッジフィルタ（`すべて` / `リンクあり` / `その他`）。`/code?file=src/...&line=10&end=25` クエリで対象ファイル・強調行へ直接ジャンプする。
+- **静的サイト `--no-code` 時**: `isCodeIncluded() === false` の場合はコードツリーやソース全文を要求せず、コード非同梱の案内表示に切り替える。

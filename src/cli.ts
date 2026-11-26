@@ -770,7 +770,7 @@ async function cmdList(flags: CliFlags, io: CliIo): Promise<number> {
 
 async function cmdShow(positionals: string[], flags: CliFlags, io: CliIo): Promise<number> {
   const id = positionals[0]
-  if (!id) throw new CliArgError('Document ID is required (e.g. documi show specs/core/document-model)')
+  if (!id) throw new CliArgError('Document ID is required (e.g. documi show specs/document-model)')
   const { docsDir, projectRoot, testReportPath } = resolveCliPaths(flags)
   const store = await DocsStore.open(docsDir, { projectRoot, testReportPath })
   const detail = getDocumentDetail(store.getIndex(), id)

@@ -1,0 +1,67 @@
+---
+type: spec
+title: ドキュメントモデル・型推論・MDX 安全解析仕様
+description: 連番廃止・階層走査・9 Type 自動推論・MDX セマンティックブロック抽出・MDX JS 非実行安全解析の仕様
+tags: [spec, document-model, mdx]
+---
+
+# ドキュメントモデル・型推論・MDX 安全解析仕様
+
+## 1. ファイル構造・識別・並び順
+
+<Spec id="core.document-model" stability="stable" derives="goals/ai-reproducibility">
+  **When** Documi が `docs/` ディレクトリを読み込むとき、
+  **the** Document Core **shall** 任意階層の `.mdx` / `.md` ファイルを連番なしで再帰走査し、拡張子を除いた POSIX 相対パスをドキュメント ID として割り当てるとともに、任意の `date`（`YYYY-MM-DD` / `YYYY-MM`）メタデータを解析して `decision` 文書を新しい決定日順に整列する。
+</Spec>
+
+- **走査除外対象**: ドット始まりエントリ（`.git`, `.documi` 等）、`node_modules`、およびルート直下の `guard/` ディレクトリ（人間承認ガード領域）。
+- **拡張子衝突時の優先順位**: 同一ドキュメント ID で `.mdx` と `.md` が両方存在する場合は **`.mdx` を採用**し、後続の `.md` は `duplicate-doc-id` issue として記録する。
+- **タイトル補完優先順位**: frontmatter `title` → 本文最初の H1 見出し → ファイル名（`missing-title` 警告を記録）。
+- **`date` メタデータ規則**: `YYYY-MM-DD` または `YYYY-MM`（月 1〜12・日 1〜31）を受理し、不正形式は `invalid-date` issue を記録する。`decision` 文書は `date` 降順（未設定は末尾）で整列する。
+- **耐障害性**: 個別ファイルの読み込み・frontmatter 解析失敗時は処理を中断せず `issues` に記録して残りの文書読み込みを継続する。
+
+<Spec id="core.type-inference" stability="stable" derives="goals/low-friction-governance">
+  **When** ドキュメントの frontmatter に `type` が省略されたとき、
+  **the** Document Core **shall** 最上位ディレクトリ名 → ファイル名の順に 9 種類の Artifact Type を自動推論し、判別できない場合は警告を記録しつつ `guide` として読み込む。
+</Spec>
+
+| 推論キー（大文字小文字無視） | Artifact Type | Layer |
+|---|---|---|
+| `goal`, `goals` | `goal` | `boundary` |
+| `decision`, `decisions`, `adr`, `adrs` | `decision` | `boundary` |
+| `domain`, `domains`, `glossary` | `domain` | `domain` |
+| `spec`, `specs` | `spec` | `normative` |
+| `contract`, `contracts` | `contract` | `normative` |
+| `architecture`, `arch` | `architecture` | `realization` |
+| `design`, `designs` | `design` | `realization` |
+| `verification`, `verifications` | `verification` | `realization` |
+| `guide`, `guides` | `guide` | `informative` |
+
+- frontmatter に未定義の `type` が明示指定された場合は `invalid-type` issue を記録して自動推論へフォールバックする。
+- 最上位ディレクトリ名・ファイル名のいずれにも一致しない場合は `inferred-default-type` 警告を記録し `guide` とする。
+
+## 2. セマンティックブロックと安全解析
+
+<Spec id="core.mdx-blocks" stability="stable" derives="goals/ai-reproducibility">
+  **When** MDX 本文に `<Spec>` / `<Constraint>` / `<Outcome>` / `<Note>` / `<TermDef>` が記述されているとき、
+  **the** Document Core **shall** mdast からブロック構造と正規化 SHA-256 `contentHash` を抽出し、プロジェクト全体でのブロック ID 重複を検出する。
+</Spec>
+
+- **ID 規約**: `^[a-zA-Z][a-zA-Z0-9._-]*$` に一致必須（`<Note>` のみ `id` 省略可、省略時は `<docId>#note-<連番>` を自動付与）。欠落は `missing-block-id`、形式違反は `invalid-block-id`、プロジェクト横断の重複は `duplicate-block-id` として記録する。
+- **ハッシュ正規化**: ブロック内部本文の改行を `\n` へ統一して前後空白をトリムし、`sha256:<hex>` を算出する（行番号や周囲の空白移動だけでは `stale` にならない）。
+- **属性既定値と検証**:
+  - `intent`: `<Note>` は `informative` 既定（許可: `idea` / `informative` / `rejected`）、その他ブロックは `normative` 既定（許可: `normative` / `idea` / `rejected`）。違反時は `invalid-block-attr`。
+  - `stability`: 既定 `evolving`（許可: `stable` / `evolving` / `volatile`）。違反時は `invalid-block-attr`。
+  - `<TermDef>`: `id` と `aliases` の大文字小文字無視での重複を `duplicate-term` として検出する。
+  - `startLine` / `endLine`: frontmatter 行オフセット加算済みの 1 始まりファイル行番号を保持する。
+
+<Spec id="core.mdx-safety" stability="stable" derives="goals/low-friction-governance">
+  **If** MDX 本文に ESM import/export・JSX 式 `{...}`・スプレッド属性・未許可コンポーネントが含まれる場合、
+  **then the** Document Core **shall** コードを実行せず `mdx-unsupported` 問題として報告する。
+</Spec>
+
+- **許可コンポーネント一覧（計 14 種・サーバーとブラウザで共有）**:
+  - リッチ表現: `Callout`, `Tabs`, `Tabs.Tab`, `Tab`, `Steps`, `Steps.Step`, `Step`, `SourceRef`
+  - セマンティックタグ: `Spec`, `Constraint`, `Outcome`, `Note`, `TermDef`, `Term`
+- **禁止構文**: `mdxjsEsm`（`import` / `export`）、`mdxFlowExpression` / `mdxTextExpression`（`{...}`）、属性値式（`prop={...}`）、スプレッド属性（`{...props}`）、上記 14 種以外の JSX コンポーネント。コードブロック／インラインコード内は対象外。
+- **パース失敗時**: MDX パースエラー時は Markdown パーサーへフォールバックし、`mdx-parse-error` issue を記録する。

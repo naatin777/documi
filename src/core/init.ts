@@ -220,7 +220,7 @@ EOF
   - 新サブシステム・主要モジュール追加 → \`architecture\` 更新 ＋ \`design\`（\`satisfies\`・\`<SourceRef>\`）追加・更新
   - 後戻りコストが高い構造・技術判断 → \`decision\`（ADR＋\`<Outcome>\`）を追加
   - 新しい \`<Spec>\` やテストスイート追加 → \`verification\` の \`verifies\` と一覧を更新
-  - 1 つの \`spec\` ファイルが 10 件超の \`<Spec>\` を超えた → \`documi scaffold\` で領域別に分割
+  - **Capability 単位のファイル分割（相乗り禁止）**: \`spec\` ファイルは技術レイヤー（\`core/\`・\`ui/\`）やスプリント単位ではなく **Capability（システムが提供する 1 つの能力・機能ドメイン）単位で 1 ファイル** にする。タイトルに無関係な機能が \`and\` や中黒で並び始めたら件数に関係なく \`documi scaffold\` で別ファイルへ切り出す（10 件超は安全網の \`bloated-spec-doc\` で検知）
 
 ## 4. 守るべき不変ルール
 
@@ -361,7 +361,7 @@ description: 既存のソースコード・テストと Documi の仕様・契�
 
 - **書く**: 決定表（条件 × 結果）、優先順位リスト、状態遷移図（Mermaid）、入出力フィールド表、エラー規約表、\`<SourceRef mode="exports" />\`。
 - **書かない**: 関数内部の \`if\`/\`for\` 手順、非公開ヘルパー名、リファクタしても外部契約が変わらない細部。
-- 1 つの \`spec\` ファイルは **10 件以下の \`<Spec>\`** に保ちつつ、各仕様の境界条件と決定表を具体的に記述する。
+- \`spec\` ファイルは **1 Capability = 1 ファイル**（技術レイヤーではなく能力単位で凝集、無関係な機能を相乗りさせない。10 件超は安全網の肥大化ヒント対象）に保ち、各仕様の境界条件と決定表を具体的に記述する。
 
 ## 4. 精密更新と検証・引き継ぎ
 
@@ -430,7 +430,7 @@ EOF
   - New subsystem or core module -> update \`architecture\` and add/update \`design\` (with \`satisfies\` + \`<SourceRef>\`)
   - Hard-to-reverse structural/technical choice -> add a \`decision\` (ADR with \`<Outcome>\`)
   - New \`<Spec>\` or test suite -> update \`verification\` (\`verifies\` list + suite table)
-  - A \`spec\` file exceeds ~10 \`<Spec>\` blocks -> split by domain with \`documi scaffold\`
+  - **Capability-based file granularity (no bundling unrelated features)**: organize \`spec\` files by **Capability (one cohesive system ability/domain per file)** rather than technical layers (\`core/\` vs \`ui/\`) or sprints; split with \`documi scaffold\` whenever unrelated features start stacking in the same title regardless of block count (> 10 blocks triggers the \`bloated-spec-doc\` safety-net hint)
 
 ## 4. Invariant Guardrails
 
@@ -571,7 +571,7 @@ Ask: *"If another AI re-implemented this domain from \`${relDocsDir}/\` alone, w
 
 - **Write declaratively**: decision tables (condition x outcome), precedence lists, Mermaid state/flow diagrams, I/O field tables, error tables, and \`<SourceRef mode="exports" />\`.
 - **Never write**: function-internal \`if\`/\`for\` step-by-step pseudocode, private helper names, or details that can change freely during refactoring without affecting observable behavior.
-- Keep each \`spec\` file at **<= 10 \`<Spec>\` blocks** while making each block's observable rules and edge cases explicit.
+- Keep each \`spec\` file focused on **one Capability** (split by capability rather than technical layer or arbitrary count; > 10 blocks triggers the safety-net hint), while making each block's observable rules and edge cases explicit.
 
 ## 4. Update, Verify & Hand Off
 
