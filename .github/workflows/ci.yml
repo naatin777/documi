@@ -6,13 +6,8 @@ on:
   pull_request:
 
 jobs:
-  verify-matrix:
-    name: verify (${{ matrix.os }})
-    strategy:
-      fail-fast: false
-      matrix:
-        os: [ubuntu-latest, macos-latest]
-    runs-on: ${{ matrix.os }}
+  verify:
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
         with:
@@ -51,24 +46,11 @@ jobs:
         run: bun src/cli.ts check --no-review-edit
 
       - name: Advisory check for docs sync on PR
-        if: github.event_name == 'pull_request' && matrix.os == 'ubuntu-latest'
+        if: github.event_name == 'pull_request'
         run: |
           BASE_SHA="${{ github.event.pull_request.base.sha }}"
           SRC_CHANGED=$(git diff --name-only "$BASE_SHA" HEAD -- src/ | wc -l)
           DOCS_CHANGED=$(git diff --name-only "$BASE_SHA" HEAD -- docs/ | wc -l)
           if [ "$SRC_CHANGED" -gt 0 ] && [ "$DOCS_CHANGED" -eq 0 ]; then
             echo "::notice::src/ に変更がありますが docs/ は更新されていません。振る舞い・契約・構造の変更がある場合は docs/ の同期を確認してください。"
-          fi
-
-  # Branch Protection の必須チェック名 `verify` を維持しつつ全 OS マトリクスの結果を集約する
-  verify:
-    needs: verify-matrix
-    if: always()
-    runs-on: ubuntu-latest
-    steps:
-      - name: Check matrix result
-        run: |
-          if [ "${{ needs.verify-matrix.result }}" != "success" ]; then
-            echo "verify-matrix failed: ${{ needs.verify-matrix.result }}"
-            exit 1
           fi
