@@ -196,6 +196,8 @@
     "viewRendered": "Preview",
     "viewSource": "Source",
     "viewModeAria": "Switch document view mode",
+    "fullWidth": "Switch to full width",
+    "standardWidth": "Switch to standard width",
     "highlightWorking": "Uncommitted changes",
     "highlightLastCommit": "Changes in latest commit {{sha}}",
     "highlightToggle": "Highlight latest",

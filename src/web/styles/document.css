@@ -1,9 +1,13 @@
 /* ---------- Content ---------- */
 
 .page {
-  max-width: 780px;
+  max-width: 860px;
   margin: 0 auto;
-  padding: 40px 48px 96px;
+  padding: 36px 40px 96px;
+}
+
+.page.doc-page-wide {
+  max-width: none;
 }
 
 .doc-header {
