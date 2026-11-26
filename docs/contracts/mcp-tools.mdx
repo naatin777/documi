@@ -28,10 +28,11 @@ AI エージェント向けに **2 種類のトランスポート** で同一の
 
 | Tool | 入力 | 役割 |
 |---|---|---|
-| `get_project_map` | `full?` | Goal / Architecture 概要・Decision `<Outcome>` 一覧・Domain 用語集・Review & Realization サマリを一括取得（`full: true` で全文展開） |
+| `get_project_map` | `full?` | Goal / Architecture 概要・現行 Decision `<Outcome>` 一覧（廃止済みは `supersededOutcomes` へ分離）・Domain 用語集・Review & Realization サマリを一括取得（`full: true` で全文展開） |
 | `list_documents` | `type?` | ドキュメントサマリ一覧を取得 |
 | `get_document` | `id` | パス ID から本文・セマンティックブロック（`startLine` / `endLine` 含む）・関係・問題一覧を取得 |
 | `get_relations` | `id` | ドキュメント ID またはブロック ID の外向き/逆参照を取得 |
+| `get_impact` | `id`, `maxDepth?` | 指定ドキュメントまたはブロックを変更した際に影響する下流文書・ブロック・`<SourceRef>`・コード／テスト参照を再帰走査で一覧化（既定 `maxDepth: 4`） |
 | `query_specs` | `kind?`, `intent?`, `stability?`, `review?`, `realization?`, `suspect?`, `query?`, `full?` | セマンティックブロックを多軸フィルタ検索（既定は `docPath`・`startLine`・`endLine`・要約付き軽量サマリ、`full: true` で詳細配列込み） |
 | `get_spec_context` | `id`, `full?` | 指定 Spec の本文・`docPath`・`startLine`・`endLine`・上流 Goal 概要・関連 Design/Contract・Decision `<Outcome>`・関連用語・`<SourceRef>` を一括集約（`full: true` で完全展開） |
 | `search_documents` | `query`, `type?`, `limit?`, `semantic?` | ドキュメントとセマンティックブロックを BM25＋用語集同義語展開（`semantic: true` または `rag.enabled` 時はローカル Embedding＋RRF）で横断全文検索 |
@@ -56,7 +57,7 @@ AI のコンテキスト消費を抑えるため、主要読み取りツール�
 
 | Tool | 既定 (`full: false`) の主要返却構造 | `full: true` で追加展開される項目 |
 |---|---|---|
-| `get_project_map` | `documentCount`, `blockCount`, `issueCount`, `reviewSummary`, `realizationSummary`, `health`, `goals`（概要＋見出し）, `architecture`（概要＋見出し）, `decisionOutcomes`（240 字要約）, `terms`（160 字要約） | `goals[].body`, `architecture[].body`, `decisionOutcomes[].body` 全文, `terms[].definition` 全文 |
+| `get_project_map` | `documentCount`, `blockCount`, `issueCount`, `reviewSummary`, `realizationSummary`, `health`, `goals`（概要＋見出し）, `architecture`（概要＋見出し）, `decisionOutcomes`（現行のみ・240 字要約）, `supersededOutcomes`（廃止済み・`supersededBy` 付き）, `terms`（160 字要約） | `goals[].body`, `architecture[].body`, `decisionOutcomes[].body` 全文, `terms[].definition` 全文 |
 | `query_specs` | `{ count, blocks: [{ id, kind, docId, docPath, startLine, endLine, intent, stability, review, suspect, realizationStatus?, derives?, summary }] }` | 各ブロック全文 `rawBody`・完全な `realization` 詳細配列 |
 | `get_spec_context` | `target`（本文＋要約 `realization`）, `docPath`, `startLine`, `endLine`, `document`, `upstreamGoals`（概要）, `relatedDocuments`（概要）, `decisionOutcomes`, `relevantTerms`（160 字要約）, `sourceRefs`, `exportedSymbols?`（`mode="exports"` 参照のみ） | 上流 Goal 本文全文・完全な `realization` 配列・全 `sourceRefs` ファイルの公開シンボル |
 | `retrieve_context` | `{ query, mode, budget, usedChars, hits, upstreamGoals, decisionOutcomes, relatedDocuments, terms, sourceRefs }`（既定 `limit = 8`, `budget = 6000`） | —（`budget` で上限調整） |

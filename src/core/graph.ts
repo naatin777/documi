@@ -153,6 +153,9 @@ export function buildGraphAndValidate(
   // 文書単位の outgoing / incoming を集約
   populateDocumentRelations(edges, byId, blocksById)
 
+  // supersedes エッジから旧文書・旧ブロック（および旧 ADR 配下の <Outcome>）へ supersededBy を自動付与
+  populateSupersededBy(edges, byId, blocksById)
+
   // Rooted DAG 検証: 循環検出 & Goal 到達性 (orphan-spec)
   detectCycles(edges, 'derives', byId)
   detectCycles(edges, 'supersedes', byId)
@@ -221,6 +224,49 @@ function populateDocumentRelations(
 function compareRelation(a: ResolvedRelation, b: ResolvedRelation): number {
   if (a.kind !== b.kind) return a.kind.localeCompare(b.kind)
   return a.ref.localeCompare(b.ref)
+}
+
+function populateSupersededBy(
+  edges: GraphEdge[],
+  byId: Map<string, Document>,
+  blocksById: Map<string, SemanticBlock>,
+): void {
+  const docMap = new Map<string, Set<string>>()
+  const blockMap = new Map<string, Set<string>>()
+
+  for (const edge of edges) {
+    if (edge.kind !== 'supersedes') continue
+    if (edge.toKind === 'doc') {
+      const set = docMap.get(edge.to) ?? new Set<string>()
+      set.add(edge.from)
+      docMap.set(edge.to, set)
+    } else {
+      const set = blockMap.get(edge.to) ?? new Set<string>()
+      set.add(edge.from)
+      blockMap.set(edge.to, set)
+    }
+  }
+
+  for (const [docId, by] of docMap) {
+    const doc = byId.get(docId)
+    if (doc && by.size > 0) {
+      doc.supersededBy = [...by].toSorted()
+    }
+  }
+
+  for (const block of blocksById.values()) {
+    const merged = new Set<string>(blockMap.get(block.id))
+    // 旧 decision 文書自体が supersedes されている場合、配下の <Outcome> も廃止済みとして継承する
+    if (block.kind === 'outcome') {
+      const parentBy = docMap.get(block.docId)
+      if (parentBy) {
+        for (const id of parentBy) merged.add(id)
+      }
+    }
+    if (merged.size > 0) {
+      block.supersededBy = [...merged].toSorted()
+    }
+  }
 }
 
 /** derives / supersedes エッジの循環参照を検出する */

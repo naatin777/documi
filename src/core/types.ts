@@ -276,6 +276,8 @@ interface SemanticBlockBase {
   derives: string[]
   /** 置き換え対象 (supersedes) */
   supersedes: string[]
+  /** このブロック（または親 Decision 文書）を置き換えた新しいドキュメント/ブロック ID 一覧 */
+  supersededBy?: string[]
 }
 
 export interface SpecSemanticBlock extends SemanticBlockBase {
@@ -383,6 +385,8 @@ export interface Document extends DocumentMeta {
   outgoing: ResolvedRelation[]
   /** 解決済みの逆参照 */
   incoming: ResolvedRelation[]
+  /** この文書を `supersedes` で置き換えた新しいドキュメント/ブロック ID 一覧 */
+  supersededBy?: string[]
   /** Git 履歴またはファイル時刻から算出した鮮度情報 */
   freshness?: DocumentFreshness
   /** この文書に紐づく問題 (未解決リンク, orphan-spec, 循環, MDX未対応構文など) */
@@ -403,6 +407,8 @@ export interface DocumentSummary {
   blockCount: number
   specCount: number
   issueCount: number
+  /** この文書を `supersedes` で置き換えた新しいドキュメント/ブロック ID 一覧 */
+  supersededBy?: string[]
   /** Git 履歴またはファイル時刻から算出した鮮度情報 */
   freshness?: DocumentFreshness
 }

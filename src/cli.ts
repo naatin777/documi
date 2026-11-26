@@ -23,6 +23,7 @@ import {
   buildValidationPayload,
   collectSourceRefExports,
   getDocumentDetail,
+  getImpactAnalysis,
   getNodeRelations,
   getSpecContext,
   listDocuments,
@@ -107,6 +108,7 @@ Usage:
   documi list [--type <type>] [options]          List documents
   documi show <doc-id> [options]                 Show document body, blocks, relations, and issues
   documi relations <id> [options]                Show outgoing and incoming references for a document or block
+  documi impact <id> [options]                   Recursively list downstream docs, blocks, and code/tests affected by changing an ID
   documi search <query...> [options]             Full-text search across documents and blocks (BM25 + glossary / --semantic)
   documi retrieve <query...> [options]           Retrieve relevant Specs, Goals, ADRs, and SourceRefs via BM25 (+ --semantic) + graph expansion
   documi index [options]                         Build or incrementally sync the local Embedding cache (bun:sqlite)
@@ -139,6 +141,7 @@ Options:
   --note <text>           Optional approval note (approve)
   --type <type>           Artifact type (list / search / scaffold)
   --limit <n>             Maximum result count (search default: 20 / retrieve default: 8)
+  --depth <n>             Maximum downstream traversal depth (impact, default: 4)
   --budget <chars>        Character budget for retrieve output (default: 6000)
   --no-graph              Disable graph neighborhood expansion in retrieve
   --semantic              Enable local Embedding + RRF hybrid search in search / retrieve (--no-semantic to disable)
@@ -210,6 +213,7 @@ const CLI_OPTIONS = {
   prs: { type: 'boolean' },
   type: { type: 'string' },
   limit: { type: 'string' },
+  depth: { type: 'string' },
   budget: { type: 'string' },
   'no-graph': { type: 'boolean' },
   semantic: { type: 'boolean' },
@@ -727,7 +731,9 @@ async function cmdMap(flags: CliFlags, io: CliIo): Promise<number> {
     for (const a of map.architecture) io.out(`  - ${a.id}: ${a.title}`)
   }
   if (map.decisionOutcomes.length > 0) {
-    io.out(`\nDecision Outcomes (${map.decisionOutcomes.length}):`)
+    const supersededNote =
+      map.supersededOutcomes.length > 0 ? `, ${map.supersededOutcomes.length} superseded hidden` : ''
+    io.out(`\nDecision Outcomes (${map.decisionOutcomes.length} active${supersededNote}):`)
     for (const o of map.decisionOutcomes) {
       const firstLine = o.body.trim().split('\n')[0] ?? ''
       io.out(`  - ${o.id} (${o.docId}${o.date ? `, ${o.date}` : ''}): ${firstLine}`)
@@ -819,6 +825,58 @@ async function cmdRelations(positionals: string[], flags: CliFlags, io: CliIo): 
     for (const e of rel.outgoing) io.out(`    --${e.kind}--> ${e.to}`)
     io.out(`  incoming (${rel.incoming.length}):`)
     for (const e of rel.incoming) io.out(`    <--${e.kind}-- ${e.from}`)
+  }
+  return 0
+}
+
+async function cmdImpact(positionals: string[], flags: CliFlags, io: CliIo): Promise<number> {
+  const id = positionals[0]
+  if (!id) throw new CliArgError('Document ID or block ID is required (e.g. documi impact core.document-model)')
+  const depthRaw = getStringFlag(flags, 'depth')
+  let maxDepth: number | undefined
+  if (depthRaw !== undefined) {
+    const parsed = Number(depthRaw)
+    if (!Number.isInteger(parsed) || parsed < 1 || parsed > 12) {
+      throw new CliArgError(`--depth must be an integer between 1 and 12: "${depthRaw}"`)
+    }
+    maxDepth = parsed
+  }
+
+  const { docsDir, projectRoot, testReportPath } = resolveCliPaths(flags)
+  const store = await DocsStore.open(docsDir, { projectRoot, testReportPath })
+  const impact = getImpactAnalysis(store.getIndex(), id, { maxDepth })
+  if (!impact) {
+    io.err(`✗ Document or block not found: ${id}`)
+    return 1
+  }
+
+  if (flags.json === true) {
+    printJson(io, impact)
+    return 0
+  }
+
+  io.out(`Impact Analysis for ${impact.target.id} (${impact.target.kind}, maxDepth=${impact.maxDepth})`)
+  io.out(`  affected documents: ${impact.affectedDocuments.length}`)
+  for (const d of impact.affectedDocuments) {
+    io.out(`    [depth=${d.depth}] [${d.type}] ${d.id} (${d.path}) via ${d.via.join(', ')} — ${d.title}`)
+  }
+  if (impact.affectedBlocks.length > 0) {
+    io.out(`  affected blocks: ${impact.affectedBlocks.length}`)
+    for (const b of impact.affectedBlocks) {
+      io.out(`    [depth=${b.depth}] ${b.id} (${b.kind}, ${b.docId}, review=${b.review}) via ${b.via.join(', ')}`)
+    }
+  }
+  if (impact.sourceRefs.length > 0) {
+    io.out(`  linked SourceRefs: ${impact.sourceRefs.length}`)
+    for (const r of impact.sourceRefs) {
+      io.out(`    - ${r.file} (from ${r.docId})`)
+    }
+  }
+  if (impact.codeAnchors.length > 0) {
+    io.out(`  linked code/test anchors: ${impact.codeAnchors.length}`)
+    for (const a of impact.codeAnchors) {
+      io.out(`    - [${a.kind}] ${a.file}:${a.line} (${a.specId})${a.testName ? ` — ${a.testName}` : ''}`)
+    }
   }
   return 0
 }
@@ -1400,6 +1458,7 @@ export async function runCli(argv: string[], io: CliIo = DEFAULT_IO): Promise<nu
     if (command === 'list') return await cmdList(flags, io)
     if (command === 'show') return await cmdShow(positionals, flags, io)
     if (command === 'relations') return await cmdRelations(positionals, flags, io)
+    if (command === 'impact') return await cmdImpact(positionals, flags, io)
     if (command === 'search') return await cmdSearch(positionals, flags, io)
     if (command === 'retrieve') return await cmdRetrieve(positionals, flags, io)
     if (command === 'index') return await cmdIndex(flags, io)

@@ -14,9 +14,16 @@ description: Documi CLI を使って Living Specification（仕様・設計・AD
 1. **Spec ID がまだ分からないタスク**: `documi retrieve "<自然文のタスクや質問>"` — BM25＋用語集同義語展開＋グラフ展開で関連 Spec・上流 Goal・Decision `<Outcome>`・用語・`<SourceRef>` を文字数予算内で 1 発取得する。
 2. **全体像の把握**: `documi map` — Goal・Architecture・Decision `<Outcome>`・ドメイン用語・Review / Realization 全体像を一括取得する（機械処理時は `documi map --json`）。
 3. **条件絞り込み・横断検索**: `documi query [--kind spec] [--review ...] [--realization ...] [--q <語>]` または `documi search "<query>"`。
-4. **特定 Spec の深掘り**: `documi context <spec-id>` — 対象 Spec 本文・上流 Goal・関連文書・用語・`<SourceRef>` を取得する（全文や参照関係が必要なら `documi show <doc-id>` / `documi relations <id>`）。
+4. **特定 Spec の深掘り・変更影響の確認**: `documi context <spec-id>` で対象 Spec 本文・上流 Goal・関連文書・用語・`<SourceRef>` を取得する。**仕様変更の前には必ず `documi impact <id>` を実行し、影響を受ける全下流文書・ブロック・コード・テストを洗い出す**（全文や直接参照だけ見たい場合は `documi show <doc-id>` / `documi relations <id>`）。
 
-## 2. CLI による精密編集（差分を最小限に保つ）
+## 2. Spec-First・矛盾防止・合意の即時永続化（実装前に docs/ を固める）
+
+- **Spec-First**: 仕様・振る舞い・契約を変えるときは、**コードやテストを触る前にまず `docs/` を更新し、`documi check` で整合を確認する**。
+- **1 事実 1 箇所（Single Source of Truth）**: 同じ仕様表や列挙を Spec・Contract・Design に重複コピーせず、正規の置き場所（`spec`＝振る舞い／`contract`＝外部 I/F・スキーマ／`design`＝モジュール責務）を 1 箇所に決め、他文書からはリンクや `<Term>` で参照する。
+- **古い決定は `supersedes` で廃止**: 方針転換や旧 ADR の撤回時は、新しい ADR に `supersedes: [decisions/<old-adr>]` を付け、古い決定を現行一覧から分離する（横に v2 仕様ファイルを乱立させない）。
+- **チャット合意の即時永続化**: チャット履歴にしか残っていない合意は別セッションでは失われる。ユーザーと合意した方針・却下案は `<Outcome>`、振る舞いは `<Spec>`、禁止事項は `<Constraint>`、未確定の仮案・保留は `<Note intent="idea">` に**その場で即記録する**。
+
+## 3. CLI による精密編集（差分を最小限に保つ）
 
 仕様を更新するときは、MDX ファイル全体を書き換える代わりに AST 位置ベースの CLI コマンドを優先してください。**複数行の Markdown やバッククォートを含む本文はクォート崩れを防ぐため `--body -` ＋ヒアドキュメント**（または `--body-file <file>`）を使ってください：
 

@@ -49,13 +49,14 @@ MCP サーバーを接続しない環境（CLI + Agent Skills 運用やターミ
 
 | Command | 主な Option | 役割 |
 |---|---|---|
-| `documi map` | `--json`, `--full` | Goal / Architecture 概要・Decision `<Outcome>`・用語・Review/Realization サマリを一括取得（`--full` で全文展開） |
+| `documi map` | `--json`, `--full` | Goal / Architecture 概要・現行 Decision `<Outcome>`（廃止済みは `supersededOutcomes` へ分離）・用語・Review/Realization サマリを一括取得（`--full` で全文展開） |
 | `documi list` | `--type <type>`, `--json` | ドキュメント一覧を取得 |
 | `documi show <doc-id>` | `--json` | 本文・セマンティックブロック・関係・問題一覧を取得 |
 | `documi relations <id>` | `--json` | ドキュメントまたはブロックの外向き・逆参照を取得 |
+| `documi impact <id>` | `--depth <n>`, `--json` | 指定ドキュメントまたはブロックを変更した際に影響する下流文書・ブロック・`<SourceRef>`・コード／テスト参照を再帰走査で一覧化（既定深度 `4`） |
 | `documi search <query...>` | `--type <type>`, `--limit <n>`, `--semantic`/`--no-semantic`, `--provider`, `--model`, `--endpoint`, `--json` | ドキュメントとセマンティックブロックを BM25＋用語集同義語展開（`--semantic` または `rag.enabled` 時はローカル Embedding＋RRF ハイブリッド）で横断全文検索 |
 | `documi retrieve <query...>` | `--type <type>`, `--limit <n>`, `--budget <chars>`, `--no-graph`, `--semantic`/`--no-semantic`, `--provider`, `--model`, `--endpoint`, `--json` | 自然文から BM25（＋任意でローカル Embedding RRF）＋明示グラフ展開で関連 Spec・上流 Goal・Decision `<Outcome>`・用語・`<SourceRef>` を予算内で 1 発取得 |
-| `documi index` | `--provider <ollama\|openai>`, `--model <id>`, `--endpoint <url>`, `--api-key-env <var>`, `--json` | `bun:sqlite` ローカルベクトルキャッシュ（`.documi/cache/embeddings.sqlite`）を `contentHash` 差分で構築・更新 |
+| `documi index` | `--provider <ollama\|openai\|gemini>`, `--model <id>`, `--endpoint <url>`, `--api-key-env <var>`, `--json` | `bun:sqlite` ローカルベクトルキャッシュ（`.documi/cache/embeddings.sqlite`）を `contentHash` 差分で構築・更新 |
 | `documi query` | `--kind`, `--intent`, `--stability`, `--review`, `--realization`, `--suspect`/`--no-suspect`, `--q <text>`, `--json`, `--full` | セマンティックブロックを多軸フィルタ検索（既定は軽量サマリ、`--full` で完全展開） |
 | `documi context <id>` | `--json`, `--full` | Spec の本文・上流 Goal 概要・関連文書・Decision `<Outcome>`・関連用語・`<SourceRef>` を一括集約（`--full` で完全展開） |
 

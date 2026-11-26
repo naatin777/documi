@@ -65,6 +65,7 @@ interface OverviewOutcomeEntry {
   date?: string
   rawBody: string
   stability: Stability
+  supersededBy?: string[]
 }
 
 interface OverviewAttentionBlock {
@@ -115,6 +116,7 @@ export function createDocumentsRoutes(store: DocsStore, projectRoot?: string, ra
 
         const goals: DocumentSummary[] = []
         const outcomes: OverviewOutcomeEntry[] = []
+        const supersededOutcomes: OverviewOutcomeEntry[] = []
         const orphanSpecs: OverviewIssueEntry[] = []
         const docIssues: OverviewIssueEntry[] = []
         const attentionBlocks: OverviewAttentionBlock[] = []
@@ -151,14 +153,20 @@ export function createDocumentsRoutes(store: DocsStore, projectRoot?: string, ra
               specsByIntent[block.intent]++
               specsByStability[block.stability]++
             } else if (block.kind === 'outcome') {
-              outcomes.push({
+              const entry: OverviewOutcomeEntry = {
                 id: block.id,
                 docId: doc.id,
                 docTitle: doc.title,
                 ...(doc.date ? { date: doc.date } : {}),
                 rawBody: block.rawBody,
                 stability: block.stability,
-              })
+                ...(block.supersededBy && block.supersededBy.length > 0 ? { supersededBy: block.supersededBy } : {}),
+              }
+              if (entry.supersededBy) {
+                supersededOutcomes.push(entry)
+              } else {
+                outcomes.push(entry)
+              }
             } else if (block.kind === 'term') {
               termCount++
             }
@@ -201,6 +209,7 @@ export function createDocumentsRoutes(store: DocsStore, projectRoot?: string, ra
             attentionBlocks,
             goals,
             outcomes,
+            supersededOutcomes,
             orphanSpecs,
             indexIssues: index.issues,
             docIssues,
