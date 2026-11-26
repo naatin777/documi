@@ -461,17 +461,21 @@ export default function CodeExplorerLayout() {
                               data-line={lineNo}
                               className={isHighlighted ? 'bg-amber-500/16 dark:bg-amber-500/22' : 'hover:bg-hover'}
                             >
-                              <td className="w-[1%] min-w-12 border-r border-line p-0 text-right align-top select-none">
+                              <td
+                                className={`sticky left-0 z-10 w-[1%] min-w-10 border-r border-line p-0 text-right align-top select-none ${
+                                  isHighlighted ? 'bg-amber-50 dark:bg-amber-950/90' : 'bg-surface'
+                                }`}
+                              >
                                 <button
                                   type="button"
-                                  className="mono block w-full cursor-pointer border-0 bg-transparent pr-2.5 pl-2 text-right text-[11.5px] text-fg-faint tabular-nums hover:text-accent"
+                                  className="mono block w-full cursor-pointer border-0 bg-transparent pr-2 pl-1.5 text-right text-[11.5px] text-fg-faint tabular-nums hover:text-accent"
                                   onClick={(e) => handleLineClick(lineNo, e.shiftKey)}
                                   title={t('codeExplorer.lineSelectHint', { line: lineNo })}
                                 >
                                   {lineNo}
                                 </button>
                               </td>
-                              <td className="px-3.5 py-0 whitespace-pre">
+                              <td className="px-3 py-0 whitespace-pre">
                                 <div className="flex items-baseline justify-between gap-3">
                                   {htmlLine !== null ? (
                                     <span

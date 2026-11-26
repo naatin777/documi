@@ -321,12 +321,19 @@
   color: var(--text);
 }
 
-.codeblock-body,
+.codeblock-body {
+  margin: 0;
+  background: var(--bg-code);
+  color: var(--text);
+  padding: 10px 0;
+  overflow-x: auto;
+}
+
 .codeblock-plain {
   margin: 0;
   background: var(--bg-code);
   color: var(--text);
-  padding: 14px 16px;
+  padding: 10px 12px;
   overflow-x: auto;
 }
 
@@ -339,19 +346,37 @@
   line-height: 1.55;
 }
 
+.codeblock-body .shiki code,
+.shiki-host .shiki code {
+  display: grid;
+  width: max-content;
+  min-width: 100%;
+  padding: 0;
+}
+
 .codeblock-body .shiki .line,
 .shiki-host .shiki .line {
-  display: inline;
+  display: block;
+  min-height: 1.55em;
+  padding-right: 12px;
+  white-space: pre;
 }
 
 .codeblock-body .shiki .line::before,
 .shiki-host .shiki .line::before {
   counter-increment: shiki-line;
   content: counter(shiki-line);
+  position: sticky;
+  left: 0;
+  z-index: 1;
   display: inline-block;
-  width: 2.6em;
-  margin-right: 1.1em;
+  box-sizing: border-box;
+  width: 2.8em;
+  padding-right: 0.65em;
+  margin-right: 0.75em;
   text-align: right;
+  background: var(--bg-code);
+  border-right: 1px solid var(--border);
   color: var(--text-faint);
   user-select: none;
 }
@@ -807,7 +832,7 @@
 
 .source-ref .shiki-host {
   background: var(--bg-code);
-  padding: 12px 14px;
+  padding: 10px 0;
   overflow-x: auto;
 }
 
