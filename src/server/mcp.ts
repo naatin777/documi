@@ -65,7 +65,7 @@ const DOCUMI_MCP_INSTRUCTIONS = [
   "   - Link tests with `test('[<spec.id>] ...', ...)` (or `// @verifies <spec.id>`).",
   '   - Always write `<SourceRef file="...">` and `<TermDef symbols="...">` as project-root-relative POSIX paths.',
   '   - Surface public boundary symbols (exported classes, interfaces, types, public functions) via `<SourceRef file="..." mode="exports" />` or `<SourceRef symbol="..." />` rather than hand-copying code; never write internal if/for pseudocode or private helper steps in docs.',
-  '   - Update triggers before finishing: new subsystem/module -> update architecture + add/update design (with `satisfies` + `<SourceRef>`); high-reversibility structural choice -> add decision (ADR); new spec/test suite -> update verification (`verifies`); spec file > 10 blocks -> split by domain.',
+  '   - Update triggers before finishing: new subsystem/module -> update architecture + add/update design (with `satisfies` + `<SourceRef>`); hard-to-reverse structural choice -> add decision (ADR); new spec/test suite -> update verification (`verifies`); spec file > 10 blocks -> split by domain.',
   '4. Strict invariants:',
   '   - NEVER edit `docs/guard/reviews.json` directly (human approvals only).',
   '   - NEVER write executable JS in MDX (no ESM import/export, no JSX `{...}` expressions, no unapproved components).',

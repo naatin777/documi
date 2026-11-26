@@ -139,6 +139,7 @@ Cloudflare Pages / Workers Static Assets・Vercel・Netlify・GitHub Pages・AWS
 ## 終了コードと副作用の規約
 
 - **終了コード**: 正常終了は `0`、引数不正・検証エラー（`documi check` 失敗含む）・対象未存在・I/O エラー時は `1` を返す。
+- **未知フラグの拒否とコマンド別ヘルプ**: 定義されていないフラグ（`--stict` 等の typo）は `Unknown option: --<name>` として終了コード `1` で拒否し、CI ゲートへ黙って素通りさせない。`documi <command> --help` はそのコマンドの使い方と関連オプションのみを表示し、`documi --help` は全コマンドを表示する。
 - **副作用の範囲**:
   - `documi check` / `documi mcp`: 読み取り専用（ファイル書き換えなし）。
   - `documi init`: 不足している雛形ファイルのみを作成し、既存ファイルは一切上書きしない（冪等）。

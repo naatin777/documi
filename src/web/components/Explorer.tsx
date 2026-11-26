@@ -4,7 +4,7 @@ import { useTranslation } from 'react-i18next'
 import { NavLink } from 'react-router'
 import { ARTIFACT_TYPES } from '../../core/types'
 import type { ArtifactType, DocTreeDir, DocTreeNode, DocumentSummary, WorkingTreeStatus } from '../../core/types'
-import { encodeDocId } from '../api'
+import { encodeDocId, isCodeIncluded, isStaticSite } from '../api'
 import { LanguageToggle } from '../i18n'
 import { toErrorMessage, useStatusQuery, useTreeQuery } from '../queries'
 import { ThemeToggle } from '../theme'
@@ -159,10 +159,12 @@ export default function Explorer({
           <GraphIcon />
           <span>{t('nav.graph')}</span>
         </NavLink>
-        <NavLink to="/code" className={primaryNavClass} onClick={onClose}>
-          <FileCode2 size={15} strokeWidth={1.75} aria-hidden="true" />
-          <span>{t('nav.codeExplorer')}</span>
-        </NavLink>
+        {isCodeIncluded() && (
+          <NavLink to="/code" className={primaryNavClass} onClick={onClose}>
+            <FileCode2 size={15} strokeWidth={1.75} aria-hidden="true" />
+            <span>{t('nav.codeExplorer')}</span>
+          </NavLink>
+        )}
       </div>
 
       <div className="flex items-center justify-between gap-2 px-3 pt-2 pb-1">
@@ -304,7 +306,7 @@ export default function Explorer({
         </details>
       )}
       {error && <div className="border-t border-line px-4 py-2 text-xs text-red-600">{error}</div>}
-      {status && (
+      {status && !isStaticSite() && (
         <div className="truncate border-t border-line px-4 py-2 font-mono text-[11px] text-fg-muted">
           docs: {status.rootDir}
         </div>

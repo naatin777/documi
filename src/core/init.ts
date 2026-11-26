@@ -413,7 +413,7 @@ EOF
   4. **Public symbols without pseudocode**: link exported classes/interfaces/types/functions via \`<SourceRef file="src/..." mode="exports" />\` or \`<SourceRef symbol="..." />\`; never write private helper steps or function-internal \`if\`/\`for\` pseudocode.
 - **Update triggers (check before finishing)**:
   - New subsystem or core module -> update \`architecture\` and add/update \`design\` (with \`satisfies\` + \`<SourceRef>\`)
-  - High-reversibility structural/technical choice -> add a \`decision\` (ADR with \`<Outcome>\`)
+  - Hard-to-reverse structural/technical choice -> add a \`decision\` (ADR with \`<Outcome>\`)
   - New \`<Spec>\` or test suite -> update \`verification\` (\`verifies\` list + suite table)
   - A \`spec\` file exceeds ~10 \`<Spec>\` blocks -> split by domain with \`documi scaffold\`
 
@@ -549,7 +549,7 @@ Ask: *"If another AI re-implemented this domain from \`${relDocsDir}/\` alone, w
 2. **Precedence, Fallbacks & Conflict Resolution**: CLI vs. env vs. config order, file collisions, missing-cache / offline-provider fallbacks, and tie-breaking rules.
 3. **Persistent File & Config Schemas (\`contract\`)**: exact file paths, required/optional fields, types, defaults, and strict validation rules (e.g., unknown-key rejection).
 4. **External I/F Contracts (\`contract\`)**: REST API, MCP tool, and CLI arguments, key request/response fields, side-effect boundaries, and idempotency.
-5. **Public AST Anchors & Unrecorded ADRs**: link public module exports with \`<SourceRef file="src/..." mode="exports" />\`, and record any high-reversibility structural decisions or Non-Goals in \`decisions/\` or \`goals/\`.
+5. **Public AST Anchors & Unrecorded ADRs**: link public module exports with \`<SourceRef file="src/..." mode="exports" />\`, and record any hard-to-reverse structural decisions or Non-Goals in \`decisions/\` or \`goals/\`.
 
 ## 3. Anti-Pseudocode Guardrail (Refactoring Test)
 

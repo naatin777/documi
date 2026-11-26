@@ -295,4 +295,20 @@ describe('AI & Human CLI commands', () => {
     const forbidden = await execCli(['scaffold', '.documi/reviews.json', '--project', projectDir, '--title', 'Hack'])
     expect(forbidden.code).toBe(1)
   })
+
+  test('[core.ai-cli] 未知フラグ (typo) を拒否し、<command> --help はそのコマンドの使い方だけを表示する', async () => {
+    const typo = await execCli(['check', '--stict', '--project', projectDir])
+    expect(typo.code).toBe(1)
+    expect(typo.stderr).toContain('Unknown option: --stict')
+
+    const help = await execCli(['check', '--help'])
+    expect(help.code).toBe(0)
+    expect(help.stdout).toContain('documi check')
+    expect(help.stdout).toContain('--strict')
+    expect(help.stdout).not.toContain('documi serve')
+    expect(help.stdout).not.toContain('--skills-dir')
+
+    const full = await execCli(['--help'])
+    expect(full.stdout).toContain('documi serve')
+  })
 })

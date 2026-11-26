@@ -74,7 +74,22 @@ const DEFAULT_IO: CliIo = {
 }
 
 function usage(io: CliIo): void {
-  io.out(`Documi CLI
+  io.out(USAGE_TEXT)
+}
+
+/** `documi <command> --help` 用に、そのコマンドの使い方と関連オプションだけを表示する。未知コマンドなら false */
+function commandUsage(io: CliIo, command: string): boolean {
+  const lines = USAGE_TEXT.split('\n')
+  const usageLines = lines.filter((l) => l.startsWith(`  documi ${command} `))
+  if (usageLines.length === 0) return false
+  const annotated = new RegExp(`\\([^)]*\\b${command}\\b`)
+  const globalOption = /^ {2}(--project|--docs|--json|-h,)/
+  const optionLines = lines.filter((l) => /^ {2}(--|-h)/.test(l) && (globalOption.test(l) || annotated.test(l)))
+  io.out(`Usage:\n${usageLines.join('\n')}\n\nOptions:\n${optionLines.join('\n')}`)
+  return true
+}
+
+const USAGE_TEXT = `Documi CLI
 
 Usage:
   documi init [options]                          Scaffold docs/ templates and Agent Skills for new or existing projects
@@ -163,8 +178,7 @@ Options:
   --revisions <n>         Max historical commits bundled per document (build-site, default: 5)
   --json                  Output results as JSON
   --full                  Include full body and detail arrays in map / query / context JSON output
-  -h, --help              Show this help`)
-}
+  -h, --help              Show this help`
 
 const CLI_OPTIONS = {
   docs: { type: 'string' },
@@ -254,6 +268,12 @@ function parseCliArgs(argv: string[]): ParsedArgs {
     allowPositionals: true,
     strict: false,
   })
+  // strict: false は未知フラグを黙って受け入れるため、typo (例: --stict) で CI ゲートが素通りしないよう明示的に拒否する
+  for (const key of Object.keys(values)) {
+    if (!(key in CLI_OPTIONS)) {
+      throw new CliArgError(`Unknown option: ${key.length === 1 ? '-' : '--'}${key} (see documi --help)`)
+    }
+  }
   return {
     command: positionals[0],
     positionals: positionals.slice(1),
@@ -1348,7 +1368,18 @@ async function cmdBuildSite(flags: CliFlags, io: CliIo): Promise<number> {
  * CLI エントリポイント（テストから直接呼び出せるように分離）。
  */
 export async function runCli(argv: string[], io: CliIo = DEFAULT_IO): Promise<number> {
-  const { command, positionals, flags } = parseCliArgs(argv)
+  let parsed: ParsedArgs
+  try {
+    parsed = parseCliArgs(argv)
+  } catch (error) {
+    if (error instanceof CliArgError) {
+      io.err(`✗ ${error.message}`)
+      return 1
+    }
+    throw error
+  }
+  const { command, positionals, flags } = parsed
+  if (flags.help && command && commandUsage(io, command)) return 0
   if (flags.help || !command) {
     usage(io)
     return command ? 0 : 1
