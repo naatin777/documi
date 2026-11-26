@@ -60,8 +60,8 @@ tags: [spec, document-model, mdx]
   **then the** Document Core **shall** コードを実行せず `mdx-unsupported` 問題として報告する。
 </Spec>
 
-- **許可コンポーネント一覧（計 14 種・サーバーとブラウザで共有）**:
-  - リッチ表現: `Callout`, `Tabs`, `Tabs.Tab`, `Tab`, `Steps`, `Steps.Step`, `Step`, `SourceRef`
+- **許可コンポーネント一覧（計 20 種・サーバーとブラウザで共有）**:
+  - リッチ・視覚表現: `Callout`, `Tabs`, `Tabs.Tab`, `Tab`, `Steps`, `Steps.Step`, `Step`, `Details`, `Columns`, `Column`, `Timeline`, `Timeline.Item`, `TimelineItem`, `SourceRef`
   - セマンティックタグ: `Spec`, `Constraint`, `Outcome`, `Note`, `TermDef`, `Term`
-- **禁止構文**: `mdxjsEsm`（`import` / `export`）、`mdxFlowExpression` / `mdxTextExpression`（`{...}`）、属性値式（`prop={...}`）、スプレッド属性（`{...props}`）、上記 14 種以外の JSX コンポーネント。コードブロック／インラインコード内は対象外。
+- **禁止構文**: `mdxjsEsm`（`import` / `export`）、`mdxFlowExpression` / `mdxTextExpression`（`{...}`）、属性値式（`prop={...}`）、スプレッド属性（`{...props}`）、上記 20 種以外の JSX コンポーネント。コードブロック／インラインコード内は対象外。
 - **パース失敗時**: MDX パースエラー時は Markdown パーサーへフォールバックし、`mdx-parse-error` issue を記録する。

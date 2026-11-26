@@ -12,7 +12,7 @@ import type { DocFormat } from './types'
  * NOTE: ブラウザバンドルから安全に import できるよう `node:*` 依存を持たない。
  */
 export const ALLOWED_MDX_COMPONENTS: ReadonlySet<string> = new Set([
-  // 既存リッチ表現
+  // リッチ・視覚表現
   'Callout',
   'Tabs',
   'Tabs.Tab',
@@ -20,6 +20,12 @@ export const ALLOWED_MDX_COMPONENTS: ReadonlySet<string> = new Set([
   'Steps',
   'Steps.Step',
   'Step',
+  'Details',
+  'Columns',
+  'Column',
+  'Timeline',
+  'Timeline.Item',
+  'TimelineItem',
   'SourceRef',
   // セマンティックタグ
   'Spec',

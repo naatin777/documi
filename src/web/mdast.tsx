@@ -9,7 +9,17 @@ import { getMediaKind, isSafeExternalMediaUrl, resolveLocalMediaPath } from '../
 import type { ChangedLineRange, DocFormat } from '../core/types'
 import { encodeDocId, mediaUrl, type TermEntry } from './api'
 import CodeBlock from './components/CodeBlock'
-import { CalloutBlock, StepsBlock, TabsBlock, type TabItem } from './components/MdxBlocks'
+import {
+  CalloutBlock,
+  ColumnsBlock,
+  DetailsBlock,
+  StepsBlock,
+  TabsBlock,
+  TimelineBlock,
+  type ColumnItem,
+  type TabItem,
+  type TimelineItemData,
+} from './components/MdxBlocks'
 import MermaidBlock from './components/MermaidBlock'
 import { ConstraintBlock, NoteBlock, OutcomeBlock, SpecBlock, TermDefBlock } from './components/SemanticBlocks'
 import SourceRef from './components/SourceRef'
@@ -497,6 +507,9 @@ const FLOW_COMPONENTS = new Set([
   'Callout',
   'Tabs',
   'Steps',
+  'Details',
+  'Columns',
+  'Timeline',
   'SourceRef',
   'Spec',
   'Constraint',
@@ -505,7 +518,16 @@ const FLOW_COMPONENTS = new Set([
   'TermDef',
   'Term',
 ])
-const ITEM_COMPONENTS = new Set(['Tabs.Tab', 'Tab', 'Steps.Step', 'Step'])
+const TAB_ITEM_COMPONENTS = new Set(['Tabs.Tab', 'Tab'])
+const STEP_ITEM_COMPONENTS = new Set(['Steps.Step', 'Step'])
+const COLUMN_ITEM_COMPONENTS = new Set(['Column'])
+const TIMELINE_ITEM_COMPONENTS = new Set(['Timeline.Item', 'TimelineItem'])
+const ITEM_COMPONENTS = new Set([
+  ...TAB_ITEM_COMPONENTS,
+  ...STEP_ITEM_COMPONENTS,
+  ...COLUMN_ITEM_COMPONENTS,
+  ...TIMELINE_ITEM_COMPONENTS,
+])
 
 function renderJsx(node: JsxNode, ctx: Ctx, level: 'flow' | 'text'): ReactNode {
   const name = node.name
@@ -531,6 +553,19 @@ function renderJsx(node: JsxNode, ctx: Ctx, level: 'flow' | 'text'): ReactNode {
         return renderTabs(node, ctx)
       case 'Steps':
         return renderSteps(node, ctx)
+      case 'Details':
+        return (
+          <DetailsBlock
+            title={strProp(props, 'title') ?? strProp(props, 'summary') ?? 'Details'}
+            defaultOpen={Boolean(props.open) || ctx.expandAllTabs}
+          >
+            {renderJsxChildren(node, ctx)}
+          </DetailsBlock>
+        )
+      case 'Columns':
+        return renderColumns(node, ctx)
+      case 'Timeline':
+        return renderTimeline(node, ctx)
       case 'SourceRef':
         return (
           <SourceRef
@@ -663,7 +698,7 @@ function isPhrasing(node: AnyNode): boolean {
 }
 
 function renderTabs(node: JsxNode, ctx: Ctx): ReactNode {
-  const items = collectJsxItems(node, ITEM_COMPONENTS).map((tab, i) => {
+  const items = collectJsxItems(node, TAB_ITEM_COMPONENTS).map((tab, i) => {
     const parsed = parseJsxProps(tab)
     if (!parsed.ok) {
       return {
@@ -684,7 +719,7 @@ function renderTabs(node: JsxNode, ctx: Ctx): ReactNode {
 }
 
 function renderSteps(node: JsxNode, ctx: Ctx): ReactNode {
-  const items = collectJsxItems(node, ITEM_COMPONENTS).map((step, i) => {
+  const items = collectJsxItems(node, STEP_ITEM_COMPONENTS).map((step, i) => {
     const parsed = parseJsxProps(step)
     if (!parsed.ok) {
       return { title: i18n.t('mdx.errorIndexed', { index: i + 1 }), content: <MdxError message={parsed.error} /> }
@@ -697,6 +732,42 @@ function renderSteps(node: JsxNode, ctx: Ctx): ReactNode {
     return <MdxError message={i18n.t('mdx.stepsRequireStep')} source="<Steps>" />
   }
   return <StepsBlock steps={items} />
+}
+
+function renderColumns(node: JsxNode, ctx: Ctx): ReactNode {
+  const items: ColumnItem[] = collectJsxItems(node, COLUMN_ITEM_COMPONENTS).map((col) => {
+    const parsed = parseJsxProps(col)
+    if (!parsed.ok) {
+      return { content: <MdxError message={parsed.error} /> }
+    }
+    return {
+      title: strProp(parsed.props, 'title'),
+      content: renderJsxChildren(col, ctx),
+    }
+  })
+  if (items.length === 0) {
+    return <MdxError message="<Columns> requires one or more <Column> children" source="<Columns>" />
+  }
+  return <ColumnsBlock columns={items} />
+}
+
+function renderTimeline(node: JsxNode, ctx: Ctx): ReactNode {
+  const items: TimelineItemData[] = collectJsxItems(node, TIMELINE_ITEM_COMPONENTS).map((item, i) => {
+    const parsed = parseJsxProps(item)
+    if (!parsed.ok) {
+      return { title: i18n.t('mdx.errorIndexed', { index: i + 1 }), content: <MdxError message={parsed.error} /> }
+    }
+    const title = strProp(parsed.props, 'title') ?? strProp(parsed.props, 'label') ?? `#${i + 1}`
+    return {
+      title,
+      date: strProp(parsed.props, 'date'),
+      content: renderJsxChildren(item, ctx),
+    }
+  })
+  if (items.length === 0) {
+    return <MdxError message="<Timeline> requires one or more <Timeline.Item> children" source="<Timeline>" />
+  }
+  return <TimelineBlock items={items} />
 }
 
 /* ---------- 補助 ---------- */

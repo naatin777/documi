@@ -188,6 +188,9 @@ description: Documi CLI を使って Living Specification（仕様・設計・AD
 - **1 事実 1 箇所（Single Source of Truth）**: 同じ仕様表や列挙を Spec・Contract・Design に重複コピーせず、正規の置き場所（\`spec\`＝振る舞い／\`contract\`＝外部 I/F・スキーマ／\`design\`＝モジュール責務）を 1 箇所に決め、他文書からはリンクや \`<Term>\` で参照する。
 - **古い決定は \`supersedes\` で廃止**: 方針転換や旧 ADR の撤回時は、新しい ADR に \`supersedes: [decisions/<old-adr>]\` を付け、古い決定を現行一覧から分離する（横に v2 仕様ファイルを乱立させない）。
 - **チャット合意の即時永続化**: チャット履歴にしか残っていない合意は別セッションでは失われる。ユーザーと合意した方針・却下案は \`<Outcome>\`、振る舞いは \`<Spec>\`、禁止事項は \`<Constraint>\`、未確定の仮案・保留は \`<Note intent="idea">\` に**その場で即記録する**。
+- **読みやすさ・視覚ファースト執筆（長文ダラダラ禁止）**: 人間はドキュメントを斜め読みするため、散文の壁を作らず以下を徹底する：
+  - **結論ファースト＆3 行ルール**: 冒頭に 1〜2 文の要約を置き、1 段落は 3 行以内・箇条書きの先頭 2〜4 語を **太字** にする。
+  - **図表・コンポーネント優先**: 処理フロー・状態遷移は **Mermaid 図**、条件分岐・エラー規約は **表**、長い補足や JSON 例は **\`<Details title="...">\`** に畳み、並列比較は **\`<Columns><Column>\`**、時系列は **\`<Timeline><Timeline.Item>\`** を使う。
 
 ## 3. CLI による精密編集（差分を最小限に保つ）
 
@@ -359,7 +362,8 @@ description: 既存のソースコード・テストと Documi の仕様・契�
 
 ## 3. 書きすぎ防止ガード（リファクタリングテスト）
 
-- **書く**: 決定表（条件 × 結果）、優先順位リスト、状態遷移図（Mermaid）、入出力フィールド表、エラー規約表、\`<SourceRef mode="exports" />\`。
+- **書く**: 決定表（条件 × 結果）、優先順位リスト、状態遷移図（Mermaid）、入出力フィールド表、エラー規約表、\`<Details>\`（詳細の折りたたみ）、\`<Columns>\`（並列比較）、\`<Timeline>\`（時系列）、\`<SourceRef mode="exports" />\`。
+- **長文ダイエット監査**: 前置きや重複表現を削り、3 行超の散文ブロックは表・Mermaid・\`<Details>\` へ変換して、技術制約を落とさずにスキャンしやすさを高める。
 - **書かない**: 関数内部の \`if\`/\`for\` 手順、非公開ヘルパー名、リファクタしても外部契約が変わらない細部。
 - \`spec\` ファイルは **1 Capability = 1 ファイル**（技術レイヤーではなく能力単位で凝集、無関係な機能を相乗りさせない。10 件超は安全網の肥大化ヒント対象）に保ち、各仕様の境界条件と決定表を具体的に記述する。
 
@@ -398,6 +402,9 @@ Prefer the **default compact text output** for reading to minimize token usage; 
 - **Single Source of Truth**: Keep each fact in one canonical place (\`spec\` = behavior & boundaries, \`contract\` = external I/F & schemas, \`design\` = module responsibilities); link from other docs instead of duplicating tables.
 - **Retire old decisions with \`supersedes\`**: When reversing a prior decision, add \`supersedes: [decisions/<old-adr>]\` to the new ADR so retired outcomes are separated from active decisions (never create parallel v2 spec files).
 - **Persist chat agreements immediately**: Agreements that only live in chat are lost across sessions. Immediately record agreed choices/rejected options in \`<Outcome>\`, behavior in \`<Spec>\`, invariants in \`<Constraint>\`, and open/tentative ideas in \`<Note intent="idea">\`.
+- **Visual-first & scannable writing (no walls of text)**: Humans scan docs rather than reading word-for-word:
+  - **Inverted pyramid & 3-line rule**: Put the 1–2 sentence takeaway first, keep paragraphs <= 3 lines, and **bold the leading 2–4 words** of bullet points.
+  - **Diagrams, tables & components over prose**: Use **Mermaid** for flows/state machines, **tables** for decision rules/errors, **\`<Details title="...">\`** to fold long notes/JSON examples, **\`<Columns><Column>\`** for side-by-side comparisons, and **\`<Timeline><Timeline.Item>\`** for lifecycles/milestones.
 
 ## 3. Surgical Editing via CLI (Keep Diffs Minimal)
 
@@ -569,7 +576,8 @@ Ask: *"If another AI re-implemented this domain from \`${relDocsDir}/\` alone, w
 
 ## 3. Anti-Pseudocode Guardrail (Refactoring Test)
 
-- **Write declaratively**: decision tables (condition x outcome), precedence lists, Mermaid state/flow diagrams, I/O field tables, error tables, and \`<SourceRef mode="exports" />\`.
+- **Write declaratively**: decision tables (condition x outcome), precedence lists, Mermaid state/flow diagrams, I/O field tables, error tables, \`<Details>\` (collapsible deep dives), \`<Columns>\` (side-by-side comparisons), \`<Timeline>\` (lifecycles), and \`<SourceRef mode="exports" />\`.
+- **Prose diet pass**: Trim filler and repetition, and convert paragraphs longer than 3 lines into tables, Mermaid diagrams, or \`<Details>\` blocks without dropping technical constraints.
 - **Never write**: function-internal \`if\`/\`for\` step-by-step pseudocode, private helper names, or details that can change freely during refactoring without affecting observable behavior.
 - Keep each \`spec\` file focused on **one Capability** (split by capability rather than technical layer or arbitrary count; > 10 blocks triggers the safety-net hint), while making each block's observable rules and edge cases explicit.
 

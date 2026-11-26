@@ -63,6 +63,7 @@ const DOCUMI_MCP_INSTRUCTIONS = [
   '2. Spec-First & surgical editing (update docs/ before src/, prefer over full-file rewrites):',
   '   - Update docs/ BEFORE editing src/ or tests/. Keep one fact in one place (Single Source of Truth) and mark retired ADRs with `supersedes`.',
   '   - Persist chat decisions immediately into `<Outcome>`, `<Spec>`, `<Constraint>`, or `<Note intent="idea">` so future sessions do not lose agreed decisions.',
+  '   - Keep docs scannable and visual-first (<= 3 lines per paragraph, bold-first bullets, Mermaid for flows, tables for rules, `<Details>` for deep dives, `<Columns>` for comparisons, `<Timeline>` for sequences).',
   '   - Use update_block, add_block, upsert_term, scaffold_document, and rename_block_id (always preview with dryRun: true first).',
   '3. Code, tests & documentation sync triggers:',
   '   - Link implementation code with `// @implements <spec.id>` (or `<SourceRef file="src/..." satisfies="<spec.id>" />`).',
