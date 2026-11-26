@@ -18,6 +18,7 @@ import {
   buildValidationPayload,
   collectSourceRefExports,
   getDocumentDetail,
+  getImpactAnalysis,
   getNodeRelations,
   getSpecContext,
   listDocuments,
@@ -57,8 +58,11 @@ const DOCUMI_MCP_INSTRUCTIONS = [
   '   - Call get_project_map for a project-wide overview (Goal/Architecture summaries, Decision <Outcome>s, Domain Terms, Review/Realization summaries; pass full: true only if full bodies are needed).',
   '   - Call query_specs or search_documents to filter/search specific blocks or docs (query_specs returns compact summaries by default; pass full: true only when full trace arrays are needed).',
   '   - Call get_spec_context for a known Spec ID to inspect its exact body, upstream Goals, and linked code/docs.',
+  '   - Before changing any Spec/Goal/Term, call get_impact to list all affected downstream docs, blocks, <SourceRef>s, and code/test anchors.',
   '   - Only call get_document or get_relations when full document prose or graph edges are needed.',
-  '2. Surgical editing (prefer over full-file rewrites):',
+  '2. Spec-First & surgical editing (update docs/ before src/, prefer over full-file rewrites):',
+  '   - Update docs/ BEFORE editing src/ or tests/. Keep one fact in one place (Single Source of Truth) and mark retired ADRs with `supersedes`.',
+  '   - Persist chat decisions immediately into `<Outcome>`, `<Spec>`, `<Constraint>`, or `<Note intent="idea">` so future sessions do not lose agreed decisions.',
   '   - Use update_block, add_block, upsert_term, scaffold_document, and rename_block_id (always preview with dryRun: true first).',
   '3. Code, tests & documentation sync triggers:',
   '   - Link implementation code with `// @implements <spec.id>` (or `<SourceRef file="src/..." satisfies="<spec.id>" />`).',
@@ -177,6 +181,29 @@ function createDocumiMcpServer(store: DocsStore, projectRoot?: string, ragConfig
       const relations = getNodeRelations(getIndex(), id)
       if (!relations) return errorResult(`Document or block not found: ${id}`)
       return jsonResult(relations)
+    },
+  )
+
+  registerTool(
+    'get_impact',
+    {
+      description:
+        'Recursively list downstream documents, blocks, <SourceRef>s, and code/test anchors affected by changing a document ID or block ID. Call before editing specs to prevent contradictions.',
+      inputSchema: {
+        id: nodeIdSchema,
+        maxDepth: z
+          .number()
+          .int()
+          .min(1)
+          .max(12)
+          .optional()
+          .describe('Maximum downstream traversal depth (default: 4)'),
+      },
+    },
+    async ({ id, maxDepth }: { id: string; maxDepth?: number }) => {
+      const impact = getImpactAnalysis(getIndex(), id, { maxDepth })
+      if (!impact) return errorResult(`Document or block not found: ${id}`)
+      return jsonResult(impact)
     },
   )
 

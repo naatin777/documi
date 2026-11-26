@@ -84,19 +84,29 @@ export function buildProjectMap(index: DocsIndex, options: { full?: boolean } = 
   const full = options.full === true
   const goals = index.documents.filter((d) => d.type === 'goal').map((d) => toMapDocEntry(d, full))
   const architecture = index.documents.filter((d) => d.type === 'architecture').map((d) => toMapDocEntry(d, full))
-  const outcomes = [...index.blocksById.values()]
+  const allOutcomes = [...index.blocksById.values()]
     .filter((b) => b.kind === 'outcome')
     .map((b) => {
       const doc = index.byId.get(b.docId)
-      const item: { id: string; docId: string; date?: string; stability?: string; body: string } = {
+      const item: {
+        id: string
+        docId: string
+        date?: string
+        stability?: string
+        supersededBy?: string[]
+        body: string
+      } = {
         id: b.id,
         docId: b.docId,
         stability: b.stability,
         body: full ? b.rawBody : summarizeText(b.rawBody, 240),
       }
+      if (b.supersededBy && b.supersededBy.length > 0) item.supersededBy = b.supersededBy
       if (doc?.date) item.date = doc.date
       return item
     })
+  const decisionOutcomes = allOutcomes.filter((o) => !o.supersededBy)
+  const supersededOutcomes = allOutcomes.filter((o) => Boolean(o.supersededBy))
   const terms = [...index.blocksById.values()]
     .filter((b) => b.kind === 'term')
     .map((b) => ({
@@ -134,7 +144,8 @@ export function buildProjectMap(index: DocsIndex, options: { full?: boolean } = 
     health,
     goals,
     architecture,
-    decisionOutcomes: outcomes,
+    decisionOutcomes,
+    supersededOutcomes,
     terms,
   }
 }
@@ -179,6 +190,212 @@ export function getNodeRelations(index: DocsIndex, id: string) {
     return { id: block.id, kind: 'block' as const, docId: block.docId, outgoing, incoming }
   }
   return undefined
+}
+
+interface ImpactDocumentEntry {
+  id: string
+  type: ArtifactType
+  title: string
+  path: string
+  depth: number
+  via: string[]
+}
+
+interface ImpactBlockEntry {
+  id: string
+  kind: BlockKind
+  docId: string
+  docPath: string
+  stability: Stability
+  review: ReviewStatus
+  depth: number
+  via: string[]
+}
+
+interface ImpactAnalysisResult {
+  target: {
+    id: string
+    kind: 'doc' | 'block'
+    docId: string
+    docPath: string
+    title: string
+  }
+  maxDepth: number
+  affectedDocuments: ImpactDocumentEntry[]
+  affectedBlocks: ImpactBlockEntry[]
+  sourceRefs: Array<{
+    file: string
+    docId: string
+    satisfies: string[]
+    verifies: string[]
+  }>
+  codeAnchors: Array<{
+    kind: 'implements' | 'verifies'
+    specId: string
+    file: string
+    line: number
+    testName?: string
+  }>
+}
+
+/**
+ * 指定ドキュメント ID またはブロック ID を変更した際に影響を受ける下流文書・ブロック・SourceRef・コード/テスト参照を再帰走査する。
+ * @implements core.ai-cli
+ */
+export function getImpactAnalysis(
+  index: DocsIndex,
+  id: string,
+  options: { maxDepth?: number } = {},
+): ImpactAnalysisResult | undefined {
+  const maxDepth = Math.max(1, Math.min(options.maxDepth ?? 4, 12))
+  const block = index.blocksById.get(id)
+  const doc = block ? index.byId.get(block.docId) : getDocument(index, id)
+  if (!doc) return undefined
+
+  const seedNodes = new Set<string>(block ? [block.id] : [doc.id, ...doc.blocks.map((b) => b.id)])
+  const docImpact = new Map<string, { depth: number; via: Set<string> }>()
+  const blockImpact = new Map<string, { depth: number; via: Set<string> }>()
+
+  // 逆向きエッジ索引: to -> edges[]
+  const incomingByTarget = new Map<string, DocsIndex['edges']>()
+  for (const edge of index.edges) {
+    const list = incomingByTarget.get(edge.to) ?? []
+    list.push(edge)
+    incomingByTarget.set(edge.to, list)
+  }
+
+  const visited = new Map<string, number>()
+  const queue: Array<{ nodeId: string; depth: number }> = []
+  for (const seed of seedNodes) {
+    visited.set(seed, 0)
+    queue.push({ nodeId: seed, depth: 0 })
+  }
+
+  while (queue.length > 0) {
+    const { nodeId, depth } = queue.shift()!
+    if (depth >= maxDepth) continue
+    const nextDepth = depth + 1
+
+    for (const edge of incomingByTarget.get(nodeId) ?? []) {
+      const fromDoc = index.byId.get(edge.fromDocId)
+      if (!fromDoc) continue
+
+      if (edge.fromDocId !== doc.id) {
+        const prev = docImpact.get(edge.fromDocId)
+        if (!prev) {
+          docImpact.set(edge.fromDocId, { depth: nextDepth, via: new Set([edge.kind]) })
+        } else {
+          if (nextDepth < prev.depth) prev.depth = nextDepth
+          prev.via.add(edge.kind)
+        }
+      }
+
+      const fromBlock = index.blocksById.get(edge.from)
+      if (fromBlock && !seedNodes.has(fromBlock.id)) {
+        const prev = blockImpact.get(fromBlock.id)
+        if (!prev) {
+          blockImpact.set(fromBlock.id, { depth: nextDepth, via: new Set([edge.kind]) })
+        } else {
+          if (nextDepth < prev.depth) prev.depth = nextDepth
+          prev.via.add(edge.kind)
+        }
+      }
+
+      const nextNodes = fromBlock ? [fromBlock.id] : [fromDoc.id, ...fromDoc.blocks.map((b) => b.id)]
+      for (const nextId of nextNodes) {
+        const prevDepth = visited.get(nextId)
+        if (prevDepth === undefined || nextDepth < prevDepth) {
+          visited.set(nextId, nextDepth)
+          queue.push({ nodeId: nextId, depth: nextDepth })
+        }
+      }
+    }
+  }
+
+  const affectedDocuments: ImpactDocumentEntry[] = [...docImpact.entries()]
+    .map(([docId, info]) => {
+      const d = index.byId.get(docId)!
+      return {
+        id: d.id,
+        type: d.type,
+        title: d.title,
+        path: d.path,
+        depth: info.depth,
+        via: [...info.via].toSorted(),
+      }
+    })
+    .toSorted((a, b) => a.depth - b.depth || a.id.localeCompare(b.id))
+
+  const affectedBlocks: ImpactBlockEntry[] = [...blockImpact.entries()]
+    .map(([blockId, info]) => {
+      const b = index.blocksById.get(blockId)!
+      return {
+        id: b.id,
+        kind: b.kind,
+        docId: b.docId,
+        docPath: index.byId.get(b.docId)?.path ?? '',
+        stability: b.stability,
+        review: b.review,
+        depth: info.depth,
+        via: [...info.via].toSorted(),
+      }
+    })
+    .toSorted((a, b) => a.depth - b.depth || a.id.localeCompare(b.id))
+
+  // 関連 SourceRef（対象文書 + 影響文書）とコード/テストアンカー（対象ブロック + 影響ブロック）を重複除去して収集
+  const sourceRefSeen = new Set<string>()
+  const sourceRefs: ImpactAnalysisResult['sourceRefs'] = []
+  const relevantDocIds = [doc.id, ...affectedDocuments.map((d) => d.id)]
+  for (const dId of relevantDocIds) {
+    const d = index.byId.get(dId)
+    if (!d) continue
+    for (const ref of d.sourceRefs) {
+      const key = `${d.id}|${ref.file}|${ref.satisfies.join(',')}|${ref.verifies.join(',')}`
+      if (sourceRefSeen.has(key)) continue
+      sourceRefSeen.add(key)
+      sourceRefs.push({
+        file: ref.file,
+        docId: d.id,
+        satisfies: ref.satisfies,
+        verifies: ref.verifies,
+      })
+    }
+  }
+
+  const anchorSeen = new Set<string>()
+  const codeAnchors: ImpactAnalysisResult['codeAnchors'] = []
+  const relevantBlockIds = [...(block ? [block.id] : doc.blocks.map((b) => b.id)), ...affectedBlocks.map((b) => b.id)]
+  for (const bId of relevantBlockIds) {
+    const b = index.blocksById.get(bId)
+    if (!b?.realization) continue
+    for (const a of [...b.realization.implementations, ...b.realization.verifications]) {
+      const key = `${a.kind}|${a.specId}|${a.file}|${a.line}`
+      if (anchorSeen.has(key)) continue
+      anchorSeen.add(key)
+      codeAnchors.push({
+        kind: a.kind,
+        specId: a.specId,
+        file: a.file,
+        line: a.line,
+        ...(a.testName ? { testName: a.testName } : {}),
+      })
+    }
+  }
+
+  return {
+    target: {
+      id: block ? block.id : doc.id,
+      kind: block ? 'block' : 'doc',
+      docId: doc.id,
+      docPath: doc.path,
+      title: block ? (block.title ?? block.id) : doc.title,
+    },
+    maxDepth,
+    affectedDocuments,
+    affectedBlocks,
+    sourceRefs,
+    codeAnchors,
+  }
 }
 
 /**

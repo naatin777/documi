@@ -1,6 +1,6 @@
 ---
 name: documi-review
-description: 未承認・stale・suspect な仕様を 2〜3 件ずつ取り上げ、具体シナリオやエッジケースの選択式クイズで人間と AI の認識ズレを炙り出し、合意後に人間専用の最終確認 URL・承認コマンドを引き継ぐ対話レビュースキル。仕様レビュー・承認前の理解確認に使用します。
+description: 未承認・stale・suspect な仕様を 2〜3 件ずつ取り上げ、具体シナリオやエッジケースの選択式クイズで人間と AI の認識ズレを炙り出し、合意後に人間専用の承認コマンドを引き継ぐ対話レビュースキル。仕様レビュー・承認前の理解確認に使用します。
 ---
 
 # Documi 対話型仕様レビュー・認識合わせクイズ（CLI）
@@ -48,8 +48,8 @@ description: 未承認・stale・suspect な仕様を 2〜3 件ずつ取り上�
 
   - Web UI 最終確認 URL: `/review?ids=<aligned-id-1>,<aligned-id-2>&note=<URLエンコード済み確認メモ>`
   - CLI コマンド:
-    ```bash
-    documi approve <aligned-id-1> <aligned-id-2> --note "<確認した内容の要約>"
-    ```
+```bash
+documi approve <aligned-id-1> <aligned-id-2> --note "<確認した内容の要約>"
+```
 
 - 最後に「次の 2〜3 件も続けますか？」と尋ね、ユーザーのペースで段階的に承認を進められるようにする。

@@ -180,9 +180,16 @@ description: Documi CLI を使って Living Specification（仕様・設計・AD
 1. **Spec ID がまだ分からないタスク**: \`documi retrieve "<自然文のタスクや質問>"\` — BM25＋用語集同義語展開＋グラフ展開で関連 Spec・上流 Goal・Decision \`<Outcome>\`・用語・\`<SourceRef>\` を文字数予算内で 1 発取得する。
 2. **全体像の把握**: \`documi map\` — Goal・Architecture・Decision \`<Outcome>\`・ドメイン用語・Review / Realization 全体像を一括取得する（機械処理時は \`documi map --json\`）。
 3. **条件絞り込み・横断検索**: \`documi query [--kind spec] [--review ...] [--realization ...] [--q <語>]\` または \`documi search "<query>"\`。
-4. **特定 Spec の深掘り**: \`documi context <spec-id>\` — 対象 Spec 本文・上流 Goal・関連文書・用語・\`<SourceRef>\` を取得する（全文や参照関係が必要なら \`documi show <doc-id>\` / \`documi relations <id>\`）。
+4. **特定 Spec の深掘り・変更影響の確認**: \`documi context <spec-id>\` で対象 Spec 本文・上流 Goal・関連文書・用語・\`<SourceRef>\` を取得する。**仕様変更の前には必ず \`documi impact <id>\` を実行し、影響を受ける全下流文書・ブロック・コード・テストを洗い出す**（全文や直接参照だけ見たい場合は \`documi show <doc-id>\` / \`documi relations <id>\`）。
 
-## 2. CLI による精密編集（差分を最小限に保つ）
+## 2. Spec-First・矛盾防止・合意の即時永続化（実装前に docs/ を固める）
+
+- **Spec-First**: 仕様・振る舞い・契約を変えるときは、**コードやテストを触る前にまず \`${relDocsDir}/\` を更新し、\`documi check\` で整合を確認する**。
+- **1 事実 1 箇所（Single Source of Truth）**: 同じ仕様表や列挙を Spec・Contract・Design に重複コピーせず、正規の置き場所（\`spec\`＝振る舞い／\`contract\`＝外部 I/F・スキーマ／\`design\`＝モジュール責務）を 1 箇所に決め、他文書からはリンクや \`<Term>\` で参照する。
+- **古い決定は \`supersedes\` で廃止**: 方針転換や旧 ADR の撤回時は、新しい ADR に \`supersedes: [decisions/<old-adr>]\` を付け、古い決定を現行一覧から分離する（横に v2 仕様ファイルを乱立させない）。
+- **チャット合意の即時永続化**: チャット履歴にしか残っていない合意は別セッションでは失われる。ユーザーと合意した方針・却下案は \`<Outcome>\`、振る舞いは \`<Spec>\`、禁止事項は \`<Constraint>\`、未確定の仮案・保留は \`<Note intent="idea">\` に**その場で即記録する**。
+
+## 3. CLI による精密編集（差分を最小限に保つ）
 
 仕様を更新するときは、MDX ファイル全体を書き換える代わりに AST 位置ベースの CLI コマンドを優先してください。**複数行の Markdown やバッククォートを含む本文はクォート崩れを防ぐため \`--body -\` ＋ヒアドキュメント**（または \`--body-file <file>\`）を使ってください：
 
@@ -333,11 +340,12 @@ description: 既存のソースコード・テストと Documi の仕様・契�
 
 ## 1. 監査スコープを 1 領域に絞る
 
-1 度に全リポジトリを書き換えず、1 回につき 1 領域に絞る：
+1 度に全リポジトリを書き換えず、1 回につき 1 領域（または今回変更した Spec とその \`documi impact\` 先）に絞る：
 
 1. \`documi map\` および \`documi query --kind spec\` で対象領域の文書・Spec ID・健全性ヒントを確認する。
-2. 対象の \`spec\` / \`contract\` / \`design\` / \`decision\` を \`documi show <doc-id>\` や \`documi context <spec-id>\` で読む。
-3. \`<SourceRef>\`・\`@implements\`・対応テストの実コードを読み、**コードが実際に守っている振る舞い**を抽出する。
+2. **実装前の意味的矛盾チェック（大量の仕様変更直後に特に有効）**: 変更対象の Spec に対して \`documi impact <id>\` を実行し、影響先の \`spec\` / \`contract\` / \`design\` / \`decision\` 同士を突き合わせて、**① 記述の重複と食い違い（既定値・エラー規約・挙動の矛盾）、② 廃止し忘れた古い ADR（\`supersedes\` 漏れ）、③ 未定義の境界条件** をコード実装前に潰す。
+3. 対象の \`spec\` / \`contract\` / \`design\` / \`decision\` を \`documi show <doc-id>\` や \`documi context <spec-id>\` で読む。
+4. \`<SourceRef>\`・\`@implements\`・対応テストの実コードを読み、**コードが実際に守っている振る舞い**を抽出する。
 
 ## 2. 再現性ギャップの 5 観点チェック（AI 差し戻しテスト）
 
@@ -382,9 +390,16 @@ Prefer the **default compact text output** for reading to minimize token usage; 
 1. **Unknown Spec ID / natural-language task**: Run \`documi retrieve "<task or question>"\` — combines BM25, glossary alias expansion, and graph traversal (upstream Goals, Decision \`<Outcome>\`s, related docs, Terms, \`<SourceRef>\`s) within a character budget in one shot.
 2. **Project overview**: Run \`documi map\` to load Goals, Architecture summaries, Decision \`<Outcome>\` blocks, Domain Terms, and Review / Realization status (use \`documi map --json\` for structured output).
 3. **Filtering & search**: Run \`documi query [--kind spec] [--review ...] [--realization ...] [--q <text>]\` or \`documi search "<query>"\`.
-4. **Target Spec deep dive**: Run \`documi context <spec-id>\` for its spec body, upstream Goals, related Design/Contract docs, Terms, and \`<SourceRef>\` anchors (use \`documi show <doc-id>\` or \`documi relations <id>\` only when full prose or graph edges are needed).
+4. **Target Spec deep dive & blast-radius check**: Run \`documi context <spec-id>\` for its spec body, upstream Goals, related Design/Contract docs, Terms, and \`<SourceRef>\` anchors. **Before changing any spec, run \`documi impact <id>\` to list every affected downstream doc, block, code anchor, and test** (use \`documi show <doc-id>\` or \`documi relations <id>\` for full prose or direct edges).
 
-## 2. Surgical Editing via CLI (Keep Diffs Minimal)
+## 2. Spec-First, Contradiction Prevention & Persisting Decisions
+
+- **Spec-First**: Update \`${relDocsDir}/\` **before** editing code or tests, and verify structural consistency with \`documi check\`.
+- **Single Source of Truth**: Keep each fact in one canonical place (\`spec\` = behavior & boundaries, \`contract\` = external I/F & schemas, \`design\` = module responsibilities); link from other docs instead of duplicating tables.
+- **Retire old decisions with \`supersedes\`**: When reversing a prior decision, add \`supersedes: [decisions/<old-adr>]\` to the new ADR so retired outcomes are separated from active decisions (never create parallel v2 spec files).
+- **Persist chat agreements immediately**: Agreements that only live in chat are lost across sessions. Immediately record agreed choices/rejected options in \`<Outcome>\`, behavior in \`<Spec>\`, invariants in \`<Constraint>\`, and open/tentative ideas in \`<Note intent="idea">\`.
+
+## 3. Surgical Editing via CLI (Keep Diffs Minimal)
 
 When updating specifications, prefer Documi's AST-aware CLI commands over rewriting whole MDX files. **For multiline Markdown or bodies containing backticks, pass \`--body -\` with a single-quoted heredoc** (or \`--body-file <file>\`) to avoid shell quoting issues:
 
@@ -535,11 +550,12 @@ Use this workflow to **compare real code & tests against \`${relDocsDir}/\` one 
 
 ## 1. Scope the Audit to One Domain
 
-Never rewrite the whole repository in one pass; pick one cohesive domain (e.g., Core Model, Review & Governance, API/CLI Contracts, Retrieval/RAG, Web UI):
+Never rewrite the whole repository in one pass; pick one cohesive domain (or the specs you just changed plus their \`documi impact\` neighborhood):
 
 1. Run \`documi map\` and \`documi query --kind spec\` to list relevant docs, Spec IDs, and health hints.
-2. Inspect target \`spec\`, \`contract\`, \`design\`, and \`decision\` docs via \`documi show <doc-id>\` or \`documi context <spec-id>\`.
-3. Read the linked \`<SourceRef>\`, \`@implements\`, and test files to extract the **actual observable behavior** enforced by code.
+2. **Pre-implementation semantic contradiction check (essential after large spec changes)**: Run \`documi impact <id>\` on modified specs and cross-check connected \`spec\`, \`contract\`, \`design\`, and \`decision\` docs for **(a) duplicated/conflicting rules (defaults, errors, behavior), (b) outdated ADRs missing \`supersedes\`, and (c) undefined edge cases** before writing code.
+3. Inspect target \`spec\`, \`contract\`, \`design\`, and \`decision\` docs via \`documi show <doc-id>\` or \`documi context <spec-id>\`.
+4. Read the linked \`<SourceRef>\`, \`@implements\`, and test files to extract the **actual observable behavior** enforced by code.
 
 ## 2. Five-Point Reproducibility Gap Check (AI Rejection Test)
 

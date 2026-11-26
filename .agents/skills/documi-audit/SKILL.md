@@ -10,39 +10,32 @@ description: 既存のソースコード・テストと Documi の仕様・契�
 
 ## 1. 監査スコープを 1 領域に絞る
 
-1 度に全リポジトリを書き換えず、1 回につき 1 領域（例: `Core / Document Model`、`Review & Governance`、`Contracts (API / MCP / CLI)`、`Retrieval / RAG`、`Web UI`）に絞る：
+1 度に全リポジトリを書き換えず、1 回につき 1 領域（または今回変更した Spec とその `documi impact` 先）に絞る：
 
 1. `documi map` および `documi query --kind spec` で対象領域の文書・Spec ID・健全性ヒントを確認する。
-2. 対象の `spec` / `contract` / `design` / `decision` を `documi show <doc-id>` や `documi context <spec-id>` で読む。
-3. `<SourceRef>`・`@implements`・対応テスト（`tests/`）の実コードを読み、**コードが実際に守っている振る舞い**を抽出する。
+2. **実装前の意味的矛盾チェック（大量の仕様変更直後に特に有効）**: 変更対象の Spec に対して `documi impact <id>` を実行し、影響先の `spec` / `contract` / `design` / `decision` 同士を突き合わせて、**① 記述の重複と食い違い（既定値・エラー規約・挙動の矛盾）、② 廃止し忘れた古い ADR（`supersedes` 漏れ）、③ 未定義の境界条件** をコード実装前に潰す。
+3. 対象の `spec` / `contract` / `design` / `decision` を `documi show <doc-id>` や `documi context <spec-id>` で読む。
+4. `<SourceRef>`・`@implements`・対応テストの実コードを読み、**コードが実際に守っている振る舞い**を抽出する。
 
 ## 2. 再現性ギャップの 5 観点チェック（AI 差し戻しテスト）
 
 「**別の AI に `docs/` だけ渡してゼロから再実装させたとき、どこが違っていたら仕様違反で差し戻すか？**」の基準で、以下の 5 つの穴を洗い出す：
 
-1. **境界条件・異常系・セキュリティ拒否**:
-   - 不正入力、空入力、上限値、パストラバーサル、シンボリックリンク脱出、未存在 ID、禁止構文・禁止書き込みパスでどう拒否・エラー終了するか（具体的なエラーコード・HTTP ステータス・終了コード）。
-2. **優先順位・フォールバック・競合解決**:
-   - 設定ファイル vs 環境変数 vs CLI 引数、`.mdx` vs `.md`、Git 取得 vs ローカルキャッシュ vs 欠損時、外部依存障害時のフォールバック順など、順序が変わると挙動が変わるルール。
-3. **永続ファイル＆設定スキーマ契約 (`contract`)**:
-   - JSON / YAML / SQLite / 静的出力などの正確なファイルパス、必須・任意フィールド、型、既定値、厳格検証（未知キー拒否など）。
-4. **外部 I/F の入出力契約 (`contract`)**:
-   - REST API・MCP ツール・CLI コマンドの引数・クエリ・リクエスト／レスポンス主要フィールド・副作用の範囲・冪等性。
-5. **公開境界の AST 紐づけと未記録の構造判断 (ADR 漏れ)**:
-   - 主要モジュールの export 境界が `<SourceRef file="src/..." mode="exports" />` または `<SourceRef symbol="..." />` で最新実装に繋がっているか。
-   - 後戻りコストが高い設計決定・棄却案・Non-Goals が `docs/decisions/` や `docs/goals/` に抜けていないか。
+1. **境界条件・異常系・セキュリティ拒否**: 不正入力・空入力・上限値・パストラバーサル・未存在 ID・禁止構文でどう拒否・エラー終了するか。
+2. **優先順位・フォールバック・競合解決**: 設定 vs 環境変数 vs CLI、拡張子衝突、外部依存障害時のフォールバック順など。
+3. **永続ファイル＆設定スキーマ契約 (`contract`)**: JSON / YAML / DB / 出力ファイルの実パス・フィールド・型・既定値・厳格検証。
+4. **外部 I/F の入出力契約 (`contract`)**: REST API・MCP・CLI の引数・主要レスポンス構造・エラーコード・副作用範囲。
+5. **公開境界の AST 紐づけと未記録 ADR 漏れ**: 主要モジュールの export を `<SourceRef file="src/..." mode="exports" />` で接続し、後戻りコストが高い判断や Non-Goals を ADR / Goal に記録する。
 
 ## 3. 書きすぎ防止ガード（リファクタリングテスト）
 
-再現性を高める目的で **擬似コード化してはならない**。以下を厳守する：
-
-- **書く（宣言的に構造化する）**: 決定表（条件 × 結果）、優先順位リスト、状態遷移図（Mermaid）、入出力フィールド表、エラー規約表、`<SourceRef mode="exports" />` / `<SourceRef symbol="..." />`。
-- **書かない**: 関数内部の `if`/`for` 手順、非公開ヘルパー名、一時変数名、実装をリファクタしても外部契約が変わらない細部。
-- **Spec ブロック粒度の目安**: 1 つの `spec` ファイルは **10 件以下の `<Spec>`** に保ちつつ、各 `<Spec>` ブロックや直下の節に境界条件・決定表・例外条件を具体的に書く。
+- **書く**: 決定表（条件 × 結果）、優先順位リスト、状態遷移図（Mermaid）、入出力フィールド表、エラー規約表、`<SourceRef mode="exports" />`。
+- **書かない**: 関数内部の `if`/`for` 手順、非公開ヘルパー名、リファクタしても外部契約が変わらない細部。
+- 1 つの `spec` ファイルは **10 件以下の `<Spec>`** に保ちつつ、各仕様の境界条件と決定表を具体的に記述する。
 
 ## 4. 精密更新と検証・引き継ぎ
 
-1. 既存の Spec / Contract / Design を `documi block update`（または大規模な表・契約追記は文書直接編集）と `documi scaffold`（不足している契約書・ADR の新設）で更新する。
+1. `documi block update` / `documi scaffold` 等で不足している仕様・契約・設計・ADR を補強する。
 2. **`docs/guard/reviews.json` は絶対に編集しない。**
-3. `documi check --no-review-edit` を実行し、エラー 0 件・`<SourceRef>` シンボル切れ 0 件・健全性ヒントを確認する。
-4. 人間が差分をすぐ確認できるよう、補強したポイントの要約と **`/review?filter=changed`**（変更されたブロック一覧）を提示して引き継ぐ。
+3. `documi check --no-review-edit` でエラー 0 件・`<SourceRef>` 切れ 0 件を確認する。
+4. 補強したギャップの要約と `/review?filter=changed` を人間へ提示して引き継ぐ。
