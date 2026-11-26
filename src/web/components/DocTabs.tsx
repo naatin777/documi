@@ -47,21 +47,6 @@ export default function DocTabs({ sidebarOpen, onToggleSidebar }: DocTabsProps) 
     setCanScrollRight(maxScroll - strip.scrollLeft > 2)
   }, [])
 
-  // アクティブタブを中央付近へ寄せる
-  useEffect(() => {
-    const strip = stripRef.current
-    if (!strip) return
-    const el = strip.querySelector<HTMLElement>('[data-active-tab="true"]')
-    if (!el) {
-      syncOverflow()
-      return
-    }
-    const left = el.offsetLeft - (strip.clientWidth - el.offsetWidth) / 2
-    strip.scrollTo({ left: Math.max(0, left), behavior: 'smooth' })
-    const timer = setTimeout(syncOverflow, 220)
-    return () => clearTimeout(timer)
-  }, [pathname, tabs, syncOverflow])
-
   // リサイズやタブ数変化に応じて左右の溢れ状態を更新
   useEffect(() => {
     syncOverflow()
