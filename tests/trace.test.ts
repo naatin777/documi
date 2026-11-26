@@ -156,6 +156,37 @@ describe('Trace / Realization / AST Check / PR / CLI', () => {
     expect(strictAfter.ok).toBe(true)
   })
 
+  test('[core.ast-check] --review-gate stable は stability=stable のブロックだけ未承認エラーにし、evolving は通す', async () => {
+    await writeDoc('goals/main.mdx', { title: 'Goal' }, '# Goal\n')
+    await writeDoc(
+      'specs/tiered.mdx',
+      { title: 'Tiered', derives: ['goals/main'] },
+      [
+        '<Spec id="spec.core" stability="stable">確定済みコア仕様</Spec>',
+        '',
+        '<Spec id="spec.wip" stability="evolving">進化中の仕様</Spec>',
+        '',
+      ].join('\n'),
+    )
+
+    // reviewGate: 'none' は両方未承認でも通過
+    expect((await runDocsCheck({ docsDir, projectRoot: projectDir, reviewGate: 'none' })).ok).toBe(true)
+
+    // reviewGate: 'stable' は spec.core のみエラー（spec.wip は除外）
+    const gateBefore = await runDocsCheck({ docsDir, projectRoot: projectDir, reviewGate: 'stable' })
+    expect(gateBefore.ok).toBe(false)
+    expect(gateBefore.errors.map((e) => e.blockId)).toEqual(['spec.core'])
+
+    // spec.core のみ承認すれば reviewGate: 'stable' は通過するが、--strict は spec.wip 未承認で落ちる
+    const idx = await loadDocuments(docsDir)
+    await approveBlock(docsDir, idx, 'spec.core')
+    expect((await runDocsCheck({ docsDir, projectRoot: projectDir, reviewGate: 'stable' })).ok).toBe(true)
+
+    const strictRes = await runDocsCheck({ docsDir, projectRoot: projectDir, strict: true })
+    expect(strictRes.ok).toBe(false)
+    expect(strictRes.errors.map((e) => e.blockId)).toEqual(['spec.wip'])
+  })
+
   test('parseJunitXml は passed / failed / skipped を正しく解釈する', () => {
     const xml = `
       <testsuite>

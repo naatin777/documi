@@ -64,6 +64,7 @@ Documi がファイルシステム上で読み書きする永続ファイル・�
 |---|---|---|---|
 | `docs` | `string` (非空) | `"docs"` | `projectRoot` からの相対パス |
 | `testReport` | `string` (非空) | 未指定時は自動探索 | JUnit XML テストレポートの相対パス |
+| `reviewGate` | `"none" \| "stable" \| "all"` | `"none"` | `documi check` の既定レビュー承認ゲート（`--review-gate` で上書き可） |
 | `rag.enabled` | `boolean` | `false` | `true` で `search` / `retrieve` の既定をハイブリッド検索化 |
 | `rag.provider` | `"ollama" \| "openai"` | `"ollama"` | Embedding プロバイダ種別 |
 | `rag.model` | `string` | プロバイダ別既定 | Ollama: `embeddinggemma` / OpenAI: `text-embedding-3-small` |
