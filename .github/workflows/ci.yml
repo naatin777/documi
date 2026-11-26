@@ -13,7 +13,7 @@ jobs:
         os: [ubuntu-latest, macos-latest]
     runs-on: ${{ matrix.os }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         with:
           # reviews.json の Git コミット比較 (git show) や --no-review-edit・PR 差分確認のため
           fetch-depth: 0
