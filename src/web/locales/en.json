@@ -193,6 +193,11 @@
     "updatedAt": "Updated {{time}}",
     "uncommittedModified": "Uncommitted",
     "uncommittedNew": "Uncommitted new",
+    "viewRendered": "Preview",
+    "viewSource": "Source",
+    "viewModeAria": "Switch document view mode",
+    "fullWidth": "Switch to full width",
+    "standardWidth": "Switch to standard width",
     "highlightWorking": "Uncommitted changes",
     "highlightLastCommit": "Changes in latest commit {{sha}}",
     "highlightToggle": "Highlight latest",
@@ -380,7 +385,9 @@
   },
   "code": {
     "copy": "Copy",
-    "copied": "Copied"
+    "copied": "Copied",
+    "wrap": "Wrap",
+    "unwrap": "Scroll"
   },
   "mermaid": {
     "showDiagram": "Diagram",

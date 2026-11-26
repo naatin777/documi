@@ -1,9 +1,13 @@
 /* ---------- Content ---------- */
 
 .page {
-  max-width: 780px;
+  max-width: 860px;
   margin: 0 auto;
-  padding: 40px 48px 96px;
+  padding: 36px 40px 96px;
+}
+
+.page.doc-page-wide {
+  max-width: none;
 }
 
 .doc-header {
@@ -306,6 +310,12 @@
   color: var(--text-faint);
 }
 
+.codeblock-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
 .codeblock-copy {
   border: 1px solid var(--border);
   background: var(--bg);
@@ -319,6 +329,12 @@
 .codeblock-copy:hover {
   background: var(--bg-hover);
   color: var(--text);
+}
+
+.codeblock-copy.active {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+  color: var(--accent);
 }
 
 .codeblock-body {
@@ -379,6 +395,30 @@
   border-right: 1px solid var(--border);
   color: var(--text-faint);
   user-select: none;
+}
+
+.codeblock-wrap .codeblock-body .shiki code {
+  width: 100%;
+}
+
+.codeblock-wrap .codeblock-body .shiki .line {
+  position: relative;
+  padding-left: 3.55em;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.codeblock-wrap .codeblock-body .shiki .line::before {
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  margin-right: 0;
+}
+
+.codeblock-wrap .codeblock-plain {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
 }
 
 .shiki span {

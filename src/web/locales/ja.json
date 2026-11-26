@@ -193,6 +193,11 @@
     "updatedAt": "更新 {{time}}",
     "uncommittedModified": "未コミット変更",
     "uncommittedNew": "未コミット新規",
+    "viewRendered": "プレビュー",
+    "viewSource": "ソース",
+    "viewModeAria": "ドキュメント表示モード切替",
+    "fullWidth": "全幅表示にする",
+    "standardWidth": "標準幅に戻す",
     "highlightWorking": "未コミットの変更箇所",
     "highlightLastCommit": "最新コミット {{sha}} の変更箇所",
     "highlightToggle": "最新変更を強調",
@@ -380,7 +385,9 @@
   },
   "code": {
     "copy": "コピー",
-    "copied": "コピーしました"
+    "copied": "コピーしました",
+    "wrap": "折り返し",
+    "unwrap": "横スクロール"
   },
   "mermaid": {
     "showDiagram": "図を表示",

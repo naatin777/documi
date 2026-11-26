@@ -1,8 +1,10 @@
-import { History, Sparkles } from 'lucide-react'
+import { Code2, Eye, History, Maximize2, Minimize2, Sparkles } from 'lucide-react'
+import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import type { Document, DocumentHistory } from '../../core/types'
 import type { TermEntry } from '../api'
 import { formatDateTime, formatRelativeTime, formatShortDate } from '../time'
+import CodeBlock from './CodeBlock'
 import Markdown from './Markdown'
 import { PrintFooter, PrintHeader } from './PrintChrome'
 import { DocReviewProvider } from './SemanticBlocks'
@@ -17,6 +19,17 @@ interface DocViewerProps {
   onOpenHistory?: () => void
 }
 
+const FULL_WIDTH_STORAGE_KEY = 'documi:doc-full-width'
+
+function readFullWidthPref(): boolean {
+  if (typeof window === 'undefined') return false
+  try {
+    return window.localStorage.getItem(FULL_WIDTH_STORAGE_KEY) === '1'
+  } catch {
+    return false
+  }
+}
+
 // @implements ui.doc-history
 export default function DocViewer({
   doc,
@@ -28,6 +41,24 @@ export default function DocViewer({
   onOpenHistory,
 }: DocViewerProps) {
   const { t, i18n } = useTranslation()
+  const [sourceState, setSourceState] = useState<{ docId: string; mode: 'rendered' | 'source' }>({
+    docId: doc.id,
+    mode: 'rendered',
+  })
+  const [fullWidth, setFullWidth] = useState<boolean>(readFullWidthPref)
+  const viewMode = sourceState.docId === doc.id ? sourceState.mode : 'rendered'
+  const setViewMode = (mode: 'rendered' | 'source') => setSourceState({ docId: doc.id, mode })
+  const toggleFullWidth = () => {
+    setFullWidth((prev) => {
+      const next = !prev
+      try {
+        window.localStorage.setItem(FULL_WIDTH_STORAGE_KEY, next ? '1' : '0')
+      } catch {
+        // ignore storage errors in restricted environments
+      }
+      return next
+    })
+  }
   const typeLabel = t(`types.singular.${doc.type}`)
   const freshness = history?.freshness ?? doc.freshness
   const changedRanges = highlightChanges && history ? history.changedRanges : undefined
@@ -35,10 +66,10 @@ export default function DocViewer({
   const commitCount = history?.commits.length ?? freshness?.commitCount ?? 0
 
   return (
-    <article className="page doc-page">
+    <article className={`page doc-page${fullWidth ? ' doc-page-wide' : ''}`}>
       <PrintHeader label={typeLabel} title={doc.title} meta={doc.path} />
       <header className="doc-header">
-        <div className="doc-badges">
+        <div className="doc-badges items-center">
           <span className={`badge badge-type type-${doc.type}`}>{typeLabel}</span>
           {doc.typeInferred && <span className="badge badge-format">{t('doc.inferred')}</span>}
           {doc.format === 'mdx' && <span className="badge badge-format">MDX</span>}
@@ -50,6 +81,60 @@ export default function DocViewer({
               {freshness.workingStatus === 'modified' ? t('doc.uncommittedModified') : t('doc.uncommittedNew')}
             </span>
           )}
+          <div className="ml-auto flex items-center gap-1.5 print:hidden">
+            <div
+              className="inline-flex items-center gap-0.5 rounded-md border border-line bg-subtle p-0.5"
+              role="tablist"
+              aria-label={t('doc.viewModeAria')}
+            >
+              <button
+                type="button"
+                role="tab"
+                aria-selected={viewMode === 'rendered'}
+                className={`inline-flex cursor-pointer items-center gap-1 rounded border-0 px-2.5 py-0.5 text-[11.5px] font-semibold transition-colors ${
+                  viewMode === 'rendered'
+                    ? 'bg-surface text-fg shadow-[0_1px_2px_rgba(15,23,42,0.08)]'
+                    : 'bg-transparent text-fg-muted hover:text-fg'
+                }`}
+                onClick={() => setViewMode('rendered')}
+              >
+                <Eye size={12} strokeWidth={1.85} aria-hidden="true" />
+                <span>{t('doc.viewRendered')}</span>
+              </button>
+              <button
+                type="button"
+                role="tab"
+                aria-selected={viewMode === 'source'}
+                className={`inline-flex cursor-pointer items-center gap-1 rounded border-0 px-2.5 py-0.5 text-[11.5px] font-semibold transition-colors ${
+                  viewMode === 'source'
+                    ? 'bg-surface text-fg shadow-[0_1px_2px_rgba(15,23,42,0.08)]'
+                    : 'bg-transparent text-fg-muted hover:text-fg'
+                }`}
+                onClick={() => setViewMode('source')}
+              >
+                <Code2 size={12} strokeWidth={1.85} aria-hidden="true" />
+                <span>{t('doc.viewSource')}</span>
+              </button>
+            </div>
+            <button
+              type="button"
+              aria-pressed={fullWidth}
+              aria-label={fullWidth ? t('doc.standardWidth') : t('doc.fullWidth')}
+              title={fullWidth ? t('doc.standardWidth') : t('doc.fullWidth')}
+              className={`inline-flex h-6 w-6 cursor-pointer items-center justify-center rounded-md border border-line transition-colors ${
+                fullWidth
+                  ? 'bg-surface text-fg shadow-[0_1px_2px_rgba(15,23,42,0.08)]'
+                  : 'bg-subtle text-fg-muted hover:bg-hover hover:text-fg'
+              }`}
+              onClick={toggleFullWidth}
+            >
+              {fullWidth ? (
+                <Minimize2 size={12} strokeWidth={1.85} aria-hidden="true" />
+              ) : (
+                <Maximize2 size={12} strokeWidth={1.85} aria-hidden="true" />
+              )}
+            </button>
+          </div>
         </div>
         <h1>{doc.title}</h1>
         {doc.description && <p className="doc-description">{doc.description}</p>}
@@ -100,7 +185,7 @@ export default function DocViewer({
               </span>
             )}
             <div className="ml-auto flex items-center gap-1.5">
-              {hasLatestHighlights && onToggleHighlight && (
+              {viewMode === 'rendered' && hasLatestHighlights && onToggleHighlight && (
                 <button
                   type="button"
                   aria-pressed={highlightChanges}
@@ -142,15 +227,21 @@ export default function DocViewer({
         </section>
       )}
 
-      <DocReviewProvider blocks={doc.blocks} onMutate={onMutate}>
-        <Markdown
-          body={doc.body}
-          format={doc.format}
-          currentDir={doc.dir}
-          terms={terms}
-          changedRanges={changedRanges}
-        />
-      </DocReviewProvider>
+      {viewMode === 'source' ? (
+        <div className="markdown">
+          <CodeBlock code={doc.body} lang={doc.format === 'mdx' ? 'mdx' : 'markdown'} />
+        </div>
+      ) : (
+        <DocReviewProvider blocks={doc.blocks} onMutate={onMutate}>
+          <Markdown
+            body={doc.body}
+            format={doc.format}
+            currentDir={doc.dir}
+            terms={terms}
+            changedRanges={changedRanges}
+          />
+        </DocReviewProvider>
+      )}
       <PrintFooter meta={doc.id} />
     </article>
   )
