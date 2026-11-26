@@ -9,7 +9,7 @@ jobs:
   verify:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         with:
           # reviews.json の Git コミット比較 (git show) や --no-review-edit・PR 差分確認のため
           fetch-depth: 0
@@ -39,10 +39,11 @@ jobs:
       - name: Build frontend
         run: bun run build
 
+      - name: Static site build smoke test
+        run: bun src/cli.ts build-site --out .documi/site-smoke
+
       - name: Documi living spec check
-        run: bun run documi:check
-        # 全ブロック承認運用を開始した後は `--strict` を有効化してください:
-        # run: bun src/cli.ts check --strict
+        run: bun src/cli.ts check --no-review-edit
 
       - name: Advisory check for docs sync on PR
         if: github.event_name == 'pull_request'

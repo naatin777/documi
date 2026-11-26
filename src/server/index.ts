@@ -2,6 +2,7 @@ import path from 'node:path'
 import { resolveProjectPaths } from '../core/config'
 import type { RagConfig } from '../core/config'
 import { createApp } from './app'
+import { resolveDefaultClientDist } from './dist'
 import { DocsStore } from './store'
 
 export interface ServerStartOptions {
@@ -23,7 +24,7 @@ export async function startServer(options: ServerStartOptions): Promise<{ stop: 
   const port = options.port ?? Number(process.env.PORT ?? 3000)
   // ローカル利用前提のためデフォルトは loopback のみ。外部公開する場合は HOST=0.0.0.0 を明示する
   const hostname = options.hostname ?? process.env.HOST ?? '127.0.0.1'
-  const clientDist = options.clientDist ?? path.resolve(import.meta.dir, '../../dist')
+  const clientDist = options.clientDist ?? resolveDefaultClientDist()
 
   const store = await DocsStore.open(docsDir, { projectRoot, testReportPath: options.testReportPath })
   const stopWatch = store.watch()

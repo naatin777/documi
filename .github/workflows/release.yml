@@ -1,0 +1,119 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+
+permissions:
+  contents: write
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.4.3
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Run full verification suite
+        run: |
+          mkdir -p .documi
+          bun test --reporter=junit --reporter-outfile=.documi/test-results.xml
+          bun run check
+          bun run lint
+          bun run format:check
+          bun run knip
+          bun run build
+          bun src/cli.ts check --no-review-edit
+
+  build-binaries:
+    needs: verify
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            target: linux-x64
+            ext: ''
+            archive: tar.gz
+          - os: macos-latest
+            target: darwin-arm64
+            ext: ''
+            archive: tar.gz
+          - os: windows-latest
+            target: windows-x64
+            ext: '.exe'
+            archive: zip
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.4.3
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Build frontend assets
+        run: bun run build
+
+      - name: Compile standalone binary
+        shell: bash
+        run: |
+          STAGE="release-stage/documi-${{ github.ref_name }}-${{ matrix.target }}"
+          mkdir -p "$STAGE"
+          bun build --compile src/cli.ts --outfile "$STAGE/documi${{ matrix.ext }}"
+          cp -R dist "$STAGE/dist"
+          cp LICENSE README.md "$STAGE/"
+
+      - name: Package archive (tar.gz)
+        if: matrix.archive == 'tar.gz'
+        shell: bash
+        run: |
+          mkdir -p release-artifacts
+          tar -czf "release-artifacts/documi-${{ github.ref_name }}-${{ matrix.target }}.tar.gz" -C release-stage "documi-${{ github.ref_name }}-${{ matrix.target }}"
+
+      - name: Package archive (zip)
+        if: matrix.archive == 'zip'
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force -Path release-artifacts | Out-Null
+          Compress-Archive -Path "release-stage/documi-${{ github.ref_name }}-${{ matrix.target }}" -DestinationPath "release-artifacts/documi-${{ github.ref_name }}-${{ matrix.target }}.zip"
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: documi-${{ matrix.target }}
+          path: release-artifacts/*
+
+  publish:
+    needs: build-binaries
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/download-artifact@v8
+        with:
+          path: release-artifacts
+          merge-multiple: true
+
+      - name: Generate SHA256SUMS
+        run: |
+          cd release-artifacts
+          sha256sum * > SHA256SUMS.txt
+
+      - name: Create GitHub Release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release create "${{ github.ref_name }}" release-artifacts/* \
+            --title "Documi ${{ github.ref_name }}" \
+            --generate-notes
