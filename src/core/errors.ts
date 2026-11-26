@@ -232,12 +232,6 @@ export type EditDomainError =
 // Embedding / Hybrid RAG domain errors
 // ---------------------------------------------------------------------------
 
-export class EmbeddingInitError extends TaggedError('EmbeddingInitError')<{
-  provider: string
-  model: string
-  message: string
-}> {}
-
 export class EmbeddingRequestError extends TaggedError('EmbeddingRequestError')<{
   provider: string
   model: string
@@ -251,4 +245,4 @@ export class EmbeddingResponseError extends TaggedError('EmbeddingResponseError'
   message: string
 }> {}
 
-export type EmbeddingDomainError = EmbeddingInitError | EmbeddingRequestError | EmbeddingResponseError
+export type EmbeddingDomainError = EmbeddingRequestError | EmbeddingResponseError
