@@ -22,7 +22,7 @@ flowchart LR
     Tok --> BM25["searchIndexBm25 (BM25 スコアリング)"]
     Exp --> BM25
 
-    Q -. "--semantic / rag 有効時" .-> Embed["EmbeddingProvider (Ollama / OpenAI)"]
+    Q -. "--semantic / rag 有効時" .-> Embed["EmbeddingProvider (Ollama / OpenAI / Gemini)"]
     Embed -.-> Vec["searchVectorStore (bun:sqlite 差分キャッシュ)"]
 
     BM25 --> RRF["reciprocalRankFusion (RRF 統合)"]

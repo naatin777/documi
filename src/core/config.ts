@@ -8,7 +8,7 @@ import { ConfigParseError, ConfigReadError, ConfigValidationError, type ConfigDo
 /** プロジェクトルート直下で探索する設定ファイル名（優先順） */
 const CONFIG_FILE_NAMES = ['.documi.json', '.documi.yml', '.documi.yaml', 'documi.json'] as const
 
-export const RAG_PROVIDERS = ['ollama', 'openai'] as const
+export const RAG_PROVIDERS = ['ollama', 'openai', 'gemini'] as const
 export type RagProvider = (typeof RAG_PROVIDERS)[number]
 
 export const REVIEW_GATES = ['none', 'stable', 'all'] as const
@@ -16,6 +16,8 @@ export type ReviewGate = (typeof REVIEW_GATES)[number]
 
 export const DEFAULT_OLLAMA_MODEL = 'embeddinggemma'
 export const DEFAULT_OPENAI_MODEL = 'text-embedding-3-small'
+export const DEFAULT_GEMINI_MODEL = 'gemini-embedding-001'
+export const DEFAULT_GEMINI_ENDPOINT = 'https://generativelanguage.googleapis.com/v1beta/openai'
 
 const ragConfigSchema = z
   .object({
@@ -76,6 +78,45 @@ function nonEmpty(value: string | undefined): string | undefined {
   if (typeof value !== 'string') return undefined
   const trimmed = value.trim()
   return trimmed.length > 0 ? trimmed : undefined
+}
+
+function parseDotEnvValue(raw: string): string {
+  const trimmed = raw.trim()
+  if (trimmed.length >= 2 && trimmed.startsWith('"') && trimmed.endsWith('"')) {
+    return trimmed.slice(1, -1).replace(/\\n/g, '\n').replace(/\\r/g, '\r').replace(/\\t/g, '\t').replace(/\\"/g, '"')
+  }
+  if (trimmed.length >= 2 && trimmed.startsWith("'") && trimmed.endsWith("'")) {
+    return trimmed.slice(1, -1)
+  }
+  const commentIdx = trimmed.search(/\s#/)
+  return (commentIdx >= 0 ? trimmed.slice(0, commentIdx) : trimmed).trim()
+}
+
+/**
+ * 対象プロジェクトの `.env.local` → `.env` を読み取り、未設定のキーのみ `targetEnv` に補完する。
+ * `--project` や MCP 経由で別ディレクトリから起動した場合でも、プロジェクト直下の `.env` の API キーを利用できるようにする。
+ */
+export function loadProjectDotEnv(projectRoot: string, targetEnv: Record<string, string | undefined>): void {
+  const absRoot = path.resolve(projectRoot)
+  for (const fileName of ['.env.local', '.env']) {
+    const filePath = path.join(absRoot, fileName)
+    if (!existsSync(filePath)) continue
+    let raw: string
+    try {
+      raw = readFileSync(filePath, 'utf-8')
+    } catch {
+      continue
+    }
+    for (const line of raw.split(/\r?\n/)) {
+      const trimmed = line.trim()
+      if (!trimmed || trimmed.startsWith('#')) continue
+      const match = /^(?:export\s+)?([A-Za-z_][A-Za-z0-9_]*)\s*=(.*)$/.exec(trimmed)
+      if (!match) continue
+      const key = match[1]!
+      if (targetEnv[key] !== undefined && targetEnv[key] !== '') continue
+      targetEnv[key] = parseDotEnvValue(match[2] ?? '')
+    }
+  }
 }
 
 /**
@@ -167,6 +208,10 @@ export function resolveProjectPaths(
       projectRoot = cwd
       loaded = yield* loadProjectConfig(projectRoot)
       docsDir = path.resolve(projectRoot, loaded.config.docs ?? 'docs')
+    }
+
+    if (!options.env) {
+      loadProjectDotEnv(projectRoot, process.env)
     }
 
     const testReportPath = rawTestReport

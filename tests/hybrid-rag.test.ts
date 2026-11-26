@@ -6,6 +6,7 @@ import path from 'node:path'
 import { Result } from 'better-result'
 import { stringify } from 'yaml'
 import { runCli } from '../src/cli'
+import { DEFAULT_GEMINI_ENDPOINT, DEFAULT_GEMINI_MODEL, loadProjectDotEnv } from '../src/core/config'
 import { createEmbeddingProvider, formatEmbeddingPrompt, normalizeVector } from '../src/core/embeddings'
 import type { EmbeddingProvider } from '../src/core/embeddings'
 import { EmbeddingRequestError } from '../src/core/errors'
@@ -230,7 +231,7 @@ describe('Local Hybrid RAG (bun:sqlite + RRF + Providers)', () => {
     expect(formatEmbeddingPrompt('ruri-v3-130m', 'query', '認証')).toBe('検索クエリ: 認証')
     expect(formatEmbeddingPrompt('qwen3-embedding:0.6b', 'query', 'auth')).toContain('Instruct:')
 
-    // Ollama プロバイダ (/api/embed)
+    // Ollama プロバイダ (OpenAI 互換 /v1/embeddings)
     let capturedOllamaUrl = ''
     const ollamaProvider = createEmbeddingProvider(
       { provider: 'ollama', model: 'embeddinggemma', endpoint: 'http://127.0.0.1:11434' },
@@ -239,12 +240,14 @@ describe('Local Hybrid RAG (bun:sqlite + RRF + Providers)', () => {
           capturedOllamaUrl = typeof url === 'string' ? url : url instanceof URL ? url.href : url.url
           const rawBody = typeof init?.body === 'string' ? init.body : '{}'
           const body = JSON.parse(rawBody) as { input: string[] }
-          return new Response(JSON.stringify({ embeddings: body.input.map(() => [3, 4]) }), { status: 200 })
+          return new Response(JSON.stringify({ data: body.input.map((_, index) => ({ index, embedding: [3, 4] })) }), {
+            status: 200,
+          })
         }) as unknown as typeof fetch,
       },
     )
     const ollamaVecs = (await ollamaProvider.embedDocuments([{ title: 'T', text: 'hello' }])).unwrap()
-    expect(capturedOllamaUrl).toBe('http://127.0.0.1:11434/api/embed')
+    expect(capturedOllamaUrl).toBe('http://127.0.0.1:11434/v1/embeddings')
     expect(ollamaVecs[0]![0]).toBeCloseTo(0.6, 5)
     expect(ollamaVecs[0]![1]).toBeCloseTo(0.8, 5)
 
@@ -295,5 +298,82 @@ describe('Local Hybrid RAG (bun:sqlite + RRF + Providers)', () => {
     })
     expect(badProviderCode).toBe(1)
     expect(badProviderErrs.join('\n')).toContain('Invalid --provider')
+  })
+
+  test('[core.hybrid-rag] Gemini プリセット・ローカル OpenAI 互換（キーなし）・projectRoot の .env / .env.local 読み込みが動作する', async () => {
+    // 1. projectRoot の .env.local → .env を優先読み込みし、既存環境変数は上書きしない
+    await writeFile(
+      path.join(projectDir, '.env'),
+      '# comment\nGEMINI_API_KEY="from-dotenv"\nOPENAI_API_KEY=\'from-dotenv-openai\'\nEXISTING_KEY=from-dotenv\n',
+    )
+    await writeFile(path.join(projectDir, '.env.local'), 'export GEMINI_API_KEY=from-dotenv-local # inline comment\n')
+    const isolatedEnv: Record<string, string | undefined> = { EXISTING_KEY: 'already-set' }
+    loadProjectDotEnv(projectDir, isolatedEnv)
+    expect(isolatedEnv.GEMINI_API_KEY).toBe('from-dotenv-local')
+    expect(isolatedEnv.OPENAI_API_KEY).toBe('from-dotenv-openai')
+    expect(isolatedEnv.EXISTING_KEY).toBe('already-set')
+
+    // 2. Gemini プリセット: キー未設定時はリモート送信せず明確なエラーを返す
+    const prevGeminiKey = process.env.GEMINI_API_KEY
+    delete process.env.GEMINI_API_KEY
+    try {
+      const missingKeyProvider = createEmbeddingProvider({ provider: 'gemini' })
+      expect(missingKeyProvider.id).toBe(`gemini:${DEFAULT_GEMINI_MODEL}`)
+      const missingRes = await missingKeyProvider.embedQuery('auth')
+      expect(missingRes.isErr()).toBe(true)
+      if (missingRes.isErr()) {
+        expect(missingRes.error.message).toContain('GEMINI_API_KEY')
+      }
+
+      // キー設定時は Gemini の OpenAI 互換エンドポイントへ Bearer 付きで送信
+      process.env.GEMINI_API_KEY = 'test-gemini-key'
+      let capturedUrl = ''
+      let capturedAuth = ''
+      let capturedModel = ''
+      const geminiProvider = createEmbeddingProvider(
+        { provider: 'gemini' },
+        {
+          fetchFn: (async (url: string | URL | Request, init?: RequestInit) => {
+            capturedUrl = typeof url === 'string' ? url : url instanceof URL ? url.href : url.url
+            const headers = init?.headers as Record<string, string> | undefined
+            capturedAuth = headers?.authorization ?? ''
+            const body = JSON.parse(typeof init?.body === 'string' ? init.body : '{}') as { model?: string }
+            capturedModel = body.model ?? ''
+            return new Response(JSON.stringify({ data: [{ index: 0, embedding: [3, 4] }] }), { status: 200 })
+          }) as unknown as typeof fetch,
+        },
+      )
+      const vec = (await geminiProvider.embedQuery('認証仕様')).unwrap()
+      expect(capturedUrl).toBe(`${DEFAULT_GEMINI_ENDPOINT}/embeddings`)
+      expect(capturedAuth).toBe('Bearer test-gemini-key')
+      expect(capturedModel).toBe(DEFAULT_GEMINI_MODEL)
+      expect(vec[0]).toBeCloseTo(0.6, 5)
+    } finally {
+      if (prevGeminiKey === undefined) delete process.env.GEMINI_API_KEY
+      else process.env.GEMINI_API_KEY = prevGeminiKey
+    }
+
+    // 3. ローカル OpenAI 互換（LM Studio 等）は API キー未設定でもエラーにせず送信する
+    const prevOpenAiKey = process.env.OPENAI_API_KEY
+    delete process.env.OPENAI_API_KEY
+    try {
+      let localAuth: string | undefined
+      const lmStudio = createEmbeddingProvider(
+        { provider: 'openai', model: 'local-embed', endpoint: 'http://localhost:1234/v1' },
+        {
+          fetchFn: (async (_url: string | URL | Request, init?: RequestInit) => {
+            const headers = init?.headers as Record<string, string> | undefined
+            localAuth = headers?.authorization
+            return new Response(JSON.stringify({ data: [{ index: 0, embedding: [1, 0] }] }), { status: 200 })
+          }) as unknown as typeof fetch,
+        },
+      )
+      const localVec = (await lmStudio.embedQuery('hello')).unwrap()
+      expect(localAuth).toBeUndefined()
+      expect(localVec[0]).toBeCloseTo(1, 5)
+    } finally {
+      if (prevOpenAiKey === undefined) delete process.env.OPENAI_API_KEY
+      else process.env.OPENAI_API_KEY = prevOpenAiKey
+    }
   })
 })

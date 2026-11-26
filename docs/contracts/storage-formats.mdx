@@ -66,10 +66,10 @@ Documi がファイルシステム上で読み書きする永続ファイル・�
 | `testReport` | `string` (非空) | 未指定時は自動探索 | JUnit XML テストレポートの相対パス |
 | `reviewGate` | `"none" \| "stable" \| "all"` | `"none"` | `documi check` の既定レビュー承認ゲート（`--review-gate` で上書き可） |
 | `rag.enabled` | `boolean` | `false` | `true` で `search` / `retrieve` の既定をハイブリッド検索化 |
-| `rag.provider` | `"ollama" \| "openai"` | `"ollama"` | Embedding プロバイダ種別 |
-| `rag.model` | `string` | プロバイダ別既定 | Ollama: `embeddinggemma` / OpenAI: `text-embedding-3-small` |
-| `rag.endpoint` | `string` | Ollama: `http://localhost:11434` / OpenAI: `https://api.openai.com/v1` | HTTP エンドポイント URL |
-| `rag.apiKeyEnv` | `string` | `"OPENAI_API_KEY"` | OpenAI 互換 API キーを読み取る環境変数名 |
+| `rag.provider` | `"ollama" \| "openai" \| "gemini"` | `"ollama"` | Embedding プロバイダ種別 |
+| `rag.model` | `string` | プロバイダ別既定 | Ollama: `embeddinggemma` / OpenAI: `text-embedding-3-small` / Gemini: `gemini-embedding-001` |
+| `rag.endpoint` | `string` | プロバイダ別既定 | Ollama: `http://localhost:11434` / OpenAI: `https://api.openai.com/v1` / Gemini: `https://generativelanguage.googleapis.com/v1beta/openai` |
+| `rag.apiKeyEnv` | `string` | プロバイダ別既定 | OpenAI: `"OPENAI_API_KEY"` / Gemini: `"GEMINI_API_KEY"`（`<projectRoot>/.env.local`・`.env` も自動補完） |
 | `rag.cachePath` | `string` | `.documi/cache/embeddings.sqlite` | SQLite キャッシュパス（`projectRoot` 相対または絶対） |
 
 ## 3. 派生キャッシュ・一時ファイル (`.documi/`・`.gitignore` 対象)
