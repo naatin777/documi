@@ -301,6 +301,10 @@ describe('AI & Human CLI commands', () => {
     expect(typo.code).toBe(1)
     expect(typo.stderr).toContain('Unknown option: --stict')
 
+    const badGate = await execCli(['check', '--review-gate', 'bogus', '--project', projectDir])
+    expect(badGate.code).toBe(1)
+    expect(badGate.stderr).toContain('Invalid --review-gate')
+
     const help = await execCli(['check', '--help'])
     expect(help.code).toBe(0)
     expect(help.stdout).toContain('documi check')

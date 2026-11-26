@@ -62,7 +62,8 @@ tags: [core, spec, governance, export]
 - **抽出行数上限**: シンボル抽出は最大 400 行、行範囲抽出は最大 2,000 行。
 - **終了コード・厳格モード**:
   - 既定: 構文エラー・参照切れ・DAG 違反・`orphan-spec`・AST 破損は `error`（終了コード `1`）、`missing-frontmatter` / `missing-title` / `inferred-default-type` / `unknown-anchor-spec` / `spec-drifted` は `warning`。
-  - `--strict`: `spec-drifted` および `normative` ブロックの `unreviewed` / `stale` も `error` に昇格する（`suspect` は対象外）。
+  - `--review-gate <none|stable|all>`: 承認ゲートの適用範囲を段階制御する（`.documi.json` の `reviewGate` でも設定可、既定 `none`）。`stable` は `stability="stable"` な `normative` ブロックのみ、`all` は全 `normative` ブロックの `unreviewed` / `stale` を `error` にする（`suspect` は対象外）。
+  - `--strict`: `spec-drifted` および全 `normative` ブロック（`--review-gate all` 相当）の `unreviewed` / `stale` を `error` に昇格する（`suspect` は対象外）。
   - `--no-review-edit`: Git 作業ツリー／ステージ上で `docs/guard/reviews.json` が変更されていれば `review-file-modified` エラーを返す。
 
 <Spec id="core.doc-health" stability="evolving" derives="goals/low-friction-governance">

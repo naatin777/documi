@@ -4,8 +4,8 @@ import { mkdir, readFile, writeFile } from 'node:fs/promises'
 import path from 'node:path'
 import { parseArgs as parseNodeArgs } from 'node:util'
 import { runDocsCheck } from './core/checker'
-import { RAG_PROVIDERS, resolveProjectPaths } from './core/config'
-import type { RagConfig, RagProvider } from './core/config'
+import { RAG_PROVIDERS, REVIEW_GATES, resolveProjectPaths } from './core/config'
+import type { RagConfig, RagProvider, ReviewGate } from './core/config'
 import {
   addBlockToDoc,
   renameBlockIdAcrossProject,
@@ -131,7 +131,8 @@ Options:
   --port <number>         Listening port (serve, default: 3000 or PORT)
   --host <addr>           Bind address (serve, default: 127.0.0.1 or HOST)
   --test-report <xml>     Path to JUnit XML test report (check / map / query / context)
-  --strict                Treat unreviewed, stale, and drifted blocks as errors (check)
+  --review-gate <level>   Graduated review gate: none|stable|all (check, default: config reviewGate or none)
+  --strict                Treat all unreviewed, stale, and drifted blocks as errors (check)
   --no-review-edit        Fail if docs/guard/reviews.json has uncommitted Git changes (check)
   --prs                   Fetch and link PRs via gh CLI (check)
   --author <name>         Reviewer name (approve)
@@ -204,6 +205,7 @@ const CLI_OPTIONS = {
   'no-code': { type: 'boolean' },
   revisions: { type: 'string' },
   strict: { type: 'boolean' },
+  'review-gate': { type: 'string' },
   'no-review-edit': { type: 'boolean' },
   prs: { type: 'boolean' },
   type: { type: 'string' },
@@ -528,14 +530,25 @@ async function cmdMcp(flags: CliFlags): Promise<number> {
   return 0
 }
 
+function parseOptionalReviewGate(flags: CliFlags): ReviewGate | undefined {
+  const raw = getStringFlag(flags, 'review-gate')
+  if (raw === undefined) return undefined
+  if (!(REVIEW_GATES as readonly string[]).includes(raw)) {
+    throw new CliArgError(`Invalid --review-gate: "${raw}" (allowed: ${REVIEW_GATES.join(', ')})`)
+  }
+  return raw as ReviewGate
+}
+
 async function cmdCheck(flags: CliFlags, io: CliIo): Promise<number> {
-  const { docsDir, projectRoot, testReportPath } = resolveCliPaths(flags)
+  const { docsDir, projectRoot, testReportPath, config } = resolveCliPaths(flags)
+  const reviewGate = parseOptionalReviewGate(flags) ?? config.reviewGate
 
   const report = await runDocsCheck({
     docsDir,
     projectRoot,
     testReportPath,
     strict: flags.strict === true,
+    reviewGate,
     noReviewEdit: flags['no-review-edit'] === true,
     fetchPrs: flags.prs === true,
   })
