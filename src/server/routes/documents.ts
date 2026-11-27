@@ -78,6 +78,15 @@ interface OverviewAttentionBlock {
   suspectSources: string[]
 }
 
+interface OverviewIdeaBlock {
+  id: string
+  kind: BlockKind
+  docId: string
+  docTitle: string
+  title?: string
+  rawBody: string
+}
+
 interface TermPayload {
   id: string
   docId: string
@@ -140,6 +149,7 @@ export function createDocumentsRoutes(store: DocsStore, projectRoot?: string, ra
         const orphanSpecs: OverviewIssueEntry[] = []
         const docIssues: OverviewIssueEntry[] = []
         const attentionBlocks: OverviewAttentionBlock[] = []
+        const ideaBlocks: OverviewIdeaBlock[] = []
         const reviews = { approved: 0, unreviewed: 0, stale: 0, suspect: 0 }
         const realizations = Object.fromEntries(REALIZATION_STATUSES.map((s) => [s, 0])) as Record<
           RealizationStatus,
@@ -168,6 +178,16 @@ export function createDocumentsRoutes(store: DocsStore, projectRoot?: string, ra
                   suspectSources: block.suspectSources,
                 })
               }
+            }
+            if (block.intent === 'idea') {
+              ideaBlocks.push({
+                id: block.id,
+                kind: block.kind,
+                docId: doc.id,
+                docTitle: doc.title,
+                ...(block.title ? { title: block.title } : {}),
+                rawBody: block.rawBody,
+              })
             }
             if (block.kind === 'spec') {
               specsByIntent[block.intent]++
@@ -227,6 +247,7 @@ export function createDocumentsRoutes(store: DocsStore, projectRoot?: string, ra
             realizations,
             health,
             attentionBlocks,
+            ideaBlocks,
             goals,
             decisions,
             supersededDecisions,

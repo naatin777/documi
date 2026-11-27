@@ -68,12 +68,14 @@ describe('REST API', () => {
       termCount: number
       goals: { id: string }[]
       decisions: { id: string }[]
+      ideaBlocks: { id: string; kind: string }[]
       orphanSpecs: { blockId?: string }[]
     }
     expect(body.documentCount).toBe(6)
     expect(body.termCount).toBe(1)
     expect(body.goals.map((g) => g.id)).toEqual(['goals/core'])
     expect(body.decisions.map((o) => o.id)).toEqual(['dec.bun'])
+    expect(Array.isArray(body.ideaBlocks)).toBe(true)
     expect(body.orphanSpecs.map((o) => o.blockId)).toEqual(['orphan.item'])
   })
 

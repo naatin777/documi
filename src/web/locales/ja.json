@@ -128,6 +128,7 @@
     "goalsRoot": "目標",
     "noGoals": "目標ドキュメントがまだありません。",
     "decisions": "意思決定（ADR）",
+    "openIdeas": "未確定の仮案・仮置き ({{count}})",
     "orphanSpecs": "上位目標と未接続の仕様 ({{count}})",
     "allIssues": "すべての問題 ({{count}})",
     "realizationStability": "実装・検証と安定度",

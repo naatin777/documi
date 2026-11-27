@@ -203,6 +203,31 @@ export default function OverviewLayout() {
               </section>
             )}
 
+            {data.ideaBlocks.length > 0 && (
+              <section className="mb-7">
+                <h2 className="m-0 mb-3 text-[15px] font-bold text-fg">
+                  {t('overview.openIdeas', { count: data.ideaBlocks.length })}
+                </h2>
+                <div className="grid gap-2.5">
+                  {data.ideaBlocks.map((item) => (
+                    <Link
+                      key={item.id}
+                      to={`/docs/${encodeDocId(item.docId)}#block-${encodeURIComponent(item.id)}`}
+                      className="block rounded-lg border border-dashed border-line bg-surface px-4 py-3 text-inherit no-underline transition-[border-color,background-color] duration-120 hover:border-amber-500/70 hover:bg-hover"
+                    >
+                      <div className="mb-1 flex flex-wrap items-center gap-2">
+                        <span className="sem-kind sem-kind-note-idea">{item.kind.toUpperCase()}</span>
+                        <code className="sem-id">{item.id}</code>
+                        {item.title && <span className="text-xs font-semibold text-fg">{item.title}</span>}
+                        <span className="ml-auto text-xs text-fg-muted">{item.docTitle}</span>
+                      </div>
+                      <p className="mt-1 mb-0 line-clamp-2 text-[13px] text-fg-muted">{item.rawBody}</p>
+                    </Link>
+                  ))}
+                </div>
+              </section>
+            )}
+
             {data.orphanSpecs.length > 0 && (
               <section className="issues-panel mb-7">
                 <h2>{t('overview.orphanSpecs', { count: data.orphanSpecs.length })}</h2>
