@@ -6,7 +6,7 @@ import { extractExportedSymbols, resolveSourceLines, resolveSourceSymbol } from 
 import { sourceErrorToHttp } from '../errors'
 import { PdfError, renderPdf, renderPdfFromUrl } from '../pdf'
 import type { DocsStore } from '../store'
-import { zValidator, type ErrorStatusCode } from '../validator'
+import { isLocalOrigin, zValidator, type ErrorStatusCode } from '../validator'
 
 const checkQuerySchema = z.object({
   strict: z.enum(['true', 'false']).optional(),
@@ -48,7 +48,11 @@ function safePdfFileName(value: unknown): string {
   return `${base || 'documi'}.pdf`
 }
 
-export function createSystemRoutes(store: DocsStore, projectRoot: string) {
+export function createSystemRoutes(
+  store: DocsStore,
+  projectRoot: string,
+  getCanonicalOrigin?: () => string | undefined,
+) {
   return (
     new Hono()
       .get('/health', (c) => c.json({ ok: true as const }, 200))
@@ -160,8 +164,12 @@ export function createSystemRoutes(store: DocsStore, projectRoot: string) {
       })
       .post('/export/bundle-pdf', zValidator('json', exportBundlePdfBodySchema), async (c) => {
         const { scope, ids, title, filename } = c.req.valid('json')
-        // 任意ローカルポートへ Chrome を誘導されないよう、必ず自サーバー自身の Origin を使う
-        const baseUrl = new URL(c.req.url).origin
+        // Host ヘッダー偽装による任意ローカルポート／外部ホスト誘導を防ぐため、サーバー実待受の正規 Origin を最優先する
+        const canonical = getCanonicalOrigin?.()
+        const baseUrl = canonical ?? new URL(c.req.url).origin
+        if (!canonical && !isLocalOrigin(baseUrl)) {
+          return c.json({ error: 'Bundle PDF export is restricted to local loopback origins' }, 403)
+        }
 
         const qs = new URLSearchParams()
         if (ids && ids.length > 0) qs.set('ids', ids.join(','))

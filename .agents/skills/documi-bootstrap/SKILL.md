@@ -19,7 +19,7 @@ description: 既存コードベース（Brownfield）に Documi の Living Speci
 手書きで長大なファイルを作らず、`documi` CLI（`scaffold` / `block add` / `term upsert`）を使って最小骨格を作る：
 
 1. **Root Goal（`goals/`）**: プロダクトの目的・対象ユーザー・明示的な Non-Goals をまとめた Goal 文書を 1 件作成し、譲れない制約を `<Constraint id="...">` として記述する。
-2. **System Overview（`architecture/`）**: モジュール境界とデータフローを俯瞰する設計概要を 1 件作成し、実在する `<SourceRef file="src/..." />` を紐づける。
+2. **System Overview（`designs/system-overview.mdx`, `scope: system`）**: モジュール境界とデータフローを俯瞰する全体設計を 1 件作成し、実在する `<SourceRef file="src/..." mode="exports" />` を紐づける。
 3. **主要な既存意思決定（`decisions/`）**: すでにコードベースに根付いている重要な技術選定を 1〜3 件だけ記録し、各結論を 2〜3 行の `<Decision id="dec....">` にまとめる。
 
 ## 3. 実コードからボトムアップでコア仕様を抽出する

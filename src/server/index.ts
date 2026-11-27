@@ -36,13 +36,21 @@ export async function startServer(options: ServerStartOptions): Promise<{ stop: 
     testReportPaths: options.testReportPaths,
   })
   const stopWatch = store.watch()
-  const app = createApp(store, { clientDist, projectRoot, ragConfig: options.ragConfig })
+  let actualPort = port
+  const app = createApp(store, {
+    clientDist,
+    projectRoot,
+    ragConfig: options.ragConfig,
+    // Host ヘッダー由来の別ポート誘導を防ぐため、必ず自サーバー実待受ポートのループバック Origin を返す
+    getCanonicalOrigin: () => `http://127.0.0.1:${actualPort}`,
+  })
 
   const server = Bun.serve({
     port,
     fetch: app.fetch,
     hostname,
   })
+  actualPort = server.port ?? port
 
   const stop = () => {
     stopWatch()
@@ -60,7 +68,6 @@ export async function startServer(options: ServerStartOptions): Promise<{ stop: 
 
   const index = store.getIndex()
   const docIssueCount = index.documents.reduce((sum, d) => sum + d.issues.length, 0)
-  const actualPort = server.port ?? port
   console.log(`Documi server listening on http://${hostname}:${actualPort}`)
   console.log(`  docs:      ${index.rootDir} (watching)`)
   console.log(`  project:   ${projectRoot}`)
