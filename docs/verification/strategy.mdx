@@ -1,0 +1,52 @@
+---
+type: verification
+title: テスト戦略・品質ゲート・検証方針
+description: 証拠主義（Prove It Works）のテスト戦略、領域別 Verification と Given / When / Then シナリオの役割分担、品質ゲート、意図的対象外（Out of Scope）
+tags: [testing, verification, strategy]
+---
+
+# テスト戦略・品質ゲート・検証方針
+
+## 1. 証拠主義（Prove It Works）と 2 層検証モデル
+
+Documi の検証は **ドキュメント側（受入基準・保証シナリオ）** と **テストコード側（実行証拠）** の 2 層で責務を分担し、二重管理とドリフトを防ぐ。
+
+| 層 | 置き場所 | 役割 |
+|---|---|---|
+| **保証シナリオ層** | `docs/verification/<domain>.mdx` | 機能領域ごとに、絶対に壊れてはいけない振る舞い・境界値・セキュリティ／異常系を **宣言的な Given / When / Then** で明記する（1 ファイルあたり `verifies` 10 件以下） |
+| **実行証拠層** | `tests/*.test.ts(x)` + `.documi/test-results.xml` | `test('[<spec.id>] ...', ...)` と JUnit XML で実挙動を自動検証し、各 `<Spec>` の `realization`（`verified` / `drifted`）を自動算出する |
+
+- **ビルド通過や自己申告を完了とみなさない**: 仕様・契約・修正の完了は、自動テスト実行結果（JUnit XML）および静的・構造チェックの通過という客観的証拠で証明する。
+- **形骸テストと過剰モックの禁止**: 定数を写しただけの落ちないテストや、内部実装を過剰モックしたテストは避け、実際のファイルシステム（一時ディレクトリ）・Hono アプリ・`bun:sqlite`・mdast / `@ast-grep/napi`・MCP ツールを通して振る舞いを検証する。
+- **バグ修正は Red → Green で確認**: 不具合修正時は、修正前の状態で失敗する再現テストを先に確認してから修正を通す。
+
+## 2. 領域別 Verification マップ
+
+| ドキュメント | 検証領域 | 主なテストスイート |
+|---|---|---|
+| [文書モデル・MDX・グラフ・履歴の検証](./document-and-graph.mdx) | 再帰走査・MDX 安全性・Rooted DAG・メディア検証・Git 履歴 | `core`, `mdx`, `media`, `history` |
+| [レビュー・Realization・AST 検証・健全性の検証](./governance-and-check.mdx) | 承認サイドカー・Realization・AST 参照・健全性ヒント・設定・Code Explorer | `reviews`, `trace`, `source`, `health-and-exports`, `config`, `code` |
+| [検索・Hybrid RAG・AI ワークフローの検証](./retrieval-and-ai.mdx) | BM25・グラフ展開・SQLite ベクトル検索・CLI・MCP 精密編集・Skills 生成 | `retrieval`, `hybrid-rag`, `cli-agent`, `mcp-edit`, `init` |
+| [Web UI・REST API・i18n の検証](./web-ui-and-api.mdx) | Web ビューア・SSE・Review UI・Graph・検索・REST API・多言語カタログ | `ui`, `api`, `i18n` |
+| [バンドル・PDF・静的サイトの検証](./bundle-and-static-site.mdx) | スコープ別バンドル・PDF 出力境界・プロバイダ非依存静的サイト書き出し | `bundle`, `site` |
+
+## 3. 品質ゲート（マージ前必須コマンド）
+
+PR および変更完了時は、以下をすべてエラー・警告 0 件で通過させる。
+
+```bash
+mkdir -p .documi && bun test --reporter=junit --reporter-outfile=.documi/test-results.xml
+bun run check
+bun run lint
+bun run format:check
+bun run knip
+bun run build
+bun run documi:check
+```
+
+## 4. 意図的な対象外（Out of Scope）
+
+以下は CI 自動テストの既定対象外とし、過剰なテスト維持コストや環境依存フレーキーを避ける：
+
+- ヘッドレスブラウザによるピクセル単位のビジュアル回帰テスト（WebGL グラフ描画・PDF レイアウト・静的サイト配信の目視確認はローカルスモーク検証で行う）
+- 外部 GitHub API (`gh pr list`) や外部 Embedding API（実 Ollama / OpenAI / Gemini サーバー）への実ネットワーク通信を伴う CI 結合テスト（CI では決定論的モックプロバイダおよびモック `fetch` で検証する）

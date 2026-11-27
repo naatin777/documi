@@ -56,7 +56,7 @@ EOF
 - **更新トリガー（PR 完了前セルフチェック）**:
   - 新サブシステム・主要モジュール追加 → `architecture` 更新 ＋ `design`（`satisfies`・`<SourceRef>`）追加・更新
   - 後戻りコストが高い構造・技術判断 → `decision`（ADR＋`<Outcome>`）を追加
-  - 新しい `<Spec>` やテストスイート追加 → `verification` の `verifies` と一覧を更新
+  - 新しい `<Spec>` やテストスイート追加 → 該当機能領域の `verification` に `verifies`・**宣言的な Given / When / Then 保証シナリオ**・テストスイート一覧を同期する（1 ファイルに 10 件超の `verifies` / `satisfies` を集中させない：`overloaded-hub-doc` で検知）
   - **Capability 単位のファイル分割（相乗り禁止）**: `spec` ファイルは技術レイヤー（`core/`・`ui/`）やスプリント単位ではなく **Capability（システムが提供する 1 つの能力・機能ドメイン）単位で 1 ファイル** にする。タイトルに無関係な機能が `and` や中黒で並び始めたら件数に関係なく `documi scaffold` で別ファイルへ切り出す（10 件超は安全網の `bloated-spec-doc` で検知）
 
 ## 4. 守るべき不変ルール
@@ -67,5 +67,5 @@ EOF
 
 ## 5. 完了前の検証と引き継ぎ
 
-1. `documi check --no-review-edit` を実行し、エラー 0 件（Rooted DAG・MDX 安全性・AST シンボル参照）および健全性ヒント（Design / Verification カバレッジ・Spec 肥大化）を確認する。
+1. `documi check --no-review-edit` を実行し、エラー 0 件（Rooted DAG・MDX 安全性・AST シンボル参照）および健全性ヒント（Design / Verification カバレッジ・Spec 肥大化・ハブ過密）を確認する。
 2. 追加・変更した Spec ID を簡潔にまとめ、人間レビュアーが Web UI（`documi serve`）で確認・承認できるようにする。

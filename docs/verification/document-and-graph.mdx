@@ -1,0 +1,57 @@
+---
+type: verification
+title: 文書モデル・MDX・グラフ・履歴の検証
+description: 再帰走査・Type 推論・MDX 安全性・Rooted DAG・supersedes 分離・ローカルメディア検証・Git 履歴の保証シナリオとテストスイート
+tags: [testing, verification, document, graph]
+verifies:
+  - core.document-model
+  - core.type-inference
+  - core.mdx-blocks
+  - core.mdx-safety
+  - core.rooted-dag
+  - core.auto-mentions
+  - core.doc-history
+---
+
+# 文書モデル・MDX・グラフ・履歴の検証
+
+## 1. 保証シナリオ（Given / When / Then）
+
+### 文書走査と Type / Date 推論
+
+- **Given**: 連番プレフィックスを持たない多階層 Markdown / MDX（frontmatter 欠落ファイルを含む）が `docs/` 配下に存在する
+- **When**: `loadDocuments` でドキュメント索引を構築する
+- **Then**: 相対パスがそのまま一意の Document ID となり、H1 見出しとディレクトリ名からタイトル・Type が推論され、読み込み自体は失敗しない
+
+### MDX 安全性（任意 JS・未許可構文の遮断）
+
+- **Given**: `import` / `export`、JSX 式 `{...}`、スプレッド属性、未許可タグ、または `javascript:` リンクを含む MDX 文書がある
+- **When**: AST 解析および Markdown レンダラで描画する
+- **Then**: 危険な構文は一切実行されず構造化エラーとして報告され、許可済みコンポーネント（`<Spec>` / `<Details>` / `<Columns>` / `<Timeline>` 等）のみが安全に描画される
+
+### Rooted DAG と `supersedes` 現行／廃止分離
+
+- **Given**: `goal` に到達できない `normative` `<Spec>`、循環参照するトレース辺、および新しい `decision` から `supersedes` された旧 `decision`（配下に `<Outcome>` を含む）が存在する
+- **When**: グラフ構築および `buildProjectMap` を実行する
+- **Then**: 孤立 Spec は `orphan-spec`、循環は `trace-cycle` として検出され、旧 `<Outcome>` は親の `supersededBy` を継承して `supersededOutcomes` へ分離される
+
+### ローカルメディア参照とパストラバーサル防御
+
+- **Given**: 相対パスの画像・動画・音声（`![alt](./diagram.png)` 等）と、`docs/` 外への脱出（`../secret.png`・symlink・`guard/`・未許可拡張子）を含む文書がある
+- **When**: `loadDocuments` および `/api/media/*` で解決・配信する
+- **Then**: 正常なメディアは `X-Content-Type-Options: nosniff`（SVG は `sandbox` CSP、動画・音声は `206` Range 対応）で配信され、不正パスは `broken-media` かつ 400/403 で拒否される
+
+### Git 履歴取得と非 Git フォールバック
+
+- **Given**: Git 管理下のリポジトリと、`.git` を持たない一時ディレクトリの双方がある
+- **When**: 鮮度スキャン・履歴一覧・過去版取得（および不正 SHA 入力）を実行する
+- **Then**: Git 環境ではコミット履歴と変更行レンジが返り、不正 SHA は拒否され、非 Git 環境でもクラッシュせず安全に空状態へフォールバックする
+
+## 2. 対応テストスイート
+
+| テストスイート | 主な検証対象 |
+|---|---|
+| `tests/core.test.ts` | 再帰走査・Type/Date 推論・MDX ブロック AST 抽出・ハッシュ算出・5 種エッジ・`orphan-spec`・循環検出・`supersedes` 現行／廃止分離・階層ツリー構築 |
+| `tests/mdx.test.tsx` | GFM・KaTeX・Shiki・Mermaid・セマンティックタグ 6 種・視覚 MDX コンポーネント（`Details`/`Columns`/`Timeline`）・相対パス内部リンク・危険構文無効化 |
+| `tests/media.test.tsx` | 画像・動画・音声の AST 解決、`broken-media`（欠損・脱出・symlink・未許可拡張子・危険スキーム）、`/api/media/*` 配信セキュリティ・Range 応答・静的書き出し |
+| `tests/history.test.tsx` | 読み取り専用 Git 鮮度スキャン・非 Git フォールバック・変更行レンジ算出・過去版取得 API・不正 SHA 拒否・History UI 描画 |

@@ -1,10 +1,16 @@
 import type { DocsIndex } from './types'
 
 const DEFAULT_MAX_SPECS_PER_DOC = 10
+const DEFAULT_MAX_TRACE_TARGETS_PER_DOC = 10
 const STALE_ARCH_MIN_NEWER_DOCS = 5
 const STALE_ARCH_GRACE_MS = 24 * 60 * 60 * 1000
 
-type DocumentHealthHintCode = 'missing-design' | 'missing-verification' | 'bloated-spec-doc' | 'stale-architecture'
+type DocumentHealthHintCode =
+  | 'missing-design'
+  | 'missing-verification'
+  | 'bloated-spec-doc'
+  | 'overloaded-hub-doc'
+  | 'stale-architecture'
 
 interface DocumentHealthHint {
   code: DocumentHealthHintCode
@@ -18,6 +24,15 @@ interface BloatedSpecDocInfo {
   docId: string
   path: string
   specCount: number
+  threshold: number
+}
+
+interface OverloadedHubDocInfo {
+  docId: string
+  path: string
+  docType: 'design' | 'verification'
+  edgeKind: 'satisfies' | 'verifies'
+  targetCount: number
   threshold: number
 }
 
@@ -35,6 +50,7 @@ export interface DocumentHealthSummary {
   uncoveredByDesign: string[]
   uncoveredByVerification: string[]
   bloatedSpecDocs: BloatedSpecDocInfo[]
+  overloadedHubDocs: OverloadedHubDocInfo[]
   staleArchitectureDocs: StaleArchitectureInfo[]
   hints: DocumentHealthHint[]
 }
@@ -42,26 +58,42 @@ export interface DocumentHealthSummary {
 interface ComputeHealthOptions {
   /** 1 つの spec ドキュメントに含める推奨最大 <Spec> 数（超過で分割推奨ヒントを出す） */
   maxSpecsPerDoc?: number
+  /** 1 つの design / verification から伸ばす推奨最大トレース辺数（超過で分割推奨ヒントを出す） */
+  maxTraceTargetsPerDoc?: number
 }
 
 // @implements core.doc-health
 /**
- * Living Specification 全体の構造健全性（Design / Verification カバレッジ・Spec 肥大化・Architecture 鮮度差）を算出する。
+ * Living Specification 全体の構造健全性（Design / Verification カバレッジ・Spec 肥大化・ハブ過密・Architecture 鮮度差）を算出する。
  * 過度な形式主義を避けるため、すべて CI を壊さない Advisory ヒントとして返す。
  */
 export function computeDocumentHealth(index: DocsIndex, options: ComputeHealthOptions = {}): DocumentHealthSummary {
   const maxSpecsPerDoc = options.maxSpecsPerDoc ?? DEFAULT_MAX_SPECS_PER_DOC
+  const maxTraceTargetsPerDoc = options.maxTraceTargetsPerDoc ?? DEFAULT_MAX_TRACE_TARGETS_PER_DOC
 
   const designTargets = new Set<string>()
   const verificationTargets = new Set<string>()
+  const outgoingTargetsByDoc = new Map<string, Set<string>>()
 
   for (const edge of index.edges) {
     const fromDoc = index.byId.get(edge.fromDocId)
     if (!fromDoc) continue
     if (edge.kind === 'satisfies' && fromDoc.type === 'design') {
       designTargets.add(edge.to)
+      let set = outgoingTargetsByDoc.get(fromDoc.id)
+      if (!set) {
+        set = new Set<string>()
+        outgoingTargetsByDoc.set(fromDoc.id, set)
+      }
+      set.add(edge.to)
     } else if (edge.kind === 'verifies' && fromDoc.type === 'verification') {
       verificationTargets.add(edge.to)
+      let set = outgoingTargetsByDoc.get(fromDoc.id)
+      if (!set) {
+        set = new Set<string>()
+        outgoingTargetsByDoc.set(fromDoc.id, set)
+      }
+      set.add(edge.to)
     }
   }
 
@@ -129,6 +161,30 @@ export function computeDocumentHealth(index: DocsIndex, options: ComputeHealthOp
     }
   }
 
+  const overloadedHubDocs: OverloadedHubDocInfo[] = []
+  for (const doc of index.documents) {
+    if (doc.type !== 'design' && doc.type !== 'verification') continue
+    const targets = outgoingTargetsByDoc.get(doc.id)
+    const targetCount = targets?.size ?? 0
+    if (targetCount > maxTraceTargetsPerDoc) {
+      const edgeKind = doc.type === 'design' ? 'satisfies' : 'verifies'
+      overloadedHubDocs.push({
+        docId: doc.id,
+        path: doc.path,
+        docType: doc.type,
+        edgeKind,
+        targetCount,
+        threshold: maxTraceTargetsPerDoc,
+      })
+      hints.push({
+        code: 'overloaded-hub-doc',
+        message: `${doc.path} has ${targetCount} ${edgeKind} targets (recommended max: ${maxTraceTargetsPerDoc}; consider splitting by capability/domain)`,
+        path: doc.path,
+        docId: doc.id,
+      })
+    }
+  }
+
   const staleArchitectureDocs: StaleArchitectureInfo[] = []
   const archDocs = index.documents.filter((d) => d.type === 'architecture')
   const specOrDesignDocs = index.documents.filter((d) => d.type === 'spec' || d.type === 'design')
@@ -166,6 +222,7 @@ export function computeDocumentHealth(index: DocsIndex, options: ComputeHealthOp
     uncoveredByDesign,
     uncoveredByVerification,
     bloatedSpecDocs,
+    overloadedHubDocs,
     staleArchitectureDocs,
     hints,
   }
