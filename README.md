@@ -68,10 +68,10 @@ bun src/cli.ts serve --project /path/to/your-repo       # Start Web UI + REST AP
 
 - **Solves Day-2 Spec Rot**: Instead of disposable `plan.md` / `tasks.md`, specs live in Git and stay linked to real AST symbols (`@ast-grep/napi`), `@implements` anchors, and JUnit XML test results (`realization`: `unimplemented` → `in-progress` → `implemented` → `verified` / `drifted`).
 - **Convergent AI Reviews**: Records architectural decisions (`<Outcome>`) and Non-Goals in a Rooted DAG so AI agents stop re-litigating settled design choices.
-- **Dual AI Interface (Zero Lock-In)**: Use **CLI + Agent Skills** (works with any coding agent, no MCP setup required) or **MCP Server** (15 tools over stdio `documi mcp` or HTTP `/mcp`) — both powered by the same core.
+- **Dual AI Interface (Zero Lock-In)**: Use **CLI + Agent Skills** (works with any coding agent, no MCP setup required) or **MCP Server** (14 tools over stdio `documi mcp` or HTTP `/mcp`) — both powered by the same core.
 - **Human-Only Approval Guard (`docs/guard/reviews.json`)**: Keeps human approvals physically separate from MDX prose, computes line diffs on edit (`stale`), surfaces lightweight upstream change notices (`suspect`), and blocks AI edits via `documi check --no-review-edit`.
 - **Safe Static MDX**: Renders semantic tags (`<Spec>`, `<Constraint>`, `<Outcome>`, `<Note>`, `<TermDef>`, `<Term>`, `<SourceRef>`) plus Mermaid, KaTeX, and Shiki through a static mdast pipeline — arbitrary JS/ESM execution is strictly forbidden.
-- **Zero-Dependency Search + Optional Local Hybrid RAG**: Built-in Japanese (`Intl.Segmenter`) / English / code-identifier BM25 + glossary synonym expansion + graph expansion (`documi retrieve`), plus optional Ollama / OpenAI-compatible HTTP embeddings cached in `bun:sqlite`.
+- **Zero-Dependency Search + Optional Local Hybrid RAG**: Built-in Japanese (`Intl.Segmenter`) / English / code-identifier BM25 + glossary synonym expansion + graph expansion (`documi search --context`), plus optional Ollama / OpenAI-compatible HTTP embeddings cached in `bun:sqlite`.
 - **Read-Only Static Site & Bundle Export**: Export a provider-agnostic static site (`documi build-site`) for Cloudflare Pages / GitHub Pages / Vercel / S3, or bundle multiple docs into a single HTML/PDF (`documi export`).
 
 ---
@@ -98,7 +98,7 @@ Run `documi <command> --help` for per-command options. All read & edit commands 
 
 Connect via stdio (`documi mcp --project .`) or Streamable HTTP (`http://127.0.0.1:3000/mcp`):
 
-- **Read & Search**: `get_project_map`, `list_documents`, `get_document`, `get_relations`, `query_specs`, `get_spec_context`, `search_documents`, `retrieve_context`, `validate_docs`
+- **Read & Search**: `get_project_map`, `list_documents`, `get_document`, `get_relations`, `get_impact`, `query_specs`, `get_spec_context`, `search_documents` (`includeContext`), `validate_docs`
 - **Surgical Edit**: `add_block`, `update_block`, `rename_block_id`, `upsert_term`, `scaffold_document`
 
 ---

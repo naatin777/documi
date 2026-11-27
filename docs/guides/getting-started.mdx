@@ -107,9 +107,9 @@ bun run documi:export -- --scope all --format html --out spec.html
 既定で **日本語・英語・コード識別子対応 BM25 ＋ `<TermDef aliases>` 同義語展開 ＋ 明示グラフ展開** がゼロ依存で動作します。Spec ID が分からない自然文の質問から、関連 Spec・上流 Goal・Decision `<Outcome>`・`<SourceRef>` を 1 発で取得できます。
 
 ```bash
-documi retrieve "承認記録の改ざん防止ルール"           # ゼロ依存 BM25 + グラフ展開（既定）
-documi index                                         # ローカル Ollama (embeddinggemma) で差分インデックス構築
-documi retrieve "アカウント凍結時の挙動" --semantic  # BM25 + ローカル Embedding の RRF ハイブリッド検索
+documi search "承認記録の改ざん防止ルール" --context         # ゼロ依存 BM25 + グラフ展開（既定）
+documi index                                                 # ローカル Ollama (embeddinggemma) で差分インデックス構築
+documi search "アカウント凍結時の挙動" --context --semantic  # BM25 + ローカル Embedding の RRF ハイブリッド検索
 ```
 
 プロジェクト全体で Hybrid RAG を既定有効化したり、Ollama / OpenAI 互換エンドポイントを設定する場合は `.documi.json` に `rag` を追加します（ベクトルキャッシュは `.documi/cache/embeddings.sqlite` に `contentHash` 差分で保存されます）：

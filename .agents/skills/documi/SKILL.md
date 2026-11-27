@@ -11,7 +11,7 @@ description: Documi CLI を使って Living Specification（仕様・設計・AD
 
 ## 1. 段階的コンテキスト取得（実装前に読む）
 
-1. **Spec ID がまだ分からないタスク**: `documi retrieve "<自然文のタスクや質問>"` — BM25＋用語集同義語展開＋グラフ展開で関連 Spec・上流 Goal・Decision `<Outcome>`・用語・`<SourceRef>` を文字数予算内で 1 発取得する。
+1. **Spec ID がまだ分からないタスク**: `documi search "<自然文のタスクや質問>" --context` — BM25＋用語集同義語展開＋グラフ展開で関連 Spec・上流 Goal・Decision `<Outcome>`・用語・`<SourceRef>` を文字数予算内で 1 発取得する。
 2. **全体像の把握**: `documi map` — Goal・Architecture・Decision `<Outcome>`・ドメイン用語・Review / Realization 全体像を一括取得する（機械処理時は `documi map --json`）。
 3. **条件絞り込み・横断検索**: `documi query [--kind spec] [--review ...] [--realization ...] [--q <語>]` または `documi search "<query>"`。
 4. **特定 Spec の深掘り・変更影響の確認**: `documi context <spec-id>` で対象 Spec 本文・上流 Goal・関連文書・用語・`<SourceRef>` を取得する。**仕様変更の前には必ず `documi impact <id>` を実行し、影響を受ける全下流文書・ブロック・コード・テストを洗い出す**（全文や直接参照だけ見たい場合は `documi show <doc-id>` / `documi relations <id>`）。

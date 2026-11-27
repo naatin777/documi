@@ -282,11 +282,14 @@ describe('Local Hybrid RAG (bun:sqlite + RRF + Providers)', () => {
 
     // CLI 引数バリデーション (--semantic と --no-semantic の同時指定や不正 --provider を拒否)
     const errs: string[] = []
-    const badCode = await runCli(['retrieve', 'auth', '--project', projectDir, '--semantic', '--no-semantic'], {
-      out: () => {},
-      err: (l) => errs.push(l),
-      readStdin: async () => '',
-    })
+    const badCode = await runCli(
+      ['search', 'auth', '--context', '--project', projectDir, '--semantic', '--no-semantic'],
+      {
+        out: () => {},
+        err: (l) => errs.push(l),
+        readStdin: async () => '',
+      },
+    )
     expect(badCode).toBe(1)
     expect(errs.join('\n')).toContain('--semantic and --no-semantic cannot be used together')
 

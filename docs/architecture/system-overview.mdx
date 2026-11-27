@@ -93,7 +93,7 @@ flowchart TB
 ## 3. 3 つの利用チャネル（人間 Web UI / AI CLI & MCP / 静的サイト）
 
 - **人間向け動的 Web UI (`documi serve`)**: Hono RPC + React Query + SSE ライブ更新により、閲覧・承認・Git 鮮度/履歴比較・Code Explorer・Graph・PDF Export をリアルタイムに提供する。
-- **AI 向け二本立て経路（MCP ＋ CLI & Agent Skills）**: `src/core/query.ts`・`src/core/retrieval.ts`・`src/core/hybrid-retrieval.ts`・`src/core/editor.ts` を共通基盤として、MCP サーバー（`instructions` 自己完結）と CLI（`documi retrieve` / `map` / `query` / `context` / `block` / `term` / `scaffold`、`--json`・`--full` 対応）が同等の機能を提供する（[ADR](../decisions/2026-11-24-ai-dual-channel-and-skills.mdx)）。
+- **AI 向け二本立て経路（MCP ＋ CLI & Agent Skills）**: `src/core/query.ts`・`src/core/retrieval.ts`・`src/core/hybrid-retrieval.ts`・`src/core/editor.ts` を共通基盤として、MCP サーバー（`instructions` 自己完結・14 ツール）と CLI（`documi search --context` / `map` / `query` / `context` / `block` / `term` / `scaffold`、`--json`・`--full` 対応）が同等の機能を提供する（[ADR](../decisions/2026-11-24-ai-dual-channel-and-skills.mdx)）。
 - **プロバイダ非依存の静的サイト書き出し (`documi build-site`)**: インメモリ Hono サーバーから全読み取り API JSON を事前計算し、ビルド済み SPA（`HashRouter` 切替）と合わせて任意の静的ホスティングへ配布できる読み取り専用サイトを出力する（[ADR](../decisions/2026-11-24-provider-agnostic-static-site.mdx)）。
 
 ## 4. 5 層・9 種類の Artifact Type と AI コンテキスト方針

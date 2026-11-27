@@ -3,7 +3,14 @@ import { useTranslation } from 'react-i18next'
 import { Link, useSearchParams } from 'react-router'
 import type { BlockKind } from '../../core/types'
 import { api, encodeDocId, isStaticSite, type ReviewBlocksResponse, type TermEntry } from '../api'
-import { toErrorMessage, useBlockDiffQuery, useBlocksQuery, useInvalidateDocs, useTermsQuery } from '../queries'
+import {
+  toErrorMessage,
+  useBlockDiffQuery,
+  useBlocksQuery,
+  useInvalidateDocs,
+  useTermsQuery,
+  useTreeQuery,
+} from '../queries'
 import DocPeekPane from './DocPeekPane'
 import Markdown from './Markdown'
 
@@ -79,6 +86,17 @@ export default function ReviewLayout() {
   const [copiedKey, setCopiedKey] = useState<string | null>(null)
   const copyTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const [peekTarget, setPeekTarget] = useState<{ docId: string; focusBlockId: string } | null>(null)
+  const treeQuery = useTreeQuery()
+  const mountLabelByDocId = useMemo(() => {
+    const mounts = treeQuery.data?.mounts ?? []
+    if (mounts.length <= 1) return null
+    const labelByMount = new Map(mounts.map((m) => [m.id, m.label]))
+    const map = new Map<string, string>()
+    for (const d of treeQuery.data?.documents ?? []) {
+      map.set(d.id, labelByMount.get(d.mountId) ?? d.mountId)
+    }
+    return map
+  }, [treeQuery.data?.mounts, treeQuery.data?.documents])
   const error = actionError ?? toErrorMessage(queryError)
 
   const confirmNote = noteOverride && noteOverride.urlNote === urlNote ? noteOverride.value : urlNote
@@ -425,6 +443,7 @@ export default function ReviewLayout() {
                       onUnapprove={() => void runAction(block.id, () => api.unapproveBlock(block.id))}
                       onToggleDiff={() => handleToggleDiff(block.id)}
                       onPeek={() => setPeekTarget({ docId: block.docId, focusBlockId: block.id })}
+                      mountLabel={mountLabelByDocId?.get(block.docId)}
                     />
                   ))}
                 </div>
@@ -459,6 +478,7 @@ function ReviewInboxCard({
   onUnapprove,
   onToggleDiff,
   onPeek,
+  mountLabel,
 }: {
   block: ReviewBlockItem
   terms: readonly TermEntry[]
@@ -474,6 +494,7 @@ function ReviewInboxCard({
   onUnapprove: () => void
   onToggleDiff: () => void
   onPeek: () => void
+  mountLabel?: string
 }) {
   const { t } = useTranslation()
   const readOnly = isStaticSite()
@@ -559,6 +580,11 @@ function ReviewInboxCard({
       </header>
 
       <div className="mb-2 flex items-baseline gap-2 text-[12.5px]">
+        {mountLabel && (
+          <span className="shrink-0 rounded border border-line bg-subtle px-1.5 py-px text-[10px] font-semibold text-fg-muted">
+            {mountLabel}
+          </span>
+        )}
         <Link to={`/docs/${encodeDocId(block.docId)}`} className="font-semibold text-fg no-underline hover:underline">
           {block.docTitle}
         </Link>

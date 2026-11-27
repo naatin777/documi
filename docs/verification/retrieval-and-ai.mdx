@@ -21,7 +21,7 @@ verifies:
 ### BM25 検索・同義語展開・グラフ拡張
 
 - **Given**: 日本語・英語・コード識別子（`camelCase` / `snake_case`）と `<TermDef aliases>` を含むドキュメント群がある
-- **When**: `documi retrieve` または MCP `retrieve_context` を実行する
+- **When**: `documi search --context` または MCP `search_documents`（`includeContext: true`）を実行する
 - **Then**: 同義語を含むヒットが BM25 スコア順で返り、関連 Goal・Design・`<SourceRef>` が文字数予算内でグラフ展開される
 
 ### ローカル Hybrid RAG（SQLite 差分キャッシュと安全フォールバック）
