@@ -91,10 +91,24 @@ function buildTermMatcher(terms?: readonly TermEntry[]): TermMatcher | undefined
   names.sort((a, b) => b.length - a.length)
   const parts = names.map((n) => {
     const escaped = escapeRegExp(n)
-    // ASCII のみの用語は単語境界で部分一致の誤爆を防ぐ
-    return /^[A-Za-z0-9._-]+$/.test(n) ? `(?<![A-Za-z0-9_])${escaped}(?![A-Za-z0-9_])` : escaped
+    // ASCII / 漢字 / カタカナの複合語途中での部分一致誤爆（「関係者」の「関係」、「エッジケース」の「エッジ」等）を防ぐ
+    const prefix = /^[A-Za-z0-9_]/.test(n)
+      ? '(?<![A-Za-z0-9_])'
+      : /^\p{Script=Han}/u.test(n)
+        ? '(?<![\\p{Script=Han}])'
+        : /^[\p{Script=Katakana}ー]/u.test(n)
+          ? '(?<![\\p{Script=Katakana}ー])'
+          : ''
+    const suffix = /[A-Za-z0-9_]$/.test(n)
+      ? '(?![A-Za-z0-9_])'
+      : /\p{Script=Han}$/u.test(n)
+        ? '(?![\\p{Script=Han}])'
+        : /[\p{Script=Katakana}ー]$/u.test(n)
+          ? '(?![\\p{Script=Katakana}ー])'
+          : ''
+    return `${prefix}${escaped}${suffix}`
   })
-  return { byKey, regex: new RegExp(`(${parts.join('|')})`, 'g') }
+  return { byKey, regex: new RegExp(`(${parts.join('|')})`, 'gu') }
 }
 
 interface Ctx {

@@ -147,6 +147,34 @@ describe('MDX コンポーネント', () => {
     expect(autoLinked).toMatch(/href="\/docs\/domain\/glossary#block-Artifact"[^>]*>成果物<\/a>/)
     expect(autoLinked).toContain('<code>Artifact</code>')
     expect(autoLinked).toContain('<h1 id="artifact-見出し">Artifact 見出し</h1>')
+
+    // 日本語複合語（漢字・カタカナ連続）の途中は切り刻んでリンク化しない（「関係者」の「関係」、「エッジケース」の「エッジ」等）
+    const compoundHtml = renderToStaticMarkup(
+      <MemoryRouter>
+        <LiveProvider>
+          <Markdown
+            body="関係者と依存関係とエッジケースは分割せず、関係やエッジを独立語としてリンクする。"
+            format="markdown"
+            currentDir="goals"
+            terms={[
+              {
+                id: 'GraphEdge',
+                docId: 'domain/glossary',
+                docTitle: 'Glossary',
+                aliases: ['関係', 'エッジ'],
+                antiTerms: [],
+                symbols: [],
+                rawBody: '有向辺',
+                usedIn: [],
+              },
+            ]}
+          />
+        </LiveProvider>
+      </MemoryRouter>,
+    )
+    expect(compoundHtml).toContain('関係者と依存関係とエッジケースは分割せず、')
+    expect(compoundHtml).toMatch(/href="\/docs\/domain\/glossary#block-GraphEdge"[^>]*>関係<\/a>/)
+    expect(compoundHtml).toMatch(/href="\/docs\/domain\/glossary#block-GraphEdge"[^>]*>エッジ<\/a>/)
   })
 
   test('SourceRef を描画する (satisfies/verifies バッジ・props 不正時エラー)', () => {
