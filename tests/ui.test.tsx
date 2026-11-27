@@ -248,12 +248,12 @@ describe('Web UI & Live Spec Dogfooding', () => {
     expect(quizPrompt).toContain('- sample.rule (specs/sample.mdx)')
   })
 
-  test('[ui.glossary-autolink] Markdown は登録済み用語・別名を本文中で自動リンクしコードや見出し内は除外する', () => {
+  test('[ui.glossary-autolink] Markdown は登録済み正準用語 ID のみを本文中で自動リンクし aliases・コード・見出し内は除外する', () => {
     const html = renderToStaticMarkup(
       <MemoryRouter>
         <LiveProvider>
           <Markdown
-            body={'# 仕様ブロックの見出し\n\n本文中の仕様ブロックと `仕様ブロック` の扱い。'}
+            body={'# SpecBlock の見出し\n\n本文中の SpecBlock と仕様ブロックと `SpecBlock` の扱い。'}
             format="mdx"
             terms={[
               {
@@ -272,13 +272,16 @@ describe('Web UI & Live Spec Dogfooding', () => {
       </MemoryRouter>,
     )
 
-    // 本文中の「仕様ブロック」は用語リンク化される
+    // 本文中の正準 ID「SpecBlock」は用語リンク化される
     expect(html).toContain('term-inline')
     expect(html).toContain('/docs/domain/glossary')
+    expect(html).toMatch(/href="\/docs\/domain\/glossary#block-SpecBlock"[^>]*>SpecBlock<\/a>/)
+    // aliases（仕様ブロック）は検索同義語専用であり自動リンク化されない
+    expect(html).not.toContain('>仕様ブロック</a>')
     // インラインコード内はリンク化されず生テキストのまま
-    expect(html).toContain('<code>仕様ブロック</code>')
+    expect(html).toContain('<code>SpecBlock</code>')
     // 見出し内はリンク化されない
-    expect(html).toContain('>仕様ブロックの見出し</h1>')
+    expect(html).toContain('>SpecBlock の見出し</h1>')
   })
 
   test('[ui.graph-view] /api/graph (docs/blocks) がネットワークデータを返す', async () => {

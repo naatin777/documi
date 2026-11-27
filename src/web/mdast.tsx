@@ -76,14 +76,13 @@ function buildTermMatcher(terms?: readonly TermEntry[]): TermMatcher | undefined
   const byKey = new Map<string, TermEntry>()
   const names: string[] = []
   for (const term of terms) {
-    for (const candidate of [term.id, ...term.aliases]) {
-      const trimmed = candidate.trim()
-      if (trimmed.length < 2) continue
-      const key = trimmed.toLowerCase()
-      if (!byKey.has(key)) {
-        byKey.set(key, term)
-        names.push(trimmed)
-      }
+    // 1 概念＝1 表記を保つため、自動リンクは正準 ID のみ対象にする（aliases は検索同義語展開専用）
+    const trimmed = term.id.trim()
+    if (trimmed.length < 2) continue
+    const key = trimmed.toLowerCase()
+    if (!byKey.has(key)) {
+      byKey.set(key, term)
+      names.push(trimmed)
     }
   }
   if (names.length === 0) return undefined

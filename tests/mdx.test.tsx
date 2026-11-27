@@ -141,30 +141,41 @@ describe('MDX コンポーネント', () => {
     const termRef = render('これは <Term name="Artifact" /> です')
     expect(termRef).toContain('href="/docs/domain/glossary#block-Artifact"')
 
-    // Living Glossary 自動リンク: 本文中の用語と別名が自動でリンクされ、コード内・見出し内は変換しない
+    // Living Glossary 自動リンク: 正準 ID のみ自動でリンクされ、aliases・コード内・見出し内は変換しない
     const autoLinked = render('# Artifact 見出し\n\nArtifact と成果物を管理する。`Artifact` はコード。', 'markdown')
     expect(autoLinked).toMatch(/href="\/docs\/domain\/glossary#block-Artifact"[^>]*>Artifact<\/a>/)
-    expect(autoLinked).toMatch(/href="\/docs\/domain\/glossary#block-Artifact"[^>]*>成果物<\/a>/)
+    expect(autoLinked).not.toMatch(/href="\/docs\/domain\/glossary#block-Artifact"[^>]*>成果物<\/a>/)
+    expect(autoLinked).toContain('成果物を管理する。')
     expect(autoLinked).toContain('<code>Artifact</code>')
     expect(autoLinked).toContain('<h1 id="artifact-見出し">Artifact 見出し</h1>')
 
-    // 日本語複合語（漢字・カタカナ連続）の途中は切り刻んでリンク化しない（「関係者」の「関係」、「エッジケース」の「エッジ」等）
+    // 日本語正準 ID でも複合語（漢字・カタカナ連続）の途中は切り刻んでリンク化しない
     const compoundHtml = renderToStaticMarkup(
       <MemoryRouter>
         <LiveProvider>
           <Markdown
-            body="関係者と依存関係とエッジケースは分割せず、関係やエッジを独立語としてリンクする。"
+            body="関係者とエッジケースは分割せず、関係やエッジを独立語としてリンクする。承認記録は alias なのでリンクしない。"
             format="markdown"
             currentDir="goals"
             terms={[
               {
-                id: 'GraphEdge',
+                id: '関係',
                 docId: 'domain/glossary',
                 docTitle: 'Glossary',
-                aliases: ['関係', 'エッジ'],
+                aliases: ['承認記録'],
                 antiTerms: [],
                 symbols: [],
                 rawBody: '有向辺',
+                usedIn: [],
+              },
+              {
+                id: 'エッジ',
+                docId: 'domain/glossary',
+                docTitle: 'Glossary',
+                aliases: [],
+                antiTerms: [],
+                symbols: [],
+                rawBody: '辺',
                 usedIn: [],
               },
             ]}
@@ -172,9 +183,10 @@ describe('MDX コンポーネント', () => {
         </LiveProvider>
       </MemoryRouter>,
     )
-    expect(compoundHtml).toContain('関係者と依存関係とエッジケースは分割せず、')
-    expect(compoundHtml).toMatch(/href="\/docs\/domain\/glossary#block-GraphEdge"[^>]*>関係<\/a>/)
-    expect(compoundHtml).toMatch(/href="\/docs\/domain\/glossary#block-GraphEdge"[^>]*>エッジ<\/a>/)
+    expect(compoundHtml).toContain('関係者とエッジケースは分割せず、')
+    expect(compoundHtml).toMatch(/href="\/docs\/domain\/glossary#block-%E9%96%A2%E4%BF%82"[^>]*>関係<\/a>/)
+    expect(compoundHtml).toMatch(/href="\/docs\/domain\/glossary#block-%E3%82%A8%E3%83%83%E3%82%B8"[^>]*>エッジ<\/a>/)
+    expect(compoundHtml).not.toContain('>承認記録</a>')
   })
 
   test('SourceRef を描画する (satisfies/verifies バッジ・props 不正時エラー)', () => {

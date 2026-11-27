@@ -37,8 +37,8 @@ tags: [spec, ui, viewer]
 - 接続直後に `event: connected` を送信し、ファイル変更デバウンス（150ms）後に `DocsStore.reload()` を実行して全接続クライアントへ `event: reload` を配信する。Web UI は React Query キャッシュを一括無効化して最新表示へ更新する。
 
 <Spec id="ui.glossary-autolink" stability="stable" derives="goals/human-comprehension">
-  **When** 本文中に `<TermDef>` で登録された用語または別名が出現するとき、
-  **the** Web UI **shall** コード・見出し・既存リンク内を除いて自動で用語リンク化し、ホバー時に定義と紐づくコードシンボル定義をポップオーバー表示する。
+  **When** 本文中に `<TermDef id="...">` で登録された正準用語 ID が出現するとき、
+  **the** Web UI **shall** コード・見出し・既存リンク内および複合語の途中を除いて自動で用語リンク化し、ホバー時に定義と紐づくコードシンボル定義をポップオーバー表示する（`aliases` は検索同義語展開専用とし、表記混在・一般語誤爆を防ぐため自動リンク対象にしない）。
 </Spec>
 
 ## 保証シナリオ
