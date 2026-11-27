@@ -9,6 +9,7 @@ import { searchVectorStore } from './vector-store'
 
 export interface HybridSearchOptions {
   type?: ArtifactType
+  scope?: string
   limit?: number
   ragConfig?: RagConfig
   projectRoot?: string
@@ -95,9 +96,12 @@ export async function searchIndexHybrid(
   const query = rawQuery.trim()
   if (!query) return { hits: [], expandedTerms: [], mode: 'bm25' }
 
+  const scope = options.scope?.trim() || undefined
   const limit = options.limit ?? 30
-  const candidateLimit = Math.max(limit * 3, 40)
+  const candidateLimit = Math.max(limit * (scope ? 5 : 3), scope ? 80 : 40)
   const bm25 = searchIndexBm25(index, query, { type: options.type, limit: candidateLimit })
+  const filterByScope = (list: SearchHit[]) =>
+    scope ? list.filter((h) => index.byId.get(h.docId)?.mountId === scope) : list
   const provider = options.provider ?? createEmbeddingProvider(options.ragConfig)
 
   const vectorRes = await searchVectorStore(docsDir, index, provider, query, {
@@ -110,7 +114,7 @@ export async function searchIndexHybrid(
   if (vectorRes.isErr()) {
     if (options.fallbackOnError === false) throw vectorRes.error
     return {
-      hits: bm25.hits.slice(0, limit),
+      hits: filterByScope(bm25.hits).slice(0, limit),
       expandedTerms: bm25.expandedTerms,
       mode: 'bm25',
       fallbackReason: vectorRes.error.message,
@@ -132,7 +136,7 @@ export async function searchIndexHybrid(
     // 可読性のため 1000 倍スケールで丸める（例: 0.0328 -> 32.79）
     const score = Math.round(rrfScore * 1000 * 100) / 100
     const hit = buildHitFromChunkKey(index, key, score, bm25ByKey)
-    if (hit) merged.push(hit)
+    if (hit && (!scope || index.byId.get(hit.docId)?.mountId === scope)) merged.push(hit)
   }
   merged.sort((a, b) => b.score - a.score || a.id.localeCompare(b.id))
 
@@ -160,6 +164,7 @@ export async function retrieveContextHybrid(
 
   const hybrid = await searchIndexHybrid(docsDir, index, query, {
     type: options.type,
+    scope: options.scope,
     limit: Math.min(limit * 2 + 4, 60),
     ragConfig: options.ragConfig,
     projectRoot: options.projectRoot,

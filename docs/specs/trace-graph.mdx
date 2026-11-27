@@ -32,6 +32,7 @@ tags: [spec, graph, traceability]
 </Spec>
 
 - 外部 URL（`http:` / `https:` / `mailto:` 等）やアンカーのみの `#...` リンクは対象外とし、存在しない相対 Markdown リンクは `broken-link` issue を記録する。
+- **複数マウント（Monorepo）間の内部リンク解決**: 同一マウント内の相対パスに加え、別マウントの実ファイルを指すクロス相対パス（例: `../../../packages/api/docs/contracts/rest.mdx`）および Document ID 明示スキーム `doc:<docId>`（例: `[API](doc:api/contracts/rest)`）を内部リンク・`mentions` 辺として解決する。ローカルメディア参照は各ドキュメント自身のマウント境界内で厳格に防御する。
 - `<Term name="..." />` は登録済み `<TermDef>` の `id` または `aliases`（大文字小文字無視）を解決して `mentions` 辺を張り、未登録用語は `unknown-term` issue を記録する。
 - **ローカルメディア参照検証**: Markdown の画像構文 `![alt](./path.ext)`（参照形式含む）は画像（`.png` / `.jpg` / `.jpeg` / `.gif` / `.webp` / `.svg` / `.avif` / `.ico`）・動画（`.mp4` / `.m4v` / `.webm` / `.mov`）・音声（`.mp3` / `.wav` / `.ogg` / `.m4a` / `.flac` / `.aac`）を対象とし、`docs/` 外への脱出（`..`・symlink・`guard/`・ドットファイル）・存在しないファイル・未許可拡張子・危険なスキーム（`javascript:` や `data:image/svg+xml`）を `broken-media` issue として検出する。
 

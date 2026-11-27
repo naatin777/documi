@@ -67,6 +67,8 @@ export interface TraceEnrichOptions {
   projectRoot: string
   /** JUnit XML テストレポートのパス (省略時は .documi/test-results.xml 等を自動探索) */
   testReportPath?: string
+  /** 複数 JUnit XML テストレポートのパス一覧（Monorepo 等で全結果を統合） */
+  testReportPaths?: string[]
   /** テスト注入用の PR 一覧 (指定時は gh CLI を呼ばない) */
   pullRequests?: RawPullRequest[]
   /** true のとき gh CLI から PR 一覧を取得する (失敗時は空配列) */
@@ -81,7 +83,10 @@ export interface TraceEnrichOptions {
  */
 export async function scanCodeAnchors(projectRoot: string, index: DocsIndex): Promise<CodeAnchor[]> {
   const root = path.resolve(projectRoot)
-  const docsRel = path.relative(root, index.rootDir).split(path.sep).join('/')
+  const mountDirs = index.mounts.length > 0 ? index.mounts.map((m) => m.dir) : [index.rootDir]
+  const docsRels = mountDirs
+    .map((dir) => path.relative(root, dir).split(path.sep).join('/'))
+    .filter((rel) => rel && !rel.startsWith('..') && !path.isAbsolute(rel))
   const anchors: CodeAnchor[] = []
 
   // 1. ドキュメント内の <SourceRef satisfies="..." verifies="..." /> を合流
@@ -109,7 +114,7 @@ export async function scanCodeAnchors(projectRoot: string, index: DocsIndex): Pr
   }
 
   // 2. プロジェクトのソース・テストファイルを走査
-  const files = await collectCodeFiles(root, '', docsRel)
+  const files = await collectCodeFiles(root, '', docsRels)
   for (const relFile of files) {
     const abs = path.join(root, relFile)
     let text: string
@@ -126,7 +131,7 @@ export async function scanCodeAnchors(projectRoot: string, index: DocsIndex): Pr
   return anchors
 }
 
-async function collectCodeFiles(root: string, relDir: string, docsRel: string): Promise<string[]> {
+async function collectCodeFiles(root: string, relDir: string, docsRels: readonly string[]): Promise<string[]> {
   const absDir = relDir ? path.join(root, relDir) : root
   let entries: Dirent[]
   try {
@@ -138,9 +143,9 @@ async function collectCodeFiles(root: string, relDir: string, docsRel: string): 
   for (const entry of entries) {
     if (entry.name.startsWith('.') || IGNORED_DIRS.has(entry.name)) continue
     const childRel = relDir ? `${relDir}/${entry.name}` : entry.name
-    if (docsRel && !docsRel.startsWith('..') && childRel === docsRel) continue
+    if (docsRels.some((d) => childRel === d)) continue
     if (entry.isDirectory()) {
-      out.push(...(await collectCodeFiles(root, childRel, docsRel)))
+      out.push(...(await collectCodeFiles(root, childRel, docsRels)))
     } else if (entry.isFile()) {
       const ext = path.extname(entry.name).slice(1).toLowerCase()
       if (CODE_EXTS.has(ext)) out.push(childRel)
@@ -315,12 +320,32 @@ export function parseJunitXml(xml: string): TestCaseResult[] {
 export async function loadTestResults(
   projectRoot: string,
   docsDir: string,
-  explicitPath?: string,
+  explicitPaths?: string | readonly string[],
 ): Promise<TestCaseResult[]> {
-  const candidates = explicitPath
-    ? [path.resolve(explicitPath)]
-    : [path.join(projectRoot, '.documi/test-results.xml'), path.join(docsDir, '.documi/test-results.xml')]
+  const explicitList =
+    typeof explicitPaths === 'string'
+      ? explicitPaths.trim()
+        ? [path.resolve(explicitPaths)]
+        : []
+      : (explicitPaths ?? []).filter((p): p is string => Boolean(p)).map((p) => path.resolve(p))
 
+  if (explicitList.length > 0) {
+    const merged: TestCaseResult[] = []
+    for (const file of explicitList) {
+      try {
+        const xml = await readFile(file, 'utf-8')
+        merged.push(...parseJunitXml(xml))
+      } catch {
+        // 存在しない個別レポートはスキップして残りを統合
+      }
+    }
+    return merged
+  }
+
+  const candidates = [
+    path.join(projectRoot, '.documi/test-results.xml'),
+    path.join(docsDir, '.documi/test-results.xml'),
+  ]
   for (const file of candidates) {
     try {
       const xml = await readFile(file, 'utf-8')
@@ -475,7 +500,9 @@ export async function enrichWithRealization(
   options: TraceEnrichOptions,
 ): Promise<{ anchors: CodeAnchor[]; unknownAnchors: CodeAnchor[] }> {
   const anchors = await scanCodeAnchors(options.projectRoot, index)
-  const testResults = await loadTestResults(options.projectRoot, index.rootDir, options.testReportPath)
+  const reportPaths =
+    options.testReportPaths && options.testReportPaths.length > 0 ? options.testReportPaths : options.testReportPath
+  const testResults = await loadTestResults(options.projectRoot, index.rootDir, reportPaths)
   const prs = options.pullRequests ?? (options.fetchPrs ? fetchPullRequestsViaGh(options.projectRoot) : [])
   const knownIds = new Set(index.blocksById.keys())
   const prsBySpec = extractPrLinksBySpec(prs, knownIds)

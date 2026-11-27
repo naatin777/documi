@@ -3,13 +3,15 @@ import type { FSWatcher } from 'node:fs'
 import path from 'node:path'
 import { loadDocuments } from '../core/loader'
 import { enrichWithRealization, type RawPullRequest } from '../core/trace'
-import type { DocsIndex } from '../core/types'
+import type { DocsIndex, DocsMount } from '../core/types'
 
 export type IndexListener = (index: DocsIndex) => void
 
 export interface DocsStoreOptions {
   projectRoot?: string
+  mounts?: DocsMount[]
   testReportPath?: string
+  testReportPaths?: string[]
   fetchPrs?: boolean
   pullRequests?: RawPullRequest[]
   /** false のときコード走査 (realization) をスキップ */
@@ -36,12 +38,13 @@ export class DocsStore {
   }
 
   static async open(rootDir: string, options: DocsStoreOptions = {}): Promise<DocsStore> {
-    const index = await loadDocuments(rootDir)
+    const index = await loadDocuments(rootDir, { mounts: options.mounts })
     const projectRoot = path.resolve(options.projectRoot ?? path.dirname(index.rootDir))
     if (options.enrichTrace !== false) {
       await enrichWithRealization(index, {
         projectRoot,
         testReportPath: options.testReportPath,
+        testReportPaths: options.testReportPaths,
         fetchPrs: options.fetchPrs,
         pullRequests: options.pullRequests,
       })
@@ -70,11 +73,12 @@ export class DocsStore {
     }
     const task = (async () => {
       try {
-        const next = await loadDocuments(this.rootDir)
+        const next = await loadDocuments(this.rootDir, { mounts: this.options.mounts })
         if (this.options.enrichTrace !== false) {
           await enrichWithRealization(next, {
             projectRoot: this.projectRoot,
             testReportPath: this.options.testReportPath,
+            testReportPaths: this.options.testReportPaths,
             fetchPrs: this.options.fetchPrs,
             pullRequests: this.options.pullRequests,
           })
@@ -104,11 +108,11 @@ export class DocsStore {
   }
 
   /**
-   * docs ディレクトリを再帰監視し、Markdown / MDX / reviews.json / test-results.xml の変更を自動リロードする。
+   * 全マウントの docs ディレクトリを再帰監視し、Markdown / MDX / reviews.json / test-results.xml の変更を自動リロードする。
    */
   watch(debounceMs = 150): () => void {
     let timer: ReturnType<typeof setTimeout> | null = null
-    let watcher: FSWatcher | null = null
+    const watchers: FSWatcher[] = []
 
     const scheduleReload = () => {
       if (timer) clearTimeout(timer)
@@ -118,31 +122,46 @@ export class DocsStore {
       }, debounceMs)
     }
 
-    let reportWatcher: FSWatcher | null = null
-
-    try {
-      watcher = watch(this.rootDir, { recursive: true }, (_event, filename) => {
-        if (filename && shouldIgnorePath(filename)) return
-        scheduleReload()
-      })
-    } catch (error) {
-      // recursive watch 非対応環境でもサーバー起動は継続するが、自動リロードされない旨は通知する
-      console.warn(`File watching is unavailable; documents will not reload automatically: ${String(error)}`)
+    const dirsToWatch = this.index.mounts.length > 0 ? this.index.mounts.map((m) => m.dir) : [this.rootDir]
+    for (const dir of new Set(dirsToWatch)) {
+      try {
+        const w = watch(dir, { recursive: true }, (_event, filename) => {
+          if (filename && shouldIgnorePath(filename)) return
+          scheduleReload()
+        })
+        watchers.push(w)
+      } catch (error) {
+        // recursive watch 非対応環境でもサーバー起動は継続するが、自動リロードされない旨は通知する
+        console.warn(
+          `File watching is unavailable for ${dir}; documents will not reload automatically: ${String(error)}`,
+        )
+      }
     }
 
-    // プロジェクトルート直下の .documi/test-results.xml (docs/ の外) 更新も追従する
-    try {
-      reportWatcher = watch(path.join(this.projectRoot, '.documi'), (_event, filename) => {
-        if (filename === 'test-results.xml') scheduleReload()
-      })
-    } catch {
-      // .documi/ がまだ存在しない場合は監視しない
+    // プロジェクトルート直下・設定済みの JUnit XML 出力ディレクトリ更新も追従する
+    const reportCandidates =
+      this.options.testReportPaths && this.options.testReportPaths.length > 0
+        ? this.options.testReportPaths
+        : [this.options.testReportPath ?? path.join(this.projectRoot, '.documi/test-results.xml')]
+    const watchedReportDirs = new Set<string>()
+    for (const reportFile of reportCandidates) {
+      const reportDir = path.dirname(reportFile)
+      if (watchedReportDirs.has(reportDir)) continue
+      watchedReportDirs.add(reportDir)
+      try {
+        const rw = watch(reportDir, (_event, filename) => {
+          if (filename && !filename.endsWith('.xml')) return
+          scheduleReload()
+        })
+        watchers.push(rw)
+      } catch {
+        // ディレクトリがまだ存在しない場合は監視しない
+      }
     }
 
     return () => {
       if (timer) clearTimeout(timer)
-      watcher?.close()
-      reportWatcher?.close()
+      for (const w of watchers) w.close()
     }
   }
 }

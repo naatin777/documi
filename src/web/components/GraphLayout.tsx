@@ -1,6 +1,6 @@
 import { useCallback, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { toErrorMessage, useGraphQuery } from '../queries'
+import { toErrorMessage, useGraphQuery, useTreeQuery } from '../queries'
 import DocPeekPane from './DocPeekPane'
 import SigmaGraph from './SigmaGraph'
 
@@ -21,6 +21,7 @@ export default function GraphLayout() {
   const { t } = useTranslation()
   const [edgeLayer, setEdgeLayer] = useState<'trace' | 'all'>('all')
   const [granularity, setGranularity] = useState<'docs' | 'blocks'>('docs')
+  const [selectedScope, setSelectedScope] = useState<string>('all')
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null)
 
   const handleSelectNode = useCallback((id: string | null) => {
@@ -28,7 +29,26 @@ export default function GraphLayout() {
   }, [])
 
   const graphQuery = useGraphQuery(edgeLayer, granularity)
-  const graph = graphQuery.data ?? null
+  const treeQuery = useTreeQuery()
+  const mounts = treeQuery.data?.mounts ?? []
+  const hasMultipleMounts = mounts.length > 1
+  const activeScope = hasMultipleMounts && mounts.some((m) => m.id === selectedScope) ? selectedScope : 'all'
+  const docMountById = useMemo(() => {
+    const map = new Map<string, string>()
+    for (const d of treeQuery.data?.documents ?? []) map.set(d.id, d.mountId)
+    return map
+  }, [treeQuery.data?.documents])
+
+  const rawGraph = graphQuery.data ?? null
+  const graph = useMemo(() => {
+    if (!rawGraph || activeScope === 'all') return rawGraph
+    const nodes = rawGraph.nodes.filter((n) => docMountById.get(n.docId) === activeScope)
+    const nodeIds = new Set(nodes.map((n) => n.id))
+    const edges = rawGraph.edges.filter(
+      (e) => (nodeIds.has(e.from) || nodeIds.has(e.fromDocId)) && (nodeIds.has(e.to) || nodeIds.has(e.toDocId)),
+    )
+    return { ...rawGraph, nodes, edges }
+  }, [rawGraph, activeScope, docMountById])
   const error = toErrorMessage(graphQuery.error)
 
   const selectedNode = useMemo(
@@ -102,6 +122,34 @@ export default function GraphLayout() {
             <button type="button" className={chipClass(edgeLayer === 'trace')} onClick={() => setEdgeLayer('trace')}>
               {t('graph.traceabilityOnly')}
             </button>
+            {hasMultipleMounts && (
+              <>
+                <span className="mx-0.5 h-4 w-px bg-line" aria-hidden="true" />
+                <button
+                  type="button"
+                  className={chipClass(activeScope === 'all')}
+                  onClick={() => {
+                    setSelectedNodeId(null)
+                    setSelectedScope('all')
+                  }}
+                >
+                  All
+                </button>
+                {mounts.map((m) => (
+                  <button
+                    key={m.id}
+                    type="button"
+                    className={chipClass(activeScope === m.id)}
+                    onClick={() => {
+                      setSelectedNodeId(null)
+                      setSelectedScope(m.id)
+                    }}
+                  >
+                    {m.label}
+                  </button>
+                ))}
+              </>
+            )}
           </div>
         </div>
 

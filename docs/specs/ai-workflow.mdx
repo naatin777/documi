@@ -10,17 +10,23 @@ tags: [spec, ai, cli, mcp]
 ## 1. プロジェクト設定ファイルと双方向パス解決
 
 <Spec id="core.project-config" stability="evolving" derives="goals/low-friction-governance">
-  **When** CLI・HTTP サーバー・MCP サーバーが `projectRoot` と `docsDir` を解決するとき、
-  **the** Document Core **shall** 既定を `<projectRoot>/docs` としつつプロジェクトルート直下の設定ファイル（`.documi.json` / `.documi.yml` / `.documi.yaml` / `documi.json`）から `docs` と `testReport` を自動読み込みし、`--project` のみ指定時は `<projectRoot>/<docs>` を、`--docs` のみ指定時はその親ディレクトリを `projectRoot` として双方向に自動解決する。不正な構文や未定義キーは `ConfigError` として拒否する。
+  **When** CLI・HTTP サーバー・MCP サーバーが `projectRoot`・ドキュメントマウント（`docs`）・テストレポート（`testReport`）を解決するとき、
+  **the** Document Core **shall** 既定を `<projectRoot>/docs` としつつプロジェクトルート直下の設定ファイル（`.documi.json` / `.documi.yml` / `.documi.yaml` / `documi.json`）から単一または複数マウント配列の `docs`（`string | { id?, path, label? }[]`）および単一／複数配列の `testReport`（`string | string[]`）を自動読み込みし、`--project` / `--docs` の双方向推論と `--scope <mountId>` によるスコープ絞り込みを提供する。不正な構文・未定義キー・重複マウント ID は `ConfigError` として拒否する。
 </Spec>
 
 - **優先順位**: CLI 引数（`--project` / `--docs` / `--test-report`）＞ 環境変数（`DOCUMI_PROJECT_ROOT` / `DOCUMI_DOCS_DIR`）＞ プロジェクト設定ファイル（`.documi.json` → `.documi.yml` → `.documi.yaml` → `documi.json`）＞ 既定値（`projectRoot = cwd`, `docsDir = <projectRoot>/docs`）。
+- **複数 `docs` マウントと名前空間**:
+  - `docs` が文字列（または省略）のときは単一 `root` マウント（プレフィックスなし）として扱う。
+  - `docs` が配列 `{ id?: string, path: string, label?: string }[]` のとき、`id` 省略または `"root"` のマウントは Document ID にプレフィックスを付けず、名前付きマウント（例: `id: "web"`, `path: "apps/web/docs"`）は Document ID に `<id>/...` を付与する。
+  - 各マウントの `guard/reviews.json` はパッケージ単位で分散配置し、読み込み時に統合・承認書込時は所属マウントへ保存する（`--no-review-edit` は全マウントの `guard/reviews.json` を検査）。
+  - `--scope <mountId>` は **全体グラフをロードした上で** 対象マウントの文書・ブロック・検証結果へ絞り込む（別マウントの `goal` や `contract` への参照が偽陽性で壊れない）。`documi scaffold` は `--scope` 省略時はプライマリ（`root` または先頭マウント）へ出力する。
+- **複数 `testReport`（JUnit XML）**: `testReport` に配列を指定した場合、全 JUnit XML のテスト結果を統合して各 `<Spec>` の `realization` を算出する。
 - **双方向推論マトリクス**:
   - 両方省略: `projectRoot = cwd`、設定の `docs`（既定 `"docs"`）を結合
-  - `--project` のみ: 指定ルート直下の設定を読み、`docsDir = <projectRoot>/<config.docs || "docs">`
-  - `--docs` のみ: `projectRoot = dirname(docsDir)` を逆算して設定を読み込む
+  - `--project` のみ: 指定ルート直下の設定を読み、マウント群を解決
+  - `--docs` のみ: `projectRoot = dirname(docsDir)` を逆算して設定を読み込む（明示 `--docs` が単一マウントとして優先）
   - 両方指定: モノレポ等で明示上書きを許可
-- **厳格拒否**: JSON/YAML 構文エラー・スキーマ型違反・未知キー（タイポ含む）は即座に `ConfigError` を送出する（スキーマは [永続ファイル契約](../contracts/storage-formats.mdx)）。
+- **厳格拒否**: JSON/YAML 構文エラー・スキーマ型違反・未知キー（タイポ含む）・マウント ID 重複や不正形式は即座に `ConfigError` を送出する（スキーマは [永続ファイル契約](../contracts/storage-formats.mdx)）。
 
 ## 2. Agent Skills 配布と Brownfield 導入初期化
 

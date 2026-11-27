@@ -403,10 +403,21 @@ function normalizePosix(dir: string, rel: string): string {
 
 function resolveInternalTarget(href: string, currentDir: string): { docId: string; hash?: string } | null {
   const trimmed = href.trim()
-  if (!trimmed || trimmed.startsWith('#') || /^[a-z][a-z0-9+.-]*:/i.test(trimmed)) return null
+  if (!trimmed || trimmed.startsWith('#')) return null
 
   const [rawPath, hash] = trimmed.split('#')
   if (!rawPath) return null
+
+  // doc:<docId> 明示スキーム（複数マウント間のクロスリンク等）
+  if (rawPath.startsWith('doc:')) {
+    const docId = rawPath
+      .slice(4)
+      .replace(/^\/+/, '')
+      .replace(/\.(mdx|md)$/i, '')
+    return docId && !docId.includes('..') ? { docId, hash } : null
+  }
+
+  if (/^[a-z][a-z0-9+.-]*:/i.test(trimmed)) return null
 
   if (rawPath.startsWith('/docs/')) {
     const docId = rawPath.slice('/docs/'.length).replace(/\.(mdx|md)$/i, '')

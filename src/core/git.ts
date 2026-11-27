@@ -176,15 +176,24 @@ function parseStatusMap(ctx: GitContext): Map<string, WorkingTreeStatus> {
 export async function applyGitFreshness(index: DocsIndex): Promise<void> {
   if (index.documents.length === 0) return
 
-  const docByRelPath = new Map<string, Document>()
-  for (const doc of index.documents) {
-    docByRelPath.set(doc.path, doc)
-  }
+  const mounts =
+    index.mounts && index.mounts.length > 0 ? index.mounts : [{ id: 'root', dir: index.rootDir, prefixed: false }]
 
-  const freshnessMap = new Map<string, DocumentFreshness>()
-  const ctx = resolveGitContext(index.rootDir)
+  // マウント単位で Git 鮮度と status を取得し、doc.id 単位に集約する
+  const freshnessByDocId = new Map<string, DocumentFreshness>()
 
-  if (ctx) {
+  for (const mount of mounts) {
+    const mountDocs = index.documents.filter((d) => d.mountId === mount.id)
+    if (mountDocs.length === 0) continue
+
+    const docByMountRel = new Map<string, Document>()
+    for (const doc of mountDocs) {
+      docByMountRel.set(doc.mountRelPath || doc.path, doc)
+    }
+
+    const ctx = resolveGitContext(mount.dir)
+    if (!ctx) continue
+
     const pathspec = ctx.relDocs || '.'
     const logOutput = runGit(ctx.gitRoot, [
       'log',
@@ -196,7 +205,6 @@ export async function applyGitFreshness(index: DocsIndex): Promise<void> {
     ])
 
     if (logOutput) {
-      // 新しいコミットから古いコミットへ辿る際に、リネーム前の旧パスを現在パスへ写像する
       const pathAlias = new Map<string, string>()
       for (const chunk of logOutput.split('\x1e')) {
         const trimmed = chunk.trim()
@@ -229,11 +237,12 @@ export async function applyGitFreshness(index: DocsIndex): Promise<void> {
 
           if (!targetGitPath) continue
           const docRel = stripDocsPrefix(ctx, targetGitPath)
-          if (!docRel || !docByRelPath.has(docRel)) continue
+          const matchedDoc = docRel ? docByMountRel.get(docRel) : undefined
+          if (!matchedDoc) continue
 
-          const existing = freshnessMap.get(docRel)
+          const existing = freshnessByDocId.get(matchedDoc.id)
           if (!existing) {
-            freshnessMap.set(docRel, {
+            freshnessByDocId.set(matchedDoc.id, {
               createdAt: date,
               updatedAt: date,
               lastCommitSha: sha.slice(0, 7),
@@ -250,20 +259,24 @@ export async function applyGitFreshness(index: DocsIndex): Promise<void> {
 
     const statusMap = parseStatusMap(ctx)
     for (const [docRel, workingStatus] of statusMap) {
-      if (!docByRelPath.has(docRel)) continue
-      const existing = freshnessMap.get(docRel) ?? {}
+      const matchedDoc = docByMountRel.get(docRel)
+      if (!matchedDoc) continue
+      const existing = freshnessByDocId.get(matchedDoc.id) ?? {}
       existing.workingStatus = workingStatus
-      freshnessMap.set(docRel, existing)
+      freshnessByDocId.set(matchedDoc.id, existing)
     }
   }
+
+  const mountDirById = new Map(mounts.map((m) => [m.id, m.dir]))
 
   // 未コミット変更がある文書や Git 履歴が無い文書は fs.stat で時刻を補完する
   await Promise.all(
     index.documents.map(async (doc) => {
-      const f: DocumentFreshness = freshnessMap.get(doc.path) ?? {}
+      const f: DocumentFreshness = freshnessByDocId.get(doc.id) ?? {}
       if (!f.createdAt || !f.updatedAt || f.workingStatus) {
         try {
-          const st = await stat(path.join(index.rootDir, doc.path))
+          const mountDir = mountDirById.get(doc.mountId) ?? index.rootDir
+          const st = await stat(path.join(mountDir, doc.mountRelPath || doc.path))
           const mtimeIso = st.mtime.toISOString()
           const birthIso = st.birthtimeMs > 0 ? st.birthtime.toISOString() : mtimeIso
           if (f.workingStatus || !f.updatedAt) f.updatedAt = mtimeIso
@@ -368,7 +381,8 @@ export async function getDocumentHistory(docsDir: string, doc: Document, limit =
     }
   }
 
-  const parsedCommits = loadFileCommits(ctx, doc.path, Math.max(1, Math.min(limit, 50)))
+  const docRel = doc.mountRelPath || doc.path
+  const parsedCommits = loadFileCommits(ctx, docRel, Math.max(1, Math.min(limit, 50)))
   const commits: GitCommitEntry[] = parsedCommits.map((c) => ({
     sha: c.sha,
     shortSha: c.shortSha,
@@ -379,13 +393,13 @@ export async function getDocumentHistory(docsDir: string, doc: Document, limit =
   }))
 
   const statusMap = parseStatusMap(ctx)
-  const workingStatus = statusMap.get(doc.path)
+  const workingStatus = statusMap.get(docRel)
   if (workingStatus) freshness.workingStatus = workingStatus
   else delete freshness.workingStatus
 
-  const bodyLineOffset = await computeBodyLineOffset(docsDir, doc.path)
+  const bodyLineOffset = await computeBodyLineOffset(docsDir, docRel)
   const bodyLineCount = Math.max(1, doc.body.split(/\r?\n/).length)
-  const gitRel = toGitRelPath(ctx, doc.path)
+  const gitRel = toGitRelPath(ctx, docRel)
 
   if (workingStatus === 'untracked' || workingStatus === 'added') {
     return {
@@ -477,13 +491,14 @@ export function getDocumentRevision(
   }
   const [sha = '', date = '', author = '', subject = ''] = commitHeaderRaw.trim().split('\x1f')
 
-  const gitRel = toGitRelPath(ctx, doc.path)
+  const docRel = doc.mountRelPath || doc.path
+  const gitRel = toGitRelPath(ctx, docRel)
   let rawContent = runGit(ctx.gitRoot, ['show', `${sha}:${gitRel}`])
   let commitStatus: GitCommitEntry['status'] = 'M'
 
   if (rawContent === undefined) {
     // リネーム前の旧パスを履歴から探索して取得する
-    const history = loadFileCommits(ctx, doc.path, 100)
+    const history = loadFileCommits(ctx, docRel, 100)
     const matched = history.find((c) => c.sha === sha || c.sha.startsWith(trimmed))
     if (matched) {
       commitStatus = matched.status

@@ -4,6 +4,7 @@ import type { DocTreeDir, DocTreeNode, Document, DocumentSummary } from './types
 export function toDocumentSummary(doc: Document): DocumentSummary {
   return {
     id: doc.id,
+    mountId: doc.mountId,
     type: doc.type,
     title: doc.title,
     description: doc.description,

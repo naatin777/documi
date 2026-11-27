@@ -1,14 +1,17 @@
 import path from 'node:path'
 import { resolveProjectPaths } from '../core/config'
 import type { RagConfig } from '../core/config'
+import type { DocsMount } from '../core/types'
 import { createApp } from './app'
 import { resolveDefaultClientDist } from './dist'
 import { DocsStore } from './store'
 
 export interface ServerStartOptions {
   docsDir: string
+  mounts?: DocsMount[]
   projectRoot?: string
   testReportPath?: string
+  testReportPaths?: string[]
   ragConfig?: RagConfig
   port?: number
   hostname?: string
@@ -26,7 +29,12 @@ export async function startServer(options: ServerStartOptions): Promise<{ stop: 
   const hostname = options.hostname ?? process.env.HOST ?? '127.0.0.1'
   const clientDist = options.clientDist ?? resolveDefaultClientDist()
 
-  const store = await DocsStore.open(docsDir, { projectRoot, testReportPath: options.testReportPath })
+  const store = await DocsStore.open(docsDir, {
+    projectRoot,
+    mounts: options.mounts,
+    testReportPath: options.testReportPath,
+    testReportPaths: options.testReportPaths,
+  })
   const stopWatch = store.watch()
   const app = createApp(store, { clientDist, projectRoot, ragConfig: options.ragConfig })
 

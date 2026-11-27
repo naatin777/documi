@@ -41,11 +41,11 @@ verifies:
 - **When**: `computeDocumentHealth` および `documi check` を実行する
 - **Then**: `missing-design`・`missing-verification`・`bloated-spec-doc`・`overloaded-hub-doc`・`stale-architecture` が Advisory ヒントとして報告されつつ、CI 終了コード自体は失敗させない
 
-### プロジェクト設定と双方向パス解決
+### プロジェクト設定・Monorepo 複数マウントと双方向パス解決
 
-- **Given**: `.documi.json` / `.documi.yml` や `--project` / `--docs` の片側・両側指定、または未定義キー・不正構文を含む設定ファイルがある
-- **When**: 設定読み込みとパス解決を実行する
-- **Then**: 正常な設定は双方向推論＋CLI 上書きで解決され、未定義キーや構文不正は型付き `ConfigDomainError` で即座に失敗する
+- **Given**: 単一または複数マウント配列の `docs`・複数配列の `testReport` を定義した `.documi.json`、マウント跨ぎ参照（`derives` / クロス相対パス / `doc:<docId>`）、各マウント配下の `guard/reviews.json`、または未定義キー・重複マウント ID を含む不正設定がある
+- **When**: `resolveProjectPaths`・`loadDocuments`・`approveBlock`・`documi check --scope <id>`・`documi scaffold --scope <id>` を実行する
+- **Then**: 正常構成は名前空間付き統合グラフとして解決され、承認は所属マウントの `guard/reviews.json` へ保存、`--scope` は他マウント参照を壊さず絞り込み、不正設定や重複マウント ID は `ConfigDomainError` で即座に拒否される
 
 ## 2. 対応テストスイート
 
@@ -56,4 +56,5 @@ verifies:
 | `tests/source.test.ts` | 9 言語の AST シンボル解決・行範囲抽出・パストラバーサル／シンボリックリンク／バイナリ防御 |
 | `tests/health-and-exports.test.tsx` | Design/Verification カバレッジ・`bloated-spec-doc`・`overloaded-hub-doc`・`stale-architecture`・公開シンボル自動抽出（`<SourceRef mode="exports">`） |
 | `tests/config.test.ts` | `.documi.json` / YAML 設定読み込み・双方向 `projectRoot` / `docsDir` 解決・`rag` 設定検証・未定義キーおよび構文エラー拒否 |
+| `tests/multi-docs.test.ts` | Monorepo 複数 `docs` 統合マウント・名前空間と Type 推論・クロスリンク（相対パス / `doc:`）・マウント別 `guard/reviews.json`・複数 `testReport` 統合・CLI/API `--scope` 絞り込み |
 | `tests/code.test.tsx` | 読み取り専用 Code Explorer のツリー構築・仕様カバレッジ算出・逆リンク集約・境界防御（`403`/`404`/`400`）・API/SSR 描画 |

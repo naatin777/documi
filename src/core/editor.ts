@@ -124,6 +124,8 @@ export interface UpsertTermInput {
 export interface ScaffoldDocumentInput {
   path: string
   title: string
+  /** 出力先マウント ID（省略時はプライマリマウントへ作成） */
+  scope?: string
   type?: ArtifactType
   description?: string
   date?: string
@@ -396,7 +398,9 @@ export async function updateBlockInDocs(
 
     yield* validateBlockAttributes(block.kind, input)
 
-    const { absPath, relPath } = yield* Result.await(resolveSafeDocFile(docsDir, doc.path))
+    const docMountDir = index.mounts.find((m) => m.id === doc.mountId)?.dir ?? docsDir
+    const { absPath } = yield* Result.await(resolveSafeDocFile(docMountDir, doc.mountRelPath || doc.path))
+    const relPath = doc.path
     const raw = await readFile(absPath, 'utf-8')
     const normalized = raw.replace(/\r\n/g, '\n')
     const fm = yield* splitFrontmatter(normalized)
@@ -467,7 +471,9 @@ export async function addBlockToDoc(
 
     yield* validateBlockAttributes(input.kind, input)
 
-    const { absPath, relPath } = yield* Result.await(resolveSafeDocFile(docsDir, doc.path))
+    const docMountDir = index.mounts.find((m) => m.id === doc.mountId)?.dir ?? docsDir
+    const { absPath } = yield* Result.await(resolveSafeDocFile(docMountDir, doc.mountRelPath || doc.path))
+    const relPath = doc.path
     const raw = await readFile(absPath, 'utf-8')
     const normalized = raw.replace(/\r\n/g, '\n')
 
@@ -600,12 +606,28 @@ export async function upsertTermInDocs(
  */
 export async function scaffoldDocument(
   docsDir: string,
-  _index: DocsIndex,
+  index: DocsIndex,
   input: ScaffoldDocumentInput,
 ): Promise<Result<ScaffoldDocumentResult, EditDomainError>> {
   return Result.gen(async function* () {
+    const scope = input.scope?.trim() || undefined
+    let targetMount = index.mounts.find((m) => !m.prefixed) ?? index.mounts[0]
+    if (scope) {
+      const matched = index.mounts.find((m) => m.id === scope)
+      if (!matched) {
+        const available = index.mounts.map((m) => m.id).join(', ')
+        return Result.err(
+          new InvalidEditInputError({
+            message: `Unknown docs scope "${scope}" (available mounts: ${available})`,
+          }),
+        )
+      }
+      targetMount = matched
+    }
+    const targetDocsDir = targetMount?.dir ?? docsDir
+
     const normalizedPath = /\.(mdx|md)$/i.test(input.path.trim()) ? input.path.trim() : `${input.path.trim()}.mdx`
-    const { absPath, relPath } = yield* Result.await(resolveSafeDocFile(docsDir, normalizedPath))
+    const { absPath, relPath } = yield* Result.await(resolveSafeDocFile(targetDocsDir, normalizedPath))
 
     const exists = await access(absPath)
       .then(() => true)
@@ -642,14 +664,15 @@ export async function scaffoldDocument(
 
     const bodySection = input.body?.trim() ? `\n${input.body.replace(/\r\n/g, '\n').trim()}\n` : '\n'
     const source = `---\n${stringify(fmObj).trim()}\n---\n\n# ${input.title.trim()}\n${bodySection}`
-    const docId = relPath.replace(/\.(mdx|md)$/i, '')
+    const logicalRelPath = targetMount?.prefixed ? `${targetMount.id}/${relPath}` : relPath
+    const docId = logicalRelPath.replace(/\.(mdx|md)$/i, '')
     const format: DocFormat = relPath.toLowerCase().endsWith('.mdx') ? 'mdx' : 'markdown'
 
     yield* validateSafeDocumentSource(source, format, docId)
     await mkdir(path.dirname(absPath), { recursive: true })
     await writeFile(absPath, source, 'utf-8')
 
-    return Result.ok({ docId, path: relPath })
+    return Result.ok({ docId, path: logicalRelPath })
   })
 }
 
@@ -811,7 +834,9 @@ export async function renameBlockIdAcrossProject(
 
     // 1. docs/ 配下の全ドキュメントを検査
     for (const doc of index.documents) {
-      const { absPath, relPath } = yield* Result.await(resolveSafeDocFile(docsDir, doc.path))
+      const docMountDir = index.mounts.find((m) => m.id === doc.mountId)?.dir ?? docsDir
+      const { absPath } = yield* Result.await(resolveSafeDocFile(docMountDir, doc.mountRelPath || doc.path))
+      const relPath = doc.path
       const raw = await readFile(absPath, 'utf-8')
       const { next, count } = yield* rewriteDocForRename(raw, input.oldId, input.newId, isTerm)
       if (count > 0) {

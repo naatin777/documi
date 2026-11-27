@@ -150,13 +150,20 @@ function createDocumiMcpServer(store: DocsStore, projectRoot?: string, ragConfig
     async ({ full }: { full?: boolean }) => jsonResult(buildProjectMap(getIndex(), { full })),
   )
 
+  const optionalScopeSchema = z
+    .string()
+    .min(1)
+    .optional()
+    .describe('Filter or target a specific docs mount ID in multi-docs projects (e.g. "web", "api", "root")')
+
   registerTool(
     'list_documents',
     {
-      description: 'List all Documi documents, optionally filtered by Artifact Type.',
-      inputSchema: { type: optionalTypeSchema },
+      description: 'List all Documi documents, optionally filtered by Artifact Type or docs mount scope.',
+      inputSchema: { type: optionalTypeSchema, scope: optionalScopeSchema },
     },
-    async ({ type }: { type?: ArtifactType }) => jsonResult(listDocuments(getIndex(), type)),
+    async ({ type, scope }: { type?: ArtifactType; scope?: string }) =>
+      jsonResult(listDocuments(getIndex(), type, scope)),
   )
 
   registerTool(
@@ -220,6 +227,7 @@ function createDocumiMcpServer(store: DocsStore, projectRoot?: string, ragConfig
         review: optionalReviewSchema,
         realization: optionalRealizationSchema,
         suspect: optionalBoolSchema('Only return blocks flagged as suspect due to upstream changes'),
+        scope: optionalScopeSchema,
         query: optionalQuerySchema,
         full: optionalBoolSchema('Include full realization trace arrays and full bodies (default: false)'),
       },
@@ -231,6 +239,7 @@ function createDocumiMcpServer(store: DocsStore, projectRoot?: string, ragConfig
       review?: ReviewStatus
       realization?: RealizationStatus
       suspect?: boolean
+      scope?: string
       query?: string
       full?: boolean
     }) => jsonResult(querySpecs(getIndex(), args)),
@@ -266,6 +275,7 @@ function createDocumiMcpServer(store: DocsStore, projectRoot?: string, ragConfig
       inputSchema: {
         query: z.string().min(1).describe('Search keywords or natural-language query'),
         type: optionalTypeSchema,
+        scope: optionalScopeSchema,
         limit: z.number().int().min(1).max(100).optional().describe('Maximum number of hits (default: 20)'),
         semantic: optionalBoolSchema('Run hybrid RRF search with local embeddings'),
       },
@@ -273,11 +283,13 @@ function createDocumiMcpServer(store: DocsStore, projectRoot?: string, ragConfig
     async ({
       query,
       type,
+      scope,
       limit,
       semantic,
     }: {
       query: string
       type?: ArtifactType
+      scope?: string
       limit?: number
       semantic?: boolean
     }) => {
@@ -285,6 +297,7 @@ function createDocumiMcpServer(store: DocsStore, projectRoot?: string, ragConfig
       if (useSemantic) {
         const res = await searchIndexHybrid(store.rootDir, getIndex(), query, {
           type,
+          scope,
           limit: limit ?? 20,
           ragConfig,
           projectRoot,
@@ -298,7 +311,7 @@ function createDocumiMcpServer(store: DocsStore, projectRoot?: string, ragConfig
           ...(res.fallbackReason ? { fallbackReason: res.fallbackReason } : {}),
         })
       }
-      return jsonResult(searchDocuments(getIndex(), query, { type, limit }))
+      return jsonResult(searchDocuments(getIndex(), query, { type, scope, limit }))
     },
   )
 
@@ -310,6 +323,7 @@ function createDocumiMcpServer(store: DocsStore, projectRoot?: string, ragConfig
       inputSchema: {
         query: z.string().min(1).describe('Natural-language question or task description'),
         type: optionalTypeSchema,
+        scope: optionalScopeSchema,
         limit: z.number().int().min(1).max(30).optional().describe('Maximum primary hits (default: 8)'),
         budget: z
           .number()
@@ -325,6 +339,7 @@ function createDocumiMcpServer(store: DocsStore, projectRoot?: string, ragConfig
     async ({
       query,
       type,
+      scope,
       limit,
       budget,
       includeGraph,
@@ -332,6 +347,7 @@ function createDocumiMcpServer(store: DocsStore, projectRoot?: string, ragConfig
     }: {
       query: string
       type?: ArtifactType
+      scope?: string
       limit?: number
       budget?: number
       includeGraph?: boolean
@@ -342,6 +358,7 @@ function createDocumiMcpServer(store: DocsStore, projectRoot?: string, ragConfig
         return jsonResult(
           await retrieveContextHybrid(store.rootDir, getIndex(), query, {
             type,
+            scope,
             limit,
             budget,
             includeGraph,
@@ -350,7 +367,7 @@ function createDocumiMcpServer(store: DocsStore, projectRoot?: string, ragConfig
           }),
         )
       }
-      return jsonResult(retrieveContext(getIndex(), query, { type, limit, budget, includeGraph }))
+      return jsonResult(retrieveContext(getIndex(), query, { type, scope, limit, budget, includeGraph }))
     },
   )
 
@@ -478,6 +495,7 @@ function createDocumiMcpServer(store: DocsStore, projectRoot?: string, ragConfig
       inputSchema: {
         path: z.string().min(1).describe('Relative path under docs/ (e.g. "specs/auth/oauth.mdx")'),
         title: z.string().min(1).describe('Document title'),
+        scope: optionalScopeSchema,
         type: optionalTypeSchema,
         description: z.string().optional().describe('Short description'),
         date: z.string().optional().describe('Decision date (YYYY-MM-DD or YYYY-MM, for ADRs)'),
@@ -491,6 +509,7 @@ function createDocumiMcpServer(store: DocsStore, projectRoot?: string, ragConfig
     async (args: {
       path: string
       title: string
+      scope?: string
       type?: ArtifactType
       description?: string
       date?: string

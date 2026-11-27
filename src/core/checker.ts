@@ -6,12 +6,17 @@ import type { DocumentHealthSummary } from './health'
 import { loadDocuments } from './loader'
 import { REVIEWS_REL_PATH } from './reviews'
 import { enrichWithRealization, validateSourceLinks } from './trace'
-import type { DocsIndex, IndexIssue, RealizationStatus } from './types'
+import type { DocsIndex, DocsMount, IndexIssue, RealizationStatus } from './types'
 
 export interface CheckOptions {
   docsDir: string
+  /** Monorepo 統合マウント一覧（省略時は docsDir を単一 root マウントとして扱う） */
+  mounts?: DocsMount[]
+  /** 指定マウント ID へ検証・集計を絞り込む（全体グラフをロードした上で絞り込むため他マウント参照が壊れない） */
+  scope?: string
   projectRoot?: string
   testReportPath?: string
+  testReportPaths?: string[]
   /** true のとき全 normative ブロックの未承認・stale・drifted もエラー扱いにする（suspect は参考通知のまま） */
   strict?: boolean
   /** 段階的な承認ゲート ("none" | "stable" | "all")。strict: true の場合は常に "all" として扱う */
@@ -33,6 +38,7 @@ export interface CheckFinding {
 export interface CheckReport {
   ok: boolean
   docsDir: string
+  scope?: string
   documentCount: number
   blockCount: number
   errors: CheckFinding[]
@@ -52,17 +58,38 @@ export async function runDocsCheck(options: CheckOptions): Promise<CheckReport> 
   const docsDir = path.resolve(options.docsDir)
   const projectRoot = path.resolve(options.projectRoot ?? path.dirname(docsDir))
 
-  const index = await loadDocuments(docsDir)
+  const index = await loadDocuments(docsDir, { mounts: options.mounts })
+  const scope = options.scope?.trim() || undefined
+  const scopeMount = scope ? index.mounts.find((m) => m.id === scope) : undefined
+
   const { issues: sourceIssues, brokenSpecIds } = await validateSourceLinks(projectRoot, index)
   const { unknownAnchors } = await enrichWithRealization(index, {
     projectRoot,
     testReportPath: options.testReportPath,
+    testReportPaths: options.testReportPaths,
     fetchPrs: options.fetchPrs,
     brokenSpecIds,
   })
 
+  const scopedDocs = scope ? index.documents.filter((d) => d.mountId === scope) : index.documents
+  const scopedDocIds = new Set(scopedDocs.map((d) => d.id))
+  const scopedDocPaths = new Set(scopedDocs.map((d) => d.path))
+  const scopedBlockIds = new Set<string>()
+  for (const doc of scopedDocs) {
+    for (const b of doc.blocks) scopedBlockIds.add(b.id)
+  }
+
   const errors: CheckFinding[] = []
   const warnings: CheckFinding[] = []
+
+  if (scope && !scopeMount) {
+    const available = index.mounts.map((m) => m.id).join(', ')
+    errors.push({
+      severity: 'error',
+      code: 'unknown-scope',
+      message: `Unknown docs scope "${scope}" (available mounts: ${available})`,
+    })
+  }
 
   const pushIssue = (issue: IndexIssue, defaultSeverity: 'error' | 'warning' = 'error') => {
     const severity = WARNING_ONLY_CODES.has(issue.code) ? 'warning' : defaultSeverity
@@ -77,31 +104,50 @@ export async function runDocsCheck(options: CheckOptions): Promise<CheckReport> 
     else warnings.push(finding)
   }
 
-  for (const issue of index.issues) pushIssue(issue)
-  for (const doc of index.documents) {
+  for (const issue of index.issues) {
+    if (scope) {
+      const matchesPath =
+        issue.path && (scopedDocPaths.has(issue.path) || (scopeMount?.prefixed && issue.path.startsWith(`${scope}/`)))
+      const matchesBlock = issue.blockId && scopedBlockIds.has(issue.blockId)
+      if (!matchesPath && !matchesBlock) continue
+    }
+    pushIssue(issue)
+  }
+  for (const doc of scopedDocs) {
     for (const issue of doc.issues) {
       pushIssue({ ...issue, path: doc.path })
     }
   }
-  for (const issue of sourceIssues) pushIssue(issue, 'error')
-
-  for (const anchor of unknownAnchors) {
-    warnings.push({
-      severity: 'warning',
-      code: 'unknown-anchor-spec',
-      message: `Unknown spec ID "${anchor.specId}" referenced by @${anchor.kind} at ${anchor.file}:L${anchor.line}`,
-      path: anchor.file,
-      blockId: anchor.specId,
-    })
+  for (const issue of sourceIssues) {
+    if (scope && issue.path && !scopedDocPaths.has(issue.path)) continue
+    pushIssue(issue, 'error')
   }
 
-  if (options.noReviewEdit && isReviewsFileModifiedInGit(projectRoot, docsDir)) {
-    errors.push({
-      severity: 'error',
-      code: 'review-file-modified',
-      message: `${REVIEWS_REL_PATH} has uncommitted modifications (disallowed by --no-review-edit)`,
-      path: REVIEWS_REL_PATH,
-    })
+  if (!scope) {
+    for (const anchor of unknownAnchors) {
+      warnings.push({
+        severity: 'warning',
+        code: 'unknown-anchor-spec',
+        message: `Unknown spec ID "${anchor.specId}" referenced by @${anchor.kind} at ${anchor.file}:L${anchor.line}`,
+        path: anchor.file,
+        blockId: anchor.specId,
+      })
+    }
+  }
+
+  if (options.noReviewEdit) {
+    const mountsToCheck = scopeMount ? [scopeMount] : index.mounts
+    for (const mount of mountsToCheck) {
+      if (isReviewsFileModifiedInGit(projectRoot, mount.dir)) {
+        const displayPath = mount.prefixed ? `${mount.id}/${REVIEWS_REL_PATH}` : REVIEWS_REL_PATH
+        errors.push({
+          severity: 'error',
+          code: 'review-file-modified',
+          message: `${displayPath} has uncommitted modifications (disallowed by --no-review-edit)`,
+          path: displayPath,
+        })
+      }
+    }
   }
 
   const realizationCounts: Record<RealizationStatus, number> = {
@@ -116,6 +162,7 @@ export async function runDocsCheck(options: CheckOptions): Promise<CheckReport> 
   const effectiveReviewGate: ReviewGate = options.strict ? 'all' : (options.reviewGate ?? 'none')
 
   for (const block of index.blocksById.values()) {
+    if (scope && !scopedDocIds.has(block.docId)) continue
     if (block.kind !== 'note') {
       reviewCounts[block.review]++
       if (block.suspect) reviewCounts.suspect++
@@ -150,13 +197,25 @@ export async function runDocsCheck(options: CheckOptions): Promise<CheckReport> 
     }
   }
 
-  const health = computeDocumentHealth(index)
+  const fullHealth = computeDocumentHealth(index)
+  const health: DocumentHealthSummary = scope
+    ? {
+        ...fullHealth,
+        bloatedSpecDocs: fullHealth.bloatedSpecDocs.filter((d) => scopedDocIds.has(d.docId)),
+        overloadedHubDocs: fullHealth.overloadedHubDocs.filter((d) => scopedDocIds.has(d.docId)),
+        staleArchitectureDocs: fullHealth.staleArchitectureDocs.filter((d) => scopedDocIds.has(d.docId)),
+        hints: fullHealth.hints.filter(
+          (h) => (h.docId && scopedDocIds.has(h.docId)) || (h.blockId && scopedBlockIds.has(h.blockId)),
+        ),
+      }
+    : fullHealth
 
   return {
     ok: errors.length === 0,
     docsDir,
-    documentCount: index.documents.length,
-    blockCount: index.blocksById.size,
+    ...(scope ? { scope } : {}),
+    documentCount: scopedDocs.length,
+    blockCount: scopedBlockIds.size,
     errors,
     warnings,
     realizationCounts,
