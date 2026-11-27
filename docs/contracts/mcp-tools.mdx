@@ -28,7 +28,7 @@ AI エージェント向けに **2 種類のトランスポート** で同一の
 
 | Tool | 入力 | 役割 |
 |---|---|---|
-| `get_project_map` | `full?` | Goal / System Design（`design` + `scope: system`）概要・現行独立 `<Decision>` 結論一覧（廃止済みは `supersededOutcomes` へ分離）・Domain 用語集・Review & Realization サマリを一括取得（`full: true` で全文展開） |
+| `get_project_map` | `full?` | Goal / System Design（`design` + `scope: system`）概要・現行独立 `<Decision>` 結論一覧（廃止済みは `supersededDecisions` へ分離）・Domain 用語集・Review & Realization サマリを一括取得（`full: true` で全文展開） |
 | `list_documents` | `type?`, `mount?` | ドキュメントサマリ一覧を取得（`mount` で複数 docs 構成のマウント絞り込み可） |
 | `get_document` | `id` | パス ID から本文・セマンティックブロック（`startLine` / `endLine` 含む）・関係・問題一覧を取得 |
 | `get_relations` | `id` | ドキュメント ID またはブロック ID の外向き/逆参照を取得 |
@@ -56,10 +56,10 @@ AI のコンテキスト消費を抑えるため、主要読み取りツール�
 
 | Tool | 既定 (`full: false`) の主要返却構造 | `full: true` で追加展開される項目 |
 |---|---|---|
-| `get_project_map` | `documentCount`, `blockCount`, `issueCount`, `reviewSummary`, `realizationSummary`, `health`, `goals`（概要＋見出し）, `architecture`（`scope: system` の `design` 概要＋見出し）, `decisionOutcomes`（現行独立 `<Decision>` の結論のみ・240 字要約）, `supersededOutcomes`（廃止済み・`supersededBy` 付き）, `terms`（160 字要約） | `goals[].body`, `architecture[].body`, `decisionOutcomes[].body` 全文, `terms[].definition` 全文 |
-| `query_specs` | `{ count, blocks: [{ id, kind, docId, docPath, startLine, endLine, intent, stability, review, suspect, realizationStatus?, derives?, summary }] }` | 各ブロック全文 `rawBody`・完全な `realization` 詳細配列 |
-| `get_spec_context` | `target`（本文＋要約 `realization`）, `docPath`, `startLine`, `endLine`, `document`, `upstreamGoals`（概要）, `relatedDocuments`（概要）, `decisionOutcomes`, `relevantTerms`（160 字要約）, `sourceRefs`, `exportedSymbols?`（`mode="exports"` 参照のみ） | 上流 Goal 本文全文・完全な `realization` 配列・全 `sourceRefs` ファイルの公開シンボル |
-| `search_documents`（`includeContext: true`） | `{ query, mode, budget, usedChars, hits, upstreamGoals, decisionOutcomes, relatedDocuments, terms, sourceRefs }`（既定 `limit = 8`, `budget = 6000`） | —（`budget` で上限調整） |
+| `get_project_map` | `documentCount`, `blockCount`, `issueCount`, `reviewSummary`, `realizationSummary`, `health`, `goals`（概要＋見出し）, `systemDesigns`（`scope: system` の `design` 概要＋見出し）, `decisions`（現行独立 `<Decision>` の結論のみ・240 字要約）, `supersededDecisions`（廃止済み・`supersededBy` 付き）, `terms`（160 字要約） | `goals[].body`, `systemDesigns[].body`, `decisions[].body` 全文, `terms[].definition` 全文 |
+| `query_specs` | `{ count, blocks: [{ id, kind, docId, docPath, startLine, endLine, intent, stability, review, suspect, realizationStatus?, derives?, level?, verifies?, summary }] }` | 各ブロック全文 `rawBody`・完全な `realization` 詳細配列 |
+| `get_spec_context` | `target`（本文＋要約 `realization`）, `docPath`, `startLine`, `endLine`, `document`, `upstreamGoals`（概要）, `relatedDocuments`（概要）, `decisions`, `tests`（対象 Spec を `verifies` する `<Test>` 一覧）, `relevantTerms`（160 字要約）, `sourceRefs`, `exportedSymbols?`（`mode="exports"` 参照のみ） | 上流 Goal 本文全文・完全な `realization` 配列・全 `sourceRefs` ファイルの公開シンボル |
+| `search_documents`（`includeContext: true`） | `{ query, mode, budget, usedChars, hits, upstreamGoals, decisions, relatedDocuments, terms, sourceRefs }`（既定 `limit = 8`, `budget = 6000`、廃止済み ADR は除外） | —（`budget` で上限調整） |
 
 ## 事前・事後条件・副作用・エラー規約
 

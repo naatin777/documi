@@ -139,7 +139,7 @@ describe('BM25 + Glossary Alias Expansion + Graph-Aware Retrieval', () => {
     expect(res.expandedTerms).toContain('AccountLockout')
     expect(res.hits.some((h) => h.id === 'auth.lockout')).toBe(true)
     expect(res.upstreamGoals.map((g) => g.id)).toContain('goals/security')
-    expect(res.decisionOutcomes.map((o) => o.id)).toContain('dec.lockout-policy')
+    expect(res.decisions.map((o) => o.id)).toContain('dec.lockout-policy')
     expect(res.relatedDocuments.map((d) => d.id)).toContain('designs/auth')
     expect(res.relevantTerms.map((t) => t.id)).toContain('AccountLockout')
     expect(res.sourceRefs.some((r) => r.file === 'src/auth.ts')).toBe(true)
@@ -205,9 +205,9 @@ describe('BM25 + Glossary Alias Expansion + Graph-Aware Retrieval', () => {
     )
     expect(res.status).toBe(200)
     const body = (await res.json()) as {
-      result?: { structuredContent?: { hits: Array<{ id: string }>; decisionOutcomes: Array<{ id: string }> } }
+      result?: { structuredContent?: { hits: Array<{ id: string }>; decisions: Array<{ id: string }> } }
     }
     expect(body.result?.structuredContent?.hits.some((h) => h.id === 'auth.lockout')).toBe(true)
-    expect(body.result?.structuredContent?.decisionOutcomes.map((o) => o.id)).toContain('dec.lockout-policy')
+    expect(body.result?.structuredContent?.decisions.map((o) => o.id)).toContain('dec.lockout-policy')
   })
 })

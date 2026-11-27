@@ -174,13 +174,14 @@ describe('loadDocuments', () => {
     const index = await loadDocuments(root)
     const map = buildProjectMap(index)
     // map には scope: system の design と独立 decision のみ含まれる（機能 design やインラインマイクロ ADR は含めない）
-    expect(map.architecture.map((d) => d.id)).toEqual(['designs/overview'])
-    expect(map.decisionOutcomes.map((d) => d.id)).toEqual(['dec.global'])
+    expect(map.systemDesigns.map((d) => d.id)).toEqual(['designs/overview'])
+    expect(map.decisions.map((d) => d.id)).toEqual(['dec.global'])
 
-    // getSpecContext では関連 design 内のインラインマイクロ ADR が返る
+    // getSpecContext では関連 design 内のインラインマイクロ ADR と同居 <Test> が返る
     const ctx = getSpecContext(index, 'cache.ttl')
-    expect(ctx?.decisionOutcomes.map((d) => d.id)).toEqual(['dec.cache-ttl'])
-    expect(ctx?.decisionOutcomes[0]?.body).toBe('TTL は 5 分にする')
+    expect(ctx?.decisions.map((d) => d.id)).toEqual(['dec.cache-ttl'])
+    expect(ctx?.decisions[0]?.body).toBe('TTL は 5 分にする')
+    expect(ctx?.tests.map((t) => ({ id: t.id, level: t.level }))).toEqual([{ id: 'test.cache.ttl', level: 'unit' }])
 
     // <Test verifies="cache.ttl"> から verifies エッジが張られる
     expect(index.edges.some((e) => e.from === 'test.cache.ttl' && e.to === 'cache.ttl' && e.kind === 'verifies')).toBe(

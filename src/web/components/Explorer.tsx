@@ -306,6 +306,11 @@ export default function Explorer({
                             onClick={onClose}
                           >
                             <span className="truncate">{doc.title}</span>
+                            {doc.scope === 'system' && (
+                              <span className="mono shrink-0 rounded border border-line px-1 py-0 text-[9.5px] font-medium text-fg-muted">
+                                system
+                              </span>
+                            )}
                             {doc.date && (
                               <span className="mono ml-auto shrink-0 text-[10.5px] text-fg-muted">{doc.date}</span>
                             )}

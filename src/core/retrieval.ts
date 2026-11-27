@@ -539,7 +539,7 @@ export interface RetrieveContextResult {
   expandedTerms: string[]
   hits: RetrievedHitItem[]
   upstreamGoals: Array<{ id: string; title: string; description: string }>
-  decisionOutcomes: Array<{ id: string; docId: string; date?: string; body: string }>
+  decisions: Array<{ id: string; docId: string; date?: string; body: string }>
   relatedDocuments: Array<{ id: string; type: ArtifactType; title: string; description: string; relation: string }>
   relevantTerms: Array<{ id: string; aliases: string[]; symbols: string[]; definition: string }>
   sourceRefs: Array<{ file: string; symbol?: string; lines?: string; fromDocId: string }>
@@ -620,7 +620,7 @@ export function assembleGraphContext(
   }
 
   const upstreamGoals: RetrieveContextResult['upstreamGoals'] = []
-  const decisionOutcomes: RetrieveContextResult['decisionOutcomes'] = []
+  const decisions: RetrieveContextResult['decisions'] = []
   const relatedDocuments: RetrieveContextResult['relatedDocuments'] = []
   const relevantTerms: RetrieveContextResult['relevantTerms'] = []
   const sourceRefs: RetrieveContextResult['sourceRefs'] = []
@@ -634,7 +634,7 @@ export function assembleGraphContext(
       expandedTerms,
       hits,
       upstreamGoals,
-      decisionOutcomes,
+      decisions,
       relatedDocuments,
       relevantTerms,
       sourceRefs,
@@ -680,18 +680,19 @@ export function assembleGraphContext(
     }
   }
 
-  // 3a. 関連 Decision（独立 ADR および設計/仕様内のインラインマイクロ ADR）の <Decision> 結論を優先収録
-  const seenOutcomeIds = new Set<string>()
+  // 3a. 関連 Decision（独立 ADR および設計/仕様内のインラインマイクロ ADR）の現行 <Decision> 結論を優先収録（廃止済みは除外）
+  const seenDecisionIds = new Set<string>()
   for (const docId of [...seedDocIds, ...relatedByDocId.keys()]) {
     const d = index.byId.get(docId)
     if (!d) continue
     for (const b of d.blocks) {
-      if (b.kind !== 'decision' || seenOutcomeIds.has(b.id)) continue
-      seenOutcomeIds.add(b.id)
+      if (b.kind !== 'decision' || seenDecisionIds.has(b.id)) continue
+      if (b.supersededBy && b.supersededBy.length > 0) continue
+      seenDecisionIds.add(b.id)
       const body = summarize(b.summary ?? b.chosen ?? b.rawBody, 240)
       if (!tryConsume(`${b.id} ${body}`)) break
       const date = b.date ?? d.date
-      decisionOutcomes.push({
+      decisions.push({
         id: b.id,
         docId: d.id,
         ...(date ? { date } : {}),
@@ -806,7 +807,7 @@ export function assembleGraphContext(
     expandedTerms,
     hits,
     upstreamGoals,
-    decisionOutcomes,
+    decisions,
     relatedDocuments,
     relevantTerms,
     sourceRefs,

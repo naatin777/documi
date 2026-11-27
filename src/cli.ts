@@ -933,15 +933,15 @@ async function cmdMap(flags: CliFlags, io: CliIo): Promise<number> {
     io.out(`\nGoals (${map.goals.length}):`)
     for (const g of map.goals) io.out(`  - ${g.id}: ${g.title}`)
   }
-  if (map.architecture.length > 0) {
-    io.out(`\nArchitecture (${map.architecture.length}):`)
-    for (const a of map.architecture) io.out(`  - ${a.id}: ${a.title}`)
+  if (map.systemDesigns.length > 0) {
+    io.out(`\nSystem Designs (${map.systemDesigns.length}):`)
+    for (const a of map.systemDesigns) io.out(`  - ${a.id}: ${a.title}`)
   }
-  if (map.decisionOutcomes.length > 0) {
+  if (map.decisions.length > 0) {
     const supersededNote =
-      map.supersededOutcomes.length > 0 ? `, ${map.supersededOutcomes.length} superseded hidden` : ''
-    io.out(`\nDecision Outcomes (${map.decisionOutcomes.length} active${supersededNote}):`)
-    for (const o of map.decisionOutcomes) {
+      map.supersededDecisions.length > 0 ? `, ${map.supersededDecisions.length} superseded hidden` : ''
+    io.out(`\nDecisions (${map.decisions.length} active${supersededNote}):`)
+    for (const o of map.decisions) {
       const firstLine = o.body.trim().split('\n')[0] ?? ''
       io.out(`  - ${o.id} (${o.docId}${o.date ? `, ${o.date}` : ''}): ${firstLine}`)
     }
@@ -1293,9 +1293,9 @@ async function cmdSearchContext(positionals: string[], flags: CliFlags, io: CliI
     io.out(`\nUpstream Goals (${res.upstreamGoals.length}):`)
     for (const g of res.upstreamGoals) io.out(`  - ${g.id}: ${g.title} — ${g.description}`)
   }
-  if (res.decisionOutcomes.length > 0) {
-    io.out(`\nDecision Outcomes (${res.decisionOutcomes.length}):`)
-    for (const o of res.decisionOutcomes) {
+  if (res.decisions.length > 0) {
+    io.out(`\nDecisions (${res.decisions.length}):`)
+    for (const o of res.decisions) {
       io.out(`  - ${o.id} (${o.docId}${o.date ? `, ${o.date}` : ''}): ${o.body}`)
     }
   }
@@ -1351,8 +1351,12 @@ async function cmdQuery(flags: CliFlags, io: CliIo): Promise<number> {
     const status =
       'realizationStatus' in b ? b.realizationStatus : 'realization' in b ? b.realization?.status : undefined
     const real = status ? ` realization=${status}` : ''
+    const level = 'level' in b && b.level ? ` level=${b.level}` : ''
+    const verifies = 'verifies' in b && b.verifies && b.verifies.length > 0 ? ` verifies=${b.verifies.join(',')}` : ''
     const suspect = b.suspect ? ' suspect' : ''
-    io.out(`  [${b.kind}] ${b.id} (${b.docPath}:${b.startLine}-${b.endLine}) review=${b.review}${real}${suspect}`)
+    io.out(
+      `  [${b.kind}] ${b.id} (${b.docPath}:${b.startLine}-${b.endLine}) review=${b.review}${level}${verifies}${real}${suspect}`,
+    )
   }
   return 0
 }
@@ -1391,8 +1395,15 @@ async function cmdContext(positionals: string[], flags: CliFlags, io: CliIo): Pr
   if (ctx.relatedDocuments.length > 0) {
     io.out(`  related docs: ${ctx.relatedDocuments.map((d) => `${d.id} [${d.type}]`).join(', ')}`)
   }
-  if (ctx.decisionOutcomes.length > 0) {
-    io.out(`  decision outcomes: ${ctx.decisionOutcomes.map((o) => o.id).join(', ')}`)
+  if (ctx.decisions.length > 0) {
+    io.out(`  decisions: ${ctx.decisions.map((o) => o.id).join(', ')}`)
+  }
+  if (ctx.tests.length > 0) {
+    io.out(`  tests (${ctx.tests.length}):`)
+    for (const t of ctx.tests) {
+      const lv = t.level ? `[${t.level}] ` : ''
+      io.out(`    - ${lv}${t.id} (verifies: ${t.verifies.join(', ')}): ${t.body}`)
+    }
   }
   if (ctx.relevantTerms.length > 0) {
     io.out(`  terms: ${ctx.relevantTerms.map((t) => t.id).join(', ')}`)

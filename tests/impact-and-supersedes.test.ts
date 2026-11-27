@@ -53,23 +53,23 @@ supersedes:
       expect(index.blocksById.get('dec.old')?.supersededBy).toEqual(['decisions/2026-02-new-choice'])
       expect(index.blocksById.get('dec.new')?.supersededBy).toBeUndefined()
 
-      // buildProjectMap separates active vs superseded outcomes
+      // buildProjectMap separates active vs superseded decisions
       const map = buildProjectMap(index)
-      expect(map.decisionOutcomes.map((o) => o.id)).toEqual(['dec.new'])
-      expect(map.supersededOutcomes.map((o) => o.id)).toEqual(['dec.old'])
-      expect(map.supersededOutcomes[0]?.supersededBy).toEqual(['decisions/2026-02-new-choice'])
+      expect(map.decisions.map((o) => o.id)).toEqual(['dec.new'])
+      expect(map.supersededDecisions.map((o) => o.id)).toEqual(['dec.old'])
+      expect(map.supersededDecisions[0]?.supersededBy).toEqual(['decisions/2026-02-new-choice'])
 
-      // GET /api/overview separates active outcomes vs supersededOutcomes
+      // GET /api/overview separates active decisions vs supersededDecisions
       const app = createApp(store, { projectRoot: tmp })
       const res = await app.request('/api/overview')
       expect(res.status).toBe(200)
       const body = (await res.json()) as {
-        outcomes: Array<{ id: string }>
-        supersededOutcomes: Array<{ id: string; supersededBy?: string[] }>
+        decisions: Array<{ id: string }>
+        supersededDecisions: Array<{ id: string; supersededBy?: string[] }>
       }
-      expect(body.outcomes.map((o) => o.id)).toEqual(['dec.new'])
-      expect(body.supersededOutcomes.map((o) => o.id)).toEqual(['dec.old'])
-      expect(body.supersededOutcomes[0]?.supersededBy).toEqual(['decisions/2026-02-new-choice'])
+      expect(body.decisions.map((o) => o.id)).toEqual(['dec.new'])
+      expect(body.supersededDecisions.map((o) => o.id)).toEqual(['dec.old'])
+      expect(body.supersededDecisions[0]?.supersededBy).toEqual(['decisions/2026-02-new-choice'])
     } finally {
       await rm(tmp, { recursive: true, force: true })
     }

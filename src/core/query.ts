@@ -15,6 +15,7 @@ import type {
   SourceRefDecl,
   SpecIntent,
   Stability,
+  TestSemanticBlock,
 } from './types'
 
 export interface QuerySpecsFilter {
@@ -63,7 +64,9 @@ function toCompactBlock(index: DocsIndex, b: SemanticBlock) {
     suspect: b.suspect,
     ...(b.realization ? { realizationStatus: b.realization.status } : {}),
     ...(b.derives.length > 0 ? { derives: b.derives } : {}),
-    summary: summarizeText(b.rawBody, 180),
+    ...(b.kind === 'test' && b.level ? { level: b.level } : {}),
+    ...(b.kind === 'test' && b.verifies.length > 0 ? { verifies: b.verifies } : {}),
+    summary: summarizeText(b.kind === 'decision' ? (b.summary ?? b.chosen ?? b.rawBody) : b.rawBody, 180),
   }
 }
 
@@ -86,11 +89,11 @@ function toMapDocEntry(d: DocsIndex['documents'][number], full: boolean) {
 export function buildProjectMap(index: DocsIndex, options: { full?: boolean } = {}) {
   const full = options.full === true
   const goals = index.documents.filter((d) => d.type === 'goal').map((d) => toMapDocEntry(d, full))
-  const architecture = index.documents
+  const systemDesigns = index.documents
     .filter((d) => d.type === 'design' && d.scope === 'system')
     .map((d) => toMapDocEntry(d, full))
   // 常時 map に載せるのは独立 decision ファイル内の <Decision> のみ（design/spec 内マイクロ ADR は context/search でオンデマンド取得）
-  const allOutcomes = [...index.blocksById.values()]
+  const allDecisions = [...index.blocksById.values()]
     .filter((b): b is DecisionSemanticBlock => b.kind === 'decision' && index.byId.get(b.docId)?.type === 'decision')
     .map((b) => {
       const doc = index.byId.get(b.docId)
@@ -113,8 +116,8 @@ export function buildProjectMap(index: DocsIndex, options: { full?: boolean } = 
       if (date) item.date = date
       return item
     })
-  const decisionOutcomes = allOutcomes.filter((o) => !o.supersededBy)
-  const supersededOutcomes = allOutcomes.filter((o) => Boolean(o.supersededBy))
+  const decisions = allDecisions.filter((o) => !o.supersededBy)
+  const supersededDecisions = allDecisions.filter((o) => Boolean(o.supersededBy))
   const terms = [...index.blocksById.values()]
     .filter((b) => b.kind === 'term')
     .map((b) => ({
@@ -151,9 +154,9 @@ export function buildProjectMap(index: DocsIndex, options: { full?: boolean } = 
     realizationSummary,
     health,
     goals,
-    architecture,
-    decisionOutcomes,
-    supersededOutcomes,
+    systemDesigns,
+    decisions,
+    supersededDecisions,
     terms,
   }
 }
@@ -484,10 +487,32 @@ export function getSpecContext(index: DocsIndex, id: string, options: { full?: b
     .map((rid) => index.byId.get(rid))
     .filter((d): d is NonNullable<typeof d> => Boolean(d))
 
-  // 独立 decision 文書および対象文書・関連文書内のインライン <Decision>（マイクロ ADR）を収集
+  // 独立 decision 文書および対象文書・関連文書内の現行インライン <Decision>（マイクロ ADR）を収集（廃止済みは除外）
   const decisionBlocks = [doc, ...relatedDocs]
-    .flatMap((d) => d.blocks.filter((b): b is DecisionSemanticBlock => b.kind === 'decision'))
+    .flatMap((d) =>
+      d.blocks.filter(
+        (b): b is DecisionSemanticBlock => b.kind === 'decision' && !(b.supersededBy && b.supersededBy.length > 0),
+      ),
+    )
     .filter((b, i, arr) => arr.findIndex((x) => x.id === b.id) === i)
+
+  // 対象 Spec / 文書を verifies する <Test> 保証シナリオを収集
+  const specTargetIds = new Set<string>(targetIds)
+  for (const b of doc.blocks) {
+    if (b.kind === 'spec' && (!block || b.id === block.id)) specTargetIds.add(b.id)
+  }
+  const testBlocks = [...index.blocksById.values()]
+    .filter((b): b is TestSemanticBlock => b.kind === 'test' && b.verifies.some((v) => specTargetIds.has(v)))
+    .map((t) => {
+      const entry: { id: string; docId: string; level?: string; verifies: string[]; body: string } = {
+        id: t.id,
+        docId: t.docId,
+        verifies: t.verifies,
+        body: full ? t.rawBody : summarizeText(t.rawBody, 240),
+      }
+      if (t.level) entry.level = t.level
+      return entry
+    })
 
   const terms = [...index.blocksById.values()]
     .filter((b) => b.kind === 'term')
@@ -540,7 +565,7 @@ export function getSpecContext(index: DocsIndex, id: string, options: { full?: b
     relatedDocuments: full
       ? relatedDocs.map(toDocumentSummary)
       : relatedDocs.map((d) => ({ id: d.id, type: d.type, title: d.title, description: d.description })),
-    decisionOutcomes: decisionBlocks.map((o) => {
+    decisions: decisionBlocks.map((o) => {
       const entry: { id: string; docId: string; summary?: string; body: string } = {
         id: o.id,
         docId: o.docId,
@@ -549,6 +574,7 @@ export function getSpecContext(index: DocsIndex, id: string, options: { full?: b
       if (o.summary) entry.summary = o.summary
       return entry
     }),
+    tests: testBlocks,
     relevantTerms: terms.map((t) => ({
       id: t.id,
       aliases: t.aliases,

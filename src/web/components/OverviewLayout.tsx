@@ -181,11 +181,11 @@ export default function OverviewLayout() {
               )}
             </section>
 
-            {data.outcomes.length > 0 && (
+            {data.decisions.length > 0 && (
               <section className="mb-7">
-                <h2 className="m-0 mb-3 text-[15px] font-bold text-fg">{t('overview.decisionOutcomes')}</h2>
+                <h2 className="m-0 mb-3 text-[15px] font-bold text-fg">{t('overview.decisions')}</h2>
                 <div className="grid gap-2.5">
-                  {data.outcomes.map((o) => (
+                  {data.decisions.map((o) => (
                     <Link
                       key={o.id}
                       to={`/docs/${encodeDocId(o.docId)}#block-${encodeURIComponent(o.id)}`}
@@ -260,7 +260,7 @@ export default function OverviewLayout() {
                     <span className="text-xl leading-[1.2] font-bold tabular-nums">
                       {data.health.verificationCoveredSpecs} / {data.health.totalNormativeSpecs}
                     </span>
-                    <span className="text-xs text-fg-muted">{t('overview.verificationCoverage')}</span>
+                    <span className="text-xs text-fg-muted">{t('overview.testCoverage')}</span>
                   </div>
                 </div>
                 {data.health.hints.length > 0 && (

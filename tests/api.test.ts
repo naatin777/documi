@@ -67,13 +67,13 @@ describe('REST API', () => {
       documentCount: number
       termCount: number
       goals: { id: string }[]
-      outcomes: { id: string }[]
+      decisions: { id: string }[]
       orphanSpecs: { blockId?: string }[]
     }
     expect(body.documentCount).toBe(6)
     expect(body.termCount).toBe(1)
     expect(body.goals.map((g) => g.id)).toEqual(['goals/core'])
-    expect(body.outcomes.map((o) => o.id)).toEqual(['dec.bun'])
+    expect(body.decisions.map((o) => o.id)).toEqual(['dec.bun'])
     expect(body.orphanSpecs.map((o) => o.blockId)).toEqual(['orphan.item'])
   })
 
@@ -348,12 +348,12 @@ describe('MCP endpoint', () => {
     )
     const body = (await res.json()) as {
       result?: {
-        structuredContent?: { goals: { id: string }[]; decisionOutcomes: { id: string }[]; terms: { id: string }[] }
+        structuredContent?: { goals: { id: string }[]; decisions: { id: string }[]; terms: { id: string }[] }
       }
     }
     const content = body.result?.structuredContent
     expect(content?.goals.map((g) => g.id)).toEqual(['goals/core'])
-    expect(content?.decisionOutcomes.map((o) => o.id)).toEqual(['dec.bun'])
+    expect(content?.decisions.map((o) => o.id)).toEqual(['dec.bun'])
     expect(content?.terms.map((t) => t.id)).toEqual(['Artifact'])
   })
 

@@ -58,7 +58,7 @@ interface OverviewIssueEntry {
   blockId?: string
 }
 
-interface OverviewOutcomeEntry {
+interface OverviewDecisionEntry {
   id: string
   docId: string
   docTitle: string
@@ -115,8 +115,8 @@ export function createDocumentsRoutes(store: DocsStore, projectRoot?: string, ra
         const specsByStability = Object.fromEntries(STABILITIES.map((s) => [s, 0])) as Record<Stability, number>
 
         const goals: DocumentSummary[] = []
-        const outcomes: OverviewOutcomeEntry[] = []
-        const supersededOutcomes: OverviewOutcomeEntry[] = []
+        const decisions: OverviewDecisionEntry[] = []
+        const supersededDecisions: OverviewDecisionEntry[] = []
         const orphanSpecs: OverviewIssueEntry[] = []
         const docIssues: OverviewIssueEntry[] = []
         const attentionBlocks: OverviewAttentionBlock[] = []
@@ -153,7 +153,7 @@ export function createDocumentsRoutes(store: DocsStore, projectRoot?: string, ra
               specsByIntent[block.intent]++
               specsByStability[block.stability]++
             } else if (block.kind === 'decision' && doc.type === 'decision') {
-              const entry: OverviewOutcomeEntry = {
+              const entry: OverviewDecisionEntry = {
                 id: block.id,
                 docId: doc.id,
                 docTitle: doc.title,
@@ -163,9 +163,9 @@ export function createDocumentsRoutes(store: DocsStore, projectRoot?: string, ra
                 ...(block.supersededBy && block.supersededBy.length > 0 ? { supersededBy: block.supersededBy } : {}),
               }
               if (entry.supersededBy) {
-                supersededOutcomes.push(entry)
+                supersededDecisions.push(entry)
               } else {
-                outcomes.push(entry)
+                decisions.push(entry)
               }
             } else if (block.kind === 'term') {
               termCount++
@@ -208,8 +208,8 @@ export function createDocumentsRoutes(store: DocsStore, projectRoot?: string, ra
             health,
             attentionBlocks,
             goals,
-            outcomes,
-            supersededOutcomes,
+            decisions,
+            supersededDecisions,
             orphanSpecs,
             indexIssues: index.issues,
             docIssues,
