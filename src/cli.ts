@@ -109,8 +109,7 @@ Usage:
   documi show <doc-id> [options]                 Show document body, blocks, relations, and issues
   documi relations <id> [options]                Show outgoing and incoming references for a document or block
   documi impact <id> [options]                   Recursively list downstream docs, blocks, and code/tests affected by changing an ID
-  documi search <query...> [options]             Full-text search across documents and blocks (BM25 + glossary / --semantic)
-  documi retrieve <query...> [options]           Retrieve relevant Specs, Goals, ADRs, and SourceRefs via BM25 (+ --semantic) + graph expansion
+  documi search <query...> [options]             Search docs/blocks (BM25 + glossary / --semantic; --context for budgeted graph expansion)
   documi index [options]                         Build or incrementally sync the local Embedding cache (bun:sqlite)
   documi query [filters] [options]               Filter semantic blocks across multiple dimensions
   documi context <id> [options]                  Aggregate upstream Goals, related docs, Outcomes, Terms, and SourceRefs for a Spec
@@ -125,7 +124,7 @@ Usage:
 Options:
   --project <dir>         Project root (default: cwd or DOCUMI_PROJECT_ROOT / parent of --docs)
   --docs <dir>            Docs directory (default: config docs, <project>/docs, or DOCUMI_DOCS_DIR)
-  --mount <id>            Target docs mount ID in multi-docs projects (check / list / query / search / retrieve / scaffold)
+  --mount <id>            Target docs mount ID in multi-docs projects (check / list / query / search / scaffold)
   --en / --ja             Language for generated Agent Skills and starter docs (default: en / --lang <en|ja>)
   --skills-dir <dir>      Agent Skills output directory (init, default: <project>/.agents/skills)
   --skills-only           Generate Agent Skills only without creating docs/ (init)
@@ -141,12 +140,13 @@ Options:
   --author <name>         Reviewer name (approve)
   --note <text>           Optional approval note (approve)
   --type <type>           Artifact type (list / search / scaffold)
-  --limit <n>             Maximum result count (search default: 20 / retrieve default: 8)
+  --limit <n>             Maximum result count (search default: 20, or 8 with --context)
   --depth <n>             Maximum downstream traversal depth (impact, default: 4)
-  --budget <chars>        Character budget for retrieve output (default: 6000)
-  --no-graph              Disable graph neighborhood expansion in retrieve
-  --semantic              Enable local Embedding + RRF hybrid search in search / retrieve (--no-semantic to disable)
-  --provider <name>       Embedding provider: ollama|openai|gemini (index / search / retrieve, default: ollama)
+  --context               Return budgeted graph-expanded context in search (Goals, Outcomes, Terms, SourceRefs)
+  --budget <chars>        Character budget for search --context output (search, default: 6000)
+  --no-graph              Disable graph neighborhood expansion in search --context (search)
+  --semantic              Enable local Embedding + RRF hybrid search in search (--no-semantic to disable)
+  --provider <name>       Embedding provider: ollama|openai|gemini (index / search, default: ollama)
   --model <id>            Embedding model ID (Ollama default: embeddinggemma / OpenAI default: text-embedding-3-small)
   --endpoint <url>        Ollama / OpenAI-compatible endpoint URL
   --api-key-env <var>     Environment variable name holding the OpenAI-compatible API key (default: OPENAI_API_KEY)
@@ -174,7 +174,7 @@ Options:
   --symbols <a,b>         Comma-separated code symbols (block / term)
   --doc <doc-id>          Target glossary document ID (term upsert, default: domain/glossary)
   --dry-run               Preview planned changes without writing files (block rename)
-  --format <pdf|html>     Output format (export, default: pdf)
+  --format <fmt>          Output format: text|github (check, default: text) or pdf|html (export, default: pdf)
   --ids <a,b,c>           Comma-separated document IDs to export (export)
   --title <text>          Cover title (export) or document/block title (scaffold / block)
   --out <file>            Output file or directory (export default: documi-bundle.pdf|html / build-site default: ./dist-site)
@@ -216,6 +216,7 @@ const CLI_OPTIONS = {
   type: { type: 'string' },
   limit: { type: 'string' },
   depth: { type: 'string' },
+  context: { type: 'boolean' },
   budget: { type: 'string' },
   'no-graph': { type: 'boolean' },
   semantic: { type: 'boolean' },
@@ -265,6 +266,97 @@ class CliArgError extends Error {
   constructor(message: string) {
     super(message)
     this.name = 'CliArgError'
+  }
+}
+
+const GLOBAL_ALLOWED_FLAGS = new Set<string>(['docs', 'project', 'help'])
+
+const COMMAND_ALLOWED_FLAGS: Record<string, ReadonlySet<string>> = {
+  init: new Set(['ja', 'en', 'lang', 'skills-dir', 'skills-only', 'no-skills', 'force-skills', 'json']),
+  serve: new Set(['port', 'host', 'test-report']),
+  mcp: new Set(['test-report']),
+  check: new Set(['mount', 'test-report', 'strict', 'review-gate', 'no-review-edit', 'prs', 'format', 'json']),
+  approve: new Set(['author', 'note']),
+  unapprove: new Set([]),
+  export: new Set(['format', 'scope', 'ids', 'title', 'out', 'test-report']),
+  'build-site': new Set(['out', 'base', 'no-code', 'revisions', 'test-report']),
+  map: new Set(['test-report', 'full', 'json']),
+  list: new Set(['type', 'mount', 'json']),
+  show: new Set(['test-report', 'json']),
+  relations: new Set(['json']),
+  impact: new Set(['depth', 'test-report', 'json']),
+  search: new Set([
+    'type',
+    'mount',
+    'limit',
+    'context',
+    'budget',
+    'no-graph',
+    'semantic',
+    'no-semantic',
+    'provider',
+    'model',
+    'endpoint',
+    'api-key-env',
+    'test-report',
+    'json',
+  ]),
+  index: new Set(['provider', 'model', 'endpoint', 'api-key-env', 'json']),
+  query: new Set([
+    'kind',
+    'intent',
+    'stability',
+    'review',
+    'realization',
+    'suspect',
+    'no-suspect',
+    'mount',
+    'q',
+    'test-report',
+    'full',
+    'json',
+  ]),
+  context: new Set(['test-report', 'full', 'json']),
+  block: new Set([
+    'kind',
+    'id',
+    'body',
+    'body-file',
+    'after-heading',
+    'title',
+    'stability',
+    'intent',
+    'derives',
+    'supersedes',
+    'scope',
+    'aliases',
+    'symbols',
+    'dry-run',
+    'json',
+  ]),
+  term: new Set(['definition', 'body', 'body-file', 'aliases', 'symbols', 'doc', 'json']),
+  scaffold: new Set([
+    'mount',
+    'title',
+    'type',
+    'description',
+    'date',
+    'tags',
+    'derives',
+    'satisfies',
+    'verifies',
+    'body',
+    'body-file',
+    'json',
+  ]),
+}
+
+function validateCommandFlags(command: string, flags: CliFlags): void {
+  const allowed = COMMAND_ALLOWED_FLAGS[command]
+  if (!allowed) return
+  for (const key of Object.keys(flags)) {
+    if (GLOBAL_ALLOWED_FLAGS.has(key) || allowed.has(key)) continue
+    throw new CliArgError(`Option --${key} is not supported by "documi ${command}" (see documi ${command} --help)`)
   }
 }
 
@@ -547,10 +639,59 @@ function parseOptionalReviewGate(flags: CliFlags): ReviewGate | undefined {
   return raw as ReviewGate
 }
 
+function escapeGithubAnnotationData(value: string): string {
+  return value.replaceAll('%', '%25').replaceAll('\r', '%0D').replaceAll('\n', '%0A')
+}
+
+function escapeGithubAnnotationProp(value: string): string {
+  return escapeGithubAnnotationData(value).replaceAll(':', '%3A').replaceAll(',', '%2C')
+}
+
+function toProjectRelAnnotationPath(
+  projectRoot: string,
+  report: Awaited<ReturnType<typeof runDocsCheck>>,
+  rawPath?: string,
+): string | undefined {
+  if (!rawPath) return undefined
+  const doc = report.index.documents.find((d) => d.path === rawPath)
+  if (doc) {
+    const mount = report.index.mounts.find((m) => m.id === doc.mountId)
+    if (mount) {
+      const rel = path
+        .relative(projectRoot, path.join(mount.dir, doc.mountRelPath || doc.path))
+        .split(path.sep)
+        .join('/')
+      if (rel && !rel.startsWith('..')) return rel
+    }
+  }
+  const slashIdx = rawPath.indexOf('/')
+  if (slashIdx > 0) {
+    const prefix = rawPath.slice(0, slashIdx)
+    const mount = report.index.mounts.find((m) => m.prefixed && m.id === prefix)
+    if (mount) {
+      const rel = path
+        .relative(projectRoot, path.join(mount.dir, rawPath.slice(slashIdx + 1)))
+        .split(path.sep)
+        .join('/')
+      if (rel && !rel.startsWith('..')) return rel
+    }
+  }
+  const primaryRel = path.relative(projectRoot, path.join(report.docsDir, rawPath)).split(path.sep).join('/')
+  return rawPath.includes('/') && !primaryRel.startsWith('..')
+    ? rawPath
+    : primaryRel.startsWith('..')
+      ? rawPath
+      : primaryRel
+}
+
 async function cmdCheck(flags: CliFlags, io: CliIo): Promise<number> {
   const { docsDir, docsMounts, projectRoot, testReportPath, testReportPaths, config } = resolveCliPaths(flags)
   const reviewGate = parseOptionalReviewGate(flags) ?? config.reviewGate
   const mount = getStringFlag(flags, 'mount')
+  const format = getStringFlag(flags, 'format') ?? 'text'
+  if (format !== 'text' && format !== 'github') {
+    throw new CliArgError(`Invalid --format for check: "${format}" (allowed: text, github)`)
+  }
 
   const report = await runDocsCheck({
     docsDir,
@@ -578,6 +719,30 @@ async function cmdCheck(flags: CliFlags, io: CliIo): Promise<number> {
       errors: report.errors,
       warnings: report.warnings,
     })
+    return report.ok ? 0 : 1
+  }
+
+  if (format === 'github') {
+    for (const err of report.errors) {
+      const file = toProjectRelAnnotationPath(projectRoot, report, err.path)
+      const props = [
+        file ? `file=${escapeGithubAnnotationProp(file)}` : '',
+        `title=${escapeGithubAnnotationProp(err.code)}`,
+      ]
+        .filter(Boolean)
+        .join(',')
+      io.out(`::error ${props}::${escapeGithubAnnotationData(err.message)}`)
+    }
+    for (const warn of report.warnings) {
+      const file = toProjectRelAnnotationPath(projectRoot, report, warn.path)
+      const props = [
+        file ? `file=${escapeGithubAnnotationProp(file)}` : '',
+        `title=${escapeGithubAnnotationProp(warn.code)}`,
+      ]
+        .filter(Boolean)
+        .join(',')
+      io.out(`::warning ${props}::${escapeGithubAnnotationData(warn.message)}`)
+    }
     return report.ok ? 0 : 1
   }
 
@@ -946,6 +1111,9 @@ async function cmdIndex(flags: CliFlags, io: CliIo): Promise<number> {
 }
 
 async function cmdSearch(positionals: string[], flags: CliFlags, io: CliIo): Promise<number> {
+  if (flags.context === true) {
+    return await cmdSearchContext(positionals, flags, io)
+  }
   const query = positionals.join(' ').trim()
   if (!query) throw new CliArgError('Search query is required (e.g. documi search "Rooted DAG")')
   const type = parseOptionalArtifactType(flags)
@@ -1013,11 +1181,11 @@ async function cmdSearch(positionals: string[], flags: CliFlags, io: CliIo): Pro
   return 0
 }
 
-async function cmdRetrieve(positionals: string[], flags: CliFlags, io: CliIo): Promise<number> {
+async function cmdSearchContext(positionals: string[], flags: CliFlags, io: CliIo): Promise<number> {
   const query = positionals.join(' ').trim()
   if (!query) {
     throw new CliArgError(
-      'Search query or task description is required (e.g. documi retrieve "static site export spec")',
+      'Search query or task description is required (e.g. documi search "static site export spec" --context)',
     )
   }
   const type = parseOptionalArtifactType(flags)
@@ -1483,6 +1651,7 @@ export async function runCli(argv: string[], io: CliIo = DEFAULT_IO): Promise<nu
   }
 
   try {
+    validateCommandFlags(command, flags)
     if (command === 'init') return await cmdInit(flags, io)
     if (command === 'serve') return await cmdServe(flags)
     if (command === 'mcp') return await cmdMcp(flags)
@@ -1497,7 +1666,6 @@ export async function runCli(argv: string[], io: CliIo = DEFAULT_IO): Promise<nu
     if (command === 'relations') return await cmdRelations(positionals, flags, io)
     if (command === 'impact') return await cmdImpact(positionals, flags, io)
     if (command === 'search') return await cmdSearch(positionals, flags, io)
-    if (command === 'retrieve') return await cmdRetrieve(positionals, flags, io)
     if (command === 'index') return await cmdIndex(flags, io)
     if (command === 'query') return await cmdQuery(flags, io)
     if (command === 'context') return await cmdContext(positionals, flags, io)

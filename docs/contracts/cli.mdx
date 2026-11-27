@@ -54,8 +54,7 @@ MCP サーバーを接続しない環境（CLI + Agent Skills 運用やターミ
 | `documi show <doc-id>` | `--json` | 本文・セマンティックブロック・関係・問題一覧を取得 |
 | `documi relations <id>` | `--json` | ドキュメントまたはブロックの外向き・逆参照を取得 |
 | `documi impact <id>` | `--depth <n>`, `--json` | 指定ドキュメントまたはブロックを変更した際に影響する下流文書・ブロック・`<SourceRef>`・コード／テスト参照を再帰走査で一覧化（既定深度 `4`） |
-| `documi search <query...>` | `--type <type>`, `--mount <id>`, `--limit <n>`, `--semantic`/`--no-semantic`, `--provider`, `--model`, `--endpoint`, `--json` | ドキュメントとセマンティックブロックを BM25＋用語集同義語展開（`--semantic` または `rag.enabled` 時はローカル Embedding＋RRF ハイブリッド）で横断全文検索 |
-| `documi retrieve <query...>` | `--type <type>`, `--mount <id>`, `--limit <n>`, `--budget <chars>`, `--no-graph`, `--semantic`/`--no-semantic`, `--provider`, `--model`, `--endpoint`, `--json` | 自然文から BM25（＋任意でローカル Embedding RRF）＋明示グラフ展開で関連 Spec・上流 Goal・Decision `<Outcome>`・用語・`<SourceRef>` を予算内で 1 発取得 |
+| `documi search <query...>` | `--type <type>`, `--mount <id>`, `--limit <n>`, `--context`, `--budget <chars>`, `--no-graph`, `--semantic`/`--no-semantic`, `--provider`, `--model`, `--endpoint`, `--json` | ドキュメントとセマンティックブロックを BM25＋用語集同義語展開（`--semantic` または `rag.enabled` 時はローカル Embedding＋RRF ハイブリッド）で横断検索。`--context` 指定時は上流 Goal・Decision `<Outcome>`・用語・`<SourceRef>` を文字数予算内で 1 発展開 |
 | `documi index` | `--provider <ollama\|openai\|gemini>`, `--model <id>`, `--endpoint <url>`, `--api-key-env <var>`, `--json` | `bun:sqlite` ローカルベクトルキャッシュ（`.documi/cache/embeddings.sqlite`）を `contentHash` 差分で構築・更新 |
 | `documi query` | `--kind`, `--intent`, `--stability`, `--review`, `--realization`, `--suspect`/`--no-suspect`, `--mount <id>`, `--q <text>`, `--json`, `--full` | セマンティックブロックを多軸フィルタ検索（既定は軽量サマリ、`--full` で完全展開） |
 | `documi context <id>` | `--json`, `--full` | Spec の本文・上流 Goal 概要・関連文書・Decision `<Outcome>`・関連用語・`<SourceRef>` を一括集約（`--full` で完全展開） |
@@ -101,6 +100,7 @@ AI エディタ・CLI エージェント向けに **stdio トランスポート*
 | `--strict` | 全 normative ブロックの未承認 (`unreviewed` / `stale`) および `drifted` もエラー扱い（`suspect` は参考通知のまま） |
 | `--no-review-edit` | Git 作業ツリー上で `docs/guard/reviews.json` が変更されていたらエラー（AI 改ざん防止） |
 | `--prs` | `gh` CLI から PR 情報も取得して紐づけ |
+| `--format <text\|github>` | 出力形式（既定 `text`。`github` で GitHub Actions インラインアノテーション `::error`/`::warning` を出力） |
 | `--json` | 検証レポートを JSON 形式で出力 |
 
 ## `documi approve <block-id...>`

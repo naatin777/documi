@@ -46,7 +46,7 @@ tags: [spec, ai, cli, mcp]
 
 <Spec id="core.ai-cli" stability="evolving" derives="goals/ai-reproducibility">
   **When** AI エージェントまたは人間が CLI 経由でプロジェクトマップ・文書検索・Spec 文脈取得・ブロック精密編集を実行するとき、あるいは MCP クライアントが `documi mcp` / `/mcp` に接続するとき、
-  **the** Documi CLI および MCP Server **shall** 共通の Document Core を介して CLI 経路（`map` / `list` / `show` / `relations` / `impact` / `search` / `query` / `context` / `retrieve` / `index` / `block` / `term` / `scaffold`、`--json` 対応）と MCP 経路（`McpServer` の `instructions` 内蔵）の双方を互いに依存せず自己完結して提供する。
+  **the** Documi CLI および MCP Server **shall** 共通の Document Core を介して CLI 経路（`map` / `list` / `show` / `relations` / `impact` / `search`［`--context` グラフ展開対応］ / `index` / `query` / `context` / `block` / `term` / `scaffold`、`--json`・コマンド別フラグ検証・`check --format github` 対応）と MCP 経路（`McpServer` の `instructions` 内蔵・14 ツール）の双方を互いに依存せず自己完結して提供する。
 </Spec>
 
 - **既定コンパクト＋段階開示**: `map` / `query` / `context` は既定で必要最小限の要約・行範囲のみを返し、`--full` / `full: true` 時のみ全文・全トレース配列・全 `<SourceRef>` の公開シンボルを展開する。

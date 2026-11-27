@@ -54,7 +54,7 @@ const DOCUMI_MCP_INSTRUCTIONS = [
   '',
   'Recommended workflow:',
   '1. Progressive disclosure (read before editing):',
-  '   - Call retrieve_context with a natural-language task or question when you do not know the exact Spec ID — it runs BM25 + glossary alias expansion + graph traversal (upstream Goals, Decision <Outcome>s, related docs, Terms, <SourceRef>s) within a character budget.',
+  '   - Call search_documents with includeContext: true for a natural-language task or question when you do not know the exact Spec ID — it runs BM25 + glossary alias expansion + graph traversal (upstream Goals, Decision <Outcome>s, related docs, Terms, <SourceRef>s) within a character budget.',
   '   - Call get_project_map for a project-wide overview (Goal/Architecture summaries, Decision <Outcome>s, Domain Terms, Review/Realization summaries; pass full: true only if full bodies are needed).',
   '   - Call query_specs or search_documents to filter/search specific blocks or docs (query_specs returns compact summaries by default; pass full: true only when full trace arrays are needed).',
   '   - Call get_spec_context for a known Spec ID to inspect its exact body, upstream Goals, and linked code/docs.',
@@ -271,13 +271,30 @@ function createDocumiMcpServer(store: DocsStore, projectRoot?: string, ragConfig
     'search_documents',
     {
       description:
-        'Search documents and semantic blocks using BM25 + glossary alias expansion (or local Embedding + RRF hybrid search when semantic: true or rag.enabled is configured).',
+        'Search documents and semantic blocks using BM25 + glossary alias expansion (or local Embedding + RRF hybrid search when semantic: true or rag.enabled is configured). Pass includeContext: true to expand graph-neighbor context (upstream Goals, Decision <Outcome>s, related Contract/Design docs, Terms, and <SourceRef>s) within a character budget.',
       inputSchema: {
         query: z.string().min(1).describe('Search keywords or natural-language query'),
         type: optionalTypeSchema,
         mount: optionalMountSchema,
-        limit: z.number().int().min(1).max(100).optional().describe('Maximum number of hits (default: 20)'),
+        limit: z
+          .number()
+          .int()
+          .min(1)
+          .max(100)
+          .optional()
+          .describe('Maximum number of hits (default: 20, or 8 when includeContext: true)'),
         semantic: optionalBoolSchema('Run hybrid RRF search with local embeddings'),
+        includeContext: optionalBoolSchema(
+          'Return budgeted graph-expanded context (Goals, Outcomes, Terms, SourceRefs) instead of flat hits',
+        ),
+        budget: z
+          .number()
+          .int()
+          .min(500)
+          .max(40000)
+          .optional()
+          .describe('Character budget when includeContext: true (default: 6000)'),
+        includeGraph: optionalBoolSchema('Include graph-neighbor expansion when includeContext: true (default: true)'),
       },
     },
     async ({
@@ -286,14 +303,36 @@ function createDocumiMcpServer(store: DocsStore, projectRoot?: string, ragConfig
       mount,
       limit,
       semantic,
+      includeContext,
+      budget,
+      includeGraph,
     }: {
       query: string
       type?: ArtifactType
       mount?: string
       limit?: number
       semantic?: boolean
+      includeContext?: boolean
+      budget?: number
+      includeGraph?: boolean
     }) => {
       const useSemantic = semantic ?? ragConfig?.enabled === true
+      if (includeContext) {
+        if (useSemantic) {
+          return jsonResult(
+            await retrieveContextHybrid(store.rootDir, getIndex(), query, {
+              type,
+              mount,
+              limit,
+              budget,
+              includeGraph,
+              ragConfig,
+              projectRoot,
+            }),
+          )
+        }
+        return jsonResult(retrieveContext(getIndex(), query, { type, mount, limit, budget, includeGraph }))
+      }
       if (useSemantic) {
         const res = await searchIndexHybrid(store.rootDir, getIndex(), query, {
           type,
@@ -312,62 +351,6 @@ function createDocumiMcpServer(store: DocsStore, projectRoot?: string, ragConfig
         })
       }
       return jsonResult(searchDocuments(getIndex(), query, { type, mount, limit }))
-    },
-  )
-
-  registerTool(
-    'retrieve_context',
-    {
-      description:
-        'Retrieve budgeted graph context from a natural-language query or task: BM25 + glossary expansion (or hybrid Embedding + RRF) plus upstream Goals, Decision <Outcome>s, related Contract/Design docs, Terms, and <SourceRef>s.',
-      inputSchema: {
-        query: z.string().min(1).describe('Natural-language question or task description'),
-        type: optionalTypeSchema,
-        mount: optionalMountSchema,
-        limit: z.number().int().min(1).max(30).optional().describe('Maximum primary hits (default: 8)'),
-        budget: z
-          .number()
-          .int()
-          .min(500)
-          .max(40000)
-          .optional()
-          .describe('Character budget for returned context (default: 6000)'),
-        includeGraph: optionalBoolSchema('Include graph-neighbor context (default: true)'),
-        semantic: optionalBoolSchema('Run hybrid RRF search with local embeddings'),
-      },
-    },
-    async ({
-      query,
-      type,
-      mount,
-      limit,
-      budget,
-      includeGraph,
-      semantic,
-    }: {
-      query: string
-      type?: ArtifactType
-      mount?: string
-      limit?: number
-      budget?: number
-      includeGraph?: boolean
-      semantic?: boolean
-    }) => {
-      const useSemantic = semantic ?? ragConfig?.enabled === true
-      if (useSemantic) {
-        return jsonResult(
-          await retrieveContextHybrid(store.rootDir, getIndex(), query, {
-            type,
-            mount,
-            limit,
-            budget,
-            includeGraph,
-            ragConfig,
-            projectRoot,
-          }),
-        )
-      }
-      return jsonResult(retrieveContext(getIndex(), query, { type, mount, limit, budget, includeGraph }))
     },
   )
 

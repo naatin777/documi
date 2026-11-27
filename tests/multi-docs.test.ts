@@ -187,4 +187,30 @@ describe('Multi-docs Monorepo Mounts & --mount (core.project-config)', () => {
       expect(res.error.message).toContain('Duplicate docs mount id')
     }
   })
+
+  test('[core.ai-cli] documi check --format github のアノテーション出力とコマンド別フラグ検証が動作する', async () => {
+    const root = await makeMonorepo({
+      'docs/specs/orphan.mdx': `---\ntype: spec\ntitle: Orphan\n---\n\n# Orphan\n\n<Spec id="app.orphan">Orphan spec</Spec>\n`,
+    })
+
+    // --format github で ::error file=docs/specs/orphan.mdx,title=orphan-spec::... を出力
+    const out: string[] = []
+    const code = await runCli(['check', '--project', root, '--format', 'github'], {
+      out: (s) => out.push(s),
+      err: () => {},
+      readStdin: async () => '',
+    })
+    expect(code).toBe(1)
+    expect(out.join('\n')).toContain('::error file=docs/specs/orphan.mdx,title=orphan-spec::')
+
+    // コマンド非対応フラグ（list --strict）を明確に拒否
+    const flagErrs: string[] = []
+    const badCode = await runCli(['list', '--project', root, '--strict'], {
+      out: () => {},
+      err: (s) => flagErrs.push(s),
+      readStdin: async () => '',
+    })
+    expect(badCode).toBe(1)
+    expect(flagErrs.join('\n')).toContain('Option --strict is not supported by "documi list"')
+  })
 })

@@ -151,7 +151,7 @@ describe('BM25 + Glossary Alias Expansion + Graph-Aware Retrieval', () => {
     expect(tight.budgetUsed).toBeLessThanOrEqual(500)
   })
 
-  test('[core.graph-retrieval] RRF 統合・CLI documi retrieve・MCP retrieve_context が動作する', async () => {
+  test('[core.graph-retrieval] RRF 統合・CLI documi search --context・MCP search_documents (includeContext) が動作する', async () => {
     // RRF は複数ランキングで上位に共通出現する要素を最上位にする
     const fused = reciprocalRankFusion([
       [{ key: 'a' }, { key: 'b' }, { key: 'c' }],
@@ -160,9 +160,9 @@ describe('BM25 + Glossary Alias Expansion + Graph-Aware Retrieval', () => {
     expect((fused.get('b') ?? 0) > (fused.get('a') ?? 0)).toBe(true)
     expect((fused.get('b') ?? 0) > (fused.get('d') ?? 0)).toBe(true)
 
-    // CLI documi retrieve (--json & テキスト)
+    // CLI documi search --context (--json & テキスト)
     const out: string[] = []
-    const code = await runCli(['retrieve', 'アカウント凍結', '--project', projectDir, '--json'], {
+    const code = await runCli(['search', 'アカウント凍結', '--context', '--project', projectDir, '--json'], {
       out: (l) => out.push(l),
       err: () => {},
       readStdin: async () => '',
@@ -173,7 +173,7 @@ describe('BM25 + Glossary Alias Expansion + Graph-Aware Retrieval', () => {
     expect(parsed.upstreamGoals.map((g) => g.id)).toContain('goals/security')
 
     const textOut: string[] = []
-    const textCode = await runCli(['retrieve', 'アカウント凍結', '--project', projectDir], {
+    const textCode = await runCli(['search', 'アカウント凍結', '--context', '--project', projectDir], {
       out: (l) => textOut.push(l),
       err: () => {},
       readStdin: async () => '',
@@ -182,7 +182,7 @@ describe('BM25 + Glossary Alias Expansion + Graph-Aware Retrieval', () => {
     expect(textOut.join('\n')).toContain('Retrieve "アカウント凍結"')
     expect(textOut.join('\n')).toContain('auth.lockout')
 
-    // MCP retrieve_context
+    // MCP search_documents (includeContext: true)
     const store = await DocsStore.open(docsDir, { projectRoot: projectDir })
     const app = createApp(store, { projectRoot: projectDir })
     const res = await app.fetch(
@@ -196,7 +196,10 @@ describe('BM25 + Glossary Alias Expansion + Graph-Aware Retrieval', () => {
           jsonrpc: '2.0',
           id: 1,
           method: 'tools/call',
-          params: { name: 'retrieve_context', arguments: { query: 'アカウント凍結の設計', budget: 4000 } },
+          params: {
+            name: 'search_documents',
+            arguments: { query: 'アカウント凍結の設計', includeContext: true, budget: 4000 },
+          },
         }),
       }),
     )

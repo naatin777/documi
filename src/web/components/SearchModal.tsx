@@ -4,7 +4,7 @@ import { useNavigate } from 'react-router'
 import type { SearchHit } from '../../core/bundle'
 import { encodeDocId } from '../api'
 import { useDebouncedValue } from '../hooks'
-import { useSearchQuery } from '../queries'
+import { useSearchQuery, useTreeQuery } from '../queries'
 import { AppDialog } from './ui/Dialog'
 
 interface SearchModalProps {
@@ -22,6 +22,17 @@ export default function SearchModal({ open, onClose }: SearchModalProps) {
 
   const debouncedQuery = useDebouncedValue(query, 120, open)
   const searchQuery = useSearchQuery(debouncedQuery, open)
+  const treeQuery = useTreeQuery()
+  const mountLabelByDocId = useMemo(() => {
+    const mounts = treeQuery.data?.mounts
+    if (!mounts || mounts.length <= 1) return null
+    const labelByMount = new Map(mounts.map((m) => [m.id, m.label]))
+    const map = new Map<string, string>()
+    for (const d of treeQuery.data?.documents ?? []) {
+      map.set(d.id, labelByMount.get(d.mountId) ?? d.mountId)
+    }
+    return map
+  }, [treeQuery.data?.mounts, treeQuery.data?.documents])
   const results = useMemo(
     () => (debouncedQuery ? (searchQuery.data?.results ?? []) : []),
     [debouncedQuery, searchQuery.data?.results],
@@ -99,6 +110,11 @@ export default function SearchModal({ open, onClose }: SearchModalProps) {
               {hit.blockKind && (
                 <span className="shrink-0 rounded bg-accent-soft px-[5px] py-px text-[10px] font-bold text-fg-muted uppercase">
                   {hit.blockKind}
+                </span>
+              )}
+              {mountLabelByDocId?.get(hit.docId) && (
+                <span className="shrink-0 rounded border border-line bg-subtle px-1.5 py-px text-[10px] font-semibold text-fg-muted">
+                  {mountLabelByDocId.get(hit.docId)}
                 </span>
               )}
               <strong className="text-[13.5px]">{hit.title}</strong>

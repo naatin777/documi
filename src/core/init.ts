@@ -177,7 +177,7 @@ description: Documi CLI を使って Living Specification（仕様・設計・AD
 
 ## 1. 段階的コンテキスト取得（実装前に読む）
 
-1. **Spec ID がまだ分からないタスク**: \`documi retrieve "<自然文のタスクや質問>"\` — BM25＋用語集同義語展開＋グラフ展開で関連 Spec・上流 Goal・Decision \`<Outcome>\`・用語・\`<SourceRef>\` を文字数予算内で 1 発取得する。
+1. **Spec ID がまだ分からないタスク**: \`documi search "<自然文のタスクや質問>" --context\` — BM25＋用語集同義語展開＋グラフ展開で関連 Spec・上流 Goal・Decision \`<Outcome>\`・用語・\`<SourceRef>\` を文字数予算内で 1 発取得する。
 2. **全体像の把握**: \`documi map\` — Goal・Architecture・Decision \`<Outcome>\`・ドメイン用語・Review / Realization 全体像を一括取得する（機械処理時は \`documi map --json\`）。
 3. **条件絞り込み・横断検索**: \`documi query [--kind spec] [--review ...] [--realization ...] [--q <語>]\` または \`documi search "<query>"\`。
 4. **特定 Spec の深掘り・変更影響の確認**: \`documi context <spec-id>\` で対象 Spec 本文・上流 Goal・関連文書・用語・\`<SourceRef>\` を取得する。**仕様変更の前には必ず \`documi impact <id>\` を実行し、影響を受ける全下流文書・ブロック・コード・テストを洗い出す**（全文や直接参照だけ見たい場合は \`documi show <doc-id>\` / \`documi relations <id>\`）。
@@ -391,7 +391,7 @@ Prefer the **default compact text output** for reading to minimize token usage; 
 
 ## 1. Progressive Disclosure (Read Before Coding)
 
-1. **Unknown Spec ID / natural-language task**: Run \`documi retrieve "<task or question>"\` — combines BM25, glossary alias expansion, and graph traversal (upstream Goals, Decision \`<Outcome>\`s, related docs, Terms, \`<SourceRef>\`s) within a character budget in one shot.
+1. **Unknown Spec ID / natural-language task**: Run \`documi search "<task or question>" --context\` — combines BM25, glossary alias expansion, and graph traversal (upstream Goals, Decision \`<Outcome>\`s, related docs, Terms, \`<SourceRef>\`s) within a character budget in one shot.
 2. **Project overview**: Run \`documi map\` to load Goals, Architecture summaries, Decision \`<Outcome>\` blocks, Domain Terms, and Review / Realization status (use \`documi map --json\` for structured output).
 3. **Filtering & search**: Run \`documi query [--kind spec] [--review ...] [--realization ...] [--q <text>]\` or \`documi search "<query>"\`.
 4. **Target Spec deep dive & blast-radius check**: Run \`documi context <spec-id>\` for its spec body, upstream Goals, related Design/Contract docs, Terms, and \`<SourceRef>\` anchors. **Before changing any spec, run \`documi impact <id>\` to list every affected downstream doc, block, code anchor, and test** (use \`documi show <doc-id>\` or \`documi relations <id>\` for full prose or direct edges).
