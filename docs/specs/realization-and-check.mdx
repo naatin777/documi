@@ -49,7 +49,7 @@ tags: [spec, realization, ast, check]
 
 <Spec id="core.doc-health" stability="evolving" derives="goals/low-friction-governance">
   **When** `documi check`・`documi map`・MCP `get_project_map` / `validate_docs`・REST `/api/overview` / `/api/check` が実行されたとき、
-  **the** Document Core **shall** 全 `normative` `<Spec>` に対する `design` (`satisfies`) および `<Test>` (`verifies`) カバレッジ、1 ファイルあたり推奨上限を超えた肥大化 `spec` 文書、外向きトレース辺が集中しすぎた `design` ハブ文書、および全体設計（`design` / `scope: system`）の鮮度ギャップを CI を失敗させない Advisory 健全性ヒントとして算出・提示する。
+  **the** Document Core **shall** 全 `normative` `<Spec>` に対する `design` (`satisfies`) および `<Test>` (`verifies`) カバレッジ、肥大化 `spec`・過密 `design` ハブ・全体設計鮮度差・禁止語混入に加え、`<SourceRef>` の脆い結合（`lines=` 参照・`design` 外配置）およびワークスペース逆方向漏れ（`AGENTS.md`/`CLAUDE.md` 肥大化・コード／スキル変更時の `docs/` 未更新）を CI を失敗させない Advisory 健全性ヒントとして算出・提示する。
 </Spec>
 
 | ヒントコード | 発火条件（すべて非ブロッキング Advisory） |
@@ -60,6 +60,10 @@ tags: [spec, realization, ast, check]
 | `overloaded-hub-doc` | 1 つの `design` 文書から伸びる一意な `satisfies` トレース辺が既定安全網 **10 件**を超過（巨大ハブ化を防ぐため機能領域単位での分割を検討） |
 | `stale-system-design` | `scope: system` の `design` 文書の最終更新より 24 時間以上後に更新された他文書が **5 件以上**存在 |
 | `anti-term-used` | `spec` / `contract` / `design` の `normative` な `<Spec>` / `<Decision>` 本文（コード片除く）に `<TermDef antiTerms="...">` の禁止語が混入 |
+| `source-ref-fragile-lines` | `<SourceRef lines="...">`（行番号範囲参照）を使用している（内部リファクタで壊れやすいため `mode="exports"` または `symbol="..."` の公開境界参照を推奨） |
+| `source-ref-outside-design` | `design` 以外の文書（`goal` / `spec` / `contract` / `domain` / `decision` / `guide`）に `<SourceRef>` を配置している（仕様・契約は振る舞いと `<Test>` に結合し、ソース参照は `design` に閉じる） |
+| `agents-md-bloated` | `projectRoot` 直下の `AGENTS.md` または `CLAUDE.md` が既定推奨上限 **100 行**を超過（常時ロード指示を最小限に保ち、仕様・制約・地雷を `docs/` へ分離することを推奨） |
+| `docs-sync-missing` | Git 作業ツリー／ステージで実装コード（`src/` 等）または Agent Skills（`.agents/skills/` / `.claude/skills/` / `.cursor/skills/`）に変更がある一方、`docs/`（`reviews.json` 除く）の変更が 0 件 |
 
 <Spec id="core.ast-exports" stability="evolving" derives="goals/human-comprehension">
   **When** `<SourceRef file="src/..." mode="exports" />`・`GET /api/source/exports`・Code Explorer (`/api/code/file`)・`documi context` / MCP `get_spec_context` がソースファイルの公開シンボルを要求したとき、
@@ -78,7 +82,7 @@ tags: [spec, realization, ast, check]
 </Test>
 
 <Test id="test.core.doc-health-and-exports" verifies="core.doc-health, core.ast-exports" level="unit">
-  - **Given**: 未カバー Spec・11 件超の `satisfies` を持つ `design`・TS/Go/Rust/Python ソースファイル
-  - **When**: `computeDocumentHealth()` および `extractExportedSymbols()` を実行する
-  - **Then**: `missing-design` / `missing-test` / `overloaded-hub-doc` が Advisory ヒントとして算出され、公開シンボルのみが抽出される
+  - **Given**: 未カバー Spec・11 件超の `satisfies` を持つ `design`・`<SourceRef lines="...">` や `design` 外 `<SourceRef>`・100 行超の `AGENTS.md`・`src/` / `.agents/skills/` のみ未コミット変更された Git リポジトリ・TS/Go/Rust/Python ソースファイル
+  - **When**: `computeDocumentHealth()`・`runDocsCheck()` および `extractExportedSymbols()` を実行する
+  - **Then**: `missing-design` / `missing-test` / `overloaded-hub-doc` / `source-ref-fragile-lines` / `source-ref-outside-design` / `agents-md-bloated` / `docs-sync-missing` が非ブロッキング Advisory ヒントとして算出され、公開シンボルのみが抽出される
 </Test>

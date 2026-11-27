@@ -108,6 +108,36 @@ export function isGitPathDirty(projectRoot: string, targetPath: string): boolean
   return Boolean(status && status.length > 0)
 }
 
+/** projectRoot 配下の未コミット・ステージ・未追跡ファイル一覧（projectRoot 相対 POSIX パス）を返す。非 Git 環境では undefined */
+export function listGitDirtyPaths(projectRoot: string): string[] | undefined {
+  const absRoot = safeRealpath(projectRoot)
+  const rawTop = runGit(absRoot, ['rev-parse', '--show-toplevel'])
+  if (!rawTop) return undefined
+  const gitRoot = safeRealpath(rawTop.trim())
+  const relPrefix = toPosix(path.relative(gitRoot, absRoot))
+  if (relPrefix.startsWith('..') || path.isAbsolute(relPrefix)) return undefined
+  const prefix = relPrefix === '.' || relPrefix === '' ? '' : `${relPrefix}/`
+
+  const raw = runGit(gitRoot, ['status', '--porcelain=v1', '-z', '-uall', '--', prefix || '.'])
+  if (raw === undefined) return undefined
+  if (!raw) return []
+
+  const dirty: string[] = []
+  const entries = raw.split('\0')
+  for (let i = 0; i < entries.length; i++) {
+    const entry = entries[i]
+    if (!entry || entry.length < 4) continue
+    const xy = entry.slice(0, 2)
+    const filePath = entry.slice(3)
+    if (xy[0] === 'R' || xy[0] === 'C' || xy[1] === 'R' || xy[1] === 'C') {
+      i++
+    }
+    const rel = prefix ? (filePath.startsWith(prefix) ? filePath.slice(prefix.length) : undefined) : filePath
+    if (rel) dirty.push(rel)
+  }
+  return dirty
+}
+
 function hunksToChangedRanges(hunks: readonly StructuredPatchHunk[], bodyLineOffset: number): ChangedLineRange[] {
   const ranges: ChangedLineRange[] = []
   for (const hunk of hunks) {

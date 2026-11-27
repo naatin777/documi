@@ -1,9 +1,16 @@
+import { existsSync, readFileSync } from 'node:fs'
+import path from 'node:path'
+import { listGitDirtyPaths } from './git'
+import { REVIEWS_REL_PATH } from './reviews'
 import type { DocsIndex } from './types'
 
 const DEFAULT_MAX_SPECS_PER_DOC = 10
 const DEFAULT_MAX_TRACE_TARGETS_PER_DOC = 10
+const DEFAULT_MAX_AGENT_FILE_LINES = 100
 const STALE_ARCH_MIN_NEWER_DOCS = 5
 const STALE_ARCH_GRACE_MS = 24 * 60 * 60 * 1000
+const AGENT_INSTRUCTION_FILES = ['AGENTS.md', 'CLAUDE.md'] as const
+const CODE_OR_SKILL_PATH_RE = /^(?:src|lib|app|packages|\.(?:agents|claude|cursor)\/skills)\//
 
 type DocumentHealthHintCode =
   | 'missing-design'
@@ -12,6 +19,10 @@ type DocumentHealthHintCode =
   | 'overloaded-hub-doc'
   | 'stale-system-design'
   | 'anti-term-used'
+  | 'source-ref-fragile-lines'
+  | 'source-ref-outside-design'
+  | 'agents-md-bloated'
+  | 'docs-sync-missing'
 
 interface DocumentHealthHint {
   code: DocumentHealthHintCode
@@ -52,6 +63,15 @@ interface AntiTermUsageInfo {
   preferredTermId: string
 }
 
+export interface WorkspaceHealthSignals {
+  /** projectRoot 直下の AGENTS.md / CLAUDE.md の実測行数 */
+  agentFiles?: Array<{ path: string; lineCount: number }>
+  /** Git 作業ツリー／ステージ上の変更パス（projectRoot 相対 POSIX パス） */
+  dirtyPaths?: string[]
+  /** projectRoot 相対の docs マウントディレクトリ一覧 */
+  docsRelDirs?: string[]
+}
+
 export interface DocumentHealthSummary {
   totalNormativeSpecs: number
   designCoveredSpecs: number
@@ -68,8 +88,49 @@ export interface DocumentHealthSummary {
 interface ComputeHealthOptions {
   /** 1 つの spec ドキュメントに含める推奨最大 <Spec> 数（超過で分割推奨ヒントを出す） */
   maxSpecsPerDoc?: number
-  /** 1 つの design / verification から伸ばす推奨最大トレース辺数（超過で分割推奨ヒントを出す） */
+  /** 1 つの design から伸ばす推奨最大トレース辺数（超過で分割推奨ヒントを出す） */
   maxTraceTargetsPerDoc?: number
+  /** AGENTS.md / CLAUDE.md の推奨最大行数（超過で docs/ への分離を促す） */
+  maxAgentFileLines?: number
+  /** ワークスペース由来の逆方向漏れシグナル（AGENTS.md 行数・Git 変更パス） */
+  workspace?: WorkspaceHealthSignals
+}
+
+/**
+ * projectRoot 直下の AGENTS.md / CLAUDE.md 行数および Git 未コミット変更パスを収集する。
+ * 非 Git 環境やファイル不在時は安全に空値へフォールバックする。
+ */
+export function collectWorkspaceHealthSignals(projectRoot: string, index: DocsIndex): WorkspaceHealthSignals {
+  const absRoot = path.resolve(projectRoot)
+  const agentFiles: Array<{ path: string; lineCount: number }> = []
+  for (const name of AGENT_INSTRUCTION_FILES) {
+    const absPath = path.join(absRoot, name)
+    if (!existsSync(absPath)) continue
+    try {
+      const content = readFileSync(absPath, 'utf-8')
+      const normalized = content.endsWith('\n') ? content.slice(0, -1) : content
+      const lineCount = normalized.length === 0 ? 0 : normalized.split('\n').length
+      agentFiles.push({ path: name, lineCount })
+    } catch {
+      // 読み取り不能時は無視
+    }
+  }
+
+  const mountDirs = index.mounts.length > 0 ? index.mounts.map((m) => m.dir) : [index.rootDir]
+  const docsRelDirs: string[] = []
+  for (const dir of mountDirs) {
+    const rel = path.relative(absRoot, path.resolve(dir)).split(path.sep).join('/')
+    if (rel && !rel.startsWith('..') && !path.isAbsolute(rel)) {
+      docsRelDirs.push(rel.replace(/\/+$/, ''))
+    }
+  }
+
+  const dirtyPaths = listGitDirtyPaths(absRoot)
+  return {
+    agentFiles,
+    dirtyPaths,
+    docsRelDirs,
+  }
 }
 
 // @implements core.doc-health
@@ -221,6 +282,8 @@ export function computeDocumentHealth(index: DocsIndex, options: ComputeHealthOp
   }
 
   const antiTermUsages = detectAntiTermUsages(index, hints)
+  detectFragileSourceRefs(index, hints)
+  detectWorkspaceReverseLeaks(options.workspace, options.maxAgentFileLines ?? DEFAULT_MAX_AGENT_FILE_LINES, hints)
 
   return {
     totalNormativeSpecs,
@@ -233,6 +296,75 @@ export function computeDocumentHealth(index: DocsIndex, options: ComputeHealthOp
     staleSystemDesignDocs,
     antiTermUsages,
     hints,
+  }
+}
+
+function detectFragileSourceRefs(index: DocsIndex, hints: DocumentHealthHint[]): void {
+  for (const doc of index.documents) {
+    if (doc.sourceRefs.length === 0) continue
+    if (doc.type !== 'design') {
+      hints.push({
+        code: 'source-ref-outside-design',
+        message: `${doc.path} (type: ${doc.type}) contains ${doc.sourceRefs.length} <SourceRef> tag(s) (keep code references inside design docs so specs/contracts stay coupled to behavior)`,
+        path: doc.path,
+        docId: doc.id,
+      })
+    }
+    for (const ref of doc.sourceRefs) {
+      if (ref.mode !== 'lines') continue
+      hints.push({
+        code: 'source-ref-fragile-lines',
+        message: `${doc.path} uses fragile line-range <SourceRef file="${ref.file}" lines="${ref.lines}" /> (prefer mode="exports" or symbol="..." for refactoring resilience)`,
+        path: doc.path,
+        docId: doc.id,
+      })
+    }
+  }
+}
+
+function detectWorkspaceReverseLeaks(
+  workspace: WorkspaceHealthSignals | undefined,
+  maxAgentFileLines: number,
+  hints: DocumentHealthHint[],
+): void {
+  if (!workspace) return
+
+  for (const agentFile of workspace.agentFiles ?? []) {
+    if (agentFile.lineCount > maxAgentFileLines) {
+      hints.push({
+        code: 'agents-md-bloated',
+        message: `${agentFile.path} has ${agentFile.lineCount} lines (recommended max: ${maxAgentFileLines}; keep standing agent instructions minimal and move specs/rules/gotchas into docs/)`,
+        path: agentFile.path,
+      })
+    }
+  }
+
+  const dirtyPaths = workspace.dirtyPaths
+  if (!dirtyPaths || dirtyPaths.length === 0) return
+
+  const docsRelDirs = workspace.docsRelDirs && workspace.docsRelDirs.length > 0 ? workspace.docsRelDirs : ['docs']
+  let hasDocsChange = false
+  const codeOrSkillChanges: string[] = []
+
+  for (const p of dirtyPaths) {
+    const isUnderDocs = docsRelDirs.some((dir) => p === dir || p.startsWith(`${dir}/`))
+    if (isUnderDocs) {
+      const isReviewsGuard = p === REVIEWS_REL_PATH || p.endsWith(`/${REVIEWS_REL_PATH}`)
+      if (!isReviewsGuard) hasDocsChange = true
+      continue
+    }
+    if (CODE_OR_SKILL_PATH_RE.test(p)) {
+      codeOrSkillChanges.push(p)
+    }
+  }
+
+  if (codeOrSkillChanges.length > 0 && !hasDocsChange) {
+    const sample = codeOrSkillChanges.slice(0, 3).join(', ')
+    const suffix = codeOrSkillChanges.length > 3 ? `, +${codeOrSkillChanges.length - 3} more` : ''
+    hints.push({
+      code: 'docs-sync-missing',
+      message: `${codeOrSkillChanges.length} code/skill file(s) changed (${sample}${suffix}) with no docs/ updates — verify whether goals, specs, designs, or decisions need syncing`,
+    })
   }
 }
 
