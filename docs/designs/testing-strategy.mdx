@@ -33,7 +33,7 @@ Documi の検証は **仕様同居の保証シナリオ（`<Test>`）** と **�
 
 ## 3. 品質ゲート（マージ前必須コマンド）
 
-PR および変更完了時は、以下をすべてエラー・警告 0 件で通過させる。
+PR および変更完了時は、以下をすべてエラー・警告 0 件で通過させる。加えて、PR 作成直前に **① 会話で合意した原則・判断・地雷の `docs/` 昇格漏れ確認（Context Drift 防止）** と **② 会話履歴を持たない別コンテキスト（サブエージェント等）での差分クロスチェック** を行う。
 
 ```bash
 mkdir -p .documi && bun test --reporter=junit --reporter-outfile=.documi/test-results.xml
