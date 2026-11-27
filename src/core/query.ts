@@ -89,6 +89,17 @@ function toMapDocEntry(d: DocsIndex['documents'][number], full: boolean) {
 export function buildProjectMap(index: DocsIndex, options: { full?: boolean } = {}) {
   const full = options.full === true
   const goals = index.documents.filter((d) => d.type === 'goal').map((d) => toMapDocEntry(d, full))
+  const goalConstraints = [...index.blocksById.values()]
+    .filter((b) => b.kind === 'constraint' && index.byId.get(b.docId)?.type === 'goal')
+    .map((b) => {
+      const item: { id: string; docId: string; scope?: string; body: string } = {
+        id: b.id,
+        docId: b.docId,
+        body: full ? b.rawBody : summarizeText(b.rawBody, 200),
+      }
+      if (b.kind === 'constraint' && b.scope) item.scope = b.scope
+      return item
+    })
   const systemDesigns = index.documents
     .filter((d) => d.type === 'design' && d.scope === 'system')
     .map((d) => toMapDocEntry(d, full))
@@ -181,6 +192,7 @@ export function buildProjectMap(index: DocsIndex, options: { full?: boolean } = 
     realizationSummary,
     health,
     goals,
+    goalConstraints,
     systemDesigns,
     domainModels,
     domainInvariants,

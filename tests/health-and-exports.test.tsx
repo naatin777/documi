@@ -106,7 +106,7 @@ describe('Document Health & Coverage (core.doc-health)', () => {
 
   test('[core.doc-health] design (scope: system) 最終更新以降に 5 件以上の spec / design が更新されると stale-system-design ヒントを出す', async () => {
     const files: Record<string, string> = {
-      'docs/goals/root.mdx': `---\ntype: goal\ntitle: Root\n---\n\n# Root\n`,
+      'docs/goals/root.mdx': `---\ntype: goal\ntitle: Root\n---\n\n# Root\n\n<Constraint id="goal.pre-release" scope="workflow" stability="evolving">\n  未リリース期間中は後方互換シムを溜めない。\n</Constraint>\n`,
       'docs/designs/overview.mdx': `---\ntype: design\nscope: system\ntitle: Overview\n---\n\n# Overview\n`,
     }
     for (let i = 1; i <= 5; i++) {
@@ -132,7 +132,7 @@ describe('Document Health & Coverage (core.doc-health)', () => {
   test('[core.doc-health] design の外向き satisfies 辺が 10 件を超えると overloaded-hub-doc ヒントを出す', async () => {
     const specIds = Array.from({ length: 11 }, (_, i) => `cap.spec${i + 1}`)
     const files: Record<string, string> = {
-      'docs/goals/root.mdx': `---\ntype: goal\ntitle: Root\n---\n\n# Root\n`,
+      'docs/goals/root.mdx': `---\ntype: goal\ntitle: Root\n---\n\n# Root\n\n<Constraint id="goal.pre-release" scope="workflow" stability="evolving">\n  未リリース期間中は後方互換シムを溜めない。\n</Constraint>\n`,
       'docs/specs/part-a.mdx': `---\ntype: spec\ntitle: Part A\n---\n\n# Part A\n\n${specIds
         .slice(0, 6)
         .map((id) => `<Spec id="${id}" derives="goals/root">Rule ${id}</Spec>`)
@@ -157,7 +157,7 @@ describe('Document Health & Coverage (core.doc-health)', () => {
 
   test('[core.doc-health] <TermDef antiTerms> 違反を anti-term-used ヒントで検知し、domainInvariants と /api/terms usedIn を返す', async () => {
     const { projectRoot, docsDir } = await makeTempProject({
-      'docs/goals/root.mdx': `---\ntype: goal\ntitle: Root\n---\n\n# Root\n`,
+      'docs/goals/root.mdx': `---\ntype: goal\ntitle: Root\n---\n\n# Root\n\n<Constraint id="goal.pre-release" scope="workflow" stability="evolving">\n  未リリース期間中は後方互換シムを溜めない。\n</Constraint>\n`,
       'docs/domain/glossary.mdx': `---\ntype: domain\ntitle: Glossary\n---\n\n# Glossary\n\n<TermDef id="Customer" aliases="顧客" antiTerms="Client, UserEntity" context="billing">\n  請求対象の契約者。\n</TermDef>\n`,
       'docs/domain/model.mdx': `---\ntype: domain\ntitle: Domain Model\n---\n\n# Domain Model\n\n<Constraint id="domain.customer-id" scope="billing" stability="stable">\n  Customer ID は不変である。\n</Constraint>\n`,
       'docs/specs/billing.mdx': `---\ntype: spec\ntitle: Billing Spec\n---\n\n# Billing Spec\n\n<Spec id="billing.charge" derives="goals/root">\n  <Term name="Customer" /> に課金する。Client へ通知する（コード上の \`UserEntity\` は対象外）。\n</Spec>\n`,
@@ -172,6 +172,7 @@ describe('Document Health & Coverage (core.doc-health)', () => {
     expect(health.hints.some((h) => h.code === 'anti-term-used')).toBe(true)
 
     const map = buildProjectMap(index)
+    expect(map.goalConstraints.map((c) => c.id)).toEqual(['goal.pre-release'])
     expect(map.domainModels.map((d) => d.id)).toEqual(['domain/model'])
     expect(map.domainInvariants.map((c) => c.id)).toEqual(['domain.customer-id'])
     expect(map.terms[0]?.antiTerms).toEqual(['Client', 'UserEntity'])
@@ -267,7 +268,7 @@ pub fn run_engine() {}
         'function hiddenHelper() { return 1 }',
         'export function buildGreeting(input: ServiceInput): string { return input.name + hiddenHelper() }',
       ].join('\n'),
-      'docs/goals/root.mdx': `---\ntype: goal\ntitle: Root\n---\n\n# Root\n`,
+      'docs/goals/root.mdx': `---\ntype: goal\ntitle: Root\n---\n\n# Root\n\n<Constraint id="goal.pre-release" scope="workflow" stability="evolving">\n  未リリース期間中は後方互換シムを溜めない。\n</Constraint>\n`,
       'docs/specs/service.mdx': `---\ntype: spec\ntitle: Service Spec\n---\n\n# Service Spec\n\n<Spec id="svc.greet" derives="goals/root">Service greets caller.</Spec>\n\n<Test id="test.svc.greet" verifies="svc.greet" level="unit">Given/When/Then</Test>\n`,
       'src/helper.ts': 'export function unrelatedHelper(): number { return 1 }\n',
       'docs/designs/service.mdx': `---\ntype: design\ntitle: Service Design\nsatisfies:\n  - svc.greet\n---\n\n# Service Design\n\n<SourceRef file="src/service.ts" mode="exports" satisfies="svc.greet" />\n\n<SourceRef file="src/helper.ts" symbol="unrelatedHelper" />\n`,
