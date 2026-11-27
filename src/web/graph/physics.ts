@@ -42,9 +42,7 @@ export const TYPE_COLORS: Record<ArtifactType, string> = {
   domain: '#0ea5e9',
   spec: '#3b82f6',
   contract: '#22c55e',
-  architecture: '#8b5cf6',
   design: '#14b8a6',
-  verification: '#ef4444',
   guide: '#d946ef',
 }
 

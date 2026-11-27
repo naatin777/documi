@@ -46,3 +46,11 @@ tags: [spec, review, governance]
   - `stale` カードは承認時点からの行 Diff を初期展開し枠線を強調する。`suspect` のみのカードは控えめな参考通知バナーに留める。
   - ローカルモード時のみ、複数選択チェックボックス＋「選択した N 件を AI クイズでレビュー」コピー、各カードの「AI クイズ」「AI へ伝える」コピー、承認・承認取り消しボタンを表示する（静的サイトモードでは非表示）。
   - Stability は MDX 由来の読み取り専用バッジとして表示する（`reviews.json` 側の上書き UI は持たない）。
+
+## 保証シナリオ
+
+<Test id="test.human-review" verifies="core.human-review, ui.human-review" level="integration">
+  - **Given**: 未承認・承認済み・変更済み（stale）・上流変更（suspect）のブロックと `guard/reviews.json`
+  - **When**: ローカル Origin / 非ローカル Origin から承認 API・CLI を実行する
+  - **Then**: 非ローカル Origin は 403 で拒否され、正当な承認・メモ記録・取り消し・ハッシュ差分算出がサイドカーへ正確に反映される
+</Test>

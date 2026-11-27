@@ -27,7 +27,7 @@ documi mcp --project /path/to/repo            # stdio MCP サーバー起動 (MC
 `documi init` は `AGENTS.md` 等と競合させないよう、標準 **Agent Skills** 形式（`.agents/skills/`）で CLI ベースの以下 4 つのスキルを自動配置します：
 
 - **`documi/SKILL.md`**: 日常開発で `documi map` → `documi query` / `search` / `retrieve` → `documi context` → 精密編集（`documi block` / `term` / `scaffold`）→ `documi check` を使う運用スキル（再現性 4 チェック込み）
-- **`documi-bootstrap/SKILL.md`**: 既存コードベース（Brownfield）を棚卸しし、初期 Goal・Architecture・用語集・コア仕様を段階的に立ち上げるスキル
+- **`documi-bootstrap/SKILL.md`**: 既存コードベース（Brownfield）を棚卸しし、初期 Goal・System Design・用語集・コア仕様を段階的に立ち上げるスキル
 - **`documi-review/SKILL.md`**: 未承認・`stale`・`suspect` な仕様を 2〜3 件ずつ取り上げ、エッジケースの選択式クイズで人間と AI の認識ズレを炙り出し、合意後に人間専用の最終確認 URL・承認コマンドを引き継ぐ対話レビュースキル
 - **`documi-audit/SKILL.md`**: 実コード・テストと `docs/` を突き合わせ、「別 AI でも同じ挙動を再現できる解像度」に不足している境界条件・優先順位・スキーマ・外部契約・ADR 漏れを監査して肉付けするスキル
 
@@ -68,7 +68,7 @@ Documi は **AI が CLI / MCP で仕様・設計・コード・テストを書�
 
 - frontmatter に任意で ISO 8601 の **`date: YYYY-MM-DD`**（または `YYYY-MM`、MADR 4.0 準拠）を付けると、一覧や Overview で新しい決定日順に並びます。
 - ファイル名の日付プレフィックス（例: `decisions/2026-11-hono-rpc-and-zod-api.mdx`）は強制ではありませんが、並列作成時の衝突回避と履歴の可読性のため推奨します。
-- 決定の結論は 2〜3 行で `<Outcome id="dec.xxx">` に囲むと、AI への常時コンテキストとして優先投入されます。
+- 決定の結論は 2〜3 行で `<Decision id="dec.xxx">` に囲むと、AI への常時コンテキストとして優先投入されます。
 
 ## テスト結果の反映・CI・`CODEOWNERS`
 
@@ -104,7 +104,7 @@ bun run documi:export -- --scope all --format html --out spec.html
 
 ## 検索・ローカル Hybrid RAG（BM25 + Embedding + グラフ展開）
 
-既定で **日本語・英語・コード識別子対応 BM25 ＋ `<TermDef aliases>` 同義語展開 ＋ 明示グラフ展開** がゼロ依存で動作します。Spec ID が分からない自然文の質問から、関連 Spec・上流 Goal・Decision `<Outcome>`・`<SourceRef>` を 1 発で取得できます。
+既定で **日本語・英語・コード識別子対応 BM25 ＋ `<TermDef aliases>` 同義語展開 ＋ 明示グラフ展開** がゼロ依存で動作します。Spec ID が分からない自然文の質問から、関連 Spec・上流 Goal・`<Decision>`・`<SourceRef>` を 1 発で取得できます。
 
 ```bash
 documi search "承認記録の改ざん防止ルール" --context         # ゼロ依存 BM25 + グラフ展開（既定）
@@ -149,7 +149,7 @@ bun run documi:build-site -- --out dist-site --no-code # ソースコードを�
 ## リッチ表現コンポーネント
 
 <Callout type="tip" title="セマンティックタグとの使い分け">
-  仕様・制約・結論・用語には `<Spec>` / `<Constraint>` / `<Outcome>` / `<TermDef>` を使い、説明の分かりやすさを高める補助表現として `<Callout>` / `<Tabs>` / `<Steps>` / Mermaid / KaTeX を組み合わせます。
+  仕様・制約・結論・用語には `<Spec>` / `<Constraint>` / `<Decision>` / `<TermDef>` を使い、説明の分かりやすさを高める補助表現として `<Callout>` / `<Tabs>` / `<Steps>` / Mermaid / KaTeX を組み合わせます。
 </Callout>
 
 <Tabs>

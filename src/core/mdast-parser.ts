@@ -30,7 +30,12 @@ export const ALLOWED_MDX_COMPONENTS: ReadonlySet<string> = new Set([
   // セマンティックタグ
   'Spec',
   'Constraint',
-  'Outcome',
+  'Decision',
+  'Context',
+  'Chosen',
+  'Rejected',
+  'Tradeoff',
+  'Test',
   'Note',
   'TermDef',
   'Term',

@@ -8,9 +8,9 @@ tags: [adr, filesystem, hierarchy]
 
 # 5 桁連番の廃止と自由な階層構造・パス ID の採用
 
-<Outcome id="dec.path-id" stability="stable">
+<Decision id="dec.path-id" stability="stable">
   `NNNNN-slug.mdx` の 5 桁連番強制と Type 別 1 階層フラット構成を廃止し、`docs/` 配下の自由な階層ディレクトリを再帰走査して **拡張子なし POSIX 相対パスをドキュメント ID** とする。`type` は frontmatter を優先しつつ、ディレクトリ名・ファイル名からの自動推論により二重宣言を不要にする。
-</Outcome>
+</Decision>
 
 ## 検討した背景と課題
 

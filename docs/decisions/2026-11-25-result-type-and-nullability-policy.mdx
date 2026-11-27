@@ -8,9 +8,9 @@ tags: [adr, core, error-handling, result, nullability]
 
 # Document Core の Result 型 (`better-result`)・`TaggedError`・Nullability 規約の採用
 
-<Outcome id="dec.result-and-nullability" stability="evolving">
+<Decision id="dec.result-and-nullability" stability="evolving">
   `src/core/` の想定内ドメイン失敗は **`better-result`**（`Result<T, E>` ＋ `TaggedError`）で型安全に返し、`src/core/` から全 7 種のレガシー例外クラス・HTTP ステータスコード（`400/403/404/...`）・メッセージ文字列マッチによるエラー再分類を完全に撤廃する。HTTP ステータスや終了コードへの変換はアダプタ層（`src/server/`・`src/cli.ts`・`src/server/mcp.ts`）が `matchError` で網羅マッピングする。正常系の「値が無い」は Documi 内部全体で **`undefined` に統一** し（外部境界の `null` は受けた直後に `undefined` へ正規化）、`process.env.USER`・`'human'`・必須項目の `?? ''` のような **偽フォールバックを禁止** する。
-</Outcome>
+</Decision>
 
 ## 背景と課題
 

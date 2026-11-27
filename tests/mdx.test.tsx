@@ -101,7 +101,7 @@ describe('MDX コンポーネント', () => {
     expect(steps).toContain('一')
   })
 
-  test('セマンティックタグ (Spec / Constraint / Outcome / Note / TermDef / Term) を描画する', () => {
+  test('セマンティックタグ (Spec / Constraint / Decision / Test / Note / TermDef / Term) を描画する', () => {
     const spec = render('<Spec id="auth.lockout" stability="stable" derives="goals/core">5回失敗でロック</Spec>')
     expect(spec).toContain('sem-spec')
     expect(spec).toContain('id="block-auth.lockout"')
@@ -112,9 +112,18 @@ describe('MDX コンポーネント', () => {
     expect(constraint).toContain('sem-constraint')
     expect(constraint).toContain('core.safe')
 
-    const outcome = render('<Outcome id="dec.bun">Bunを採用</Outcome>')
-    expect(outcome).toContain('sem-outcome')
-    expect(outcome).toContain('dec.bun')
+    const decision = render(
+      '<Decision id="dec.bun" summary="Bunを採用"><Context>高速化</Context><Rejected option="Node">起動が遅い</Rejected><Tradeoff>互換性差分</Tradeoff></Decision>',
+    )
+    expect(decision).toContain('sem-decision')
+    expect(decision).toContain('dec.bun')
+    expect(decision).toContain('Bunを採用')
+    expect(decision).toContain('Rejected: Node')
+
+    const testBlock = render('<Test id="test.bun" verifies="core.runtime" level="unit">Given/When/Then</Test>')
+    expect(testBlock).toContain('sem-test')
+    expect(testBlock).toContain('unit')
+    expect(testBlock).toContain('core.runtime')
 
     const note = render('<Note intent="idea" title="構想">未確定案</Note>')
     expect(note).toContain('sem-note-idea')

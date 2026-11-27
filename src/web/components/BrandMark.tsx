@@ -1,4 +1,4 @@
-import { Blocks, BookMarked, BookOpen, Cable, FileCheck2, Layers, Scale, ShieldCheck, Target } from 'lucide-react'
+import { BookMarked, BookOpen, Cable, FileCheck2, Layers, Scale, Target } from 'lucide-react'
 import type { ArtifactType } from '../../core/types'
 
 export function BrandMark({ size = 20 }: { size?: number }) {
@@ -39,8 +39,6 @@ export function ArtifactTypeIcon({
   switch (type) {
     case 'goal':
       return <Target {...props} />
-    case 'architecture':
-      return <Blocks {...props} />
     case 'domain':
       return <BookOpen {...props} />
     case 'spec':
@@ -51,8 +49,6 @@ export function ArtifactTypeIcon({
       return <Layers {...props} />
     case 'decision':
       return <Scale {...props} />
-    case 'verification':
-      return <ShieldCheck {...props} />
     case 'guide':
       return <BookMarked {...props} />
   }

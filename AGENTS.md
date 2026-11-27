@@ -7,9 +7,9 @@
 実装・修正を始める前に、以下のいずれかでプロジェクトの文脈を確認してください。
 
 - **MCP 経由（推奨）**: `documi mcp`（stdio）または `http://localhost:3000/mcp` に接続し、以下を呼ぶ
-  1. `get_project_map` — Goal・Architecture・Decision `<Outcome>`・用語集・Review / Realization 全体像
-  2. `get_spec_context` — 対象 Spec ID に紐づく上流 Goal・関連 Design / Contract・用語・`<SourceRef>`
-- **ファイル直接参照**: `docs/goals/living-specification.mdx`, `docs/architecture/system-overview.mdx`, `docs/decisions/*.mdx`（`<Outcome>` ブロック）, 対象の `docs/specs/*.mdx`
+  1. `get_project_map` — Goal・全体設計（`design` / `scope: system`）・Decision `<Decision>` 結論・用語集・Review / Realization 全体像
+  2. `get_spec_context` — 対象 Spec ID に紐づく上流 Goal・関連 Design / Contract・マイクロ ADR `<Decision>`・用語・`<SourceRef>`
+- **ファイル直接参照**: `docs/goals/living-specification.mdx`, `docs/designs/system-overview.mdx`, `docs/decisions/*.mdx`（`<Decision>` ブロック）, 対象の `docs/specs/*.mdx`
 
 ## 2. 守るべき不変ルール
 
@@ -33,9 +33,9 @@
 - 仕様を検証するテストには `test('[<spec.id>] ...', ...)` 形式で Spec ID を含めてください。
 - 公開境界のシンボル（export された `class` / `interface` / `type` / 公開関数）は手書きコピペせず、`<SourceRef file="..." mode="exports" />` や `<SourceRef symbol="..." />` で AST 紐づけしてください（非公開ヘルパーや関数内 `if`/`for` 擬似コードは書きません）。
 - 以下の変更を行ったら、対応する `docs/` を同じ PR で同期し、`documi check` の健全性ヒント（Design / Verification カバレッジ・Spec 肥大化）も確認してください：
-  - 新サブシステム・主要モジュール追加 → `architecture` ＋ `design`（`satisfies`＋`<SourceRef>`）
-  - 後戻りコストが高い構造・技術判断 → `decision`（ADR＋`<Outcome>`）
-  - 新 `<Spec>`・新テストスイート追加 → `verification`（`verifies`＋スイート一覧）
+  - 新サブシステム・主要モジュール追加 → 全体設計（`design` / `scope: system`）＋機能別 `design`（`satisfies`＋`<SourceRef>`）
+  - 後戻りコストが高い全体判断 → 独立 `decision`（ADR＋`<Decision>`）、機能固有の局所判断 → `design`/`spec` 内インライン `<Decision>`（マイクロ ADR）
+  - 新 `<Spec>` 追加 → 同じ `spec` / `contract` 内に `<Test id="..." verifies="<spec.id>" level="...">` 保証シナリオを同居
   - 1 つの `spec` ファイルが 10 件超の `<Spec>` を超えた → 領域ごとに分割
 
 ## 4. 完了前の検証コマンド

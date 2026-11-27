@@ -10,11 +10,11 @@ tags: [domain, glossary]
 Documi の仕様・設計・ソースコードで共有される共通語彙を定義する。
 
 <TermDef id="Artifact" aliases="ドキュメント, 文書" symbols="src/core/types.ts#Document, src/core/types.ts#ArtifactType">
-  Documi が管理する Markdown / MDX ファイル単位。拡張子を除いた POSIX 相対パスが ID となり、`goal` / `decision` / `domain` / `spec` / `contract` / `architecture` / `design` / `verification` / `guide` の 9 種類の Type を持つ。
+  Documi が管理する Markdown / MDX ファイル単位。拡張子を除いた POSIX 相対パスが ID となり、`goal` / `decision` / `domain` / `spec` / `contract` / `design`（全体設計は `scope: system`） / `guide` の 7 種類の Type を持つ。
 </TermDef>
 
 <TermDef id="SemanticBlock" aliases="セマンティックブロック, ブロック" symbols="src/core/types.ts#SemanticBlock, src/core/types.ts#BlockKind">
-  MDX 内の `<Spec>` / `<Constraint>` / `<Outcome>` / `<Note>` / `<TermDef>` で囲まれた意味単位。プロジェクト全体で一意なドット区切り ID と正規化 SHA-256 の `contentHash` を持つ。
+  MDX 内の `<Spec>` / `<Constraint>` / `<Decision>` / `<Test>` / `<Note>` / `<TermDef>` で囲まれた意味単位。プロジェクト全体で一意なドット区切り ID と正規化 SHA-256 の `contentHash` を持つ。
 </TermDef>
 
 <TermDef id="GraphEdge" aliases="エッジ, 関係" symbols="src/core/types.ts#GraphEdge, src/core/types.ts#EdgeKind">
@@ -46,7 +46,7 @@ Documi の仕様・設計・ソースコードで共有される共通語彙を�
 </TermDef>
 
 <TermDef id="HybridRAG" aliases="ローカル Hybrid RAG, セマンティック検索, グラフ検索" symbols="src/core/retrieval.ts#retrieveContext, src/core/hybrid-retrieval.ts#retrieveContextHybrid, src/core/vector-store.ts#syncVectorIndex">
-  日本語・英語・コード識別子トークナイザによる BM25 検索と `<TermDef aliases>` 自動同義語展開に、任意のローカル Embedding（Ollama / OpenAI 互換 HTTP）と `bun:sqlite` `contentHash` 差分キャッシュを RRF で統合し、さらに明示グラフに沿って上流 Goal・Decision `<Outcome>`・`<SourceRef>` まで 1 発で収集する検索基盤。
+  日本語・英語・コード識別子トークナイザによる BM25 検索と `<TermDef aliases>` 自動同義語展開に、任意のローカル Embedding（Ollama / OpenAI 互換 HTTP）と `bun:sqlite` `contentHash` 差分キャッシュを RRF で統合し、さらに明示グラフに沿って上流 Goal・`<Decision>` 結論（マイクロ ADR 含む）・`<SourceRef>` まで 1 発で収集する検索基盤。
 </TermDef>
 
 <TermDef id="AgentSkills" aliases="エージェントスキル, スキル" symbols="src/core/init.ts#initDocumiProject">
@@ -64,7 +64,7 @@ AI や人間が語彙を混同して仕様・実装・レビューがブレる�
 | 避ける表現・混同 | 正しい用語・使い分け | 理由 |
 |---|---|---|
 | 単一の `status`（`draft` / `accepted` / `done` 等） | 人間承認は `ReviewStatus`（`unreviewed` / `approved` / `stale` + `suspect`）、実装進捗は <Term name="Realization" />（`unimplemented` 〜 `verified` / `drifted`） | 「承認されたこと」と「実装・テスト済みであること」を 1 軸に混ぜると未実装事故が起きるため |
-| `requirement`（Type 名として） | **`spec`** | Artifact Type は 9 種に固定し、別名や後方互換エイリアスを持たない |
+| `requirement`（Type 名として） | **`spec`** | Artifact Type は 7 種に固定し、別名や後方互換エイリアスを持たない |
 | `v1` / `v2` / `Phase X`（現行仕様内のラベル） | 現行の振る舞いとして直接記述（経緯は `decision` へ） | 未リリース期間中に世代ラベルを残すと、AI が古い挙動と現行挙動を取り違えるため |
 | `.mdx` からの相対パス（`<SourceRef>` 内） | <Term name="ProjectRoot" /> からの POSIX 相対パス | 文書ディレクトリを移動しても参照が壊れないようにするため |
 | コード全文のベクトル DB 化（RAG 対象として） | `docs/` のみを検索対象とし、コードは `<SourceRef>` と `@implements` で辿る | ソースコードを別ベクトル化すると二重管理と陳腐化を招くため |

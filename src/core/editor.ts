@@ -18,13 +18,24 @@ import {
 import { splitFrontmatter } from './frontmatter'
 import { parseMarkdownAst } from './mdast-parser'
 import { extractMdxArtifacts } from './mdx'
-import { BLOCK_ID_PATTERN, isArtifactType, isNoteIntent, isSpecIntent, isStability } from './types'
-import type { ArtifactType, BlockKind, DocFormat, DocsIndex, NoteIntent, SpecIntent, Stability } from './types'
+import { BLOCK_ID_PATTERN, isArtifactType, isDocScope, isNoteIntent, isSpecIntent, isStability } from './types'
+import type {
+  ArtifactType,
+  BlockKind,
+  DocFormat,
+  DocScope,
+  DocsIndex,
+  NoteIntent,
+  SpecIntent,
+  Stability,
+  TestLevel,
+} from './types'
 
 const BLOCK_TAG_NAME: Record<BlockKind, string> = {
   spec: 'Spec',
   constraint: 'Constraint',
-  outcome: 'Outcome',
+  decision: 'Decision',
+  test: 'Test',
   note: 'Note',
   term: 'TermDef',
 }
@@ -88,6 +99,10 @@ export interface UpdateBlockInput {
   id: string
   body: string
   title?: string
+  summary?: string
+  date?: string
+  level?: TestLevel
+  verifies?: string[]
   stability?: Stability
   intent?: SpecIntent | NoteIntent
   derives?: string[]
@@ -104,6 +119,10 @@ export interface AddBlockInput {
   body: string
   afterHeading?: string
   title?: string
+  summary?: string
+  date?: string
+  level?: TestLevel
+  verifies?: string[]
   stability?: Stability
   intent?: SpecIntent | NoteIntent
   derives?: string[]
@@ -127,6 +146,7 @@ export interface ScaffoldDocumentInput {
   /** 出力先マウント ID（省略時はプライマリマウントへ作成） */
   mount?: string
   type?: ArtifactType
+  scope?: DocScope
   description?: string
   date?: string
   tags?: string[]
@@ -419,10 +439,14 @@ export async function updateBlockInDocs(
     const mergedAttrs: Array<[string, string | undefined]> = [
       ['id', block.id],
       ['title', input.title !== undefined ? input.title : prev.title],
+      ['summary', input.summary !== undefined ? input.summary : prev.summary],
+      ['date', input.date !== undefined ? input.date : prev.date],
+      ['level', input.level !== undefined ? input.level : prev.level],
       ['intent', input.intent !== undefined ? input.intent : prev.intent],
       ['stability', input.stability !== undefined ? input.stability : prev.stability],
       ['scope', input.scope !== undefined ? input.scope : prev.scope],
       ['derives', input.derives !== undefined ? input.derives.join(', ') : prev.derives],
+      ['verifies', input.verifies !== undefined ? input.verifies.join(', ') : prev.verifies],
       ['supersedes', input.supersedes !== undefined ? input.supersedes.join(', ') : prev.supersedes],
       ['aliases', input.aliases !== undefined ? input.aliases.join(', ') : prev.aliases],
       ['symbols', input.symbols !== undefined ? input.symbols.join(', ') : prev.symbols],
@@ -482,10 +506,14 @@ export async function addBlockToDoc(
       [
         ['id', input.id],
         ['title', input.title],
+        ['summary', input.summary],
+        ['date', input.date],
+        ['level', input.level],
         ['intent', input.intent],
         ['stability', input.stability],
         ['scope', input.scope],
         ['derives', input.derives?.join(', ')],
+        ['verifies', input.verifies?.join(', ')],
         ['supersedes', input.supersedes?.join(', ')],
         ['aliases', input.aliases?.join(', ')],
         ['symbols', input.symbols?.join(', ')],
@@ -644,6 +672,11 @@ export async function scaffoldDocument(
     if (input.type !== undefined && !isArtifactType(input.type)) {
       return Result.err(new InvalidEditInputError({ message: `Invalid Artifact Type: ${String(input.type)}` }))
     }
+    if (input.scope !== undefined && !isDocScope(input.scope)) {
+      return Result.err(
+        new InvalidEditInputError({ message: `Invalid scope: ${String(input.scope)} (expected: system)` }),
+      )
+    }
     if (input.date !== undefined && !/^\d{4}-\d{2}(?:-\d{2})?$/.test(input.date.trim())) {
       return Result.err(
         new InvalidEditInputError({
@@ -654,6 +687,7 @@ export async function scaffoldDocument(
 
     const fmObj: Record<string, unknown> = {}
     if (input.type) fmObj.type = input.type
+    if (input.scope) fmObj.scope = input.scope
     fmObj.title = input.title.trim()
     if (input.description?.trim()) fmObj.description = input.description.trim()
     if (input.date?.trim()) fmObj.date = input.date.trim()

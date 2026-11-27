@@ -17,7 +17,7 @@ import Markdown from './Markdown'
 type ReviewFilter = 'changed' | 'attention' | 'unreviewed' | 'approved' | 'all'
 type KindFilter = 'all' | Exclude<BlockKind, 'note'>
 
-const REVIEWABLE_KINDS: readonly Exclude<BlockKind, 'note'>[] = ['spec', 'outcome', 'constraint', 'term']
+const REVIEWABLE_KINDS: readonly Exclude<BlockKind, 'note'>[] = ['spec', 'decision', 'test', 'constraint', 'term']
 const VALID_FILTERS = new Set<ReviewFilter>(['changed', 'attention', 'unreviewed', 'approved', 'all'])
 
 type ReviewBlockItem = ReviewBlocksResponse['blocks'][number]
@@ -166,7 +166,8 @@ export default function ReviewLayout() {
     const counts: Record<KindFilter, number> = {
       all: statusFiltered.length,
       spec: 0,
-      outcome: 0,
+      decision: 0,
+      test: 0,
       constraint: 0,
       term: 0,
     }

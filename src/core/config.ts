@@ -23,7 +23,7 @@ export const DEFAULT_GEMINI_ENDPOINT = 'https://generativelanguage.googleapis.co
 
 const ragConfigSchema = z
   .object({
-    /** true のとき documi retrieve / search / MCP / /api/search で既定でハイブリッド検索 (BM25 + Embedding RRF) を使う */
+    /** true のとき documi search / MCP search_documents / /api/search で既定でハイブリッド検索 (BM25 + Embedding RRF) を使う */
     enabled: z.boolean().optional(),
     /** Embedding プロバイダ (既定: "ollama") */
     provider: z.enum(RAG_PROVIDERS).optional(),

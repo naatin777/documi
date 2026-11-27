@@ -56,9 +56,9 @@ beforeEach(async () => {
     [
       '# ロックアウト方式の選定',
       '',
-      '<Outcome id="dec.lockout-policy" stability="stable">',
+      '<Decision id="dec.lockout-policy" stability="stable">',
       '  5回連続失敗で 15 分間の指数バックオフ付きロックを適用する。',
-      '</Outcome>',
+      '</Decision>',
       '',
       '関連仕様: [認証仕様](../specs/auth.mdx)',
       '',
@@ -130,7 +130,7 @@ describe('BM25 + Glossary Alias Expansion + Graph-Aware Retrieval', () => {
     expect(hits.some((h) => h.id === 'auth.lockout')).toBe(true)
   })
 
-  test('[core.graph-retrieval] retrieveContext がグラフ展開（Goal / Decision Outcome / Design / 用語 / SourceRef）と予算制限を行う', async () => {
+  test('[core.graph-retrieval] retrieveContext がグラフ展開（Goal / Decision / Design / 用語 / SourceRef）と予算制限を行う', async () => {
     const store = await DocsStore.open(docsDir, { projectRoot: projectDir })
     // クエリに「設計」を含めなくても、auth.lockout からのグラフ辺 (satisfies) 経由で designs/auth と SourceRef が自動収集される
     const res = retrieveContext(store.getIndex(), 'アカウント凍結の条件', { limit: 3, budget: 4000 })
@@ -139,7 +139,7 @@ describe('BM25 + Glossary Alias Expansion + Graph-Aware Retrieval', () => {
     expect(res.expandedTerms).toContain('AccountLockout')
     expect(res.hits.some((h) => h.id === 'auth.lockout')).toBe(true)
     expect(res.upstreamGoals.map((g) => g.id)).toContain('goals/security')
-    expect(res.decisionOutcomes.map((o) => o.id)).toContain('dec.lockout-policy')
+    expect(res.decisions.map((o) => o.id)).toContain('dec.lockout-policy')
     expect(res.relatedDocuments.map((d) => d.id)).toContain('designs/auth')
     expect(res.relevantTerms.map((t) => t.id)).toContain('AccountLockout')
     expect(res.sourceRefs.some((r) => r.file === 'src/auth.ts')).toBe(true)
@@ -205,9 +205,9 @@ describe('BM25 + Glossary Alias Expansion + Graph-Aware Retrieval', () => {
     )
     expect(res.status).toBe(200)
     const body = (await res.json()) as {
-      result?: { structuredContent?: { hits: Array<{ id: string }>; decisionOutcomes: Array<{ id: string }> } }
+      result?: { structuredContent?: { hits: Array<{ id: string }>; decisions: Array<{ id: string }> } }
     }
     expect(body.result?.structuredContent?.hits.some((h) => h.id === 'auth.lockout')).toBe(true)
-    expect(body.result?.structuredContent?.decisionOutcomes.map((o) => o.id)).toContain('dec.lockout-policy')
+    expect(body.result?.structuredContent?.decisions.map((o) => o.id)).toContain('dec.lockout-policy')
   })
 })

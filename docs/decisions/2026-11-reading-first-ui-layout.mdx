@@ -8,9 +8,9 @@ tags: [adr, ui, ux, layout, review, graph]
 
 # リーディング＆レビュー中心の 1 本サイドバーと右ペイン Side-by-Side プレビューの採用
 
-<Outcome id="dec.reading-first-ui" stability="stable">
+<Decision id="dec.reading-first-ui" stability="stable">
   Web UI は VS Code 式の左 2 列（Activity Bar＋サイドバー）を採用せず、**「左＝1 本の開閉式サイドバー（`⌘B`）・中央＝広いメイン画面・右＝必要時のみ開く Context Inspector 兼 Side-by-Side プレビュー」** の 3 領域に役割を統一する。左の操作はすべてメイン画面遷移（Home / `/review` Review Queue / `/graph` / 文書）に揃え、ドキュメント一覧は **上流→下流の読み順（Flow）** を既定とする。右ペインは不要な画面では非表示にし、Graph のノードクリック・関連リンクの並べて見る・Review Queue からの文脈確認では共通の `DocPeekPane` で本文をそのまま並べて表示する。
-</Outcome>
+</Decision>
 
 ## 背景：AI 時代における Documi の位置づけ
 

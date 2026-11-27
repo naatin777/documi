@@ -71,9 +71,9 @@ tags: [adr]
 
 # 初期アーキテクチャ方針
 
-<Outcome id="dec.initial-architecture" stability="evolving">
-  決定した結論を 2〜3 行で簡潔に記述します。AI への常時コンテキストとして優先投入されます。
-</Outcome>
+<Decision id="dec.initial-architecture" summary="初期アーキテクチャ方針の結論を 1〜2 行で簡潔に記述する" stability="evolving">
+  決定した結論を 2〜3 行で簡潔に記述します。独立 \`decision\` ファイル内の \`<Decision>\` は AI への常時コンテキストとして優先投入されます。
+</Decision>
 
 ## 背景・比較検討
 
@@ -94,6 +94,12 @@ derives:
   **When** ユーザーが対象操作を行ったとき、
   **the** システム **shall** 期待される結果を返す。
 </Spec>
+
+<Test id="test.example.behavior" verifies="example.behavior" level="unit">
+  - **Given**: 正常な入力が与えられている
+  - **When**: 対象操作を実行する
+  - **Then**: 期待される結果が返る
+</Test>
 `,
     }
   }
@@ -134,9 +140,9 @@ tags: [adr]
 
 # Initial Architecture Direction
 
-<Outcome id="dec.initial-architecture" stability="evolving">
-  Summarize the decision in 2–3 concise sentences. Outcome blocks are surfaced upfront in project maps.
-</Outcome>
+<Decision id="dec.initial-architecture" summary="Summarize the initial architecture decision in 1–2 concise lines" stability="evolving">
+  Summarize the decision in 2–3 concise sentences. Top-level Decision blocks are surfaced upfront in project maps.
+</Decision>
 
 ## Context & Trade-offs
 
@@ -157,6 +163,12 @@ derives:
   **When** a user performs the target action,
   **the** system **shall** return the expected observable result.
 </Spec>
+
+<Test id="test.example.behavior" verifies="example.behavior" level="unit">
+  - **Given**: Valid input is provided
+  - **When**: The target action is executed
+  - **Then**: The expected observable result is returned
+</Test>
 `,
   }
 }
@@ -177,8 +189,8 @@ description: Documi CLI を使って Living Specification（仕様・設計・AD
 
 ## 1. 段階的コンテキスト取得（実装前に読む）
 
-1. **Spec ID がまだ分からないタスク**: \`documi search "<自然文のタスクや質問>" --context\` — BM25＋用語集同義語展開＋グラフ展開で関連 Spec・上流 Goal・Decision \`<Outcome>\`・用語・\`<SourceRef>\` を文字数予算内で 1 発取得する。
-2. **全体像の把握**: \`documi map\` — Goal・Architecture・Decision \`<Outcome>\`・ドメイン用語・Review / Realization 全体像を一括取得する（機械処理時は \`documi map --json\`）。
+1. **Spec ID がまだ分からないタスク**: \`documi search "<自然文のタスクや質問>" --context\` — BM25＋用語集同義語展開＋グラフ展開で関連 Spec・上流 Goal・\`<Decision>\`・用語・\`<SourceRef>\` を文字数予算内で 1 発取得する。
+2. **全体像の把握**: \`documi map\` — Goal・System Design・\`<Decision>\`・ドメイン用語・Review / Realization 全体像を一括取得する（機械処理時は \`documi map --json\`）。
 3. **条件絞り込み・横断検索**: \`documi query [--kind spec] [--review ...] [--realization ...] [--q <語>]\` または \`documi search "<query>"\`。
 4. **特定 Spec の深掘り・変更影響の確認**: \`documi context <spec-id>\` で対象 Spec 本文・上流 Goal・関連文書・用語・\`<SourceRef>\` を取得する。**仕様変更の前には必ず \`documi impact <id>\` を実行し、影響を受ける全下流文書・ブロック・コード・テストを洗い出す**（全文や直接参照だけ見たい場合は \`documi show <doc-id>\` / \`documi relations <id>\`）。
 
@@ -187,7 +199,7 @@ description: Documi CLI を使って Living Specification（仕様・設計・AD
 - **Spec-First**: 仕様・振る舞い・契約を変えるときは、**コードやテストを触る前にまず \`${relDocsDir}/\` を更新し、\`documi check\` で整合を確認する**。
 - **1 事実 1 箇所（Single Source of Truth）**: 同じ仕様表や列挙を Spec・Contract・Design に重複コピーせず、正規の置き場所（\`spec\`＝振る舞い／\`contract\`＝外部 I/F・スキーマ／\`design\`＝モジュール責務）を 1 箇所に決め、他文書からはリンクや \`<Term>\` で参照する。
 - **古い決定は \`supersedes\` で廃止**: 方針転換や旧 ADR の撤回時は、新しい ADR に \`supersedes: [decisions/<old-adr>]\` を付け、古い決定を現行一覧から分離する（横に v2 仕様ファイルを乱立させない）。
-- **チャット合意の即時永続化**: チャット履歴にしか残っていない合意は別セッションでは失われる。ユーザーと合意した方針・却下案は \`<Outcome>\`、振る舞いは \`<Spec>\`、禁止事項は \`<Constraint>\`、未確定の仮案・保留は \`<Note intent="idea">\` に**その場で即記録する**。
+- **チャット合意の即時永続化**: チャット履歴にしか残っていない合意は別セッションでは失われる。ユーザーと合意した方針・却下案は \`<Decision>\`、振る舞いは \`<Spec>\`、禁止事項は \`<Constraint>\`、未確定の仮案・保留は \`<Note intent="idea">\` に**その場で即記録する**。
 - **読みやすさ・視覚ファースト執筆（長文ダラダラ禁止）**: 人間はドキュメントを斜め読みするため、散文の壁を作らず以下を徹底する：
   - **結論ファースト＆3 行ルール**: 冒頭に 1〜2 文の要約を置き、1 段落は 3 行以内・箇条書きの先頭 2〜4 語を **太字** にする。
   - **図表・コンポーネント優先**: 処理フロー・状態遷移は **Mermaid 図**、条件分岐・エラー規約は **表**、長い補足や JSON 例は **\`<Details title="...">\`** に畳み、並列比較は **\`<Columns><Column>\`**、時系列は **\`<Timeline><Timeline.Item>\`** を使う。
@@ -221,7 +233,7 @@ EOF
   4. **公開シンボル**（export された \`class\`/\`interface\`/\`type\`/公開関数）は手書きコピペせず \`<SourceRef file="src/..." mode="exports" />\` や \`<SourceRef symbol="..." />\` で AST 紐づけし、非公開ヘルパーや関数内の \`if\`/\`for\` 擬似コードは書いていないか？
 - **更新トリガー（PR 完了前セルフチェック）**:
   - 新サブシステム・主要モジュール追加 → \`architecture\` 更新 ＋ \`design\`（\`satisfies\`・\`<SourceRef>\`）追加・更新
-  - 後戻りコストが高い構造・技術判断 → \`decision\`（ADR＋\`<Outcome>\`）を追加
+  - 後戻りコストが高い構造・技術判断 → \`decision\`（ADR＋\`<Decision>\`）を追加
   - 新しい \`<Spec>\` やテストスイート追加 → 該当機能領域の \`verification\` に \`verifies\`・**宣言的な Given / When / Then 保証シナリオ**・テストスイート一覧を同期する（1 ファイルに 10 件超の \`verifies\` / \`satisfies\` を集中させない：\`overloaded-hub-doc\` で検知）
   - **Capability 単位のファイル分割（相乗り禁止）**: \`spec\` ファイルは技術レイヤー（\`core/\`・\`ui/\`）やスプリント単位ではなく **Capability（システムが提供する 1 つの能力・機能ドメイン）単位で 1 ファイル** にする。タイトルに無関係な機能が \`and\` や中黒で並び始めたら件数に関係なく \`documi scaffold\` で別ファイルへ切り出す（10 件超は安全網の \`bloated-spec-doc\` で検知）
 
@@ -258,7 +270,7 @@ description: 既存コードベース（Brownfield）に Documi の Living Speci
 
 1. **Root Goal（\`goals/\`）**: プロダクトの目的・対象ユーザー・明示的な Non-Goals をまとめた Goal 文書を 1 件作成し、譲れない制約を \`<Constraint id="...">\` として記述する。
 2. **System Overview（\`architecture/\`）**: モジュール境界とデータフローを俯瞰する設計概要を 1 件作成し、実在する \`<SourceRef file="src/..." />\` を紐づける。
-3. **主要な既存意思決定（\`decisions/\`）**: すでにコードベースに根付いている重要な技術選定を 1〜3 件だけ記録し、各結論を 2〜3 行の \`<Outcome id="dec....">\` にまとめる。
+3. **主要な既存意思決定（\`decisions/\`）**: すでにコードベースに根付いている重要な技術選定を 1〜3 件だけ記録し、各結論を 2〜3 行の \`<Decision id="dec....">\` にまとめる。
 
 ## 3. 実コードからボトムアップでコア仕様を抽出する
 
@@ -292,7 +304,7 @@ description: 未承認・stale・suspect な仕様を 2〜3 件ずつ取り上�
    - \`documi query --review stale\`（承認後に変更されたブロック）
    - \`documi query --suspect\`（上流変更が波及したブロック）
    - \`documi query --review unreviewed --kind spec\`（未承認の正式仕様）
-3. 選んだ各ブロックについて \`documi context <spec-id>\` を実行し、上流 Goal・Decision \`<Outcome>\`・関連制約・\`<SourceRef>\`（実コード）を把握する。
+3. 選んだ各ブロックについて \`documi context <spec-id>\` を実行し、上流 Goal・\`<Decision>\`・関連制約・\`<SourceRef>\`（実コード）を把握する。
 
 ## 2. 具体シナリオ・エッジケースのクイズをテンポよく出題する
 
@@ -391,8 +403,8 @@ Prefer the **default compact text output** for reading to minimize token usage; 
 
 ## 1. Progressive Disclosure (Read Before Coding)
 
-1. **Unknown Spec ID / natural-language task**: Run \`documi search "<task or question>" --context\` — combines BM25, glossary alias expansion, and graph traversal (upstream Goals, Decision \`<Outcome>\`s, related docs, Terms, \`<SourceRef>\`s) within a character budget in one shot.
-2. **Project overview**: Run \`documi map\` to load Goals, Architecture summaries, Decision \`<Outcome>\` blocks, Domain Terms, and Review / Realization status (use \`documi map --json\` for structured output).
+1. **Unknown Spec ID / natural-language task**: Run \`documi search "<task or question>" --context\` — combines BM25, glossary alias expansion, and graph traversal (upstream Goals, \`<Decision>\` conclusions, related docs, Terms, \`<SourceRef>\`s) within a character budget in one shot.
+2. **Project overview**: Run \`documi map\` to load Goals, System Design summaries, \`<Decision>\` blocks, Domain Terms, and Review / Realization status (use \`documi map --json\` for structured output).
 3. **Filtering & search**: Run \`documi query [--kind spec] [--review ...] [--realization ...] [--q <text>]\` or \`documi search "<query>"\`.
 4. **Target Spec deep dive & blast-radius check**: Run \`documi context <spec-id>\` for its spec body, upstream Goals, related Design/Contract docs, Terms, and \`<SourceRef>\` anchors. **Before changing any spec, run \`documi impact <id>\` to list every affected downstream doc, block, code anchor, and test** (use \`documi show <doc-id>\` or \`documi relations <id>\` for full prose or direct edges).
 
@@ -401,7 +413,7 @@ Prefer the **default compact text output** for reading to minimize token usage; 
 - **Spec-First**: Update \`${relDocsDir}/\` **before** editing code or tests, and verify structural consistency with \`documi check\`.
 - **Single Source of Truth**: Keep each fact in one canonical place (\`spec\` = behavior & boundaries, \`contract\` = external I/F & schemas, \`design\` = module responsibilities); link from other docs instead of duplicating tables.
 - **Retire old decisions with \`supersedes\`**: When reversing a prior decision, add \`supersedes: [decisions/<old-adr>]\` to the new ADR so retired outcomes are separated from active decisions (never create parallel v2 spec files).
-- **Persist chat agreements immediately**: Agreements that only live in chat are lost across sessions. Immediately record agreed choices/rejected options in \`<Outcome>\`, behavior in \`<Spec>\`, invariants in \`<Constraint>\`, and open/tentative ideas in \`<Note intent="idea">\`.
+- **Persist chat agreements immediately**: Agreements that only live in chat are lost across sessions. Immediately record agreed choices/rejected options in \`<Decision>\`, behavior in \`<Spec>\`, invariants in \`<Constraint>\`, and open/tentative ideas in \`<Note intent="idea">\`.
 - **Visual-first & scannable writing (no walls of text)**: Humans scan docs rather than reading word-for-word:
   - **Inverted pyramid & 3-line rule**: Put the 1–2 sentence takeaway first, keep paragraphs <= 3 lines, and **bold the leading 2–4 words** of bullet points.
   - **Diagrams, tables & components over prose**: Use **Mermaid** for flows/state machines, **tables** for decision rules/errors, **\`<Details title="...">\`** to fold long notes/JSON examples, **\`<Columns><Column>\`** for side-by-side comparisons, and **\`<Timeline><Timeline.Item>\`** for lifecycles/milestones.
@@ -435,7 +447,7 @@ EOF
   4. **Public symbols without pseudocode**: link exported classes/interfaces/types/functions via \`<SourceRef file="src/..." mode="exports" />\` or \`<SourceRef symbol="..." />\`; never write private helper steps or function-internal \`if\`/\`for\` pseudocode.
 - **Update triggers (check before finishing)**:
   - New subsystem or core module -> update \`architecture\` and add/update \`design\` (with \`satisfies\` + \`<SourceRef>\`)
-  - Hard-to-reverse structural/technical choice -> add a \`decision\` (ADR with \`<Outcome>\`)
+  - Hard-to-reverse structural/technical choice -> add a \`decision\` (ADR with \`<Decision>\`)
   - New \`<Spec>\` or test suite -> update the matching domain \`verification\` doc (\`verifies\`, declarative **Given / When / Then** acceptance scenarios, and suite table; avoid stuffing > 10 \`verifies\` / \`satisfies\` into one file, flagged by \`overloaded-hub-doc\`)
   - **Capability-based file granularity (no bundling unrelated features)**: organize \`spec\` files by **Capability (one cohesive system ability/domain per file)** rather than technical layers (\`core/\` vs \`ui/\`) or sprints; split with \`documi scaffold\` whenever unrelated features start stacking in the same title regardless of block count (> 10 blocks triggers the \`bloated-spec-doc\` safety-net hint)
 
@@ -472,7 +484,7 @@ Use \`documi\` CLI commands (\`documi scaffold\`, \`documi block add\`, \`documi
 
 1. **Root Goal (\`goals/\`)**: Create 1 concise Root Goal describing the product purpose, target users, and explicit Non-Goals. Capture hard architectural invariants as \`<Constraint id="...">\`.
 2. **System Overview (\`architecture/\`)**: Create 1 high-level architecture document describing modules, boundaries, and data flow with real \`<SourceRef file="src/..." />\` links.
-3. **Existing Key Decisions (\`decisions/\`)**: Record only the 1–3 most consequential architectural decisions already baked into the codebase, each with a 2–3 line \`<Outcome id="dec....">\`.
+3. **Existing Key Decisions (\`decisions/\`)**: Record only the 1–3 most consequential architectural decisions already baked into the codebase, each with a 2–3 line \`<Decision id="dec....">\`.
 
 ## 3. Extract Bottom-Up Living Specs From Real Code
 
@@ -506,7 +518,7 @@ Work in fast, focused rounds of **2–3 blocks at a time**, verify alignment thr
    - \`documi query --review stale\` (modified after approval)
    - \`documi query --suspect\` (upstream changed)
    - \`documi query --review unreviewed --kind spec\` (unreviewed normative specs)
-3. Run \`documi context <spec-id>\` on each selected block to inspect its upstream Goal, Decision \`<Outcome>\`, constraints, and linked \`<SourceRef>\` code.
+3. Run \`documi context <spec-id>\` on each selected block to inspect its upstream Goal, \`<Decision>\`, constraints, and linked \`<SourceRef>\` code.
 
 ## 2. Ask Concrete Edge-Case & Scenario Questions
 

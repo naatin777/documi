@@ -30,7 +30,7 @@ satisfies:
 | Endpoint | 役割 |
 |---|---|
 | `GET /api/health` | ヘルスチェック (`{ ok: true }`) |
-| `GET /api/overview` | 全体統計・Type 別件数・Review & Realization 内訳・ドキュメント健全性 (`health`)・要確認ブロック・Goals・現行 Outcomes（廃止済みは `supersededOutcomes`）・Orphan Specs |
+| `GET /api/overview` | 全体統計・Type 別件数・Review & Realization 内訳・ドキュメント健全性 (`health`)・要確認ブロック・Goals・現行 `decisions`（廃止済みは `supersededDecisions`）・Orphan Specs |
 | `GET /api/status` | `rootDir`, `loadedAt`, `documentCount`, `blockCount`, `issues` |
 | `GET /api/tree` | 階層ツリー (`DocTreeNode[]`) と全ドキュメントサマリ |
 | `GET /api/documents` | サマリ一覧 (`?type=` 絞り込み対応) |

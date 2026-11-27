@@ -1,0 +1,29 @@
+---
+type: decision
+title: 7 種 Artifact Type・scope:system・<Decision>（マイクロ ADR）・<Test> 仕様同居への刷新
+description: 9 種から 7 種（architecture/verification 廃止）へスリム化し、全体設計を scope:system、局所判断をインライン <Decision>、保証シナリオを <Test> タグとして仕様に同居させる判断
+date: 2026-11-27
+tags: [adr, taxonomy, mdx]
+supersedes:
+  - decisions/2026-11-artifact-taxonomy
+---
+
+# 7 種 Artifact Type・`scope: system`・`<Decision>`（マイクロ ADR）・`<Test>` 仕様同居への刷新
+
+<Decision id="dec.seven-types-and-semantic-blocks" summary="Artifact Type を 9 種から 7 種へ整理し、全体設計は design (scope: system)、ADR は <Decision>（インライン可）、保証シナリオは <Test> で仕様同居とする" stability="stable">
+  <Context>
+    9 種モデルでは `architecture` と `design` の境界迷い、`decisions/` ファイルの急速な肥大化（全 56 文書中 18 件）、および `verification/` を仕様と別ファイルに置くことによる移動コストと乖離リスクが生じていた。
+  </Context>
+  <Chosen>
+    Artifact Type を `goal` / `domain` / `spec` / `contract` / `design` / `decision` / `guide` の 7 種に整理する。全体設計は `type: design` + `scope: system` で `map` 常時投入対象とし、`<Outcome>` を `<Decision>`（`summary` + 任意の子要素 `<Context>` / `<Chosen>` / `<Rejected>` / `<Tradeoff>`）へ刷新して独立 ADR・インラインマイクロ ADR 双方で共用する。保証シナリオは `<Test verifies="..." level="unit|integration|e2e|contract|manual">` として `spec` / `contract` に同居させる。
+  </Chosen>
+  <Rejected option="9 種（architecture / verification 独立）の維持">
+    ファイル種別の認知負荷が高く、仕様と検証シナリオのファイル往復・ADR ファイルの量産を構造的に防げないため棄却。
+  </Rejected>
+  <Rejected option="contract も spec に統合した 6 種モデル">
+    `spec`（ユーザー／プロダクト目線の振る舞い）と `contract`（開発者／外部システム目線の厳密 I/F 契約）は読者と破壊的変更リスクが異なるため、7 種として分離を維持した。
+  </Rejected>
+  <Tradeoff>
+    1 つの `spec` ファイルに `<Spec>` と `<Test>` が同居するためファイル長はやや増えるが、Capability 単位の分割（10 Spec 上限ヒント）と段階的開示により可読性を維持する。
+  </Tradeoff>
+</Decision>

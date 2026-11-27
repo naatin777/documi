@@ -42,7 +42,7 @@ beforeEach(async () => {
   await writeDoc(
     'decisions/bun.mdx',
     { title: 'Bun 採用' },
-    '<Outcome id="dec.bun">Bun を採用する。</Outcome>\n\n詳細な比較メモ。\n',
+    '<Decision id="dec.bun">Bun を採用する。</Decision>\n\n詳細な比較メモ。\n',
   )
 
   store = await DocsStore.open(root, { projectRoot: root })
@@ -60,20 +60,20 @@ describe('REST API', () => {
     expect(await res.json()).toEqual({ ok: true })
   })
 
-  test('GET /api/overview は統計・Goals・Outcomes・Orphan Specs を返す', async () => {
+  test('GET /api/overview は統計・Goals・Decisions・Orphan Specs を返す', async () => {
     const res = await app.fetch(new Request('http://localhost/api/overview'))
     expect(res.status).toBe(200)
     const body = (await res.json()) as {
       documentCount: number
       termCount: number
       goals: { id: string }[]
-      outcomes: { id: string }[]
+      decisions: { id: string }[]
       orphanSpecs: { blockId?: string }[]
     }
     expect(body.documentCount).toBe(6)
     expect(body.termCount).toBe(1)
     expect(body.goals.map((g) => g.id)).toEqual(['goals/core'])
-    expect(body.outcomes.map((o) => o.id)).toEqual(['dec.bun'])
+    expect(body.decisions.map((o) => o.id)).toEqual(['dec.bun'])
     expect(body.orphanSpecs.map((o) => o.blockId)).toEqual(['orphan.item'])
   })
 
@@ -342,18 +342,18 @@ describe('MCP endpoint', () => {
     ])
   })
 
-  test('get_project_map は Goal・Decision Outcome・Terms をまとめて返す', async () => {
+  test('get_project_map は Goal・Decision・Terms をまとめて返す', async () => {
     const res = await app.fetch(
       mcpRequest({ jsonrpc: '2.0', id: 2, method: 'tools/call', params: { name: 'get_project_map', arguments: {} } }),
     )
     const body = (await res.json()) as {
       result?: {
-        structuredContent?: { goals: { id: string }[]; decisionOutcomes: { id: string }[]; terms: { id: string }[] }
+        structuredContent?: { goals: { id: string }[]; decisions: { id: string }[]; terms: { id: string }[] }
       }
     }
     const content = body.result?.structuredContent
     expect(content?.goals.map((g) => g.id)).toEqual(['goals/core'])
-    expect(content?.decisionOutcomes.map((o) => o.id)).toEqual(['dec.bun'])
+    expect(content?.decisions.map((o) => o.id)).toEqual(['dec.bun'])
     expect(content?.terms.map((t) => t.id)).toEqual(['Artifact'])
   })
 

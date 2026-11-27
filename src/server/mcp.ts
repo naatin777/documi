@@ -29,19 +29,23 @@ import { retrieveContext } from '../core/retrieval'
 import {
   ARTIFACT_TYPES,
   BLOCK_KINDS,
+  DOC_SCOPES,
   REALIZATION_STATUSES,
   REVIEW_STATUSES,
   SPEC_INTENTS,
   STABILITIES,
+  TEST_LEVELS,
 } from '../core/types'
 import type {
   ArtifactType,
   BlockKind,
+  DocScope,
   NoteIntent,
   RealizationStatus,
   ReviewStatus,
   SpecIntent,
   Stability,
+  TestLevel,
 } from '../core/types'
 import type { DocsStore } from './store'
 
@@ -54,23 +58,23 @@ const DOCUMI_MCP_INSTRUCTIONS = [
   '',
   'Recommended workflow:',
   '1. Progressive disclosure (read before editing):',
-  '   - Call search_documents with includeContext: true for a natural-language task or question when you do not know the exact Spec ID — it runs BM25 + glossary alias expansion + graph traversal (upstream Goals, Decision <Outcome>s, related docs, Terms, <SourceRef>s) within a character budget.',
-  '   - Call get_project_map for a project-wide overview (Goal/Architecture summaries, Decision <Outcome>s, Domain Terms, Review/Realization summaries; pass full: true only if full bodies are needed).',
+  '   - Call search_documents with includeContext: true for a natural-language task or question when you do not know the exact Spec ID — it runs BM25 + glossary alias expansion + graph traversal (upstream Goals, <Decision> conclusions, related docs, Terms, <SourceRef>s) within a character budget.',
+  '   - Call get_project_map for a project-wide overview (Goal / System Design summaries, top-level <Decision> conclusions, Domain Terms, Review/Realization summaries; pass full: true only if full bodies are needed).',
   '   - Call query_specs or search_documents to filter/search specific blocks or docs (query_specs returns compact summaries by default; pass full: true only when full trace arrays are needed).',
-  '   - Call get_spec_context for a known Spec ID to inspect its exact body, upstream Goals, and linked code/docs.',
+  '   - Call get_spec_context for a known Spec ID to inspect its exact body, upstream Goals, inline micro-ADR <Decision>s, and linked code/docs.',
   '   - Before changing any Spec/Goal/Term, call get_impact to list all affected downstream docs, blocks, <SourceRef>s, and code/test anchors.',
   '   - Only call get_document or get_relations when full document prose or graph edges are needed.',
   '2. Spec-First & surgical editing (update docs/ before src/, prefer over full-file rewrites):',
   '   - Update docs/ BEFORE editing src/ or tests/. Keep one fact in one place (Single Source of Truth) and mark retired ADRs with `supersedes`.',
-  '   - Persist chat decisions immediately into `<Outcome>`, `<Spec>`, `<Constraint>`, or `<Note intent="idea">` so future sessions do not lose agreed decisions.',
+  '   - Persist chat decisions immediately into `<Decision>` (top-level ADR or inline micro-ADR), `<Spec>`, `<Constraint>`, `<Test>`, or `<Note intent="idea">` so future sessions do not lose agreed decisions.',
   '   - Keep docs scannable and visual-first (<= 3 lines per paragraph, bold-first bullets, Mermaid for flows, tables for rules, `<Details>` for deep dives, `<Columns>` for comparisons, `<Timeline>` for sequences).',
   '   - Use update_block, add_block, upsert_term, scaffold_document, and rename_block_id (always preview with dryRun: true first).',
   '3. Code, tests & documentation sync triggers:',
   '   - Link implementation code with `// @implements <spec.id>` (or `<SourceRef file="src/..." satisfies="<spec.id>" />`).',
-  "   - Link tests with `test('[<spec.id>] ...', ...)` (or `// @verifies <spec.id>`).",
+  '   - Link tests with `test(\'[<spec.id>] ...\', ...)` (or `// @verifies <spec.id>`) and colocate declarative guarantee scenarios in `<Test id="..." verifies="<spec.id>" level="unit|integration|e2e|contract|manual">` right next to `<Spec>`.',
   '   - Always write `<SourceRef file="...">` and `<TermDef symbols="...">` as project-root-relative POSIX paths.',
   '   - Surface public boundary symbols (exported classes, interfaces, types, public functions) via `<SourceRef file="..." mode="exports" />` or `<SourceRef symbol="..." />` rather than hand-copying code; never write internal if/for pseudocode or private helper steps in docs.',
-  '   - Update triggers before finishing: new subsystem/module -> update architecture + add/update design (with `satisfies` + `<SourceRef>`); hard-to-reverse structural choice -> add decision (ADR); new spec/test suite -> update verification (`verifies`); organize spec files by Capability (one capability per file rather than technical layers; split if unrelated features accumulate or > 10 blocks).',
+  '   - Update triggers before finishing: new subsystem/module -> update system-scope design (`type: design`, `scope: system`) + add/update feature design (with `satisfies` + `<SourceRef>`); hard-to-reverse system choice -> add top-level `decision` (ADR with `<Decision>`); local design trade-off -> add inline `<Decision>` micro-ADR; new spec -> colocate `<Test verifies="...">` guarantee scenario; organize spec files by Capability (one capability per file; split if > 10 blocks).',
   '4. Strict invariants:',
   '   - NEVER edit `docs/guard/reviews.json` directly (human approvals only).',
   '   - NEVER write executable JS in MDX (no ESM import/export, no JSX `{...}` expressions, no unapproved components).',
@@ -83,7 +87,7 @@ const optionalTypeSchema = artifactTypeSchema.optional().describe('Filter by Art
 const optionalKindSchema = z
   .enum(BLOCK_KINDS)
   .optional()
-  .describe('Block kind (spec / constraint / outcome / note / term)')
+  .describe('Block kind (spec / constraint / decision / test / note / term)')
 const optionalIntentSchema = z.enum(SPEC_INTENTS).optional().describe('Intent (normative / idea / rejected)')
 const optionalStabilitySchema = z.enum(STABILITIES).optional().describe('Stability (stable / evolving / volatile)')
 const optionalReviewSchema = z
@@ -142,7 +146,7 @@ function createDocumiMcpServer(store: DocsStore, projectRoot?: string, ragConfig
     'get_project_map',
     {
       description:
-        'Return the project-wide overview (Goal/Architecture summaries, Decision <Outcome>s, Domain Terms, Review/Realization stats, and health hints). Pass full: true to include full Goal/Architecture bodies.',
+        'Return the project-wide overview (Goal / System Design summaries, top-level <Decision> conclusions, Domain Terms, Review/Realization stats, and health hints). Pass full: true to include full Goal / System Design bodies.',
       inputSchema: {
         full: optionalBoolSchema('Include full Goal/Architecture bodies and unabridged descriptions (default: false)'),
       },
@@ -219,7 +223,7 @@ function createDocumiMcpServer(store: DocsStore, projectRoot?: string, ragConfig
     'query_specs',
     {
       description:
-        'Filter semantic blocks (<Spec> / <Constraint> / <Outcome> / <Note> / <TermDef>) by kind, intent, stability, review, realization, suspect, or keyword.',
+        'Filter semantic blocks (<Spec> / <Constraint> / <Decision> / <Test> / <Note> / <TermDef>) by kind, intent, stability, review, realization, suspect, or keyword.',
       inputSchema: {
         kind: optionalKindSchema,
         intent: optionalIntentSchema,
@@ -249,7 +253,7 @@ function createDocumiMcpServer(store: DocsStore, projectRoot?: string, ragConfig
     'get_spec_context',
     {
       description:
-        'Assemble implementation/verification context for a Spec block ID (or document ID): upstream Goals, related Design/Contract docs, Decision <Outcome>s, Terms, and <SourceRef>s.',
+        'Assemble implementation/verification context for a Spec block ID (or document ID): upstream Goals, related Design/Contract docs, <Decision> conclusions (including micro-ADRs), colocated <Test> scenarios, Terms, and <SourceRef>s.',
       inputSchema: {
         id: nodeIdSchema,
         full: optionalBoolSchema(
@@ -271,7 +275,7 @@ function createDocumiMcpServer(store: DocsStore, projectRoot?: string, ragConfig
     'search_documents',
     {
       description:
-        'Search documents and semantic blocks using BM25 + glossary alias expansion (or local Embedding + RRF hybrid search when semantic: true or rag.enabled is configured). Pass includeContext: true to expand graph-neighbor context (upstream Goals, Decision <Outcome>s, related Contract/Design docs, Terms, and <SourceRef>s) within a character budget.',
+        'Search documents and semantic blocks using BM25 + glossary alias expansion (or local Embedding + RRF hybrid search when semantic: true or rag.enabled is configured). Pass includeContext: true to expand graph-neighbor context (upstream Goals, <Decision> conclusions, related Contract/Design docs, Terms, and <SourceRef>s) within a character budget.',
       inputSchema: {
         query: z.string().min(1).describe('Search keywords or natural-language query'),
         type: optionalTypeSchema,
@@ -371,11 +375,15 @@ function createDocumiMcpServer(store: DocsStore, projectRoot?: string, ragConfig
     'update_block',
     {
       description:
-        'Surgically update an existing semantic block (<Spec> / <Constraint> / <Outcome> / <TermDef> / <Note>) in place and return post-reload validation results. Never touches docs/guard/reviews.json.',
+        'Surgically update an existing semantic block (<Spec> / <Constraint> / <Decision> / <Test> / <TermDef> / <Note>) in place and return post-reload validation results. Never touches docs/guard/reviews.json.',
       inputSchema: {
         id: z.string().min(1).describe('Target block ID to update'),
         body: z.string().min(1).describe('New block body (safe MDX syntax only)'),
         title: z.string().optional().describe('Block title (optional)'),
+        summary: z.string().optional().describe('One-line conclusion summary for <Decision> (optional)'),
+        date: z.string().optional().describe('Decision date YYYY-MM-DD for <Decision> (optional)'),
+        level: z.enum(TEST_LEVELS).optional().describe('Test level for <Test>: unit|integration|e2e|contract|manual'),
+        verifies: optionalStringListSchema('Target Spec IDs verified by <Test>'),
         stability: optionalStabilitySchema,
         intent: optionalBlockIntentSchema,
         derives: optionalStringListSchema('Upstream derives references'),
@@ -389,6 +397,10 @@ function createDocumiMcpServer(store: DocsStore, projectRoot?: string, ragConfig
       id: string
       body: string
       title?: string
+      summary?: string
+      date?: string
+      level?: TestLevel
+      verifies?: string[]
       stability?: Stability
       intent?: SpecIntent | NoteIntent
       derives?: string[]
@@ -412,11 +424,15 @@ function createDocumiMcpServer(store: DocsStore, projectRoot?: string, ragConfig
         'Append a new semantic block to the end of a document (or immediately after a specified heading) and return post-reload validation results.',
       inputSchema: {
         docId: docIdSchema,
-        kind: z.enum(BLOCK_KINDS).describe('Block kind (spec / constraint / outcome / note / term)'),
+        kind: z.enum(BLOCK_KINDS).describe('Block kind (spec / constraint / decision / test / note / term)'),
         id: z.string().min(1).describe('New globally unique block ID'),
         body: z.string().min(1).describe('Block body (safe MDX syntax only)'),
         afterHeading: z.string().optional().describe('Insert immediately after this heading (omit to append at EOF)'),
         title: z.string().optional().describe('Block title (optional)'),
+        summary: z.string().optional().describe('One-line conclusion summary for <Decision> (optional)'),
+        date: z.string().optional().describe('Decision date YYYY-MM-DD for <Decision> (optional)'),
+        level: z.enum(TEST_LEVELS).optional().describe('Test level for <Test>: unit|integration|e2e|contract|manual'),
+        verifies: optionalStringListSchema('Target Spec IDs verified by <Test>'),
         stability: optionalStabilitySchema,
         intent: optionalBlockIntentSchema,
         derives: optionalStringListSchema('Upstream derives references'),
@@ -433,6 +449,10 @@ function createDocumiMcpServer(store: DocsStore, projectRoot?: string, ragConfig
       body: string
       afterHeading?: string
       title?: string
+      summary?: string
+      date?: string
+      level?: TestLevel
+      verifies?: string[]
       stability?: Stability
       intent?: SpecIntent | NoteIntent
       derives?: string[]
@@ -480,6 +500,10 @@ function createDocumiMcpServer(store: DocsStore, projectRoot?: string, ragConfig
         title: z.string().min(1).describe('Document title'),
         mount: optionalMountSchema,
         type: optionalTypeSchema,
+        scope: z
+          .enum(DOC_SCOPES)
+          .optional()
+          .describe('Document scope ("system" for system-wide overview design pinned to map)'),
         description: z.string().optional().describe('Short description'),
         date: z.string().optional().describe('Decision date (YYYY-MM-DD or YYYY-MM, for ADRs)'),
         tags: optionalStringListSchema('Document tags'),
@@ -494,6 +518,7 @@ function createDocumiMcpServer(store: DocsStore, projectRoot?: string, ragConfig
       title: string
       mount?: string
       type?: ArtifactType
+      scope?: DocScope
       description?: string
       date?: string
       tags?: string[]

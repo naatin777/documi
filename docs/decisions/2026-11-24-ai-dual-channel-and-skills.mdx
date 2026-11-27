@@ -8,9 +8,9 @@ tags: [adr, ai, mcp, cli, skills]
 
 # AI 連携を MCP（instructions 自己完結）と CLI + Agent Skills の二本立てにし、AGENTS.md を生成しない
 
-<Outcome id="dec.ai-dual-channel-skills" stability="stable">
+<Decision id="dec.ai-dual-channel-skills" stability="stable">
   Documi の AI 連携は、共通のクエリ・検索・編集コア（`src/core/query.ts` / `retrieval.ts` / `editor.ts`）を共有したうえで、**（1）`McpServer` の `instructions` に運用手順と不変ルールを内蔵した自己完結 MCP 経路**、および **（2）18+ コマンドの AI 向け CLI（既定コンパクト出力＋`--json`・`--full`・`--body -`）＋ `documi init` が生成する標準 Agent Skills（`.agents/skills/`、`--en` 既定 / `--ja`）** の二本立てで提供する。`documi init` は既存プロジェクトの `AGENTS.md` / `CLAUDE.md` を作成・書き換えしない。
-</Outcome>
+</Decision>
 
 ## 背景と課題
 

@@ -7,10 +7,10 @@ const STALE_ARCH_GRACE_MS = 24 * 60 * 60 * 1000
 
 type DocumentHealthHintCode =
   | 'missing-design'
-  | 'missing-verification'
+  | 'missing-test'
   | 'bloated-spec-doc'
   | 'overloaded-hub-doc'
-  | 'stale-architecture'
+  | 'stale-system-design'
 
 interface DocumentHealthHint {
   code: DocumentHealthHintCode
@@ -30,13 +30,13 @@ interface BloatedSpecDocInfo {
 interface OverloadedHubDocInfo {
   docId: string
   path: string
-  docType: 'design' | 'verification'
-  edgeKind: 'satisfies' | 'verifies'
+  docType: 'design'
+  edgeKind: 'satisfies'
   targetCount: number
   threshold: number
 }
 
-interface StaleArchitectureInfo {
+interface StaleSystemDesignInfo {
   docId: string
   path: string
   updatedAt?: string
@@ -46,12 +46,12 @@ interface StaleArchitectureInfo {
 export interface DocumentHealthSummary {
   totalNormativeSpecs: number
   designCoveredSpecs: number
-  verificationCoveredSpecs: number
+  testCoveredSpecs: number
   uncoveredByDesign: string[]
-  uncoveredByVerification: string[]
+  uncoveredByTest: string[]
   bloatedSpecDocs: BloatedSpecDocInfo[]
   overloadedHubDocs: OverloadedHubDocInfo[]
-  staleArchitectureDocs: StaleArchitectureInfo[]
+  staleSystemDesignDocs: StaleSystemDesignInfo[]
   hints: DocumentHealthHint[]
 }
 
@@ -86,23 +86,17 @@ export function computeDocumentHealth(index: DocsIndex, options: ComputeHealthOp
         outgoingTargetsByDoc.set(fromDoc.id, set)
       }
       set.add(edge.to)
-    } else if (edge.kind === 'verifies' && fromDoc.type === 'verification') {
+    } else if (edge.kind === 'verifies') {
       verificationTargets.add(edge.to)
-      let set = outgoingTargetsByDoc.get(fromDoc.id)
-      if (!set) {
-        set = new Set<string>()
-        outgoingTargetsByDoc.set(fromDoc.id, set)
-      }
-      set.add(edge.to)
     }
   }
 
   const uncoveredByDesign: string[] = []
-  const uncoveredByVerification: string[] = []
+  const uncoveredByTest: string[] = []
   const hints: DocumentHealthHint[] = []
   let totalNormativeSpecs = 0
   let designCoveredSpecs = 0
-  let verificationCoveredSpecs = 0
+  let testCoveredSpecs = 0
 
   for (const block of index.blocksById.values()) {
     if (block.kind !== 'spec' || block.intent !== 'normative') continue
@@ -123,14 +117,14 @@ export function computeDocumentHealth(index: DocsIndex, options: ComputeHealthOp
       })
     }
 
-    const hasVerification = verificationTargets.has(block.id) || verificationTargets.has(block.docId)
-    if (hasVerification) {
-      verificationCoveredSpecs++
+    const hasTest = verificationTargets.has(block.id) || verificationTargets.has(block.docId)
+    if (hasTest) {
+      testCoveredSpecs++
     } else {
-      uncoveredByVerification.push(block.id)
+      uncoveredByTest.push(block.id)
       hints.push({
-        code: 'missing-verification',
-        message: `<Spec id="${block.id}"> has no verification document verifying it`,
+        code: 'missing-test',
+        message: `<Spec id="${block.id}"> has no <Test verifies="${block.id}"> or verifies edge covering it`,
         path: ownerDoc?.path,
         docId: block.docId,
         blockId: block.id,
@@ -139,7 +133,7 @@ export function computeDocumentHealth(index: DocsIndex, options: ComputeHealthOp
   }
 
   uncoveredByDesign.sort()
-  uncoveredByVerification.sort()
+  uncoveredByTest.sort()
 
   const bloatedSpecDocs: BloatedSpecDocInfo[] = []
   for (const doc of index.documents) {
@@ -163,33 +157,34 @@ export function computeDocumentHealth(index: DocsIndex, options: ComputeHealthOp
 
   const overloadedHubDocs: OverloadedHubDocInfo[] = []
   for (const doc of index.documents) {
-    if (doc.type !== 'design' && doc.type !== 'verification') continue
+    if (doc.type !== 'design') continue
     const targets = outgoingTargetsByDoc.get(doc.id)
     const targetCount = targets?.size ?? 0
     if (targetCount > maxTraceTargetsPerDoc) {
-      const edgeKind = doc.type === 'design' ? 'satisfies' : 'verifies'
       overloadedHubDocs.push({
         docId: doc.id,
         path: doc.path,
-        docType: doc.type,
-        edgeKind,
+        docType: 'design',
+        edgeKind: 'satisfies',
         targetCount,
         threshold: maxTraceTargetsPerDoc,
       })
       hints.push({
         code: 'overloaded-hub-doc',
-        message: `${doc.path} has ${targetCount} ${edgeKind} targets (recommended max: ${maxTraceTargetsPerDoc}; consider splitting by capability/domain)`,
+        message: `${doc.path} has ${targetCount} satisfies targets (recommended max: ${maxTraceTargetsPerDoc}; consider splitting by capability/domain)`,
         path: doc.path,
         docId: doc.id,
       })
     }
   }
 
-  const staleArchitectureDocs: StaleArchitectureInfo[] = []
-  const archDocs = index.documents.filter((d) => d.type === 'architecture')
-  const specOrDesignDocs = index.documents.filter((d) => d.type === 'spec' || d.type === 'design')
+  const staleSystemDesignDocs: StaleSystemDesignInfo[] = []
+  const systemDesignDocs = index.documents.filter((d) => d.type === 'design' && d.scope === 'system')
+  const specOrDesignDocs = index.documents.filter(
+    (d) => d.type === 'spec' || (d.type === 'design' && d.scope !== 'system'),
+  )
 
-  for (const arch of archDocs) {
+  for (const arch of systemDesignDocs) {
     const archUpdatedMs = arch.freshness?.updatedAt ? Date.parse(arch.freshness.updatedAt) : Number.NaN
     if (!Number.isFinite(archUpdatedMs)) continue
     let newerDocsCount = 0
@@ -200,15 +195,15 @@ export function computeDocumentHealth(index: DocsIndex, options: ComputeHealthOp
       }
     }
     if (newerDocsCount >= STALE_ARCH_MIN_NEWER_DOCS) {
-      staleArchitectureDocs.push({
+      staleSystemDesignDocs.push({
         docId: arch.id,
         path: arch.path,
         updatedAt: arch.freshness?.updatedAt,
         newerDocsCount,
       })
       hints.push({
-        code: 'stale-architecture',
-        message: `${newerDocsCount} spec/design documents were updated after ${arch.path} (consider refreshing the architecture overview)`,
+        code: 'stale-system-design',
+        message: `${newerDocsCount} spec/design documents were updated after ${arch.path} (consider refreshing the system design overview)`,
         path: arch.path,
         docId: arch.id,
       })
@@ -218,12 +213,12 @@ export function computeDocumentHealth(index: DocsIndex, options: ComputeHealthOp
   return {
     totalNormativeSpecs,
     designCoveredSpecs,
-    verificationCoveredSpecs,
+    testCoveredSpecs,
     uncoveredByDesign,
-    uncoveredByVerification,
+    uncoveredByTest,
     bloatedSpecDocs,
     overloadedHubDocs,
-    staleArchitectureDocs,
+    staleSystemDesignDocs,
     hints,
   }
 }

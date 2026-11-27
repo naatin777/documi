@@ -8,9 +8,9 @@ tags: [adr, ui, frontend, base-ui, tailwind]
 
 # Web UI 基盤として Base UI (`@base-ui/react`) と Tailwind CSS v4 を採用する
 
-<Outcome id="dec.base-ui-tailwind" stability="stable">
+<Decision id="dec.base-ui-tailwind" stability="stable">
   Documi Web UI のアプリ殻（レイアウト・サイドバー・タブ・インスペクタ・各種ビュー・ダイアログ・メニュー・ポップオーバー・ツールチップ）は **`@base-ui/react`（ヘッドレス UI プリミティブ）＋ Tailwind CSS v4（`@tailwindcss/vite`）** で構築し、旧アプリ殻 CSS（`layout.css` / `panels.css` / `views.css` / `modals.css` / `responsive.css`）および互換レイヤは廃止する。MDX 本文組版・セマンティックブロック装飾・PDF/HTML 印刷（`tokens.css` / `document.css` / `semantic.css` / `print.css`）のみを素のセマンティック CSS として維持し、視覚付き総合 UI ライブラリ（MUI / Ant Design 等）は採用しない。
-</Outcome>
+</Decision>
 
 ## 背景と課題
 

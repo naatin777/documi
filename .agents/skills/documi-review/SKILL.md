@@ -15,7 +15,7 @@ description: 未承認・stale・suspect な仕様を 2〜3 件ずつ取り上�
    - `documi query --review stale`（承認後に変更されたブロック）
    - `documi query --suspect`（上流変更が波及したブロック）
    - `documi query --review unreviewed --kind spec`（未承認の正式仕様）
-3. 選んだ各ブロックについて `documi context <spec-id>` を実行し、上流 Goal・Decision `<Outcome>`・関連制約・`<SourceRef>`（実コード）を把握する。
+3. 選んだ各ブロックについて `documi context <spec-id>` を実行し、上流 Goal・`<Decision>`・関連制約・`<SourceRef>`（実コード）を把握する。
 
 ## 2. 具体シナリオ・エッジケースのクイズをテンポよく出題する
 

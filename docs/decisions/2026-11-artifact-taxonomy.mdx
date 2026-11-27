@@ -8,9 +8,9 @@ tags: [adr, taxonomy, ai-context]
 
 # 5 層・9 種類の Artifact Type と ADR 結論分離の採用
 
-<Outcome id="dec.artifact-taxonomy" stability="stable">
-  ドキュメントを **Boundary (`goal`, `decision`) / Domain (`domain`) / Normative (`spec`, `contract`) / Realization (`architecture`, `design`, `verification`) / Informative (`guide`)** の 9 種類に分類する。`architecture`（常時投入する全体地図）と `design`（対象機能のみ投入する詳細設計）は AI コンテキスト投入頻度で明確に分離し、`decision` は `<Outcome>` で結論だけを抽出して実装 AI のコンテキスト圧迫を防ぐ。
-</Outcome>
+<Decision id="dec.artifact-taxonomy" stability="stable">
+  ドキュメントを **Boundary (`goal`, `decision`) / Domain (`domain`) / Normative (`spec`, `contract`) / Realization (`architecture`, `design`, `verification`) / Informative (`guide`)** の 9 種類に分類する。`architecture`（常時投入する全体地図）と `design`（対象機能のみ投入する詳細設計）は AI コンテキスト投入頻度で明確に分離し、`decision` は `<Decision>` で結論だけを抽出して実装 AI のコンテキスト圧迫を防ぐ。
+</Decision>
 
 ## 背景と検討した標準体系
 
@@ -23,7 +23,7 @@ tags: [adr, taxonomy, ai-context]
 | **arc42 + C4 Model** | システム全体の鳥瞰図 (L1-L2) とコンポーネント内部設計 (L3) | `architecture` (全体) と `design` (個別機能) |
 | **DDD / Living Documentation** | ユビキタス言語とコードの 1 対 1 結合 | `glossary.mdx` を **`domain`** Type へ昇格し `<TermDef symbols="...">` でコード直結 |
 | **IETF RFC / W3C 仕様** | **Normative** (準拠必須の規範) vs **Informative** (解説・メモ) | `spec`/`contract` と `guide`/`<Note intent="idea">` の明確な分離 |
-| **ADR (MADR)** | 時系列の意思決定と棄却理由の保存 | `decision` ＋ 結論だけを抜き出す **`<Outcome>`** タグ |
+| **ADR (MADR)** | 時系列の意思決定と棄却理由の保存 | `decision` ＋ 結論だけを抜き出す **`<Decision>`** タグ |
 | **EARS** (Rolls-Royce / Kiro 等) | 曖昧さを排除する振る舞い記述構文 (`When / While / If ... shall ...`) | `requirement` を **`spec`** へ明確化し `<Spec>` ブロックで記述 |
 | **SDD (Spec Kit 等)** | プロジェクト不変ルール (Constitution) による脱線防止 | `goal` 内の **`<Constraint>`** ブロック |
 
@@ -34,9 +34,9 @@ tags: [adr, taxonomy, ai-context]
 - **`architecture`**: プロジェクト全体の地図・境界・レイヤー規約（枚数が少なく変更頻度も低い → **AI に常時渡す**）
 - **`design`**: 特定機能の内部アルゴリズム・データフロー・`<SourceRef>`（機能ごとに増え頻繁に変わる → **該当機能を触るときだけ渡す**）
 
-### 2. ADR (`decision`) に `<Outcome>` タグを設けた理由
+### 2. ADR (`decision`) に `<Decision>` タグを設けた理由
 トレードオフや棄却案の議論は人間が後から振り返るために詳しく残すべきだが、実装中の AI に全文を渡すとコンテキストウィンドウを圧迫する。
-`<Outcome>` で「結局結論は何か？」の数行だけを囲むことで、MCP の `get_project_map` / `get_spec_context` はデフォルトで結論だけを渡し、背景が必要なときだけ `get_document` で全文を読む **段階的開示（Progressive Disclosure）** を実現した。
+`<Decision>` で「結局結論は何か？」の数行だけを囲むことで、MCP の `get_project_map` / `get_spec_context` はデフォルトで結論だけを渡し、背景が必要なときだけ `get_document` で全文を読む **段階的開示（Progressive Disclosure）** を実現した。
 
 ### 3. 未確定メモを独立 Type (`note`) にしなかった理由
 「実装するか分からないメモ」は仕様メモにも設計メモにも生じるため、独立した Artifact Type を増やすのではなく、任意の文書内に置ける `<Note intent="idea">` および `<Spec intent="idea">` の **採用意思 (`intent`) 属性** として表現する方が自然で散逸しない。

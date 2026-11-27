@@ -207,7 +207,7 @@ describe('MCP Surgical Editing', () => {
       type: 'decision',
       title: 'MFA 方式選定',
       date: '2026-11-22',
-      body: '<Outcome id="dec.mfa">TOTP を採用する。</Outcome>',
+      body: '<Decision id="dec.mfa">TOTP を採用する。</Decision>',
     })
     expect(scaffolded.isError).toBe(false)
     expect(scaffolded.data?.docId).toBe('decisions/2026-11-mfa')

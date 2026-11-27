@@ -8,9 +8,9 @@ tags: [adr, api, hono, rpc, zod, openapi]
 
 # Hono RPC + Zod による型安全な API 層と将来のコードファースト OpenAPI 方針
 
-<Outcome id="dec.hono-rpc-zod" stability="stable">
+<Decision id="dec.hono-rpc-zod" stability="stable">
   Documi の `/api/*` は **Hono の機能別サブルータ + Zod 入力バリデーション + Hono RPC (`hc<ApiRoutes>`)** で構成する。Web UI のレスポンス型は `InferResponseType` でサーバー実装から直接推論し、手書きの型二重管理を廃止する。tRPC と YAML 先行 OpenAPI Generator は採用せず、将来外部・多言語クライアント連携が必要になった段階で同じ Zod スキーマからコードファーストで OpenAPI (`/api/openapi.json`) を自動生成する。
-</Outcome>
+</Decision>
 
 ## 背景と課題
 

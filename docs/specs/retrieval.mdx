@@ -26,7 +26,7 @@ tags: [spec, search, rag]
 
 <Spec id="core.graph-retrieval" stability="evolving" derives="goals/ai-reproducibility">
   **When** 自然文の質問やタスク記述に対して全文検索または `documi search --context` / MCP `search_documents (includeContext: true)` が実行されたとき、
-  **the** Document Core **shall** 日本語（漢字・カタカナ・ひらがな）および英語・コード識別子トークナイザによる BM25 スコアリングと `<TermDef aliases>` を用いた自動同義語展開を実行し、一次ヒットから上流 Goal・関連 Decision `<Outcome>`・関連 Contract/Design・用語・`<SourceRef>` を明示グラフに沿って収集し指定文字数予算内で返却する。
+  **the** Document Core **shall** 日本語（漢字・カタカナ・ひらがな）および英語・コード識別子トークナイザによる BM25 スコアリングと `<TermDef aliases>` を用いた自動同義語展開を実行し、一次ヒットから上流 Goal・関連 `<Decision>` 結論（マイクロ ADR 含む・廃止済み除外）・関連 Contract/Design・用語・`<SourceRef>` を明示グラフに沿って収集し指定文字数予算内で返却する。
 </Spec>
 
 - **ゼロ依存トークナイザ規則 (`tokenizeForSearch`)**:
@@ -36,7 +36,7 @@ tags: [spec, search, rag]
 - **用語集同義語展開**: クエリ中に登録済み `<TermDef>` の `id` または `aliases` が含まれる場合、対応する正規 ID と別名トークンをクエリへ自動追加する。
 - **グラフ文脈展開と予算制御 (`retrieveContext`)**:
   - 既定ヒット上限 `limit = 8`、既定文字数予算 `budget = 6000` 文字（`includeGraph: false` / `--no-graph` で一次ヒットのみ返却）。
-  - 一次ヒットのブロック／文書から明示エッジを辿り、上流 `goal`、関連 `decision` `<Outcome>`、関連 `contract` / `design`、関連 `<TermDef>`、および `<SourceRef>` を優先順に予算内で梱包する。
+  - 一次ヒットのブロック／文書から明示エッジを辿り、上流 `goal`、関連 `<Decision>` 結論（廃止済み除外）、関連 `contract` / `design`、関連 `<TermDef>`、および `<SourceRef>` を優先順に予算内で梱包する。
 
 ## 3. ローカル Hybrid RAG（`bun:sqlite` 差分キャッシュ・RRF・OpenAI 互換 HTTP）
 
@@ -62,3 +62,11 @@ tags: [spec, search, rag]
   - チャンク（`doc:<id>` / `block:<id>`）は `contentHash` と `model_id` でキャッシュ照合し、変更分のみバッチ埋め込み・削除済みチャンクを自動掃除する（スキーマ詳細は [永続ファイル契約](../contracts/storage-formats.mdx)）。
   - BM25 順位とベクトル順位（正規化済み `Float32Array` 内積）を RRF（定数 `k = 60`）で統合する。
   - プロバイダ未接続・API キー欠如・タイムアウト・ランタイム例外発生時は、既定（`fallbackOnError: true`）でエラー終了せず BM25＋用語展開＋グラフ展開の結果へ安全にフォールバックし、`mode: "bm25"`（またはフォールバック通知付き）で返す。
+
+## 保証シナリオ
+
+<Test id="test.retrieval" verifies="core.full-text-search, ui.search-palette, core.graph-retrieval, core.hybrid-rag" level="integration">
+  - **Given**: 用語別名・グラフ関係・複数マウント・SQLite ベクトルキャッシュを持つドキュメント群
+  - **When**: `documi search`（`--context` / `--semantic`）および検索モーダルを実行する
+  - **Then**: BM25＋用語展開＋RRF＋文字数予算内グラフ展開が期待通りに動作し、増分キャッシュ更新も破綻しない
+</Test>

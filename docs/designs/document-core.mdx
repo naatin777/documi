@@ -29,7 +29,7 @@ Document Core (`src/core`) は React・Hono・MCP に一切依存せず、ファ
 YAML frontmatter を分離し、省略時はディレクトリ名・ファイル名から Type、H1 見出しからタイトルを推論する。任意の `date`（ISO 8601 の `YYYY-MM-DD` / `YYYY-MM`、MADR 4.0 準拠）を検証し、`decision` 文書は新しい決定日順に降順ソートする。
 </Steps.Step>
 <Steps.Step title="mdast ブロック＆リンク抽出・安全性検証">
-`remark-mdx` の AST から `<Spec>` / `<Constraint>` / `<Outcome>` / `<Note>` / `<TermDef>` / `<SourceRef>` / 本文リンクを抽出し、正規化 SHA-256 ハッシュを算出する。ESM import/export・JSX 式・未許可コンポーネントは実行せず `mdx-unsupported` として報告する。
+`remark-mdx` の AST から `<Spec>` / `<Constraint>` / `<Decision>` / `<Note>` / `<TermDef>` / `<SourceRef>` / 本文リンクを抽出し、正規化 SHA-256 ハッシュを算出する。ESM import/export・JSX 式・未許可コンポーネントは実行せず `mdx-unsupported` として報告する。
 </Steps.Step>
 <Steps.Step title="グラフ構築と Rooted DAG 検証">
 5 種エッジ（本文リンク・`<Term>` 参照からの自動 `mentions` を含む）を解決して双方向参照を構築し、循環参照および `normative` Spec の Goal 到達性 (`orphan-spec`) を検査する。`<SourceRef>` / `<TermDef symbols>` はすべて <Term name="ProjectRoot" /> からの相対パスとして安全検証する。

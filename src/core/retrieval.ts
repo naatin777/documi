@@ -358,7 +358,7 @@ function buildCorpusEntries(index: DocsIndex, typeFilter?: ArtifactType): Corpus
 
 /**
  * BM25（日英＋コード識別子トークナイザ）＋ `<TermDef aliases>` 同義語展開による全文検索。
- * `searchIndex`・Web UI (`Cmd+K`)・CLI (`documi search` / `retrieve`)・MCP (`search_documents` / `retrieve_context`) の共通エンジン。
+ * `searchIndex`・Web UI (`Cmd+K`)・CLI (`documi search`)・MCP (`search_documents`) の共通エンジン。
  * @implements core.full-text-search
  * @implements core.graph-retrieval
  */
@@ -511,7 +511,7 @@ export interface RetrieveContextOptions {
   limit?: number
   /** 返却ペイロードの文字数予算（既定: 6000、範囲: 500〜40000） */
   budget?: number
-  /** グラフ近傍（上流 Goal・Decision Outcome・関連文書・用語・SourceRef）を展開するか（既定: true） */
+  /** グラフ近傍（上流 Goal・<Decision>・関連文書・用語・SourceRef）を展開するか（既定: true） */
   includeGraph?: boolean
 }
 
@@ -539,7 +539,7 @@ export interface RetrieveContextResult {
   expandedTerms: string[]
   hits: RetrievedHitItem[]
   upstreamGoals: Array<{ id: string; title: string; description: string }>
-  decisionOutcomes: Array<{ id: string; docId: string; date?: string; body: string }>
+  decisions: Array<{ id: string; docId: string; date?: string; body: string }>
   relatedDocuments: Array<{ id: string; type: ArtifactType; title: string; description: string; relation: string }>
   relevantTerms: Array<{ id: string; aliases: string[]; symbols: string[]; definition: string }>
   sourceRefs: Array<{ file: string; symbol?: string; lines?: string; fromDocId: string }>
@@ -620,7 +620,7 @@ export function assembleGraphContext(
   }
 
   const upstreamGoals: RetrieveContextResult['upstreamGoals'] = []
-  const decisionOutcomes: RetrieveContextResult['decisionOutcomes'] = []
+  const decisions: RetrieveContextResult['decisions'] = []
   const relatedDocuments: RetrieveContextResult['relatedDocuments'] = []
   const relevantTerms: RetrieveContextResult['relevantTerms'] = []
   const sourceRefs: RetrieveContextResult['sourceRefs'] = []
@@ -634,7 +634,7 @@ export function assembleGraphContext(
       expandedTerms,
       hits,
       upstreamGoals,
-      decisionOutcomes,
+      decisions,
       relatedDocuments,
       relevantTerms,
       sourceRefs,
@@ -680,36 +680,36 @@ export function assembleGraphContext(
     }
   }
 
-  // 3a. 関連 Decision の <Outcome> を優先収録
-  const seenOutcomeIds = new Set<string>()
+  // 3a. 関連 Decision（独立 ADR および設計/仕様内のインラインマイクロ ADR）の現行 <Decision> 結論を優先収録（廃止済みは除外）
+  const seenDecisionIds = new Set<string>()
   for (const docId of [...seedDocIds, ...relatedByDocId.keys()]) {
     const d = index.byId.get(docId)
-    if (d?.type !== 'decision') continue
+    if (!d) continue
     for (const b of d.blocks) {
-      if (b.kind !== 'outcome' || seenOutcomeIds.has(b.id)) continue
-      seenOutcomeIds.add(b.id)
-      const body = summarize(b.rawBody, 240)
+      if (b.kind !== 'decision' || seenDecisionIds.has(b.id)) continue
+      if (b.supersededBy && b.supersededBy.length > 0) continue
+      seenDecisionIds.add(b.id)
+      const body = summarize(b.summary ?? b.chosen ?? b.rawBody, 240)
       if (!tryConsume(`${b.id} ${body}`)) break
-      decisionOutcomes.push({
+      const date = b.date ?? d.date
+      decisions.push({
         id: b.id,
         docId: d.id,
-        ...(d.date ? { date: d.date } : {}),
+        ...(date ? { date } : {}),
         body,
       })
     }
   }
 
-  // 3b. 関連ドキュメント（Goal 以外、Contract / Design / Verification 優先）
+  // 3b. 関連ドキュメント（Goal 以外、Contract / Design / Spec 優先）
   const typePriority: Record<ArtifactType, number> = {
     contract: 1,
     design: 2,
     spec: 3,
     decision: 4,
-    architecture: 5,
-    verification: 6,
-    domain: 7,
-    guide: 8,
-    goal: 9,
+    domain: 5,
+    guide: 6,
+    goal: 7,
   }
   const sortedRelated = [...relatedByDocId.entries()]
     .map(([docId, relation]) => ({ doc: index.byId.get(docId), relation }))
@@ -807,7 +807,7 @@ export function assembleGraphContext(
     expandedTerms,
     hits,
     upstreamGoals,
-    decisionOutcomes,
+    decisions,
     relatedDocuments,
     relevantTerms,
     sourceRefs,
@@ -819,7 +819,7 @@ export function assembleGraphContext(
 /**
  * 自然文の質問・タスク記述から、BM25 + 用語集同義語展開 + 明示グラフ展開（Goal / Decision Outcome / Contract / Design / 用語 / SourceRef）を
  * トークン（文字数）予算内にパックして 1 発で返す Graph-aware Retrieval。
- * CLI (`documi retrieve`) および MCP (`retrieve_context`) が共通利用する。
+ * CLI (`documi search --context`) および MCP (`search_documents` with `includeContext: true`) が共通利用する。
  * @implements core.graph-retrieval
  */
 export function retrieveContext(

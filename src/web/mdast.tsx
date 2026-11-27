@@ -21,7 +21,15 @@ import {
   type TimelineItemData,
 } from './components/MdxBlocks'
 import MermaidBlock from './components/MermaidBlock'
-import { ConstraintBlock, NoteBlock, OutcomeBlock, SpecBlock, TermDefBlock } from './components/SemanticBlocks'
+import {
+  ConstraintBlock,
+  DecisionBlock,
+  DecisionSubBlock,
+  NoteBlock,
+  SpecBlock,
+  TermDefBlock,
+  TestBlock,
+} from './components/SemanticBlocks'
 import SourceRef from './components/SourceRef'
 import { TermInline } from './components/TermPopover'
 import { uniqueHeadingId } from './headingIds'
@@ -536,7 +544,12 @@ const FLOW_COMPONENTS = new Set([
   'SourceRef',
   'Spec',
   'Constraint',
-  'Outcome',
+  'Decision',
+  'Context',
+  'Chosen',
+  'Rejected',
+  'Tradeoff',
+  'Test',
   'Note',
   'TermDef',
   'Term',
@@ -623,16 +636,42 @@ function renderJsx(node: JsxNode, ctx: Ctx, level: 'flow' | 'text'): ReactNode {
             {renderJsxChildren(node, ctx)}
           </ConstraintBlock>
         )
-      case 'Outcome':
+      case 'Decision':
         return (
-          <OutcomeBlock
+          <DecisionBlock
             id={strProp(props, 'id')}
+            summary={strProp(props, 'summary')}
+            date={strProp(props, 'date')}
             supersedes={strProp(props, 'supersedes')}
             stability={strProp(props, 'stability')}
             title={strProp(props, 'title')}
           >
             {renderJsxChildren(node, ctx)}
-          </OutcomeBlock>
+          </DecisionBlock>
+        )
+      case 'Context':
+        return <DecisionSubBlock kind="context">{renderJsxChildren(node, ctx)}</DecisionSubBlock>
+      case 'Chosen':
+        return <DecisionSubBlock kind="chosen">{renderJsxChildren(node, ctx)}</DecisionSubBlock>
+      case 'Rejected':
+        return (
+          <DecisionSubBlock kind="rejected" option={strProp(props, 'option')}>
+            {renderJsxChildren(node, ctx)}
+          </DecisionSubBlock>
+        )
+      case 'Tradeoff':
+        return <DecisionSubBlock kind="tradeoff">{renderJsxChildren(node, ctx)}</DecisionSubBlock>
+      case 'Test':
+        return (
+          <TestBlock
+            id={strProp(props, 'id')}
+            verifies={strProp(props, 'verifies')}
+            level={strProp(props, 'level')}
+            stability={strProp(props, 'stability')}
+            title={strProp(props, 'title')}
+          >
+            {renderJsxChildren(node, ctx)}
+          </TestBlock>
         )
       case 'Note':
         return (

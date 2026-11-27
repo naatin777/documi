@@ -38,7 +38,7 @@ tags: [spec, ai, cli, mcp]
 - **生成ファイル（冪等・非破壊）**:
   - `docs/` 雛形 4 件: `goals/project-goal.mdx`, `domain/glossary.mdx`, `decisions/first-decision.mdx`, `specs/example.mdx`（生成直後に `documi check` がエラー 0 件で通過する完全な Rooted DAG を構成）
   - `.agents/skills/` 4 件: `documi/SKILL.md`, `documi-bootstrap/SKILL.md`, `documi-review/SKILL.md`, `documi-audit/SKILL.md`（すべて CLI ベースで MCP ツール名と重複しない）
-  - `documi/SKILL.md` は **Spec-First 運用・Capability 単位分割・矛盾防止・合意の即時永続化・視覚ファースト執筆規約**（変更前に `documi impact` で影響範囲を棚卸し → `docs/` を実装より先に更新し 1 事実 1 箇所・1 Capability 1 ファイル・方針転換時は `supersedes` を付与 → 逆ピラミッド・1 段落 3 行以内・箇条書き先頭太字・流れは Mermaid・分岐は表・補足は `<Details>`・比較は `<Columns>`・時系列は `<Timeline>` でスキャンしやすく記述 → チャット合意は `<Outcome>` / `<Spec>` / `<Constraint>` / `<Note intent="idea">` へ即記録 → `documi check` → コード実装）を標準手順として内蔵する。
+  - `documi/SKILL.md` は **Spec-First 運用・Capability 単位分割・矛盾防止・合意の即時永続化・視覚ファースト執筆規約**（変更前に `documi impact` で影響範囲を棚卸し → `docs/` を実装より先に更新し 1 事実 1 箇所・1 Capability 1 ファイル・方針転換時は `supersedes` を付与 → 逆ピラミッド・1 段落 3 行以内・箇条書き先頭太字・流れは Mermaid・分岐は表・補足は `<Details>`・比較は `<Columns>`・時系列は `<Timeline>` でスキャンしやすく記述 → チャット合意は `<Decision>` / `<Spec>` / `<Test>` / `<Constraint>` / `<Note intent="idea">` へ即記録 → `documi check` → コード実装）を標準手順として内蔵する。
   - `documi-audit/SKILL.md` はコードとの整合監査に加え、**実装前の `docs/` 同士の意味的矛盾チェック**（変更文書と `documi impact` 先のクロスチェック）および **長文散文の図表・`<Details>` 化ダイエット監査** も扱う。
 - **境界条件**: 既存 `AGENTS.md` / `CLAUDE.md` は作成・変更しない。`--en` と `--ja` の同時指定や不正 `--lang` は引数エラーで終了コード `1`。`--skills-only` は雛形をスキップ、`--no-skills` はスキルをスキップ、`--force-skills` のみ既存 `SKILL.md` を上書き更新する。
 
@@ -68,3 +68,11 @@ tags: [spec, ai, cli, mcp]
   - `BLOCK_ID_PATTERN` 違反・既存ブロック ID との重複
   - 本文中の MDX 危険構文（`import`/`export`・JSX 式 `{...}`・スプレッド属性・未許可コンポーネント）
 - **`rename_block_id` の置換範囲**: 全 `docs/` のブロック定義・frontmatter/属性の `derives`/`satisfies`/`verifies`/`supersedes`・`<SourceRef>` および `projectRoot` 配下の `@implements`/`@verifies`/`test("[id]")` を対象とし、`dryRun: true` / `--dry-run` で変更予定一覧のみ確認できる。
+
+## 保証シナリオ
+
+<Test id="test.ai-workflow" verifies="core.project-config, core.agent-skills-init, core.ai-cli, core.mcp-surgical-edit" level="integration">
+  - **Given**: `.documi.json`（単一・複数マウント含む）を持つプロジェクト
+  - **When**: `documi init`・CLI 各種コマンド（`check --format github`・フラグ検証含む）・MCP 精密編集ツールを実行する
+  - **Then**: 設定検証・冪等な Skills 生成・安全な外科的 MDX 編集・不正引数拒否が仕様通りに動作する
+</Test>

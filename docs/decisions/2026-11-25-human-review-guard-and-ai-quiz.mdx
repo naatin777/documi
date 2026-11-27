@@ -10,9 +10,9 @@ tags: [adr, review, guard, ai, quiz, workflow]
 
 # 人間承認ガード分離・不要機能削減・AI 対話クイズ＆最終確認 URL 承認の採用
 
-<Outcome id="dec.review-guard-and-quiz" stability="stable">
+<Decision id="dec.review-guard-and-quiz" stability="stable">
   人間承認レコードは隠しフォルダではなく **`docs/guard/reviews.json`**（任意の確認メモ `note` 付き）へ可視分離し、一時ファイル・キャッシュ（JUnit XML・Embedding DB・Diff キャッシュ）はルート **`.documi/`**（`.gitignore` 一本化）へ分離する。Web UI 内蔵フィードバック・`stabilityOverride`・手書き `owner:` frontmatter・Web UI 内蔵 LLM クライアント・無条件 `--all` 一括承認はすべて不採用とし、**AI チャットの `documi-review` 対話クイズ → 専用最終確認 URL（`/review?ids=...&note=...`）→ 人間 1 クリックまとめて承認** の疎結合フローを採用する。上流変更フラグ `suspect` は `realization: drifted` や CI `--strict` エラーにせず軽量な参考通知に留める。
-</Outcome>
+</Decision>
 
 ## 背景と課題
 

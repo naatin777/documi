@@ -20,9 +20,7 @@
       "domain": "Domain",
       "spec": "Spec",
       "contract": "Contract",
-      "architecture": "Architecture",
       "design": "Design",
-      "verification": "Verification",
       "guide": "Guide"
     },
     "section": {
@@ -31,9 +29,7 @@
       "domain": "Domain & Glossary",
       "spec": "Specs",
       "contract": "Contracts",
-      "architecture": "Architecture",
       "design": "Designs",
-      "verification": "Verification",
       "guide": "Guides"
     }
   },
@@ -131,13 +127,13 @@
     "artifactTypes": "Artifact Types",
     "goalsRoot": "Goals",
     "noGoals": "No Goal documents yet.",
-    "decisionOutcomes": "Decision Outcomes (ADR)",
+    "decisions": "Decisions (ADR)",
     "orphanSpecs": "Orphan Specs ({{count}})",
     "allIssues": "All Issues ({{count}})",
     "realizationStability": "Realization & Stability",
     "healthTitle": "Documentation Health & Coverage",
     "designCoverage": "Specs Covered by Design",
-    "verificationCoverage": "Specs Covered by Verification",
+    "testCoverage": "Specs Covered by Tests",
     "healthHealthy": "Healthy",
     "healthHintsCount": "{{count}} advisory hint(s)",
     "realization": "Realization",

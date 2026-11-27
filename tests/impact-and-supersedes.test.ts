@@ -9,7 +9,7 @@ import { createApp } from '../src/server/app'
 import { DocsStore } from '../src/server/store'
 
 describe('supersedes separation & impact analysis', () => {
-  test('[core.rooted-dag] separates active and superseded Decision Outcomes across graph, map, and /api/overview', async () => {
+  test('[core.rooted-dag] separates active and superseded Decisions across graph, map, and /api/overview', async () => {
     const tmp = await mkdtemp(path.join(os.tmpdir(), 'documi-supersedes-'))
     const docsDir = path.join(tmp, 'docs')
     try {
@@ -24,9 +24,9 @@ title: Old Choice
 date: 2026-01-10
 ---
 
-<Outcome id="dec.old">
+<Decision id="dec.old">
   Use legacy approach.
-</Outcome>
+</Decision>
 `,
       )
       await writeFile(
@@ -39,37 +39,37 @@ supersedes:
   - decisions/2026-01-old-choice
 ---
 
-<Outcome id="dec.new">
+<Decision id="dec.new">
   Use unified approach instead.
-</Outcome>
+</Decision>
 `,
       )
 
       const store = await DocsStore.open(docsDir, { projectRoot: tmp })
       const index = store.getIndex()
 
-      // Old ADR doc and its <Outcome> inherit supersededBy
+      // Old ADR doc and its <Decision> inherit supersededBy
       expect(index.byId.get('decisions/2026-01-old-choice')?.supersededBy).toEqual(['decisions/2026-02-new-choice'])
       expect(index.blocksById.get('dec.old')?.supersededBy).toEqual(['decisions/2026-02-new-choice'])
       expect(index.blocksById.get('dec.new')?.supersededBy).toBeUndefined()
 
-      // buildProjectMap separates active vs superseded outcomes
+      // buildProjectMap separates active vs superseded decisions
       const map = buildProjectMap(index)
-      expect(map.decisionOutcomes.map((o) => o.id)).toEqual(['dec.new'])
-      expect(map.supersededOutcomes.map((o) => o.id)).toEqual(['dec.old'])
-      expect(map.supersededOutcomes[0]?.supersededBy).toEqual(['decisions/2026-02-new-choice'])
+      expect(map.decisions.map((o) => o.id)).toEqual(['dec.new'])
+      expect(map.supersededDecisions.map((o) => o.id)).toEqual(['dec.old'])
+      expect(map.supersededDecisions[0]?.supersededBy).toEqual(['decisions/2026-02-new-choice'])
 
-      // GET /api/overview separates active outcomes vs supersededOutcomes
+      // GET /api/overview separates active decisions vs supersededDecisions
       const app = createApp(store, { projectRoot: tmp })
       const res = await app.request('/api/overview')
       expect(res.status).toBe(200)
       const body = (await res.json()) as {
-        outcomes: Array<{ id: string }>
-        supersededOutcomes: Array<{ id: string; supersededBy?: string[] }>
+        decisions: Array<{ id: string }>
+        supersededDecisions: Array<{ id: string; supersededBy?: string[] }>
       }
-      expect(body.outcomes.map((o) => o.id)).toEqual(['dec.new'])
-      expect(body.supersededOutcomes.map((o) => o.id)).toEqual(['dec.old'])
-      expect(body.supersededOutcomes[0]?.supersededBy).toEqual(['decisions/2026-02-new-choice'])
+      expect(body.decisions.map((o) => o.id)).toEqual(['dec.new'])
+      expect(body.supersededDecisions.map((o) => o.id)).toEqual(['dec.old'])
+      expect(body.supersededDecisions[0]?.supersededBy).toEqual(['decisions/2026-02-new-choice'])
     } finally {
       await rm(tmp, { recursive: true, force: true })
     }

@@ -21,8 +21,8 @@ tags: [spec, graph, traceability]
   - `intent="normative"` の `<Spec>` から `derives` を辿って `type === "goal"` に到達できない場合は `orphan-spec` issue を記録。
 - **`supersedes` による現行／廃止分離**:
   - 新しいドキュメントまたはブロックから `supersedes` エッジで指された旧ドキュメント・旧ブロックには `supersededBy: string[]` を自動付与する。
-  - 旧 `decision` 文書自体が `supersedes` されている場合、その文書配下の `<Outcome>` ブロックも廃止済み（親文書の `supersededBy` を継承）として扱う。
-  - `get_project_map`・`documi map`・`/api/overview` の `decisionOutcomes` には **現行（未廃止）の `<Outcome>` のみ** を返し、廃止済み決定は `supersededOutcomes` として分離することで、AI・人間の双方が古い決定と現行仕様を混同しないようにする。
+  - 旧 `decision` 文書自体が `supersedes` されている場合、その文書配下の `<Decision>` ブロックも廃止済み（親文書の `supersededBy` を継承）として扱う。
+  - `get_project_map`・`documi map`・`/api/overview` の `decisions` には **現行（未廃止）の `<Decision>` のみ** を返し、廃止済み決定は `supersededDecisions` として分離することで、AI・人間の双方が古い決定と現行仕様を混同しないようにする。
 
 ## 2. 自動参照 (`mentions`) とローカルメディア検証
 
@@ -44,3 +44,11 @@ tags: [spec, graph, traceability]
 </Spec>
 
 - **操作規約**: トラックパッド 2 本指スワイプ＝慣性付きパン、ピンチ操作または `⌘`/`Ctrl`＋ホイール＝カーソル位置中心のズーム、ノードドラッグ＝接続ノードの弾性追従、ノードクリック＝右ペインへ文書本文＆繋がりを即時プレビュー。
+
+## 保証シナリオ
+
+<Test id="test.trace-graph" verifies="core.rooted-dag, core.auto-mentions, ui.graph-view" level="integration">
+  - **Given**: Goal へ到達する Spec・孤立 Spec・循環 derives・本文相対リンクおよび `<Term>` を含むドキュメント群
+  - **When**: グラフ構築および Graph View を描画する
+  - **Then**: 循環と `orphan-spec` が検出され、相対リンクと用語参照から `mentions` エッジが自動抽出される
+</Test>

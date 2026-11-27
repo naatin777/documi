@@ -28,7 +28,7 @@ flowchart LR
     BM25 --> RRF["reciprocalRankFusion (RRF 統合)"]
     Vec -. "障害時は省略し BM25 へフォールバック" .-> RRF
 
-    RRF --> Graph["assembleGraphContext (上流 Goal / Decision Outcome / Contract / Design / Terms / SourceRefs)"]
+    RRF --> Graph["assembleGraphContext (上流 Goal / Decision / Contract / Design / Terms / SourceRefs)"]
     Graph --> Out["文字数予算内の構造化コンテキスト"]
 ```
 
