@@ -64,8 +64,10 @@ EOF
 - **`docs/guard/reviews.json` を直接編集しない。** 承認記録は人間専用（`documi check --no-review-edit` で検証）。
 - **MDX 内で実行可能な JavaScript を書かない**（ESM `import`/`export`・JSX 式 `{...}`・未許可コンポーネントは禁止）。
 - **`docs/` 内に一時的な `tasks.md` 等を作らない。** 進捗（`realization`）はコード・テスト・PR から自動算出される。
+- **理由不明な防御コードを勝手に消さない（チェスタートンの柵）**: リファクタ時に一見ムダな分岐・ガード・ワークアラウンドを見つけたら、消す前に必ず `git log -S` / `git blame` と `documi search --context` で経緯を確認する。バグ修正・地雷回避時は「コード直前の 1 行 Why-not コメント ＋ Red → Green 再現テスト ＋ 構造的地雷なら該当 `design`/`spec` 内マイクロ ADR `<Decision>`」の 3 点セットを残す。
+- **軽い仮実装は `intent="idea"` で明示する**: 後戻りコストの低い細部（デフォルト値・UI 細部等）を「とりあえず実装」するときは、黙って確定仕様に混ぜず `<Spec intent="idea">` または `<Note intent="idea" title="仮置き: ...">` に記録して Overview と PR で人間に可視化する。
 
 ## 5. 完了前の検証と引き継ぎ
 
-1. `documi check --no-review-edit` を実行し、エラー 0 件（Rooted DAG・MDX 安全性・AST シンボル参照）および健全性ヒント（Design / Verification カバレッジ・Spec 肥大化・ハブ過密）を確認する。
+1. `documi check --no-review-edit` を実行し、エラー 0 件（Rooted DAG・MDX 安全性・AST シンボル参照）および健全性ヒント（Design / Test カバレッジ・`anti-term-used`・Spec 肥大化・ハブ過密）を確認する。
 2. 追加・変更した Spec ID を簡潔にまとめ、人間レビュアーが Web UI（`documi serve`）で確認・承認できるようにする。

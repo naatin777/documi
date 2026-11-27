@@ -128,6 +128,7 @@
     "goalsRoot": "Goals",
     "noGoals": "No Goal documents yet.",
     "decisions": "Decisions (ADR)",
+    "openIdeas": "Open Ideas & Assumptions ({{count}})",
     "orphanSpecs": "Orphan Specs ({{count}})",
     "allIssues": "All Issues ({{count}})",
     "realizationStability": "Realization & Stability",

@@ -71,39 +71,39 @@ ISO/IEC/IEEE 29148（BRS / StRS）・Amazon Working Backwards（PR/FAQ）・Impa
 
 ---
 
-## 3. `spec`・`contract`・`architecture`・`design` の線引きと書き方ルール（確定）
+## 3. `spec`・`contract`・`design`（`scope: system` 含む）の線引きと書き方ルール（確定）
 
-日本の SIer 文化（工程・契約の引き継ぎ軸の「基本設計/外部設計」「詳細設計/内部設計」）と、海外・国際標準（ISO 29148 / ISO 42010 / C4 Model / arc42 / Google Design Doc / RFC / API Contract）の良さを取り込み、**「擬似コード化（書きすぎ）」と「曖昧すぎて AI レビューが発散する（書かなすぎ）」の両方を避ける** ために、この 4 Type を明確に分離する。
+日本の SIer 文化（工程・契約の引き継ぎ軸の「基本設計/外部設計」「詳細設計/内部設計」）と、海外・国際標準（ISO 29148 / ISO 42010 / C4 Model / arc42 / Google Design Doc / RFC / API Contract）の良さを取り込み、**「擬似コード化（書きすぎ）」と「曖昧すぎて AI レビューが発散する（書かなすぎ）」の両方を避ける** ために、この 3 Type（＋全体設計 `scope: system`）を明確に分離する。
 
 ### 3.1 日本の工程区分からの翻訳マップ
 
 | 日本の区分 | 分解先（Documi Type） | 考え方 |
 |---|---|---|
-| 基本設計・外部設計：ユーザーから見た動き・体験・異常系 | **`spec`** | テストで合否判定できる観測可能な振る舞い（What） |
-| 基本設計・外部設計：外部 I/F の入出力・エラー規約 | **`contract`** | API / MCP / CLI / 共有ファイル形式の厳密な契約 |
-| 基本設計・方式設計：システム全体構成・横断方針 | **`architecture`** | HLD / C4 Level 1–2 相当の全体地図と依存境界 |
-| 詳細設計・内部設計：機能単位の構造・データフロー・状態 | **`design`** | C4 Level 3 相当の現行設計図 ＋ `<SourceRef>` で実コード接続 |
-| 詳細設計・RFC：代替案比較・なぜそれを選んだかの経緯 | **`decision`** | 追記型の ADR ログ ＋ `<Decision>` 結論 |
+| 基本設計・外部設計：ユーザーから見た動き・体験・異常系 | **`spec`** | テストで合否判定できる観測可能な振る舞い（What）＋同居 `<Test>` |
+| 基本設計・外部設計：外部 I/F の入出力・エラー規約 | **`contract`** | API / MCP / CLI / 共有ファイル形式の厳密な契約＋契約 `<Test>` |
+| 基本設計・方式設計：システム全体構成・横断方針・テスト戦略 | **`design` (`scope: system`)** | HLD / C4 Level 1–2 相当の全体地図・依存境界・テスト戦略（`get_project_map` 常時投入） |
+| 詳細設計・内部設計：機能単位の構造・データフロー・状態 | **`design`** | C4 Level 3 相当の現行設計図 ＋ `<SourceRef>` で実コード接続 ＋ 局所判断はインライン `<Decision>` |
+| 詳細設計・RFC：全体に関わる代替案比較・なぜそれを選んだかの経緯 | **`decision`** | 追記型の ADR ログ ＋ `<Decision>` 結論 |
 | 詳細設計：関数内の `if`/`for`・変数名・細部ロジック | **書かない** | C4 Level 4 はコード・型・テストが正。擬似コードは陳腐化と AI 劣化を招く |
 
 ### 3.2 各 Type の責務と AI レビューでの位置づけ
 
-1. **`spec`（外側の振る舞い・要件）**
-   - **書くこと**: ユーザー・外部から観測できる振る舞い、画面体験、非機能要件、**異常系・境界条件**（EARS 構文の `<Spec>`）。
+1. **`spec`（外側の振る舞い・要件＋同居 `<Test>`）**
+   - **書くこと**: ユーザー・外部から観測できる振る舞い、画面体験、非機能要件、**異常系・境界条件**（EARS 構文の `<Spec>`）および同居する保証シナリオ（`<Test verifies="..." level="...">`）。
    - **書かないこと**: 内部クラス構造、アルゴリズム手順、詳細な JSON ペイロード定義（それは `contract`）。
    - **AI レビューでの扱い**: **厳密な判定基準（正）**。仕様逸脱・異常系漏れは要修正。
 2. **`contract`（外部境界の厳密な契約）**
-   - **書くこと**: REST API・MCP ツール・CLI コマンド・外部共有ファイル形式の **正確な入出力スキーマ、引数、ステータスコード、エラー規約、事前/事後条件、副作用、冪等性**。
+   - **書くこと**: REST API・MCP ツール・CLI コマンド・外部共有ファイル形式の **正確な入出力スキーマ、引数、ステータスコード、エラー規約、事前/事後条件、副作用、冪等性** と契約テスト（`<Test level="contract">`）。
    - **書かないこと**: UI の見た目や内部処理手順。
    - **AI レビューでの扱い**: **厳密な判定基準（正）**。型・スキーマ・エラーコード・副作用の不一致は要修正。
-3. **`architecture`（システム全体の地図・横断ルール）**
-   - **書くこと**: システム全体のレイヤー構成、モジュール間の依存方向ルール、横断的関心事（パス解決・セキュリティ・エラー方針・純粋領域と副作用領域の分離・AI コンテキスト方針）、技術スタック全体像。基本 1〜数枚に収めて常時 AI へ投入。
+3. **`design`（`scope: system`：システム全体の地図・横断ルール・テスト戦略）**
+   - **書くこと**: システム全体のレイヤー構成、モジュール間の依存方向ルール、横断的関心事（パス解決・セキュリティ・エラー方針・純粋領域と副作用領域の分離・テスト戦略と品質ゲート）、技術スタック全体像。基本 1〜2 枚に収めて `get_project_map` へ常時投入。
    - **書かないこと**: 個別機能の細かいデータフローやコンポーネント内部設計。
    - **AI レビューでの扱い**: **厳密な判定基準（正）**。レイヤー違反・依存方向違反・横断ルール違反は要修正。
-4. **`design`（特定機能の現行内部設計）**
-   - **書くこと**: 機能領域ごとのモジュール分割、データフロー、状態遷移、キャッシュ/同期、内部 DB 物理設計、純粋計算と副作用の境界 ＋ 実コードへの **`<SourceRef>`**（`satisfies` で `spec` に接続）。**常に最新の現行版へ上書き更新**。
-   - **書かないこと**: 関数内部の擬似コード（`if`/`for` の日本語訳）、過去の棄却案の長文比較（それは `decision`）。
-   - **AI レビューでの扱い**: **構造ガイド**。`spec`・`contract`・`architecture` を満たす範囲での好みの細部リファクタを無限指摘しない。大きな構造変更時は `design` も同期更新する。
+4. **`design`（機能別の現行内部設計）**
+   - **書くこと**: 機能領域ごとのモジュール分割、データフロー、状態遷移、キャッシュ/同期、内部 DB 物理設計、純粋計算と副作用の境界 ＋ 実コードへの **`<SourceRef>`**（`satisfies` で `spec` に接続）。機能固有の局所判断や地雷回避理由はインライン `<Decision>`（マイクロ ADR）として同居させる。**常に最新の現行版へ上書き更新**。
+   - **書かないこと**: 関数内部の擬似コード（`if`/`for` の日本語訳）、全体に関わる重い代替案比較（それは独立 `decision`）。
+   - **AI レビューでの扱い**: **構造ガイド**。`spec`・`contract`・`design (scope: system)` を満たす範囲での好みの細部リファクタを無限指摘しない。大きな構造変更時は `design` も同期更新する。
 
 ### 3.3 契約による設計（DbC）と純粋関数／副作用の置き場所
 
@@ -111,10 +111,10 @@ ISO/IEC/IEEE 29148（BRS / StRS）・Amazon Working Backwards（PR/FAQ）・Impa
 
 | 観点 | 主な記述先 | 記述内容の例 |
 |---|---|---|
-| **システム全体の不変条件** | `goal` (`<Constraint>`) / `architecture` | 任意 JS 実行禁止、`src/core/` フレームワーク非依存、パストラバーサル拒否 |
-| **ドメインの不変条件** | `domain` | Doc ID は POSIX 相対パス、承認状態と実現状態は独立した 2 軸 |
+| **システム全体の不変条件** | `goal` (`<Constraint>`) / `design` (`scope: system`) | 任意 JS 実行禁止、`src/core/` フレームワーク非依存、パストラバーサル拒否 |
+| **ドメインの不変条件** | `domain` (`<Constraint>`) | Doc ID は POSIX 相対パス、承認状態と実現状態は独立した 2 軸 |
 | **外部境界の事前・事後条件・副作用** | `spec`（振る舞い）/ `contract`（厳密 I/F） | 入力制約と違反時エラー、出力保証、どの永続状態だけを書き換えるか、冪等性 |
-| **純粋領域 vs 副作用領域の方針** | `architecture` | Functional Core（純粋計算）と Imperative Shell（FS/DB/HTTP 副作用）の境界ルール |
+| **純粋領域 vs 副作用領域の方針** | `design` (`scope: system`) | Functional Core（純粋計算）と Imperative Shell（FS/DB/HTTP 副作用）の境界ルール |
 | **個別モジュールの純粋性・副作用** | `design` | どのモジュールが純粋関数で、どこが外部 I/O・キャッシュ・SSE 配信を行うか |
 
 ### 3.4 迷いやすい 3 大要素（UI 画面設計・DB スキーマ・API スキーマ）の配置
@@ -189,37 +189,33 @@ MADR 4.0・Y-Statement などの ADR 標準および AI 時代の運用知見を
 
 ---
 
-## 6. `verification` の定義と書き方ルール（確定）
+## 6. 検証戦略と仕様同居 `<Test>` の書き方ルール（確定）
 
-ISO/IEC/IEEE 29119 と **証拠主義（Prove It Works）** および **Living Documentation / BDD** の原則を踏まえ、`verification` は **「テストコードだけでは表現できない検証戦略・保証シナリオ（Given / When / Then）・実物証拠の取り方・品質ゲート」** を定める場所とする。
+ISO/IEC/IEEE 29119 と **証拠主義（Prove It Works）** および **Living Documentation / BDD** の原則を踏まえ、独立した `verification` Type は設けず、**全体テスト戦略は `design` (`scope: system`) に置き、機能ごとの保証シナリオは `<Spec>` と同じ `spec` / `contract` ファイル内に `<Test id="..." verifies="<spec.id>" level="...">` として同居** させる。
 
-### 6.1 粒度とファイル分割（巨大ハブ化の防止）
+### 6.1 構造と責務分担
 
-- **1 ファイルへ全 `verifies` を詰め込まない**: プロジェクト全体の `verifies` を 1 枚の `verification` に集約すると、グラフ上で巨大ハブ化するうえ「テストファイル一覧の羅列」になって形骸化する。
-- **全体方針 ＋ 機能領域（Capability 群）別の 2 層構成**:
-  - **全体方針（例: `verification/strategy.mdx`）**: テスト戦略・証拠主義・品質ゲート・全体 Out of Scope を書く（`verifies` は持たない）。
-  - **領域別 Verification（例: `verification/document-and-graph.mdx` 等）**: 機能領域ごとに分割し、1 ファイルあたりの `verifies` は **10 件以下（目安 3〜8 件）** に収める（超過時は `documi check` が `overloaded-hub-doc` ヒントで検知）。
+- **全体テスト戦略（例: `designs/testing-strategy.mdx`, `scope: system`）**: テストピラミッド・証拠主義（Red → Green / 実測）・品質ゲート（CI コマンド群）・全体 Out of Scope を書く（`get_project_map` で AI へ常時投入）。
+- **仕様同居 `<Test>`（`specs/*.mdx` / `contracts/*.mdx` 内）**: 各 `<Spec>` に対して「絶対に壊れてはいけない振る舞い・境界値・異常系・過去バグのリグレッション条件」を **宣言的な保証シナリオ** として同居させる（`level` は `unit | integration | e2e | contract | manual`）。
 - **ユニットテスト 1 件ごとのドキュメント化はしない**: 個別関数の細かいアサーションまで手書きコピーするとテストコードとの二重管理・ドリフトを招く。詳細検証と合否証明は `tests/*.test.ts` の `test('[<spec.id>] ...')` ＋ JUnit XML（`Realization`）に任せる。
 
 ### 6.2 書くこと vs テストコードに任せること
 
 - **書くこと**:
-  1. **宣言的な保証シナリオ（Given / When / Then）**: 各領域の Verification に「絶対に壊れてはいけない振る舞い・境界値・セキュリティ／異常系」を **3〜7 シナリオ目安** で **宣言的に** 書く（UI のクリック手順など Imperative な操作列ではなく、前提・事象・保証される結果を書く）。
-  2. **テスト戦略と層の役割分担**: Unit / Integration / E2E / 静的検査の使い分け。過剰モックや定数を写しただけの形骸テスト（Slop Test）を禁止する方針。
-  3. **実物検証経路（Verification Harness / Smoke Recipe）**: AI も人間も「実際に動く証拠」を取得できる具体的な検証ルート（コマンド・実サーバー確認・JUnit 出力経路）。
-  4. **証拠の基準（Prove It Works）**: 「ビルド通過だけ」や AI の自己申告を完了と認めないルール。バグ修正時は修正前の失敗再現（Red → Green）を確認し、性能変更時は Before/After 実測ベンチマークで証明する。
-  5. **スコープと意図的な対象外（Out of Scope）**: AI レビューが際限なく過剰テストを要求するのを防ぐ境界線。
-  6. **品質ゲート（CI コマンド群）と対応テストスイート（`verifies`）**: マージ前に通すべき検査と、対象 `<Spec>`・テストファイルとの対応地図。
+  1. **宣言的な保証シナリオ（`<Test verifies="...">`）**: クリック手順など Imperative な操作列ではなく、前提・事象・保証される結果を宣言的に書く。
+  2. **テスト戦略と層の役割分担（`designs/testing-strategy.mdx`）**: Unit / Integration / E2E / 静的検査の使い分け。過剰モックや定数を写しただけの形骸テスト（Slop Test）を禁止する方針。
+  3. **証拠の基準（Prove It Works）**: 「ビルド通過だけ」や AI の自己申告を完了と認めないルール。バグ修正時は修正前の失敗再現（Red → Green）を確認する。
+  4. **意図的な対象外（Out of Scope）**: AI レビューが際限なく過剰テストを要求するのを防ぐ境界線。
 - **書かないこと**:
   - ユニットテスト 1 件ごとの手順書・クリック手順・テストデータ羅列・アサーション全文（→ テストコードへ）
   - 手動の合否チェック表（→ `test('[spec.id] ...')` と JUnit XML から `Realization` が自動算出される）
-- **AI レビューでの扱い**: **品質ゲートと受入基準の判定基準**。テスト戦略違反・品質ゲート未達・保証シナリオ（Given / When / Then）の抜けは要修正。意図的 Out of Scope への過剰テスト要求はしない。
+- **AI レビューでの扱い**: **品質ゲートと受入基準の判定基準**。テスト戦略違反・品質ゲート未達・保証シナリオ（`<Test>`）の抜けは要修正。意図的 Out of Scope への過剰テスト要求はしない。
 
 ---
 
 ## 7. `guide` の定義と書き方ルール（確定）
 
-Diátaxis の 4 象限のうち、Reference は `contract` / `domain` / `spec`、Explanation は `goal` / `architecture` / `design` / `decision` が担うため、`guide` は **Tutorials（最初の一歩）と How-to guides（目的別の手順書・運用プレイブック）** に専念する（Informative：参考情報）。
+Diátaxis の 4 象限のうち、Reference は `contract` / `domain` / `spec`、Explanation は `goal` / `design` / `decision` が担うため、`guide` は **Tutorials（最初の一歩）と How-to guides（目的別の手順書・運用プレイブック）** に専念する（Informative：参考情報）。
 
 - **書くこと**: セットアップ手順（Getting Started）、日常ワークフロー、ショートカット、執筆ガイド、開発・検証ランブック、トラブルシューティング（**1 ページ 1 目的**）。
 - **書かないこと**: **必須仕様（`<Spec>`）・不変制約（`<Constraint>`）・検証の合格基準そのもの**。`guide` は AI 常時投入対象外かつ `Realization` 対象外のため、仕様をここに混ぜると必ず見落とされる。
@@ -229,20 +225,20 @@ Diátaxis の 4 象限のうち、Reference は `contract` / `domain` / `spec`�
 
 ## 8. 全体知識マップ：マクロ（`docs/`）〜 ミクロ（コード・テスト・Git）
 
-コード・テスト・コミット・コメントの責務分離（コード＝How / テスト＝What / コミット＝Why / コメント＝Why not）と Documi の 9 Type を一本の軸でつなぐと、プロジェクト内のあらゆる知識の置き場所が一意に決まる。
+コード・テスト・コミット・コメントの責務分離（コード＝How / テスト＝What / コミット＝Why / コメント＝Why not）と Documi の 7 Type を一本の軸でつなぐと、プロジェクト内のあらゆる知識の置き場所が一意に決まる。
 
 | 層 | 置き場所 | 担う問い | 主な役割と境界 |
 |---|---|---|---|
+| **入口（最小）** | **`AGENTS.md`** | **Entry / Uninferable Commands** | リポジトリを見ても推測できない最小限の不変コマンド・禁止事項・`documi` 入口のみ（肥大化させない） |
 | **マクロ (`docs/`)** | `goal` | **Purpose / Non-Goal** | なぜ作るか、誰のどんな課題か、やらないこと、不変制約 |
-| **マクロ (`docs/`)** | `domain` | **Vocabulary / Invariants** | 共通言語・禁止語・概念モデル・状態遷移・ドメイン不変条件 |
-| **マクロ (`docs/`)** | `spec` / `contract` | **What / Interface** | 外部から観測できる振る舞い・異常系・厳密な I/F 契約 |
-| **マクロ (`docs/`)** | `architecture` / `design` | **Overview / Structure** | 全体地図・依存境界・機能単位の構成と `<SourceRef>` |
-| **マクロ (`docs/`)** | `decision` (ADR) | **Big Why & Why not** | 後戻りが高い構造選択の理由と棄却した代替案（`<Decision>`） |
-| **マクロ (`docs/`)** | `verification` | **How to Prove** | 証拠主義のテスト戦略・実物検証経路・Out of Scope・品質ゲート |
+| **マクロ (`docs/`)** | `domain` | **Vocabulary / Invariants** | 共通言語・禁止語（`antiTerms`）・概念モデル・状態遷移・ドメイン不変条件 |
+| **マクロ (`docs/`)** | `spec` / `contract` | **What / Interface / Test** | 外部から観測できる振る舞い・異常系・厳密な I/F 契約 ＋ 同居 `<Test>` 保証シナリオ |
+| **マクロ (`docs/`)** | `design` | **Overview / Structure / Local Why** | 全体地図・テスト戦略（`scope: system`）、機能単位の構成と `<SourceRef>`、局所判断のインライン `<Decision>` |
+| **マクロ (`docs/`)** | `decision` (ADR) | **Big Why & Why not** | 全体に関わる後戻りコストの高い構造選択の理由と棄却案（`<Decision>`） |
 | **マクロ (`docs/`)** | `guide` | **How to Use / Operate** | 人間向けチュートリアル・日常運用手順・プレイブック（Informative） |
 | **ミクロ (Git/Code)** | **コミットログ / PR** | **Change Why** | 個別の変更・バグ修正を行った今回の動機 |
-| **ミクロ (Git/Code)** | **コードコメント** | **Local Why not** | 一見遠回りな数行について「あえて別解を取らない局所的防衛理由」 |
-| **ミクロ (Git/Code)** | **テストコード** | **Executable What** | 実行可能な仕様の証明（`test('[spec.id] ...')`・具体的アサーション） |
+| **ミクロ (Git/Code)** | **コードコメント** | **Local Why not** | 一見遠回りな数行について「あえて別解を取らない局所的防衛理由」（`<Decision>` ID 参照） |
+| **ミクロ (Git/Code)** | **テストコード** | **Executable What** | 実行可能な仕様・リグレッションの証明（`test('[spec.id] ...')`・具体的アサーション） |
 | **ミクロ (Git/Code)** | **プロダクションコード** | **Concrete How** | 実際に動く関数・型・アルゴリズム |
 
 ### 8.1 書く／書かないの境界判定（2 つのテストと公開シンボルの扱い）
@@ -256,19 +252,22 @@ Diátaxis の 4 象限のうち、Reference は `contract` / `domain` / `spec`�
 |---|---|---|
 | **ドメインルール・状態遷移・不変条件** | **書く** | `domain` / `spec`（状態図・表・EARS） |
 | **エラー・拒否条件・フォールバック・優先順位** | **書く** | `spec` / `contract`（決定表・EARS） |
+| **過去の地雷・障害回避の防御理由（Chesterton's Fence）** | **必ず書く（3 点セット）** | ① `design`/`spec` 内インライン `<Decision>`（なぜこの防御が必要か）＋ ② 同居 `<Test>` ＋自動テスト（消すと落ちる）＋ ③ コード近傍の 1 行理由コメント |
+| **後戻りコストが低い未確定の仮置き** | **仮置きとして明記** | `<Note intent="idea">` に仮定と確認事項を明記して仮実装し、Overview に自動集約して後から確定する（後戻りコストが高い仕様は先に人間へ確認する） |
 | **公開境界のシンボル（export された `class` / `interface` / `type` / 主要関数）** | **把握できるようにする** | **手書きコピペせず**、`<SourceRef file="..." mode="exports" />`・`<SourceRef symbol="..." />`・`<TermDef symbols="file#Symbol" />` で実コードへ AST 紐づけする（リネーム時は `documi check` で即検知） |
 | **モジュール境界・データフロー・副作用の分離** | **書く** | `design`（Mermaid 図＋責務表＋`<SourceRef>`） |
 | **非公開ヘルパー・関数内の `if`/`for` 手順・一時変数の型** | **書かない** | コードとテストに任せる |
+| **`AGENTS.md` / `.agents/skills/` だけへの方針メモ** | **単独では書かない** | プロダクト方針・不変制約・判断基準は必ず `docs/` に書き、`AGENTS.md` は極小（推測不能なコマンドと `documi` 入口のみ）に保つ |
 
 ### 8.2 ドキュメント更新トリガー表（PR 完了前セルフチェック）
 
-`spec` と `contract` だけ更新して `architecture` / `design` / `decision` / `verification` が置き去りになるのを防ぐため、以下の変更を行ったら同じ PR 内で同期する。
+`spec` と `contract` だけ更新して `design` / `decision` / `guide` が置き去りになるのを防ぐため、以下の変更を行ったら同じ PR 内で同期する。
 
 | 今回の変更内容 | 必ず同期するドキュメント |
 |---|---|
 | 新しいサブシステム・主要モジュールの追加・境界変更 | 全体設計（`design` / `scope: system`）＋機能別 `design`（`satisfies`＋`<SourceRef>` / `mode="exports"`） |
-| 後戻りコストが高い全体技術選定・トレードオフ判断 | 独立 `decision`（ADR 1 ファイル＋`<Decision summary="...">`＋棄却案）。機能固有の局所判断は `design`/`spec` 内インライン `<Decision>`（マイクロ ADR） |
-| 新しい振る舞い・制約・エラー・フォールバックの追加変更 | `spec`（`<Spec>` ＋ `<Test verifies="..." level="...">`）＋ 外部 I/F 変更なら `contract` |
+| 後戻りコストが高い全体技術選定・トレードオフ判断 | 独立 `decision`（ADR 1 ファイル＋`<Decision summary="...">`＋棄却案）。機能固有の局所判断・過去の地雷回避は `design`/`spec` 内インライン `<Decision>`（マイクロ ADR） |
+| 新しい振る舞い・制約・エラー・フォールバック・リグレッション防御の追加変更 | `spec`（`<Spec>` ＋ `<Test verifies="..." level="...">`）＋ 外部 I/F 変更なら `contract` |
 | 1 つの `spec` に別 Capability が相乗りした／`spec` の `<Spec>` や `design` の `satisfies` 辺が 10 件を超えた | 機能領域（Capability）単位で `documi scaffold` により分割（`documi check` の `bloated-spec-doc` / `overloaded-hub-doc` で確認） |
 
 ---
@@ -276,7 +275,7 @@ Diátaxis の 4 象限のうち、Reference は `contract` / `domain` / `spec`�
 ## 9. 今後の拡張アイデア（検討中）
 
 <Note id="note.documi-skills" intent="idea">
-  Documi の執筆ルール・境界ガード・運用ワークフローを AI エージェント向け **Skills パック** として同梱・配布する構想（例: `documi-grill`［曖昧さ潰しインタビュー］、`documi-authoring`［9 Type の境界ガード・執筆］、`documi-review`［`docs/` を正として有限回で収束させるコードレビュー］、`documi-usage`［MCP / CLI / `@implements` 運用］）。将来的には `documi init` から展開できる形も検討する。
+  Documi の運用ワークフロー（`documi`・`documi-design`・`documi-review`・`documi-audit`・`documi-bootstrap`・`documi-pr`）を AI エージェント向け Skills パックとして `documi init` から展開・配布できる仕組みを検討中。
 </Note>
 
 <Note id="note.formal-verification" intent="idea">
