@@ -35,7 +35,8 @@ satisfies:
 
 ### ドキュメント健全性・カバレッジ算出 (`src/core/health.ts`)
 
-- `computeDocumentHealth()` が `normative` `<Spec>` の Design / Verification カバレッジ・Spec ファイル肥大化（既定安全網 10 件超）・`architecture` 鮮度ギャップを純粋計算し、CI を落とさない Advisory ヒントとして CLI・MCP・Overview UI へ供給する
+- `computeDocumentHealth()` が `normative` `<Spec>` の Design / `<Test>` カバレッジ・Spec ファイル肥大化（既定安全網 10 件超）・過密 `design` ハブ・全体設計（`design` / `scope: system`）鮮度差・禁止語混入・`<SourceRef>` の脆い結合（`lines=` / `design` 外配置）を純粋計算し、CI を落とさない Advisory ヒントとして CLI・MCP・Overview UI へ供給する
+- Git 作業ツリー上で `src/` / `.agents/skills/` に変更があるのに `docs/` 未更新のシグナルは `collectWorkspaceHealthSignals()` が安全に収集し、`computeDocumentHealth()` へ渡して統合する（非 Git 環境では安全にスキップ）
 
 <SourceRef file="src/core/health.ts" mode="exports" satisfies="core.doc-health" />
 

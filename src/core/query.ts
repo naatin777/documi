@@ -1,5 +1,5 @@
 import { searchIndex } from './bundle'
-import { computeDocumentHealth } from './health'
+import { collectWorkspaceHealthSignals, computeDocumentHealth } from './health'
 import { getDocument, toDocumentSummary } from './loader'
 import { extractExportedSymbols } from './source'
 import type { ExportedSymbolEntry } from './source'
@@ -678,7 +678,10 @@ export async function buildValidationPayload(index: DocsIndex, projectRoot?: str
   )
   const sourceIssues = projectRoot ? (await validateSourceLinks(projectRoot, index)).issues : []
   const totalIssues = index.issues.length + docIssues.length + sourceIssues.length
-  const health = computeDocumentHealth(index)
+  const health = computeDocumentHealth(
+    index,
+    projectRoot ? { workspace: collectWorkspaceHealthSignals(projectRoot, index) } : undefined,
+  )
   return {
     ok: totalIssues === 0,
     indexIssues: index.issues,

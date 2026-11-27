@@ -1,4 +1,5 @@
 import { afterEach, describe, expect, test } from 'bun:test'
+import { execFileSync } from 'node:child_process'
 import { mkdtemp, mkdir, rm, writeFile } from 'node:fs/promises'
 import os from 'node:os'
 import path from 'node:path'
@@ -188,6 +189,45 @@ describe('Document Health & Coverage (core.doc-health)', () => {
     expect(termsJson.terms[0]?.antiTerms).toEqual(['Client', 'UserEntity'])
     expect(termsJson.terms[0]?.context).toBe('billing')
     expect(termsJson.terms[0]?.usedIn.map((u) => u.docId)).toEqual(['specs/billing'])
+  })
+
+  test('[core.doc-health] 脆い <SourceRef lines=...>・design 外 <SourceRef>・コード/スキル変更時の docs 未更新を Advisory ヒントで検知する', async () => {
+    const { projectRoot, docsDir } = await makeTempProject({
+      'src/calc.ts': `export function add(a: number, b: number) {\n  return a + b\n}\n`,
+      'docs/goals/root.mdx': `---\ntype: goal\ntitle: Root\n---\n\n# Root\n`,
+      'docs/specs/calc.mdx': `---\ntype: spec\ntitle: Calc\n---\n\n# Calc\n\n<Spec id="calc.add" derives="goals/root">加算できる</Spec>\n\n<SourceRef file="src/calc.ts" symbol="add" />\n\n<Test id="test.calc.add" verifies="calc.add" level="unit">add(1, 2) === 3</Test>\n`,
+      'docs/designs/calc.mdx': `---\ntype: design\ntitle: Calc Design\nsatisfies:\n  - calc.add\n---\n\n# Calc Design\n\n<SourceRef file="src/calc.ts" lines="1-3" satisfies="calc.add" />\n`,
+    })
+
+    // Git リポジトリ化して、コード/スキルのみ変更された状態を作る
+    execFileSync('git', ['init'], { cwd: projectRoot, stdio: 'ignore' })
+    execFileSync('git', ['config', 'user.email', 'alice@example.com'], { cwd: projectRoot, stdio: 'ignore' })
+    execFileSync('git', ['config', 'user.name', 'alice'], { cwd: projectRoot, stdio: 'ignore' })
+    execFileSync('git', ['add', '.'], { cwd: projectRoot, stdio: 'ignore' })
+    execFileSync('git', ['commit', '-m', 'init'], { cwd: projectRoot, stdio: 'ignore' })
+
+    // .agents/skills/ にだけ追記し docs/ は触らないケースを再現
+    await mkdir(path.join(projectRoot, '.agents/skills/demo'), { recursive: true })
+    await writeFile(path.join(projectRoot, '.agents/skills/demo/SKILL.md'), '# Demo Skill\n', 'utf-8')
+
+    const report1 = await runDocsCheck({ docsDir, projectRoot })
+    expect(report1.ok).toBe(true)
+    const codes1 = report1.health.hints.map((h) => h.code)
+    expect(codes1).toContain('source-ref-fragile-lines')
+    expect(codes1).toContain('source-ref-outside-design')
+    expect(codes1).toContain('docs-sync-missing')
+
+    // docs/ 側も更新すると docs-sync-missing が消える
+    await writeFile(
+      path.join(projectRoot, 'docs/designs/calc.mdx'),
+      `---\ntype: design\ntitle: Calc Design\nsatisfies:\n  - calc.add\n---\n\n# Calc Design\n\n<SourceRef file="src/calc.ts" mode="exports" satisfies="calc.add" />\n`,
+      'utf-8',
+    )
+    const report2 = await runDocsCheck({ docsDir, projectRoot })
+    const codes2 = report2.health.hints.map((h) => h.code)
+    expect(codes2).not.toContain('docs-sync-missing')
+    expect(codes2).not.toContain('source-ref-fragile-lines')
+    expect(codes2).toContain('source-ref-outside-design')
   })
 })
 

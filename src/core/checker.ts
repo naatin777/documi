@@ -1,7 +1,7 @@
 import path from 'node:path'
 import type { ReviewGate } from './config'
 import { isGitPathDirty } from './git'
-import { computeDocumentHealth } from './health'
+import { collectWorkspaceHealthSignals, computeDocumentHealth } from './health'
 import type { DocumentHealthSummary } from './health'
 import { loadDocuments } from './loader'
 import { REVIEWS_REL_PATH } from './reviews'
@@ -197,7 +197,8 @@ export async function runDocsCheck(options: CheckOptions): Promise<CheckReport> 
     }
   }
 
-  const fullHealth = computeDocumentHealth(index)
+  const workspaceSignals = collectWorkspaceHealthSignals(projectRoot, index)
+  const fullHealth = computeDocumentHealth(index, { workspace: workspaceSignals })
   const health: DocumentHealthSummary = mount
     ? {
         ...fullHealth,
@@ -206,7 +207,10 @@ export async function runDocsCheck(options: CheckOptions): Promise<CheckReport> 
         staleSystemDesignDocs: fullHealth.staleSystemDesignDocs.filter((d) => scopedDocIds.has(d.docId)),
         antiTermUsages: fullHealth.antiTermUsages.filter((u) => scopedDocIds.has(u.docId)),
         hints: fullHealth.hints.filter(
-          (h) => (h.docId && scopedDocIds.has(h.docId)) || (h.blockId && scopedBlockIds.has(h.blockId)),
+          (h) =>
+            (!h.docId && !h.blockId) ||
+            (h.docId && scopedDocIds.has(h.docId)) ||
+            (h.blockId && scopedBlockIds.has(h.blockId)),
         ),
       }
     : fullHealth
