@@ -949,6 +949,13 @@ async function cmdMap(flags: CliFlags, io: CliIo): Promise<number> {
     io.out(`\nGoals (${map.goals.length}):`)
     for (const g of map.goals) io.out(`  - ${g.id}: ${g.title}`)
   }
+  if (map.goalConstraints.length > 0) {
+    io.out(`\nGoal Constraints (${map.goalConstraints.length}):`)
+    for (const c of map.goalConstraints) {
+      const firstLine = c.body.trim().split('\n')[0] ?? ''
+      io.out(`  - ${c.id} (${c.docId}): ${firstLine}`)
+    }
+  }
   if (map.systemDesigns.length > 0) {
     io.out(`\nSystem Designs (${map.systemDesigns.length}):`)
     for (const a of map.systemDesigns) io.out(`  - ${a.id}: ${a.title}`)
