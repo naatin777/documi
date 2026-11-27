@@ -23,10 +23,10 @@ derives:
 
 ## どうなってほしいか（Desired Outcome）
 
-- **人間の作業は「確認・ワンクリック承認・一言フィードバック・PR マージ」だけ** に最小化され、執筆・タグ付け・検証・進捗更新の雑務から解放される。
-- 承認記録は MDX 本文から物理分離されたサイドカー（`reviews.json`）で保護され、**承認後に本文が変われば自動で `stale`＋行 diff 表示、上流が変われば下流に `suspect` が自動波及** する。
+- **人間の作業は「方向性の決定・対話クイズや Web UI での確認＆ワンクリック承認・PR マージ」だけ** に最小化され、執筆・タグ付け・検証・進捗更新の雑務から解放される。
+- 承認記録は MDX 本文から物理分離されたサイドカー（`docs/guard/reviews.json`）で保護され、**承認後に本文が変われば自動で `stale`＋行 diff 表示、上流が変われば下流に `suspect` が自動波及** する。
 - 仕様の実現状態（`realization`）は手書きを禁止し、**ソースコード・テスト・JUnit 実行結果・PR から完全自動で算出** される。
-- `normative` な仕様の Goal 到達性（Rooted DAG）・AST シンボル実在性・MDX 安全性・`reviews.json` 改ざん禁止が **CLI / CI / MCP で自動検証** され、脱線や壊れた参照がマージ前に確実に止まる。
+- `normative` な仕様の Goal 到達性（Rooted DAG）・AST シンボル実在性・MDX 安全性・`reviews.json` 改ざん禁止に加え、**語彙ドリフト（`anti-term-used`）・未確定仮置き（`intent="idea"`）・Design / `<Test>` カバレッジ** が CLI / CI / MCP / Overview で自動可視化・検証され、脱線や壊れた参照がマージ前に確実に止まる。
 
 ## 成功のサイン（Success Signals）
 
