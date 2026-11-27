@@ -13,7 +13,7 @@ export interface CheckOptions {
   /** Monorepo 統合マウント一覧（省略時は docsDir を単一 root マウントとして扱う） */
   mounts?: DocsMount[]
   /** 指定マウント ID へ検証・集計を絞り込む（全体グラフをロードした上で絞り込むため他マウント参照が壊れない） */
-  scope?: string
+  mount?: string
   projectRoot?: string
   testReportPath?: string
   testReportPaths?: string[]
@@ -38,7 +38,7 @@ export interface CheckFinding {
 export interface CheckReport {
   ok: boolean
   docsDir: string
-  scope?: string
+  mount?: string
   documentCount: number
   blockCount: number
   errors: CheckFinding[]
@@ -59,8 +59,8 @@ export async function runDocsCheck(options: CheckOptions): Promise<CheckReport> 
   const projectRoot = path.resolve(options.projectRoot ?? path.dirname(docsDir))
 
   const index = await loadDocuments(docsDir, { mounts: options.mounts })
-  const scope = options.scope?.trim() || undefined
-  const scopeMount = scope ? index.mounts.find((m) => m.id === scope) : undefined
+  const mount = options.mount?.trim() || undefined
+  const targetMount = mount ? index.mounts.find((m) => m.id === mount) : undefined
 
   const { issues: sourceIssues, brokenSpecIds } = await validateSourceLinks(projectRoot, index)
   const { unknownAnchors } = await enrichWithRealization(index, {
@@ -71,7 +71,7 @@ export async function runDocsCheck(options: CheckOptions): Promise<CheckReport> 
     brokenSpecIds,
   })
 
-  const scopedDocs = scope ? index.documents.filter((d) => d.mountId === scope) : index.documents
+  const scopedDocs = mount ? index.documents.filter((d) => d.mountId === mount) : index.documents
   const scopedDocIds = new Set(scopedDocs.map((d) => d.id))
   const scopedDocPaths = new Set(scopedDocs.map((d) => d.path))
   const scopedBlockIds = new Set<string>()
@@ -82,12 +82,12 @@ export async function runDocsCheck(options: CheckOptions): Promise<CheckReport> 
   const errors: CheckFinding[] = []
   const warnings: CheckFinding[] = []
 
-  if (scope && !scopeMount) {
+  if (mount && !targetMount) {
     const available = index.mounts.map((m) => m.id).join(', ')
     errors.push({
       severity: 'error',
-      code: 'unknown-scope',
-      message: `Unknown docs scope "${scope}" (available mounts: ${available})`,
+      code: 'unknown-mount',
+      message: `Unknown docs mount "${mount}" (available mounts: ${available})`,
     })
   }
 
@@ -105,9 +105,9 @@ export async function runDocsCheck(options: CheckOptions): Promise<CheckReport> 
   }
 
   for (const issue of index.issues) {
-    if (scope) {
+    if (mount) {
       const matchesPath =
-        issue.path && (scopedDocPaths.has(issue.path) || (scopeMount?.prefixed && issue.path.startsWith(`${scope}/`)))
+        issue.path && (scopedDocPaths.has(issue.path) || (targetMount?.prefixed && issue.path.startsWith(`${mount}/`)))
       const matchesBlock = issue.blockId && scopedBlockIds.has(issue.blockId)
       if (!matchesPath && !matchesBlock) continue
     }
@@ -119,11 +119,11 @@ export async function runDocsCheck(options: CheckOptions): Promise<CheckReport> 
     }
   }
   for (const issue of sourceIssues) {
-    if (scope && issue.path && !scopedDocPaths.has(issue.path)) continue
+    if (mount && issue.path && !scopedDocPaths.has(issue.path)) continue
     pushIssue(issue, 'error')
   }
 
-  if (!scope) {
+  if (!mount) {
     for (const anchor of unknownAnchors) {
       warnings.push({
         severity: 'warning',
@@ -136,10 +136,10 @@ export async function runDocsCheck(options: CheckOptions): Promise<CheckReport> 
   }
 
   if (options.noReviewEdit) {
-    const mountsToCheck = scopeMount ? [scopeMount] : index.mounts
-    for (const mount of mountsToCheck) {
-      if (isReviewsFileModifiedInGit(projectRoot, mount.dir)) {
-        const displayPath = mount.prefixed ? `${mount.id}/${REVIEWS_REL_PATH}` : REVIEWS_REL_PATH
+    const mountsToCheck = targetMount ? [targetMount] : index.mounts
+    for (const m of mountsToCheck) {
+      if (isReviewsFileModifiedInGit(projectRoot, m.dir)) {
+        const displayPath = m.prefixed ? `${m.id}/${REVIEWS_REL_PATH}` : REVIEWS_REL_PATH
         errors.push({
           severity: 'error',
           code: 'review-file-modified',
@@ -162,7 +162,7 @@ export async function runDocsCheck(options: CheckOptions): Promise<CheckReport> 
   const effectiveReviewGate: ReviewGate = options.strict ? 'all' : (options.reviewGate ?? 'none')
 
   for (const block of index.blocksById.values()) {
-    if (scope && !scopedDocIds.has(block.docId)) continue
+    if (mount && !scopedDocIds.has(block.docId)) continue
     if (block.kind !== 'note') {
       reviewCounts[block.review]++
       if (block.suspect) reviewCounts.suspect++
@@ -198,7 +198,7 @@ export async function runDocsCheck(options: CheckOptions): Promise<CheckReport> 
   }
 
   const fullHealth = computeDocumentHealth(index)
-  const health: DocumentHealthSummary = scope
+  const health: DocumentHealthSummary = mount
     ? {
         ...fullHealth,
         bloatedSpecDocs: fullHealth.bloatedSpecDocs.filter((d) => scopedDocIds.has(d.docId)),
@@ -213,7 +213,7 @@ export async function runDocsCheck(options: CheckOptions): Promise<CheckReport> 
   return {
     ok: errors.length === 0,
     docsDir,
-    ...(scope ? { scope } : {}),
+    ...(mount ? { mount } : {}),
     documentCount: scopedDocs.length,
     blockCount: scopedBlockIds.size,
     errors,

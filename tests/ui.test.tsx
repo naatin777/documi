@@ -279,7 +279,7 @@ describe('Web UI & Live Spec Dogfooding', () => {
     expect(html).toContain('>仕様ブロックの見出し</h1>')
   })
 
-  test('[ui.graph-matrix] /api/graph (docs/blocks) がネットワークデータを返す', async () => {
+  test('[ui.graph-view] /api/graph (docs/blocks) がネットワークデータを返す', async () => {
     const store = await DocsStore.open(root, { enrichTrace: false })
     const app = createApp(store)
     const client = hc<ApiRoutes>('http://localhost', {

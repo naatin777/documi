@@ -237,6 +237,7 @@ export default function DocViewer({
             body={doc.body}
             format={doc.format}
             currentDir={doc.dir}
+            resolvedLinks={doc.resolvedLinks}
             terms={terms}
             changedRanges={changedRanges}
           />

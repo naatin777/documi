@@ -193,6 +193,7 @@ export default function BundleLayout() {
                 body={doc.body}
                 format={doc.format}
                 currentDir={doc.dir}
+                resolvedLinks={doc.resolvedLinks}
                 terms={bundle.terms}
                 bundleDocIds={bundleDocIds}
                 headingPrefix={bundleDocAnchor(doc.id)}

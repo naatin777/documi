@@ -125,6 +125,7 @@ Usage:
 Options:
   --project <dir>         Project root (default: cwd or DOCUMI_PROJECT_ROOT / parent of --docs)
   --docs <dir>            Docs directory (default: config docs, <project>/docs, or DOCUMI_DOCS_DIR)
+  --mount <id>            Target docs mount ID in multi-docs projects (check / list / query / search / retrieve / scaffold)
   --en / --ja             Language for generated Agent Skills and starter docs (default: en / --lang <en|ja>)
   --skills-dir <dir>      Agent Skills output directory (init, default: <project>/.agents/skills)
   --skills-only           Generate Agent Skills only without creating docs/ (init)
@@ -187,6 +188,7 @@ Options:
 const CLI_OPTIONS = {
   docs: { type: 'string' },
   project: { type: 'string' },
+  mount: { type: 'string' },
   ja: { type: 'boolean' },
   en: { type: 'boolean' },
   lang: { type: 'string' },
@@ -548,12 +550,12 @@ function parseOptionalReviewGate(flags: CliFlags): ReviewGate | undefined {
 async function cmdCheck(flags: CliFlags, io: CliIo): Promise<number> {
   const { docsDir, docsMounts, projectRoot, testReportPath, testReportPaths, config } = resolveCliPaths(flags)
   const reviewGate = parseOptionalReviewGate(flags) ?? config.reviewGate
-  const scope = getStringFlag(flags, 'scope')
+  const mount = getStringFlag(flags, 'mount')
 
   const report = await runDocsCheck({
     docsDir,
     mounts: docsMounts,
-    scope,
+    mount,
     projectRoot,
     testReportPath,
     testReportPaths,
@@ -567,7 +569,7 @@ async function cmdCheck(flags: CliFlags, io: CliIo): Promise<number> {
     printJson(io, {
       ok: report.ok,
       docsDir: report.docsDir,
-      ...(report.scope ? { scope: report.scope } : {}),
+      ...(report.mount ? { mount: report.mount } : {}),
       documentCount: report.documentCount,
       blockCount: report.blockCount,
       reviewCounts: report.reviewCounts,
@@ -579,7 +581,7 @@ async function cmdCheck(flags: CliFlags, io: CliIo): Promise<number> {
     return report.ok ? 0 : 1
   }
 
-  io.out(`Documi Check: ${report.docsDir}${report.scope ? ` (scope=${report.scope})` : ''}`)
+  io.out(`Documi Check: ${report.docsDir}${report.mount ? ` (mount=${report.mount})` : ''}`)
   io.out(`  documents:   ${report.documentCount} (${report.blockCount} blocks)`)
   io.out(
     `  reviews:     approved=${report.reviewCounts.approved} unreviewed=${report.reviewCounts.unreviewed} stale=${report.reviewCounts.stale} suspect=${report.reviewCounts.suspect}`,
@@ -758,10 +760,10 @@ async function cmdMap(flags: CliFlags, io: CliIo): Promise<number> {
 
 async function cmdList(flags: CliFlags, io: CliIo): Promise<number> {
   const type = parseOptionalArtifactType(flags)
-  const scope = getStringFlag(flags, 'scope')
+  const mount = getStringFlag(flags, 'mount')
   const { docsDir, docsMounts } = resolveCliPaths(flags)
   const index = await loadDocuments(docsDir, { mounts: docsMounts })
-  const res = listDocuments(index, type, scope)
+  const res = listDocuments(index, type, mount)
 
   if (flags.json === true) {
     printJson(io, res)
@@ -957,7 +959,7 @@ async function cmdSearch(positionals: string[], flags: CliFlags, io: CliIo): Pro
     limit = parsed
   }
 
-  const scope = getStringFlag(flags, 'scope')
+  const mount = getStringFlag(flags, 'mount')
   const { docsDir, docsMounts, projectRoot, config } = resolveCliPaths(flags)
   const index = await loadDocuments(docsDir, { mounts: docsMounts })
   const useSemantic = shouldUseSemantic(flags, config.rag)
@@ -966,7 +968,7 @@ async function cmdSearch(positionals: string[], flags: CliFlags, io: CliIo): Pro
     const ragConfig = resolveCliRagConfig(flags, config.rag)
     const hybrid = await searchIndexHybrid(docsDir, index, query, {
       type,
-      scope,
+      mount,
       limit: limit ?? 20,
       ragConfig,
       projectRoot,
@@ -995,7 +997,7 @@ async function cmdSearch(positionals: string[], flags: CliFlags, io: CliIo): Pro
     return 0
   }
 
-  const res = searchDocuments(index, query, { type, scope, limit })
+  const res = searchDocuments(index, query, { type, mount, limit })
 
   if (flags.json === true) {
     printJson(io, res)
@@ -1038,14 +1040,14 @@ async function cmdRetrieve(positionals: string[], flags: CliFlags, io: CliIo): P
     budget = parsed
   }
 
-  const scope = getStringFlag(flags, 'scope')
+  const mount = getStringFlag(flags, 'mount')
   const { docsDir, docsMounts, projectRoot, testReportPath, testReportPaths, config } = resolveCliPaths(flags)
   const store = await DocsStore.open(docsDir, { mounts: docsMounts, projectRoot, testReportPath, testReportPaths })
   const useSemantic = shouldUseSemantic(flags, config.rag)
   const res = useSemantic
     ? await retrieveContextHybrid(docsDir, store.getIndex(), query, {
         type,
-        scope,
+        mount,
         limit,
         budget,
         includeGraph: flags['no-graph'] !== true,
@@ -1054,7 +1056,7 @@ async function cmdRetrieve(positionals: string[], flags: CliFlags, io: CliIo): P
       })
     : retrieveContext(store.getIndex(), query, {
         type,
-        scope,
+        mount,
         limit,
         budget,
         includeGraph: flags['no-graph'] !== true,
@@ -1130,7 +1132,7 @@ async function cmdQuery(flags: CliFlags, io: CliIo): Promise<number> {
     realization: parseOptionalRealizationStatus(flags),
     suspect: flags.suspect === true ? true : flags['no-suspect'] === true ? false : undefined,
     query: getStringFlag(flags, 'q'),
-    scope: getStringFlag(flags, 'scope'),
+    mount: getStringFlag(flags, 'mount'),
     full: flags.full === true,
   }
 
@@ -1406,7 +1408,7 @@ async function cmdScaffold(positionals: string[], flags: CliFlags, io: CliIo): P
   const scaffoldRes = await scaffoldDocument(store.rootDir, store.getIndex(), {
     path: relPath,
     title,
-    scope: getStringFlag(flags, 'scope'),
+    mount: getStringFlag(flags, 'mount'),
     type: parseOptionalArtifactType(flags),
     description: getStringFlag(flags, 'description'),
     date: getStringFlag(flags, 'date'),

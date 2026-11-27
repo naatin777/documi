@@ -507,7 +507,7 @@ export function searchIndexBm25(
 export interface RetrieveContextOptions {
   type?: ArtifactType
   /** 指定マウント ID のヒットのみに絞り込む（グラフ展開は全体グラフから関連 Goal / Contract を辿る） */
-  scope?: string
+  mount?: string
   limit?: number
   /** 返却ペイロードの文字数予算（既定: 6000、範囲: 500〜40000） */
   budget?: number
@@ -831,12 +831,12 @@ export function retrieveContext(
   const limit = Math.max(1, Math.min(options.limit ?? 8, 30))
   const includeGraph = options.includeGraph !== false
 
-  const scope = options.scope?.trim() || undefined
+  const mount = options.mount?.trim() || undefined
   const { hits: rawHits, expandedTerms } = searchIndexBm25(index, query, {
     type: options.type,
-    limit: scope ? Math.max(limit * 4, 80) : Math.min(limit * 2 + 4, 60),
+    limit: mount ? Math.max(limit * 4, 80) : Math.min(limit * 2 + 4, 60),
   })
-  const filteredHits = scope ? rawHits.filter((h) => index.byId.get(h.docId)?.mountId === scope) : rawHits
+  const filteredHits = mount ? rawHits.filter((h) => index.byId.get(h.docId)?.mountId === mount) : rawHits
 
   return assembleGraphContext(index, query, filteredHits, expandedTerms, {
     limit,

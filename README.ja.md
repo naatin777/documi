@@ -79,7 +79,7 @@ bun src/cli.ts serve --project /path/to/your-repo
 - **Goal を根にした Rooted DAG**: `normative` な `<Spec>` が `goal` に繋がっていない場合は `orphan-spec` として検知
 - **安全な静的 MDX（任意 JS 実行禁止）**: `<Spec>`, `<Constraint>`, `<Outcome>`, `<Note>`, `<TermDef>`, `<Term>`, `<SourceRef>` + Mermaid, KaTeX, Shiki
 - **自動 `realization` 算出 & AST 検証**: `@implements` / `@verifies` / `test("[spec.id]")` / `<SourceRef mode="exports">` / JUnit XML / `gh` PR から実装状態を自動算出
-- **AI デュアルチャネル連携**: **CLI + Agent Skills 4 種** と **MCP Server 14 ツール**（stdio / HTTP）を同一コアで提供
+- **AI デュアルチャネル連携**: **CLI + Agent Skills 4 種** と **MCP Server 15 ツール**（stdio / HTTP）を同一コアで提供
 - **ゼロ依存検索 + 任意ローカル Hybrid RAG**: 日本語（`Intl.Segmenter`）・英語・コード識別子 BM25＋用語集展開＋グラフ展開に加え、任意の Ollama / OpenAI 互換 HTTP Embedding + `bun:sqlite` キャッシュに対応
 - **静的サイト書き出し & まとめ Export**: `documi build-site` でプロバイダ非依存の読み取り専用静的サイトを生成、`documi export` で 1 冊の HTML / PDF を出力
 

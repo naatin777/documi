@@ -8,6 +8,7 @@ interface MarkdownProps {
   body: string
   format?: DocFormat
   currentDir?: string
+  resolvedLinks?: Readonly<Record<string, string>>
   terms?: readonly TermEntry[]
   bundleDocIds?: ReadonlySet<string>
   headingPrefix?: string
@@ -19,6 +20,7 @@ export default function Markdown({
   body,
   format = 'markdown',
   currentDir,
+  resolvedLinks,
   terms,
   bundleDocIds,
   headingPrefix,
@@ -29,8 +31,8 @@ export default function Markdown({
   useTranslation()
   const tree = useMemo(() => parseMarkdown(body, format), [body, format])
   const options: RenderOptions = useMemo(
-    () => ({ currentDir, terms, bundleDocIds, headingPrefix, expandAllTabs, changedRanges }),
-    [currentDir, terms, bundleDocIds, headingPrefix, expandAllTabs, changedRanges],
+    () => ({ currentDir, resolvedLinks, terms, bundleDocIds, headingPrefix, expandAllTabs, changedRanges }),
+    [currentDir, resolvedLinks, terms, bundleDocIds, headingPrefix, expandAllTabs, changedRanges],
   )
   return <div className="markdown">{renderMarkdown(tree, options)}</div>
 }

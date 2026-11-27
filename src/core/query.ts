@@ -24,7 +24,7 @@ export interface QuerySpecsFilter {
   realization?: RealizationStatus
   suspect?: boolean
   /** 指定マウント ID のドキュメント配下ブロックのみに絞り込む */
-  scope?: string
+  mount?: string
   query?: string
   /** true のとき各ブロックの全文および realization 詳細配列まで含める（既定: false の軽量サマリ） */
   full?: boolean
@@ -155,10 +155,10 @@ export function buildProjectMap(index: DocsIndex, options: { full?: boolean } = 
 /**
  * ドキュメント一覧を取得する（任意で Artifact Type 絞り込み）。
  */
-export function listDocuments(index: DocsIndex, type?: ArtifactType, scope?: string) {
-  const normalizedScope = scope?.trim() || undefined
+export function listDocuments(index: DocsIndex, type?: ArtifactType, mount?: string) {
+  const normalizedMount = mount?.trim() || undefined
   const docs = index.documents.filter(
-    (d) => (!type || d.type === type) && (!normalizedScope || d.mountId === normalizedScope),
+    (d) => (!type || d.type === type) && (!normalizedMount || d.mountId === normalizedMount),
   )
   return { documents: docs.map(toDocumentSummary), count: docs.length }
 }
@@ -409,9 +409,9 @@ export function getImpactAnalysis(
  */
 export function querySpecs(index: DocsIndex, filters: QuerySpecsFilter = {}) {
   const q = filters.query?.trim().toLowerCase()
-  const scope = filters.scope?.trim() || undefined
+  const mount = filters.mount?.trim() || undefined
   const matched = [...index.blocksById.values()].filter((b) => {
-    if (scope && index.byId.get(b.docId)?.mountId !== scope) return false
+    if (mount && index.byId.get(b.docId)?.mountId !== mount) return false
     if (filters.kind && b.kind !== filters.kind) return false
     if (filters.intent && b.intent !== filters.intent) return false
     if (filters.stability && b.stability !== filters.stability) return false
@@ -550,12 +550,12 @@ export function getSpecContext(index: DocsIndex, id: string, options: { full?: b
 export function searchDocuments(
   index: DocsIndex,
   query: string,
-  options: { type?: ArtifactType; scope?: string; limit?: number } = {},
+  options: { type?: ArtifactType; mount?: string; limit?: number } = {},
 ) {
-  const scope = options.scope?.trim() || undefined
+  const mount = options.mount?.trim() || undefined
   const limit = options.limit ?? 20
-  const raw = searchIndex(index, query, { type: options.type, limit: scope ? Math.max(limit * 4, 100) : limit })
-  const results = scope ? raw.filter((r) => index.byId.get(r.docId)?.mountId === scope).slice(0, limit) : raw
+  const raw = searchIndex(index, query, { type: options.type, limit: mount ? Math.max(limit * 4, 100) : limit })
+  const results = mount ? raw.filter((r) => index.byId.get(r.docId)?.mountId === mount).slice(0, limit) : raw
   return { query, results, count: results.length }
 }
 

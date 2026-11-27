@@ -36,6 +36,8 @@ export function parseMarkdown(body: string, format: DocFormat): Root {
 export interface RenderOptions {
   /** 現在表示中ドキュメントの親ディレクトリ (相対リンク解決用) */
   currentDir?: string
+  /** Core で解決済みの本文リンク (rawPath -> targetDocId) マップ（クロスマウント相対リンク用） */
+  resolvedLinks?: Readonly<Record<string, string>>
   /** Living Glossary の登録済み用語一覧 (自動リンク & ホバーポップオーバー用) */
   terms?: readonly TermEntry[]
   /** バンドル出力時に同梱されているドキュメント ID 集合 (ページ内アンカー変換用) */
@@ -92,6 +94,7 @@ interface Ctx {
   /** 同じ id を持つ見出しが複数出ないようにする (Outline 側と同じ採番) */
   headingIds: Set<string>
   currentDir: string
+  resolvedLinks?: Readonly<Record<string, string>>
   termMatcher?: TermMatcher
   /** 見出し・リンク・TermDef 内部など自動リンクを抑制する領域 */
   suppressAutoLink: boolean
@@ -130,6 +133,7 @@ export function renderMarkdown(root: Root, options: RenderOptions = {}): ReactNo
     definitions,
     headingIds: new Set(),
     currentDir: options.currentDir ?? '',
+    resolvedLinks: options.resolvedLinks,
     termMatcher: buildTermMatcher(options.terms),
     suppressAutoLink: false,
     bundleDocIds: options.bundleDocIds,
@@ -354,7 +358,7 @@ function renderMedia(
 
 function renderLink(url: string, title: string | null | undefined, children: readonly AnyNode[], ctx: Ctx): ReactNode {
   const inner = renderInlines(children, { ...ctx, suppressAutoLink: true })
-  const resolved = resolveInternalTarget(url, ctx.currentDir)
+  const resolved = resolveInternalTarget(url, ctx.currentDir, ctx.resolvedLinks)
   if (resolved) {
     if (ctx.bundleDocIds?.has(resolved.docId)) {
       const anchor = resolved.hash ? `#${resolved.hash}` : `#${bundleDocAnchor(resolved.docId)}`
@@ -401,12 +405,20 @@ function normalizePosix(dir: string, rel: string): string {
   return out.join('/')
 }
 
-function resolveInternalTarget(href: string, currentDir: string): { docId: string; hash?: string } | null {
+function resolveInternalTarget(
+  href: string,
+  currentDir: string,
+  resolvedLinks?: Readonly<Record<string, string>>,
+): { docId: string; hash?: string } | null {
   const trimmed = href.trim()
   if (!trimmed || trimmed.startsWith('#')) return null
 
   const [rawPath, hash] = trimmed.split('#')
   if (!rawPath) return null
+
+  // Core が解決済みのリンク（クロスマウント相対パス等）を最優先
+  const coreDocId = resolvedLinks?.[rawPath]
+  if (coreDocId) return { docId: coreDocId, hash }
 
   // doc:<docId> 明示スキーム（複数マウント間のクロスリンク等）
   if (rawPath.startsWith('doc:')) {
