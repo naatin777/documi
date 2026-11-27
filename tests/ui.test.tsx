@@ -261,7 +261,9 @@ describe('Web UI & Live Spec Dogfooding', () => {
                 docId: 'domain/glossary',
                 docTitle: '用語集',
                 aliases: ['仕様ブロック'],
+                antiTerms: [],
                 symbols: ['src/core/types.ts#SemanticBlock'],
+                usedIn: [],
                 rawBody: '仕様の最小単位',
               },
             ]}

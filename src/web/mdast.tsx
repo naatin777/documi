@@ -684,6 +684,8 @@ function renderJsx(node: JsxNode, ctx: Ctx, level: 'flow' | 'text'): ReactNode {
           <TermDefBlock
             id={strProp(props, 'id')}
             aliases={strProp(props, 'aliases')}
+            antiTerms={strProp(props, 'antiTerms')}
+            context={strProp(props, 'context')}
             symbols={strProp(props, 'symbols')}
           >
             {renderJsxChildren(node, { ...ctx, suppressAutoLink: true })}

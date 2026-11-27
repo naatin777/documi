@@ -154,6 +154,40 @@ describe('Document Health & Coverage (core.doc-health)', () => {
     const report = await runDocsCheck({ docsDir, projectRoot })
     expect(report.ok).toBe(true)
   })
+
+  test('[core.doc-health] <TermDef antiTerms> 違反を anti-term-used ヒントで検知し、domainInvariants と /api/terms usedIn を返す', async () => {
+    const { projectRoot, docsDir } = await makeTempProject({
+      'docs/goals/root.mdx': `---\ntype: goal\ntitle: Root\n---\n\n# Root\n`,
+      'docs/domain/glossary.mdx': `---\ntype: domain\ntitle: Glossary\n---\n\n# Glossary\n\n<TermDef id="Customer" aliases="顧客" antiTerms="Client, UserEntity" context="billing">\n  請求対象の契約者。\n</TermDef>\n`,
+      'docs/domain/model.mdx': `---\ntype: domain\ntitle: Domain Model\n---\n\n# Domain Model\n\n<Constraint id="domain.customer-id" scope="billing" stability="stable">\n  Customer ID は不変である。\n</Constraint>\n`,
+      'docs/specs/billing.mdx': `---\ntype: spec\ntitle: Billing Spec\n---\n\n# Billing Spec\n\n<Spec id="billing.charge" derives="goals/root">\n  <Term name="Customer" /> に課金する。Client へ通知する（コード上の \`UserEntity\` は対象外）。\n</Spec>\n`,
+    })
+
+    const index = await loadDocuments(docsDir)
+    const health = computeDocumentHealth(index)
+    // 本文の "Client" は検知し、インラインコードの `UserEntity` は無視する
+    expect(health.antiTermUsages).toHaveLength(1)
+    expect(health.antiTermUsages[0]?.antiTerm).toBe('Client')
+    expect(health.antiTermUsages[0]?.preferredTermId).toBe('Customer')
+    expect(health.hints.some((h) => h.code === 'anti-term-used')).toBe(true)
+
+    const map = buildProjectMap(index)
+    expect(map.domainModels.map((d) => d.id)).toEqual(['domain/model'])
+    expect(map.domainInvariants.map((c) => c.id)).toEqual(['domain.customer-id'])
+    expect(map.terms[0]?.antiTerms).toEqual(['Client', 'UserEntity'])
+    expect(map.terms[0]?.context).toBe('billing')
+
+    const store = await DocsStore.open(docsDir, { projectRoot })
+    const app = createApp(store, { projectRoot })
+    const termsRes = await app.request('/api/terms')
+    expect(termsRes.status).toBe(200)
+    const termsJson = (await termsRes.json()) as {
+      terms: Array<{ id: string; antiTerms: string[]; context?: string; usedIn: Array<{ docId: string }> }>
+    }
+    expect(termsJson.terms[0]?.antiTerms).toEqual(['Client', 'UserEntity'])
+    expect(termsJson.terms[0]?.context).toBe('billing')
+    expect(termsJson.terms[0]?.usedIn.map((u) => u.docId)).toEqual(['specs/billing'])
+  })
 })
 
 describe('AST Exported Symbols & <SourceRef mode="exports"> (core.ast-exports)', () => {

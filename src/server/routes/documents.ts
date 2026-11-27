@@ -83,21 +83,41 @@ interface TermPayload {
   docId: string
   docTitle: string
   aliases: string[]
+  antiTerms: string[]
+  context?: string
   symbols: string[]
+  usedIn: Array<{ docId: string; title: string; type: ArtifactType }>
   rawBody: string
 }
 
 function collectTerms(index: DocsIndex): TermPayload[] {
+  const usedInByTerm = new Map<string, Map<string, { docId: string; title: string; type: ArtifactType }>>()
+  for (const edge of index.edges) {
+    if (edge.kind !== 'mentions' || edge.toKind !== 'block') continue
+    const fromDoc = index.byId.get(edge.fromDocId)
+    if (!fromDoc || fromDoc.id === edge.toDocId) continue
+    let map = usedInByTerm.get(edge.to)
+    if (!map) {
+      map = new Map()
+      usedInByTerm.set(edge.to, map)
+    }
+    map.set(fromDoc.id, { docId: fromDoc.id, title: fromDoc.title, type: fromDoc.type })
+  }
+
   const terms: TermPayload[] = []
   for (const block of index.blocksById.values()) {
     if (block.kind !== 'term') continue
     const doc = index.byId.get(block.docId)
+    const usedIn = [...(usedInByTerm.get(block.id)?.values() ?? [])].toSorted((a, b) => a.docId.localeCompare(b.docId))
     terms.push({
       id: block.id,
       docId: block.docId,
       docTitle: doc?.title ?? block.docId,
       aliases: block.aliases,
+      antiTerms: block.antiTerms,
+      ...(block.context ? { context: block.context } : {}),
       symbols: block.symbols,
+      usedIn,
       rawBody: block.rawBody,
     })
   }

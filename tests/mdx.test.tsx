@@ -18,7 +18,9 @@ const SAMPLE_TERMS: TermEntry[] = [
     docId: 'domain/glossary',
     docTitle: '用語集',
     aliases: ['成果物'],
+    antiTerms: [],
     symbols: ['src/core/types.ts#Document'],
+    usedIn: [],
     rawBody: '管理対象の文書単位',
   },
 ]

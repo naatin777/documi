@@ -319,11 +319,14 @@ function extractSemanticBlock(
     return { ...base, kind: 'constraint', intent: specIntent, ...(scope ? { scope } : {}) }
   }
   if (kind === 'term') {
+    const context = props.context?.trim()
     return {
       ...base,
       kind: 'term',
       intent: specIntent,
       aliases: splitCsv(props.aliases),
+      antiTerms: splitCsv(props.antiTerms),
+      ...(context ? { context } : {}),
       symbols: splitCsv(props.symbols),
     }
   }

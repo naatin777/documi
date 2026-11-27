@@ -59,6 +59,7 @@ tags: [spec, realization, ast, check]
 | `bloated-spec-doc` | 1 つの `spec` 文書内の `<Spec>` 件数が既定安全網 **10 件**を超過（Capability 単位での分割を検討） |
 | `overloaded-hub-doc` | 1 つの `design` 文書から伸びる一意な `satisfies` トレース辺が既定安全網 **10 件**を超過（巨大ハブ化を防ぐため機能領域単位での分割を検討） |
 | `stale-system-design` | `scope: system` の `design` 文書の最終更新より 24 時間以上後に更新された他文書が **5 件以上**存在 |
+| `anti-term-used` | `spec` / `contract` / `design` の `normative` な `<Spec>` / `<Decision>` 本文（コード片除く）に `<TermDef antiTerms="...">` の禁止語が混入 |
 
 <Spec id="core.ast-exports" stability="evolving" derives="goals/human-comprehension">
   **When** `<SourceRef file="src/..." mode="exports" />`・`GET /api/source/exports`・Code Explorer (`/api/code/file`)・`documi context` / MCP `get_spec_context` がソースファイルの公開シンボルを要求したとき、

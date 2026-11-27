@@ -87,6 +87,12 @@
   border-left-color: light-dark(#0369a1, #56b6f0);
 }
 
+.sem-anti-chip {
+  background: light-dark(#fee2e2, rgba(239, 123, 123, 0.18));
+  color: light-dark(#b91c1c, #fca5a5);
+  border-color: light-dark(#fecaca, rgba(239, 123, 123, 0.35));
+}
+
 .sem-note {
   border-left-color: var(--status-neutral);
 }

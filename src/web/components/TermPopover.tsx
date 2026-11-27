@@ -49,11 +49,42 @@ export function TermInline({ name, term, children }: TermInlineProps) {
             <PreviewCard.Popup className="flex w-[min(440px,85vw)] flex-col gap-2 rounded-[10px] border border-line bg-surface px-3.5 py-3 text-left text-[13px] leading-[1.55] text-fg shadow-[0_12px_32px_rgba(0,0,0,0.16)] transition-all duration-120 outline-none data-[ending-style]:scale-[0.98] data-[ending-style]:opacity-0 data-[starting-style]:scale-[0.98] data-[starting-style]:opacity-0 dark:shadow-[0_12px_34px_rgba(0,0,0,0.5)] print:hidden">
               <div className="flex flex-wrap items-baseline gap-2">
                 <strong className="text-sm text-fg">{term.id}</strong>
+                {term.context && (
+                  <span className="mono rounded border border-line px-1 py-0 text-[10.5px] text-fg-muted">
+                    @{term.context}
+                  </span>
+                )}
                 {term.aliases.length > 0 && (
                   <span className="text-[11.5px] text-fg-muted">{term.aliases.join(' / ')}</span>
                 )}
               </div>
               <div className="text-fg">{term.rawBody}</div>
+              {term.antiTerms.length > 0 && (
+                <div className="flex flex-wrap items-center gap-1 text-[11px]">
+                  <span className="font-semibold text-fg-muted uppercase">avoid</span>
+                  {term.antiTerms.map((anti) => (
+                    <code key={anti} className="sem-ref-chip sem-anti-chip">
+                      {anti}
+                    </code>
+                  ))}
+                </div>
+              )}
+              {term.usedIn.length > 0 && (
+                <div className="flex flex-wrap items-center gap-1.5 text-[11px] text-fg-muted">
+                  <span className="font-semibold uppercase">used in ({term.usedIn.length})</span>
+                  {term.usedIn.slice(0, 4).map((u) => (
+                    <Link
+                      key={u.docId}
+                      to={`/docs/${encodeDocId(u.docId)}`}
+                      className="rounded bg-subtle px-1.5 py-0.5 text-fg no-underline hover:underline"
+                      onClick={() => setOpen(false)}
+                    >
+                      {u.title}
+                    </Link>
+                  ))}
+                  {term.usedIn.length > 4 && <span>+{term.usedIn.length - 4}</span>}
+                </div>
+              )}
               {primarySymbol && (
                 <div className="flex max-h-[180px] flex-col gap-1 overflow-auto rounded-md border border-line bg-code px-2 py-1.5 text-[11.5px]">
                   <span className="mono text-[11px] text-fg-muted">{primarySymbol}</span>

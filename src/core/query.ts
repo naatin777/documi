@@ -118,15 +118,42 @@ export function buildProjectMap(index: DocsIndex, options: { full?: boolean } = 
     })
   const decisions = allDecisions.filter((o) => !o.supersededBy)
   const supersededDecisions = allDecisions.filter((o) => Boolean(o.supersededBy))
+  const domainModels = index.documents
+    .filter((d) => d.type === 'domain' && !d.blocks.every((b) => b.kind === 'term'))
+    .map((d) => toMapDocEntry(d, full))
+  const domainInvariants = [...index.blocksById.values()]
+    .filter((b) => b.kind === 'constraint' && index.byId.get(b.docId)?.type === 'domain')
+    .map((b) => {
+      const item: { id: string; docId: string; scope?: string; body: string } = {
+        id: b.id,
+        docId: b.docId,
+        body: full ? b.rawBody : summarizeText(b.rawBody, 200),
+      }
+      if (b.kind === 'constraint' && b.scope) item.scope = b.scope
+      return item
+    })
   const terms = [...index.blocksById.values()]
     .filter((b) => b.kind === 'term')
-    .map((b) => ({
-      id: b.id,
-      docId: b.docId,
-      aliases: b.aliases,
-      symbols: b.symbols,
-      definition: full ? b.rawBody : summarizeText(b.rawBody, 160),
-    }))
+    .map((b) => {
+      const item: {
+        id: string
+        docId: string
+        aliases: string[]
+        antiTerms: string[]
+        context?: string
+        symbols: string[]
+        definition: string
+      } = {
+        id: b.id,
+        docId: b.docId,
+        aliases: b.aliases,
+        antiTerms: b.antiTerms,
+        symbols: b.symbols,
+        definition: full ? b.rawBody : summarizeText(b.rawBody, 160),
+      }
+      if (b.context) item.context = b.context
+      return item
+    })
 
   const reviewSummary = { approved: 0, unreviewed: 0, stale: 0, suspect: 0 }
   const realizationSummary: Record<RealizationStatus, number> = {
@@ -155,6 +182,8 @@ export function buildProjectMap(index: DocsIndex, options: { full?: boolean } = 
     health,
     goals,
     systemDesigns,
+    domainModels,
+    domainInvariants,
     decisions,
     supersededDecisions,
     terms,

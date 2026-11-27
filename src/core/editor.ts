@@ -109,6 +109,8 @@ export interface UpdateBlockInput {
   supersedes?: string[]
   scope?: string
   aliases?: string[]
+  antiTerms?: string[]
+  context?: string
   symbols?: string[]
 }
 
@@ -129,6 +131,8 @@ export interface AddBlockInput {
   supersedes?: string[]
   scope?: string
   aliases?: string[]
+  antiTerms?: string[]
+  context?: string
   symbols?: string[]
 }
 
@@ -136,6 +140,8 @@ export interface UpsertTermInput {
   id: string
   definition: string
   aliases?: string[]
+  antiTerms?: string[]
+  context?: string
   symbols?: string[]
   docId?: string
 }
@@ -449,6 +455,8 @@ export async function updateBlockInDocs(
       ['verifies', input.verifies !== undefined ? input.verifies.join(', ') : prev.verifies],
       ['supersedes', input.supersedes !== undefined ? input.supersedes.join(', ') : prev.supersedes],
       ['aliases', input.aliases !== undefined ? input.aliases.join(', ') : prev.aliases],
+      ['antiTerms', input.antiTerms !== undefined ? input.antiTerms.join(', ') : prev.antiTerms],
+      ['context', input.context !== undefined ? input.context : prev.context],
       ['symbols', input.symbols !== undefined ? input.symbols.join(', ') : prev.symbols],
     ]
 
@@ -516,6 +524,8 @@ export async function addBlockToDoc(
         ['verifies', input.verifies?.join(', ')],
         ['supersedes', input.supersedes?.join(', ')],
         ['aliases', input.aliases?.join(', ')],
+        ['antiTerms', input.antiTerms?.join(', ')],
+        ['context', input.context],
         ['symbols', input.symbols?.join(', ')],
       ],
       input.body,
@@ -597,6 +607,8 @@ export async function upsertTermInDocs(
           id: input.id,
           body: input.definition,
           aliases: input.aliases,
+          antiTerms: input.antiTerms,
+          context: input.context,
           symbols: input.symbols,
         }),
       )
@@ -621,6 +633,8 @@ export async function upsertTermInDocs(
         id: input.id,
         body: input.definition,
         aliases: input.aliases,
+        antiTerms: input.antiTerms,
+        context: input.context,
         symbols: input.symbols,
       }),
     )
