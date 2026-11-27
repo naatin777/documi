@@ -54,7 +54,7 @@ MCP サーバーを接続しない環境（CLI + Agent Skills 運用やターミ
 | `documi show <doc-id>` | `--json` | 本文・セマンティックブロック・関係・問題一覧を取得 |
 | `documi relations <id>` | `--json` | ドキュメントまたはブロックの外向き・逆参照を取得 |
 | `documi impact <id>` | `--depth <n>`, `--json` | 指定ドキュメントまたはブロックを変更した際に影響する下流文書・ブロック・`<SourceRef>`・コード／テスト参照を再帰走査で一覧化（既定深度 `4`） |
-| `documi search <query...>` | `--type <type>`, `--mount <id>`, `--limit <n>`, `--context`, `--budget <chars>`, `--no-graph`, `--semantic`/`--no-semantic`, `--provider`, `--model`, `--endpoint`, `--json` | ドキュメントとセマンティックブロックを BM25＋用語集同義語展開（`--semantic` または `rag.enabled` 時はローカル Embedding＋RRF ハイブリッド）で横断検索。`--context` 指定時は上流 Goal・`<Decision>` 結論（マイクロ ADR 含む）・用語・`<SourceRef>` を文字数予算内で 1 発展開 |
+| `documi search <query...>` | `--type <type>`, `--mount <id>`, `--limit <n>`, `--context`, `--budget <chars>`, `--no-graph`, `--semantic`/`--no-semantic`, `--provider`, `--model`, `--endpoint`, `--api-key-env <var>`, `--json` | ドキュメントとセマンティックブロックを BM25＋用語集同義語展開（`--semantic` または `rag.enabled` 時はローカル Embedding＋RRF ハイブリッド）で横断検索。`--context` 指定時は上流 Goal・`<Decision>` 結論（マイクロ ADR 含む）・用語・`<SourceRef>` を文字数予算内で 1 発展開 |
 | `documi index` | `--provider <ollama\|openai\|gemini>`, `--model <id>`, `--endpoint <url>`, `--api-key-env <var>`, `--json` | `bun:sqlite` ローカルベクトルキャッシュ（`.documi/cache/embeddings.sqlite`）を `contentHash` 差分で構築・更新 |
 | `documi query` | `--kind`, `--intent`, `--stability`, `--review`, `--realization`, `--suspect`/`--no-suspect`, `--mount <id>`, `--q <text>`, `--json`, `--full` | セマンティックブロックを多軸フィルタ検索（既定は軽量サマリ、`--full` で完全展開） |
 | `documi context <id>` | `--json`, `--full` | Spec の本文・上流 Goal 概要・関連文書・`<Decision>` 結論（マイクロ ADR 含む）・関連用語・`<SourceRef>` を一括集約（`--full` で完全展開） |
@@ -65,11 +65,11 @@ AST 位置ベースで安全に局所編集し、再読込後の検証結果（`
 
 | Command | 主な Option | 役割 |
 |---|---|---|
-| `documi block add <doc-id>` | `--kind`, `--id`, `--body`/`--body-file`, `--after-heading`, `--title`, `--stability`, `--intent`, `--derives`, `--supersedes`, `--scope`, `--aliases`, `--symbols`, `--json` | セマンティックブロックを 1 件追記 |
-| `documi block update <block-id>` | `--body`/`--body-file`, `--title`, `--stability`, `--intent`, `--derives`, `--supersedes`, `--scope`, `--aliases`, `--symbols`, `--json` | 既存ブロックの該当行範囲のみを安全に更新 |
+| `documi block add <doc-id>` | `--kind`, `--id`, `--body`/`--body-file`, `--after-heading`, `--title`, `--summary`, `--date`, `--level`, `--verifies`, `--stability`, `--intent`, `--derives`, `--supersedes`, `--scope`, `--aliases`, `--anti-terms`, `--domain-context`, `--symbols`, `--json` | セマンティックブロックを 1 件追記 |
+| `documi block update <block-id>` | `--body`/`--body-file`, `--title`, `--summary`, `--date`, `--level`, `--verifies`, `--stability`, `--intent`, `--derives`, `--supersedes`, `--scope`, `--aliases`, `--anti-terms`, `--domain-context`, `--symbols`, `--json` | 既存ブロックの該当行範囲のみを安全に更新 |
 | `documi block rename <old-id> <new-id>` | `--dry-run`, `--json` | `docs/` とコード・テストのブロック ID 参照を一括リネーム |
-| `documi term upsert <term-id>` | `--definition`/`--body`/`--body-file`, `--aliases`, `--symbols`, `--doc`, `--json` | 用語集に `<TermDef>` を追加または更新 |
-| `documi scaffold <rel-path>` | `--title`, `--mount <id>`, `--type`, `--description`, `--date`, `--tags`, `--derives`, `--satisfies`, `--verifies`, `--body`/`--body-file`, `--json` | 規約通りの frontmatter を持つ新規 `.mdx` を作成（上書き禁止、`--mount` 省略時はプライマリへ出力） |
+| `documi term upsert <term-id>` | `--definition`/`--body`/`--body-file`, `--aliases`, `--anti-terms`, `--domain-context`, `--symbols`, `--doc`, `--json` | 用語集に `<TermDef>` を追加または更新 |
+| `documi scaffold <rel-path>` | `--title`, `--mount <id>`, `--type`, `--scope`, `--description`, `--date`, `--tags`, `--derives`, `--satisfies`, `--verifies`, `--body`/`--body-file`, `--json` | 規約通りの frontmatter を持つ新規 `.mdx` を作成（上書き禁止、`--mount` 省略時はプライマリへ出力、`--scope system` で全体設計を作成） |
 
 ## `documi serve`
 
@@ -142,7 +142,7 @@ Cloudflare Pages / Workers Static Assets・Vercel・Netlify・GitHub Pages・AWS
 ## 終了コードと副作用の規約
 
 - **終了コード**: 正常終了は `0`、引数不正・検証エラー（`documi check` 失敗含む）・対象未存在・I/O エラー時は `1` を返す。
-- **未知フラグの拒否とコマンド別ヘルプ**: 定義されていないフラグ（`--stict` 等の typo）は `Unknown option: --<name>` として終了コード `1` で拒否し、CI ゲートへ黙って素通りさせない。`documi <command> --help` はそのコマンドの使い方と関連オプションのみを表示し、`documi --help` は全コマンドを表示する。
+- **未知フラグ・非対応フラグの拒否とコマンド別ヘルプ**: 定義されていないフラグ（`--stict` 等の typo）は `Unknown option: --<name>`、他コマンド専用フラグの誤指定は `Option --<name> is not supported by "documi <command>"` として終了コード `1` で拒否し、CI ゲートへ黙って素通りさせない。`documi <command> --help` はそのコマンドの使い方と関連オプションのみを表示し、`documi --help` は全コマンドを表示する。
 - **副作用の範囲**:
   - `documi check` / `documi mcp`: 読み取り専用（ファイル書き換えなし）。
   - `documi init`: 不足している雛形ファイルのみを作成し、既存ファイルは一切上書きしない（冪等）。

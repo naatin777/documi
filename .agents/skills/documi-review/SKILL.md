@@ -46,7 +46,7 @@ description: 未承認・stale・suspect な仕様を 2〜3 件ずつ取り上�
 - **AI は絶対に `docs/guard/reviews.json` を編集せず、`documi approve` / `documi unapprove` も実行しない。** 承認の最終決定と記録は必ず人間が行う。
 - 認識が 100% 一致したブロックだけを選び、人間が 1 クリックで最終確認・まとめて承認できる **Web UI 最終確認 URL**（確認した内容の短い要約を `note` クエリに載せる）と、CLI コマンドを併せて提示する：
 
-  - Web UI 最終確認 URL: `/review?ids=<aligned-id-1>,<aligned-id-2>&note=<URLエンコード済み確認メモ>`
+  - Web UI 最終確認 URL（チャット上で 1 クリック起動できるよう `http://localhost:3000` 等のフル URL で提示する）: `http://localhost:3000/review?ids=<aligned-id-1>,<aligned-id-2>&note=<URLエンコード済み確認メモ>`
   - CLI コマンド:
 ```bash
 documi approve <aligned-id-1> <aligned-id-2> --note "<確認した内容の要約>"
