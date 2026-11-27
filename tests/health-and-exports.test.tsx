@@ -128,6 +128,33 @@ describe('Document Health & Coverage (core.doc-health)', () => {
     expect(health.staleArchitectureDocs[0]?.newerDocsCount).toBe(5)
     expect(health.hints.some((h) => h.code === 'stale-architecture')).toBe(true)
   })
+
+  test('[core.doc-health] design / verification の外向きトレース辺が 10 件を超えると overloaded-hub-doc ヒントを出す', async () => {
+    const specIds = Array.from({ length: 11 }, (_, i) => `cap.spec${i + 1}`)
+    const files: Record<string, string> = {
+      'docs/goals/root.mdx': `---\ntype: goal\ntitle: Root\n---\n\n# Root\n`,
+      'docs/specs/part-a.mdx': `---\ntype: spec\ntitle: Part A\n---\n\n# Part A\n\n${specIds
+        .slice(0, 6)
+        .map((id) => `<Spec id="${id}" derives="goals/root">Rule ${id}</Spec>`)
+        .join('\n\n')}\n`,
+      'docs/specs/part-b.mdx': `---\ntype: spec\ntitle: Part B\n---\n\n# Part B\n\n${specIds
+        .slice(6)
+        .map((id) => `<Spec id="${id}" derives="goals/root">Rule ${id}</Spec>`)
+        .join('\n\n')}\n`,
+      'docs/designs/hub.mdx': `---\ntype: design\ntitle: Hub Design\nsatisfies:\n${specIds.map((id) => `  - ${id}`).join('\n')}\n---\n\n# Hub Design\n`,
+      'docs/verification/hub.mdx': `---\ntype: verification\ntitle: Hub Verification\nverifies:\n${specIds.map((id) => `  - ${id}`).join('\n')}\n---\n\n# Hub Verification\n`,
+    }
+    const { projectRoot, docsDir } = await makeTempProject(files)
+    const index = await loadDocuments(docsDir)
+
+    const health = computeDocumentHealth(index)
+    expect(health.overloadedHubDocs).toHaveLength(2)
+    expect(health.overloadedHubDocs.map((d) => d.edgeKind).toSorted()).toEqual(['satisfies', 'verifies'])
+    expect(health.hints.filter((h) => h.code === 'overloaded-hub-doc')).toHaveLength(2)
+
+    const report = await runDocsCheck({ docsDir, projectRoot })
+    expect(report.ok).toBe(true)
+  })
 })
 
 describe('AST Exported Symbols & <SourceRef mode="exports"> (core.ast-exports)', () => {

@@ -49,7 +49,7 @@ tags: [spec, realization, ast, check]
 
 <Spec id="core.doc-health" stability="evolving" derives="goals/low-friction-governance">
   **When** `documi check`・`documi map`・MCP `get_project_map` / `validate_docs`・REST `/api/overview` / `/api/check` が実行されたとき、
-  **the** Document Core **shall** 全 `normative` `<Spec>` に対する `design` (`satisfies`) および `verification` (`verifies`) カバレッジ、1 ファイルあたり推奨上限を超えた肥大化 `spec` 文書、および `architecture` 鮮度ギャップを CI を失敗させない Advisory 健全性ヒントとして算出・提示する。
+  **the** Document Core **shall** 全 `normative` `<Spec>` に対する `design` (`satisfies`) および `verification` (`verifies`) カバレッジ、1 ファイルあたり推奨上限を超えた肥大化 `spec` 文書、外向きトレース辺が集中しすぎた `design` / `verification` ハブ文書、および `architecture` 鮮度ギャップを CI を失敗させない Advisory 健全性ヒントとして算出・提示する。
 </Spec>
 
 | ヒントコード | 発火条件（すべて非ブロッキング Advisory） |
@@ -57,6 +57,7 @@ tags: [spec, realization, ast, check]
 | `missing-design` | `normative` `<Spec>`（または所属文書）を `satisfies` する `design` 文書が 0 件 |
 | `missing-verification` | `normative` `<Spec>`（または所属文書）を `verifies` する `verification` 文書が 0 件 |
 | `bloated-spec-doc` | 1 つの `spec` 文書内の `<Spec>` 件数が既定安全網 **10 件**を超過（Capability 単位での分割を検討） |
+| `overloaded-hub-doc` | 1 つの `design`（`satisfies`）または `verification`（`verifies`）文書から伸びる一意な外向きトレース辺が既定安全網 **10 件**を超過（巨大ハブ化を防ぐため機能領域単位での分割を検討。`goal` / `architecture` は対象外） |
 | `stale-architecture` | `architecture` 文書の最終更新より 24 時間以上後に更新された他文書が **5 件以上**存在 |
 
 <Spec id="core.ast-exports" stability="evolving" derives="goals/human-comprehension">

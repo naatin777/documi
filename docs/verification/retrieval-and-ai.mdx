@@ -1,0 +1,60 @@
+---
+type: verification
+title: 検索・Hybrid RAG・AI ワークフローの検証
+description: BM25 検索・グラフ展開・ローカル Hybrid RAG・CLI/MCP 精密編集・影響範囲分析・documi init Skills 生成の保証シナリオとテストスイート
+tags: [testing, verification, retrieval, ai, mcp]
+verifies:
+  - core.full-text-search
+  - core.graph-retrieval
+  - core.hybrid-rag
+  - core.agent-skills-init
+  - core.ai-cli
+  - core.mcp-surgical-edit
+  - contracts/mcp-tools
+  - contracts/cli
+---
+
+# 検索・Hybrid RAG・AI ワークフローの検証
+
+## 1. 保証シナリオ（Given / When / Then）
+
+### BM25 検索・同義語展開・グラフ拡張
+
+- **Given**: 日本語・英語・コード識別子（`camelCase` / `snake_case`）と `<TermDef aliases>` を含むドキュメント群がある
+- **When**: `documi retrieve` または MCP `retrieve_context` を実行する
+- **Then**: 同義語を含むヒットが BM25 スコア順で返り、関連 Goal・Design・`<SourceRef>` が文字数予算内でグラフ展開される
+
+### ローカル Hybrid RAG（SQLite 差分キャッシュと安全フォールバック）
+
+- **Given**: `bun:sqlite` ベクトルキャッシュと Embedding プロバイダ（Ollama / OpenAI / Gemini / キーなしローカル OpenAI 互換）が構成されている
+- **When**: 文書を更新して再検索する、または Embedding プロバイダが障害・タイムアウトを起こす
+- **Then**: 未変更チャンクは `contentHash` 比較で再計算をスキップし、障害時はエラーで落ちず BM25 検索へ安全にフォールバックする
+
+### 精密編集ツール（CLI / MCP）の安全性と `reviews.json` 保護
+
+- **Given**: 既存ドキュメントと `docs/guard/reviews.json` がある
+- **When**: `update_block` / `add_block` / `upsert_term` / `scaffold_document` / `rename_block_id` を実行する（危険 MDX 構文や `reviews.json` への書込要求を含む）
+- **Then**: 正常編集は行単位で精密反映され、`rename_block_id` は参照元も一括追従する一方、危険 MDX や `reviews.json` 書込は拒否される
+
+### 再帰的影響範囲分析（`documi impact` / `get_impact`）
+
+- **Given**: `goal` ← `spec` ← `design` / `verification` の多段依存グラフが存在する
+- **When**: `documi impact <id>` または MCP `get_impact` を実行する
+- **Then**: 直接・間接の影響を受ける下流ドキュメント・ブロック・実装アンカー・テストが再帰的に漏れなく列挙される
+
+### `documi init` の冪等性と `AGENTS.md` 非干渉
+
+- **Given**: 既存の `AGENTS.md` を持つプロジェクトがある
+- **When**: `documi init`（既定 `--en` および `--ja` / `--skills-only` / `--no-skills`）を実行する
+- **Then**: `docs/` 雛形と標準 Agent Skills が冪等に生成され、既存の `AGENTS.md` は作成・上書きされない
+
+## 2. 対応テストスイート
+
+| テストスイート | 主な検証対象 |
+|---|---|
+| `tests/retrieval.test.ts` | 日英・コード識別子トークナイザ・BM25 スコアリング・`<TermDef aliases>` 同義語展開・RRF・グラフ展開・文字数予算制御 |
+| `tests/hybrid-rag.test.ts` | `bun:sqlite` `contentHash` 差分ベクトルキャッシュ・モデル別プロンプト接頭辞・Ollama / OpenAI / Gemini / キーなしローカル互換・`.env.local` 読み込み・BM25 安全フォールバック |
+| `tests/cli-agent.test.ts` | AI 向け CLI 全サブコマンド（`map` / `list` / `show` / `relations` / `impact` / `search` / `query` / `context` / `block` / `term` / `scaffold`）・未知フラグ拒否・`--body -` 標準入力 |
+| `tests/mcp-edit.test.ts` | MCP 精密編集 5 ツール・正確なファイル行番号・MDX 安全性・`reviews.json` 書込禁止ガード |
+| `tests/init.test.ts` | `documi init` の言語別雛形・Agent Skills 生成・`AGENTS.md` 非干渉・既存ファイル保護と `--force-skills` |
+| `tests/api.test.ts`（MCP セクション） | MCP 15 ツールの `tools/list`・`get_project_map`・`query_specs`・`get_spec_context`・`get_impact`・`validate_docs` |

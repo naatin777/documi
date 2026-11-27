@@ -193,21 +193,29 @@ MADR 4.0・Y-Statement などの ADR 標準および AI 時代の運用知見を
 
 ## 6. `verification` の定義と書き方ルール（確定）
 
-ISO/IEC/IEEE 29119 と **証拠主義（Prove It Works）** の原則を踏まえ、`verification` は **「テストコードだけでは表現できない検証戦略・実物証拠の取り方・品質ゲート」** を定める場所とする。
+ISO/IEC/IEEE 29119 と **証拠主義（Prove It Works）** および **Living Documentation / BDD** の原則を踏まえ、`verification` は **「テストコードだけでは表現できない検証戦略・保証シナリオ（Given / When / Then）・実物証拠の取り方・品質ゲート」** を定める場所とする。
 
-### 6.1 書くこと vs テストコードに任せること
+### 6.1 粒度とファイル分割（巨大ハブ化の防止）
+
+- **1 ファイルへ全 `verifies` を詰め込まない**: プロジェクト全体の `verifies` を 1 枚の `verification` に集約すると、グラフ上で巨大ハブ化するうえ「テストファイル一覧の羅列」になって形骸化する。
+- **全体方針 ＋ 機能領域（Capability 群）別の 2 層構成**:
+  - **全体方針（例: `verification/strategy.mdx`）**: テスト戦略・証拠主義・品質ゲート・全体 Out of Scope を書く（`verifies` は持たない）。
+  - **領域別 Verification（例: `verification/document-and-graph.mdx` 等）**: 機能領域ごとに分割し、1 ファイルあたりの `verifies` は **10 件以下（目安 3〜8 件）** に収める（超過時は `documi check` が `overloaded-hub-doc` ヒントで検知）。
+- **ユニットテスト 1 件ごとのドキュメント化はしない**: 個別関数の細かいアサーションまで手書きコピーするとテストコードとの二重管理・ドリフトを招く。詳細検証と合否証明は `tests/*.test.ts` の `test('[<spec.id>] ...')` ＋ JUnit XML（`Realization`）に任せる。
+
+### 6.2 書くこと vs テストコードに任せること
 
 - **書くこと**:
-  1. **テスト戦略と層の役割分担**: Unit / Integration / E2E / 静的検査の使い分け。過剰モックや定数を写しただけの形骸テスト（Slop Test）を禁止する方針。
-  2. **実物検証経路（Verification Harness / Smoke Recipe）**: AI も人間も「実際に動く証拠」を取得できる具体的な検証ルート（コマンド・実サーバー確認・JUnit 出力経路）。
-  3. **証拠の基準（Prove It Works）**: 「ビルド通過だけ」や AI の自己申告を完了と認めないルール。バグ修正時は修正前の失敗再現（Red → Green）を確認し、性能変更時は Before/After 実測ベンチマークで証明する。
-  4. **重要領域の強化検証**: 状態遷移・パーサー・セキュリティ境界など、境界値・異常系・状態網羅を必須とする対象。
+  1. **宣言的な保証シナリオ（Given / When / Then）**: 各領域の Verification に「絶対に壊れてはいけない振る舞い・境界値・セキュリティ／異常系」を **3〜7 シナリオ目安** で **宣言的に** 書く（UI のクリック手順など Imperative な操作列ではなく、前提・事象・保証される結果を書く）。
+  2. **テスト戦略と層の役割分担**: Unit / Integration / E2E / 静的検査の使い分け。過剰モックや定数を写しただけの形骸テスト（Slop Test）を禁止する方針。
+  3. **実物検証経路（Verification Harness / Smoke Recipe）**: AI も人間も「実際に動く証拠」を取得できる具体的な検証ルート（コマンド・実サーバー確認・JUnit 出力経路）。
+  4. **証拠の基準（Prove It Works）**: 「ビルド通過だけ」や AI の自己申告を完了と認めないルール。バグ修正時は修正前の失敗再現（Red → Green）を確認し、性能変更時は Before/After 実測ベンチマークで証明する。
   5. **スコープと意図的な対象外（Out of Scope）**: AI レビューが際限なく過剰テストを要求するのを防ぐ境界線。
-  6. **品質ゲート（CI コマンド群）とテストスイート一覧（`verifies`）**: マージ前に通すべき検査と、対象 `<Spec>` との対応地図。
+  6. **品質ゲート（CI コマンド群）と対応テストスイート（`verifies`）**: マージ前に通すべき検査と、対象 `<Spec>`・テストファイルとの対応地図。
 - **書かないこと**:
-  - 1 件ごとの詳細な手順書・クリック手順・テストデータ羅列・アサーション全文（→ テストコードへ）
+  - ユニットテスト 1 件ごとの手順書・クリック手順・テストデータ羅列・アサーション全文（→ テストコードへ）
   - 手動の合否チェック表（→ `test('[spec.id] ...')` と JUnit XML から `Realization` が自動算出される）
-- **AI レビューでの扱い**: **品質ゲートの判定基準**。テスト戦略違反・品質ゲート未達・リスク領域の抜けは要修正。意図的 Out of Scope への過剰テスト要求はしない。
+- **AI レビューでの扱い**: **品質ゲートと受入基準の判定基準**。テスト戦略違反・品質ゲート未達・保証シナリオ（Given / When / Then）の抜けは要修正。意図的 Out of Scope への過剰テスト要求はしない。
 
 ---
 
@@ -263,8 +271,8 @@ Diátaxis の 4 象限のうち、Reference は `contract` / `domain` / `spec`�
 | 新しいサブシステム・主要モジュールの追加・境界変更 | `architecture`（全体図）＋ `design`（`satisfies`＋`<SourceRef>` / `mode="exports"`） |
 | 後戻りコストが高い技術選定・トレードオフ判断 | `decision`（ADR 1 ファイル＋`<Outcome>`＋棄却案） |
 | 新しい振る舞い・制約・エラー・フォールバックの追加変更 | `spec`（`<Spec>`）＋ 外部 I/F 変更なら `contract` |
-| 新しい `<Spec>` やテストスイートの追加 | `verification`（`verifies` 一覧＋テストスイート表） |
-| 1 つの `spec` ファイルに別 Capability が相乗りした／10 件超の `<Spec>` を超えた | Capability（1 能力＝1 ファイル）単位で `documi scaffold` により分割（技術レイヤー別より能力別を優先、`documi check` の健全性ヒントで確認） |
+| 新しい `<Spec>` やテストスイートの追加 | 該当機能領域の `verification`（`verifies` ＋宣言的 Given / When / Then 保証シナリオ＋対応テストスイート） |
+| 1 つの `spec` に別 Capability が相乗りした／`spec` の `<Spec>` や `design`/`verification` のトレース辺が 10 件を超えた | 機能領域（Capability）単位で `documi scaffold` により分割（`documi check` の `bloated-spec-doc` / `overloaded-hub-doc` で確認） |
 
 ---
 
