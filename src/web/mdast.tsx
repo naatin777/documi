@@ -63,7 +63,10 @@ export function bundleDocAnchor(docId: string): string {
 }
 
 interface TermMatcher {
+  /** 自動リンク用（正準 ID のみ） */
   byKey: Map<string, TermEntry>
+  /** 明示 <Term name="..." /> 解決用（正準 ID ＋ aliases） */
+  byIdOrAlias: Map<string, TermEntry>
   regex: RegExp
 }
 
@@ -74,15 +77,24 @@ function escapeRegExp(s: string): string {
 function buildTermMatcher(terms?: readonly TermEntry[]): TermMatcher | undefined {
   if (!terms || terms.length === 0) return undefined
   const byKey = new Map<string, TermEntry>()
+  const byIdOrAlias = new Map<string, TermEntry>()
   const names: string[] = []
   for (const term of terms) {
-    // 1 概念＝1 表記を保つため、自動リンクは正準 ID のみ対象にする（aliases は検索同義語展開専用）
+    // 1 概念＝1 表記を保つため、自動リンクは正準 ID のみ対象にする（aliases は検索同義語展開と明示 <Term> 解決用）
     const trimmed = term.id.trim()
-    if (trimmed.length < 2) continue
-    const key = trimmed.toLowerCase()
-    if (!byKey.has(key)) {
-      byKey.set(key, term)
-      names.push(trimmed)
+    if (trimmed.length >= 2) {
+      const key = trimmed.toLowerCase()
+      if (!byKey.has(key)) {
+        byKey.set(key, term)
+        names.push(trimmed)
+      }
+      if (!byIdOrAlias.has(key)) byIdOrAlias.set(key, term)
+    }
+    for (const alias of term.aliases) {
+      const a = alias.trim()
+      if (!a) continue
+      const aKey = a.toLowerCase()
+      if (!byIdOrAlias.has(aKey)) byIdOrAlias.set(aKey, term)
     }
   }
   if (names.length === 0) return undefined
@@ -107,7 +119,7 @@ function buildTermMatcher(terms?: readonly TermEntry[]): TermMatcher | undefined
           : ''
     return `${prefix}${escaped}${suffix}`
   })
-  return { byKey, regex: new RegExp(`(${parts.join('|')})`, 'gu') }
+  return { byKey, byIdOrAlias, regex: new RegExp(`(${parts.join('|')})`, 'gu') }
 }
 
 interface Ctx {
@@ -706,7 +718,7 @@ function renderJsx(node: JsxNode, ctx: Ctx, level: 'flow' | 'text'): ReactNode {
         )
       case 'Term': {
         const termName = strProp(props, 'name')
-        const term = termName ? ctx.termMatcher?.byKey.get(termName.toLowerCase()) : undefined
+        const term = termName ? ctx.termMatcher?.byIdOrAlias.get(termName.toLowerCase()) : undefined
         const hasChildren = node.children.length > 0
         return (
           <TermInline name={termName} term={term}>

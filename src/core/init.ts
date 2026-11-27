@@ -483,8 +483,8 @@ Use this skill when introducing Documi into an **existing codebase** so that ini
 
 Use \`documi\` CLI commands (\`documi scaffold\`, \`documi block add\`, \`documi term upsert\`) rather than hand-crafting large files:
 
-1. **Root Goal (\`goals/\`)**: Create 1 concise Root Goal describing the product purpose, target users, and explicit Non-Goals. Capture hard architectural invariants as \`<Constraint id="...">\`.
-2. **System Overview (\`designs/system-overview.mdx\`, \`scope: system\`)**: Create 1 system-scope design document describing modules, boundaries, and data flow with real \`<SourceRef file="src/..." mode="exports" />\` links.
+1. **Root Goal (\`goals/\`)**: Create 1 concise Root Goal describing the product purpose, target users, and explicit Non-Goals.
+2. **System Overview (\`designs/system-overview.mdx\`, \`scope: system\`)**: Create 1 system-scope design document describing modules, boundaries, data flow, and system-wide technical constraints (\`<Constraint id="sys....">\`) with real \`<SourceRef file="src/..." mode="exports" />\` links.
 3. **Existing Key Decisions (\`decisions/\`)**: Record only the 1–3 most consequential architectural decisions already baked into the codebase, each with a 2–3 line \`<Decision id="dec....">\`.
 
 ## 3. Extract Bottom-Up Living Specs From Real Code

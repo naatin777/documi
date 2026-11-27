@@ -138,8 +138,9 @@ describe('MDX コンポーネント', () => {
     expect(termDef).toContain('成果物')
     expect(termDef).toContain('src/core/types.ts#Document')
 
-    const termRef = render('これは <Term name="Artifact" /> です')
+    const termRef = render('これは <Term name="Artifact" /> と <Term name="成果物" /> です')
     expect(termRef).toContain('href="/docs/domain/glossary#block-Artifact"')
+    expect(termRef).not.toContain('term-missing')
 
     // Living Glossary 自動リンク: 正準 ID のみ自動でリンクされ、aliases・コード内・見出し内は変換しない
     const autoLinked = render('# Artifact 見出し\n\nArtifact と成果物を管理する。`Artifact` はコード。', 'markdown')
