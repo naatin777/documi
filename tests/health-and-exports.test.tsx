@@ -191,10 +191,8 @@ describe('Document Health & Coverage (core.doc-health)', () => {
     expect(termsJson.terms[0]?.usedIn.map((u) => u.docId)).toEqual(['specs/billing'])
   })
 
-  test('[core.doc-health] 脆い <SourceRef lines=...>・design 外 <SourceRef>・AGENTS.md 肥大化・コード/スキル変更時の docs 未更新を Advisory ヒントで検知する', async () => {
-    const bloatedAgentsMd = Array.from({ length: 105 }, (_, i) => `- rule ${i + 1}`).join('\n')
+  test('[core.doc-health] 脆い <SourceRef lines=...>・design 外 <SourceRef>・コード/スキル変更時の docs 未更新を Advisory ヒントで検知する', async () => {
     const { projectRoot, docsDir } = await makeTempProject({
-      'AGENTS.md': bloatedAgentsMd,
       'src/calc.ts': `export function add(a: number, b: number) {\n  return a + b\n}\n`,
       'docs/goals/root.mdx': `---\ntype: goal\ntitle: Root\n---\n\n# Root\n`,
       'docs/specs/calc.mdx': `---\ntype: spec\ntitle: Calc\n---\n\n# Calc\n\n<Spec id="calc.add" derives="goals/root">加算できる</Spec>\n\n<SourceRef file="src/calc.ts" symbol="add" />\n\n<Test id="test.calc.add" verifies="calc.add" level="unit">add(1, 2) === 3</Test>\n`,
@@ -217,7 +215,6 @@ describe('Document Health & Coverage (core.doc-health)', () => {
     const codes1 = report1.health.hints.map((h) => h.code)
     expect(codes1).toContain('source-ref-fragile-lines')
     expect(codes1).toContain('source-ref-outside-design')
-    expect(codes1).toContain('agents-md-bloated')
     expect(codes1).toContain('docs-sync-missing')
 
     // docs/ 側も更新すると docs-sync-missing が消える
@@ -231,7 +228,6 @@ describe('Document Health & Coverage (core.doc-health)', () => {
     expect(codes2).not.toContain('docs-sync-missing')
     expect(codes2).not.toContain('source-ref-fragile-lines')
     expect(codes2).toContain('source-ref-outside-design')
-    expect(codes2).toContain('agents-md-bloated')
   })
 })
 

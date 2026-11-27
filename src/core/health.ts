@@ -1,4 +1,3 @@
-import { existsSync, readFileSync } from 'node:fs'
 import path from 'node:path'
 import { listGitDirtyPaths } from './git'
 import { REVIEWS_REL_PATH } from './reviews'
@@ -6,10 +5,8 @@ import type { DocsIndex } from './types'
 
 const DEFAULT_MAX_SPECS_PER_DOC = 10
 const DEFAULT_MAX_TRACE_TARGETS_PER_DOC = 10
-const DEFAULT_MAX_AGENT_FILE_LINES = 100
 const STALE_ARCH_MIN_NEWER_DOCS = 5
 const STALE_ARCH_GRACE_MS = 24 * 60 * 60 * 1000
-const AGENT_INSTRUCTION_FILES = ['AGENTS.md', 'CLAUDE.md'] as const
 const CODE_OR_SKILL_PATH_RE = /^(?:src|lib|app|packages|\.(?:agents|claude|cursor)\/skills)\//
 
 type DocumentHealthHintCode =
@@ -21,7 +18,6 @@ type DocumentHealthHintCode =
   | 'anti-term-used'
   | 'source-ref-fragile-lines'
   | 'source-ref-outside-design'
-  | 'agents-md-bloated'
   | 'docs-sync-missing'
 
 interface DocumentHealthHint {
@@ -64,8 +60,6 @@ interface AntiTermUsageInfo {
 }
 
 export interface WorkspaceHealthSignals {
-  /** projectRoot 直下の AGENTS.md / CLAUDE.md の実測行数 */
-  agentFiles?: Array<{ path: string; lineCount: number }>
   /** Git 作業ツリー／ステージ上の変更パス（projectRoot 相対 POSIX パス） */
   dirtyPaths?: string[]
   /** projectRoot 相対の docs マウントディレクトリ一覧 */
@@ -90,32 +84,16 @@ interface ComputeHealthOptions {
   maxSpecsPerDoc?: number
   /** 1 つの design から伸ばす推奨最大トレース辺数（超過で分割推奨ヒントを出す） */
   maxTraceTargetsPerDoc?: number
-  /** AGENTS.md / CLAUDE.md の推奨最大行数（超過で docs/ への分離を促す） */
-  maxAgentFileLines?: number
-  /** ワークスペース由来の逆方向漏れシグナル（AGENTS.md 行数・Git 変更パス） */
+  /** ワークスペース由来の逆方向漏れシグナル（Git 変更パス） */
   workspace?: WorkspaceHealthSignals
 }
 
 /**
- * projectRoot 直下の AGENTS.md / CLAUDE.md 行数および Git 未コミット変更パスを収集する。
- * 非 Git 環境やファイル不在時は安全に空値へフォールバックする。
+ * Git 未コミット変更パスと docs マウント相対パスを収集する。
+ * 非 Git 環境では安全に undefined へフォールバックする。
  */
 export function collectWorkspaceHealthSignals(projectRoot: string, index: DocsIndex): WorkspaceHealthSignals {
   const absRoot = path.resolve(projectRoot)
-  const agentFiles: Array<{ path: string; lineCount: number }> = []
-  for (const name of AGENT_INSTRUCTION_FILES) {
-    const absPath = path.join(absRoot, name)
-    if (!existsSync(absPath)) continue
-    try {
-      const content = readFileSync(absPath, 'utf-8')
-      const normalized = content.endsWith('\n') ? content.slice(0, -1) : content
-      const lineCount = normalized.length === 0 ? 0 : normalized.split('\n').length
-      agentFiles.push({ path: name, lineCount })
-    } catch {
-      // 読み取り不能時は無視
-    }
-  }
-
   const mountDirs = index.mounts.length > 0 ? index.mounts.map((m) => m.dir) : [index.rootDir]
   const docsRelDirs: string[] = []
   for (const dir of mountDirs) {
@@ -127,7 +105,6 @@ export function collectWorkspaceHealthSignals(projectRoot: string, index: DocsIn
 
   const dirtyPaths = listGitDirtyPaths(absRoot)
   return {
-    agentFiles,
     dirtyPaths,
     docsRelDirs,
   }
@@ -283,7 +260,7 @@ export function computeDocumentHealth(index: DocsIndex, options: ComputeHealthOp
 
   const antiTermUsages = detectAntiTermUsages(index, hints)
   detectFragileSourceRefs(index, hints)
-  detectWorkspaceReverseLeaks(options.workspace, options.maxAgentFileLines ?? DEFAULT_MAX_AGENT_FILE_LINES, hints)
+  detectWorkspaceReverseLeaks(options.workspace, hints)
 
   return {
     totalNormativeSpecs,
@@ -322,22 +299,8 @@ function detectFragileSourceRefs(index: DocsIndex, hints: DocumentHealthHint[]):
   }
 }
 
-function detectWorkspaceReverseLeaks(
-  workspace: WorkspaceHealthSignals | undefined,
-  maxAgentFileLines: number,
-  hints: DocumentHealthHint[],
-): void {
+function detectWorkspaceReverseLeaks(workspace: WorkspaceHealthSignals | undefined, hints: DocumentHealthHint[]): void {
   if (!workspace) return
-
-  for (const agentFile of workspace.agentFiles ?? []) {
-    if (agentFile.lineCount > maxAgentFileLines) {
-      hints.push({
-        code: 'agents-md-bloated',
-        message: `${agentFile.path} has ${agentFile.lineCount} lines (recommended max: ${maxAgentFileLines}; keep standing agent instructions minimal and move specs/rules/gotchas into docs/)`,
-        path: agentFile.path,
-      })
-    }
-  }
 
   const dirtyPaths = workspace.dirtyPaths
   if (!dirtyPaths || dirtyPaths.length === 0) return
