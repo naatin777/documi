@@ -232,9 +232,9 @@ EOF
   3. **入出力・永続ファイルのスキーマ変更**を \`contract\` に同期したか？
   4. **公開シンボル**（export された \`class\`/\`interface\`/\`type\`/公開関数）は手書きコピペせず \`<SourceRef file="src/..." mode="exports" />\` や \`<SourceRef symbol="..." />\` で AST 紐づけし、非公開ヘルパーや関数内の \`if\`/\`for\` 擬似コードは書いていないか？
 - **更新トリガー（PR 完了前セルフチェック）**:
-  - 新サブシステム・主要モジュール追加 → \`architecture\` 更新 ＋ \`design\`（\`satisfies\`・\`<SourceRef>\`）追加・更新
-  - 後戻りコストが高い構造・技術判断 → \`decision\`（ADR＋\`<Decision>\`）を追加
-  - 新しい \`<Spec>\` やテストスイート追加 → 該当機能領域の \`verification\` に \`verifies\`・**宣言的な Given / When / Then 保証シナリオ**・テストスイート一覧を同期する（1 ファイルに 10 件超の \`verifies\` / \`satisfies\` を集中させない：\`overloaded-hub-doc\` で検知）
+  - 新サブシステム・主要モジュール追加 → 全体設計（\`design\` / \`scope: system\`）更新 ＋ 機能別 \`design\`（\`satisfies\`・\`<SourceRef>\`）追加・更新
+  - 後戻りコストが高い全体構造・技術判断 → 独立 \`decision\`（ADR＋\`<Decision>\`）を追加。機能固有の局所判断や地雷回避理由は \`design\` / \`spec\` 内インライン \`<Decision>\`（マイクロ ADR）に記述
+  - 新しい \`<Spec>\` やテストスイート追加 → 同じ \`spec\` / \`contract\` 内に \`<Test id="..." verifies="<spec.id>" level="...">\`（宣言的な **Given / When / Then** 保証シナリオ）を同居させる（1 ファイルに 10 件超の \`satisfies\` を集中させない：\`overloaded-hub-doc\` で検知）
   - **Capability 単位のファイル分割（相乗り禁止）**: \`spec\` ファイルは技術レイヤー（\`core/\`・\`ui/\`）やスプリント単位ではなく **Capability（システムが提供する 1 つの能力・機能ドメイン）単位で 1 ファイル** にする。タイトルに無関係な機能が \`and\` や中黒で並び始めたら件数に関係なく \`documi scaffold\` で別ファイルへ切り出す（10 件超は安全網の \`bloated-spec-doc\` で検知）
 
 ## 4. 守るべき不変ルール
@@ -245,7 +245,7 @@ EOF
 
 ## 5. 完了前の検証と引き継ぎ
 
-1. \`documi check --no-review-edit\` を実行し、エラー 0 件（Rooted DAG・MDX 安全性・AST シンボル参照）および健全性ヒント（Design / Verification カバレッジ・Spec 肥大化・ハブ過密）を確認する。
+1. \`documi check --no-review-edit\` を実行し、エラー 0 件（Rooted DAG・MDX 安全性・AST シンボル参照）および健全性ヒント（Design / Test カバレッジ・Spec 肥大化・ハブ過密・同期漏れ）を確認する。
 2. 追加・変更した Spec ID を簡潔にまとめ、人間レビュアーが Web UI（\`documi serve\`）で確認・承認できるようにする。
 `,
       'documi-bootstrap/SKILL.md': `---
@@ -269,7 +269,7 @@ description: 既存コードベース（Brownfield）に Documi の Living Speci
 手書きで長大なファイルを作らず、\`documi\` CLI（\`scaffold\` / \`block add\` / \`term upsert\`）を使って最小骨格を作る：
 
 1. **Root Goal（\`goals/\`）**: プロダクトの目的・対象ユーザー・明示的な Non-Goals をまとめた Goal 文書を 1 件作成し、譲れない制約を \`<Constraint id="...">\` として記述する。
-2. **System Overview（\`architecture/\`）**: モジュール境界とデータフローを俯瞰する設計概要を 1 件作成し、実在する \`<SourceRef file="src/..." />\` を紐づける。
+2. **System Overview（\`designs/system-overview.mdx\`, \`scope: system\`）**: モジュール境界とデータフローを俯瞰する全体設計を 1 件作成し、実在する \`<SourceRef file="src/..." mode="exports" />\` を紐づける。
 3. **主要な既存意思決定（\`decisions/\`）**: すでにコードベースに根付いている重要な技術選定を 1〜3 件だけ記録し、各結論を 2〜3 行の \`<Decision id="dec....">\` にまとめる。
 
 ## 3. 実コードからボトムアップでコア仕様を抽出する
@@ -446,9 +446,9 @@ EOF
   3. **Schemas & external contracts**: update \`contract\` docs when API/MCP/CLI payloads or persistent file formats change.
   4. **Public symbols without pseudocode**: link exported classes/interfaces/types/functions via \`<SourceRef file="src/..." mode="exports" />\` or \`<SourceRef symbol="..." />\`; never write private helper steps or function-internal \`if\`/\`for\` pseudocode.
 - **Update triggers (check before finishing)**:
-  - New subsystem or core module -> update \`architecture\` and add/update \`design\` (with \`satisfies\` + \`<SourceRef>\`)
-  - Hard-to-reverse structural/technical choice -> add a \`decision\` (ADR with \`<Decision>\`)
-  - New \`<Spec>\` or test suite -> update the matching domain \`verification\` doc (\`verifies\`, declarative **Given / When / Then** acceptance scenarios, and suite table; avoid stuffing > 10 \`verifies\` / \`satisfies\` into one file, flagged by \`overloaded-hub-doc\`)
+  - New subsystem or core module -> update system-scope \`design\` (\`scope: system\`) and add/update feature \`design\` (with \`satisfies\` + \`<SourceRef>\`)
+  - Hard-to-reverse system-wide choice -> add a top-level \`decision\` (ADR with \`<Decision>\`); local design trade-offs or gotcha rationales -> add an inline \`<Decision>\` micro-ADR inside \`design\` or \`spec\`
+  - New \`<Spec>\` or test suite -> colocate declarative **Given / When / Then** \`<Test id="..." verifies="<spec.id>" level="...">\` scenarios inside the same \`spec\` / \`contract\` doc (avoid stuffing > 10 \`satisfies\` into one \`design\` file, flagged by \`overloaded-hub-doc\`)
   - **Capability-based file granularity (no bundling unrelated features)**: organize \`spec\` files by **Capability (one cohesive system ability/domain per file)** rather than technical layers (\`core/\` vs \`ui/\`) or sprints; split with \`documi scaffold\` whenever unrelated features start stacking in the same title regardless of block count (> 10 blocks triggers the \`bloated-spec-doc\` safety-net hint)
 
 ## 4. Invariant Guardrails
@@ -459,7 +459,7 @@ EOF
 
 ## 5. Verify Before Finishing
 
-1. Run \`documi check --no-review-edit\` and confirm 0 errors (Rooted DAG, MDX safety, AST symbol references) and inspect any health hints (Design / Verification coverage, bloated spec files, overloaded hubs).
+1. Run \`documi check --no-review-edit\` and confirm 0 errors (Rooted DAG, MDX safety, AST symbol references) and inspect any health hints (Design / Test coverage, bloated spec files, overloaded hubs, docs sync).
 2. Summarize any new or modified Spec IDs so the human reviewer can inspect and approve them in the Documi Web UI (\`documi serve\`).
 `,
     'documi-bootstrap/SKILL.md': `---
@@ -483,7 +483,7 @@ Use this skill when introducing Documi into an **existing codebase** so that ini
 Use \`documi\` CLI commands (\`documi scaffold\`, \`documi block add\`, \`documi term upsert\`) rather than hand-crafting large files:
 
 1. **Root Goal (\`goals/\`)**: Create 1 concise Root Goal describing the product purpose, target users, and explicit Non-Goals. Capture hard architectural invariants as \`<Constraint id="...">\`.
-2. **System Overview (\`architecture/\`)**: Create 1 high-level architecture document describing modules, boundaries, and data flow with real \`<SourceRef file="src/..." />\` links.
+2. **System Overview (\`designs/system-overview.mdx\`, \`scope: system\`)**: Create 1 system-scope design document describing modules, boundaries, and data flow with real \`<SourceRef file="src/..." mode="exports" />\` links.
 3. **Existing Key Decisions (\`decisions/\`)**: Record only the 1–3 most consequential architectural decisions already baked into the codebase, each with a 2–3 line \`<Decision id="dec....">\`.
 
 ## 3. Extract Bottom-Up Living Specs From Real Code

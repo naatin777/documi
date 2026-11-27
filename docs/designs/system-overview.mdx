@@ -103,6 +103,6 @@ flowchart TB
 |---|---|---|
 | **Boundary** | `goal`, `decision` | `goal` 全文と独立 `decision` の `<Decision>` を常時投入 |
 | **Domain** | `domain` | 用語とコードシンボル対応を常時投入 |
-| **Normative** | `spec`, `contract` | 実装・検証対象の機能について必須投入 |
-| **Realization** | `architecture`, `design`, `verification` | `architecture` は常時、`design` / `verification` は対象機能のみ |
+| **Normative** | `spec`, `contract` | 実装・検証対象の機能について必須投入（保証シナリオ `<Test>` を同居） |
+| **Realization** | `design` | 全体設計（`scope: system`）は常時、機能別 `design` は対象機能のみ投入 |
 | **Informative** | `guide` | 手順確認など必要時のみ参照 |

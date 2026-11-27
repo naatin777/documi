@@ -301,6 +301,13 @@ describe('REST API', () => {
     await expect(renderPdfFromUrl('http://localhost:3000/api/health')).rejects.toThrow('/bundle')
     await expect(renderPdfFromUrl('https://example.com/bundle?scope=all')).rejects.toThrow('localhost')
     await expect(renderPdfFromUrl('file:///etc/passwd')).rejects.toThrow('http')
+
+    const nonLocalRes = await app.request('http://evil.example.com/api/export/bundle-pdf', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ scope: 'all' }),
+    })
+    expect(nonLocalRes.status).toBe(403)
   })
 
   test('[core.ast-check] .env ファイルはソース取得 API の対象外として拒否する', async () => {

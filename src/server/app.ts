@@ -24,12 +24,19 @@ export interface AppOptions {
   projectRoot?: string
   /** ローカル Hybrid RAG 設定（任意） */
   ragConfig?: RagConfig
+  /** 自サーバーの正規ループバック Origin を返すコールバック（Host ヘッダー偽装による SSRF 防止用） */
+  getCanonicalOrigin?: () => string | undefined
 }
 
-function createApiApp(store: DocsStore, projectRoot: string, ragConfig?: RagConfig) {
+function createApiApp(
+  store: DocsStore,
+  projectRoot: string,
+  ragConfig?: RagConfig,
+  getCanonicalOrigin?: () => string | undefined,
+) {
   return new Hono()
     .basePath('/api')
-    .route('/', createSystemRoutes(store, projectRoot))
+    .route('/', createSystemRoutes(store, projectRoot, getCanonicalOrigin))
     .route('/', createDocumentsRoutes(store, projectRoot, ragConfig))
     .route('/', createGraphRoutes(store))
     .route('/blocks', createBlocksRoutes(store))
@@ -82,7 +89,7 @@ export function createApp(source: DocsIndex | DocsStore, options: AppOptions = {
     return c.json({ error: 'Internal Server Error' }, 500)
   })
 
-  app.route('/', createApiApp(store, projectRoot, options.ragConfig))
+  app.route('/', createApiApp(store, projectRoot, options.ragConfig, options.getCanonicalOrigin))
 
   // ブラウザ由来のクロスオリジン要求は拒否する (DNS rebinding / CSRF 対策)
   app.all('/mcp', async (c) => {
