@@ -26,7 +26,7 @@ tags: [spec, search, rag]
 
 <Spec id="core.graph-retrieval" stability="evolving" derives="goals/ai-reproducibility">
   **When** 自然文の質問やタスク記述に対して全文検索または `documi search --context` / MCP `search_documents (includeContext: true)` が実行されたとき、
-  **the** Document Core **shall** 日本語（漢字・カタカナ・ひらがな）および英語・コード識別子トークナイザによる BM25 スコアリングと `<TermDef aliases>` を用いた自動同義語展開を実行し、一次ヒットから上流 Goal・関連 Decision `<Outcome>`・関連 Contract/Design・用語・`<SourceRef>` を明示グラフに沿って収集し指定文字数予算内で返却する。
+  **the** Document Core **shall** 日本語（漢字・カタカナ・ひらがな）および英語・コード識別子トークナイザによる BM25 スコアリングと `<TermDef aliases>` を用いた自動同義語展開を実行し、一次ヒットから上流 Goal・関連 `<Decision>` 結論（マイクロ ADR 含む・廃止済み除外）・関連 Contract/Design・用語・`<SourceRef>` を明示グラフに沿って収集し指定文字数予算内で返却する。
 </Spec>
 
 - **ゼロ依存トークナイザ規則 (`tokenizeForSearch`)**:
@@ -36,7 +36,7 @@ tags: [spec, search, rag]
 - **用語集同義語展開**: クエリ中に登録済み `<TermDef>` の `id` または `aliases` が含まれる場合、対応する正規 ID と別名トークンをクエリへ自動追加する。
 - **グラフ文脈展開と予算制御 (`retrieveContext`)**:
   - 既定ヒット上限 `limit = 8`、既定文字数予算 `budget = 6000` 文字（`includeGraph: false` / `--no-graph` で一次ヒットのみ返却）。
-  - 一次ヒットのブロック／文書から明示エッジを辿り、上流 `goal`、関連 `decision` `<Outcome>`、関連 `contract` / `design`、関連 `<TermDef>`、および `<SourceRef>` を優先順に予算内で梱包する。
+  - 一次ヒットのブロック／文書から明示エッジを辿り、上流 `goal`、関連 `<Decision>` 結論（廃止済み除外）、関連 `contract` / `design`、関連 `<TermDef>`、および `<SourceRef>` を優先順に予算内で梱包する。
 
 ## 3. ローカル Hybrid RAG（`bun:sqlite` 差分キャッシュ・RRF・OpenAI 互換 HTTP）
 

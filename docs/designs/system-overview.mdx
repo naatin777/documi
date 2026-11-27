@@ -97,11 +97,11 @@ flowchart TB
 - **AI 向け二本立て経路（MCP ＋ CLI & Agent Skills）**: `src/core/query.ts`・`src/core/retrieval.ts`・`src/core/hybrid-retrieval.ts`・`src/core/editor.ts` を共通基盤として、MCP サーバー（`instructions` 自己完結・14 ツール）と CLI（`documi search --context` / `map` / `query` / `context` / `block` / `term` / `scaffold`、`--json`・`--full` 対応）が同等の機能を提供する（[ADR](../decisions/2026-11-24-ai-dual-channel-and-skills.mdx)）。
 - **プロバイダ非依存の静的サイト書き出し (`documi build-site`)**: インメモリ Hono サーバーから全読み取り API JSON を事前計算し、ビルド済み SPA（`HashRouter` 切替）と合わせて任意の静的ホスティングへ配布できる読み取り専用サイトを出力する（[ADR](../decisions/2026-11-24-provider-agnostic-static-site.mdx)）。
 
-## 4. 5 層・9 種類の Artifact Type と AI コンテキスト方針
+## 4. 5 層・7 種類の Artifact Type と AI コンテキスト方針
 
 | 層 | Type | AI コンテキストでの扱い |
 |---|---|---|
-| **Boundary** | `goal`, `decision` | `goal` 全文と `decision` の `<Outcome>` を常時投入 |
+| **Boundary** | `goal`, `decision` | `goal` 全文と独立 `decision` の `<Decision>` を常時投入 |
 | **Domain** | `domain` | 用語とコードシンボル対応を常時投入 |
 | **Normative** | `spec`, `contract` | 実装・検証対象の機能について必須投入 |
 | **Realization** | `architecture`, `design`, `verification` | `architecture` は常時、`design` / `verification` は対象機能のみ |

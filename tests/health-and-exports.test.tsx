@@ -62,13 +62,13 @@ describe('Document Health & Coverage (core.doc-health)', () => {
     const health = computeDocumentHealth(index)
     expect(health.totalNormativeSpecs).toBe(11)
     expect(health.designCoveredSpecs).toBe(1)
-    expect(health.verificationCoveredSpecs).toBe(2)
+    expect(health.testCoveredSpecs).toBe(2)
     expect(health.uncoveredByDesign).toHaveLength(10)
-    expect(health.uncoveredByVerification).toHaveLength(9)
+    expect(health.uncoveredByTest).toHaveLength(9)
     expect(health.bloatedSpecDocs).toHaveLength(1)
     expect(health.bloatedSpecDocs[0]?.specCount).toBe(11)
     expect(health.hints.some((h) => h.code === 'missing-design')).toBe(true)
-    expect(health.hints.some((h) => h.code === 'missing-verification')).toBe(true)
+    expect(health.hints.some((h) => h.code === 'missing-test')).toBe(true)
     expect(health.hints.some((h) => h.code === 'bloated-spec-doc')).toBe(true)
 
     // Advisory ヒントがあっても runDocsCheck.ok は true（CI を壊さない）
@@ -100,11 +100,11 @@ describe('Document Health & Coverage (core.doc-health)', () => {
     })
     expect(exitCode).toBe(0)
     const output = lines.join('\n')
-    expect(output).toContain('coverage:    design=1/11 verification=2/11')
+    expect(output).toContain('coverage:    design=1/11 test=2/11')
     expect(output).toContain('Health Hints')
   })
 
-  test('[core.doc-health] design (scope: system) 最終更新以降に 5 件以上の spec / design が更新されると stale-architecture ヒントを出す', async () => {
+  test('[core.doc-health] design (scope: system) 最終更新以降に 5 件以上の spec / design が更新されると stale-system-design ヒントを出す', async () => {
     const files: Record<string, string> = {
       'docs/goals/root.mdx': `---\ntype: goal\ntitle: Root\n---\n\n# Root\n`,
       'docs/designs/overview.mdx': `---\ntype: design\nscope: system\ntitle: Overview\n---\n\n# Overview\n`,
@@ -124,9 +124,9 @@ describe('Document Health & Coverage (core.doc-health)', () => {
     }
 
     const health = computeDocumentHealth(index)
-    expect(health.staleArchitectureDocs).toHaveLength(1)
-    expect(health.staleArchitectureDocs[0]?.newerDocsCount).toBe(5)
-    expect(health.hints.some((h) => h.code === 'stale-architecture')).toBe(true)
+    expect(health.staleSystemDesignDocs).toHaveLength(1)
+    expect(health.staleSystemDesignDocs[0]?.newerDocsCount).toBe(5)
+    expect(health.hints.some((h) => h.code === 'stale-system-design')).toBe(true)
   })
 
   test('[core.doc-health] design の外向き satisfies 辺が 10 件を超えると overloaded-hub-doc ヒントを出す', async () => {
@@ -246,7 +246,7 @@ pub fn run_engine() {}
     const report = await runDocsCheck({ docsDir, projectRoot })
     expect(report.ok).toBe(true)
     expect(report.health.designCoveredSpecs).toBe(1)
-    expect(report.health.verificationCoveredSpecs).toBe(1)
+    expect(report.health.testCoveredSpecs).toBe(1)
 
     // 2. REST API (/api/source/exports & /api/code/file)
     const store = await DocsStore.open(docsDir, { projectRoot })

@@ -130,7 +130,7 @@ describe('BM25 + Glossary Alias Expansion + Graph-Aware Retrieval', () => {
     expect(hits.some((h) => h.id === 'auth.lockout')).toBe(true)
   })
 
-  test('[core.graph-retrieval] retrieveContext がグラフ展開（Goal / Decision Outcome / Design / 用語 / SourceRef）と予算制限を行う', async () => {
+  test('[core.graph-retrieval] retrieveContext がグラフ展開（Goal / Decision / Design / 用語 / SourceRef）と予算制限を行う', async () => {
     const store = await DocsStore.open(docsDir, { projectRoot: projectDir })
     // クエリに「設計」を含めなくても、auth.lockout からのグラフ辺 (satisfies) 経由で designs/auth と SourceRef が自動収集される
     const res = retrieveContext(store.getIndex(), 'アカウント凍結の条件', { limit: 3, budget: 4000 })

@@ -173,7 +173,7 @@ export function buildGraphAndValidate(
   // 文書単位の outgoing / incoming を集約
   populateDocumentRelations(edges, byId, blocksById)
 
-  // supersedes エッジから旧文書・旧ブロック（および旧 ADR 配下の <Outcome>）へ supersededBy を自動付与
+  // supersedes エッジから旧文書・旧ブロック（および旧 ADR 配下の <Decision>）へ supersededBy を自動付与
   populateSupersededBy(edges, byId, blocksById)
 
   // Rooted DAG 検証: 循環検出 & Goal 到達性 (orphan-spec)

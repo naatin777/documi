@@ -83,7 +83,7 @@ ISO/IEC/IEEE 29148（BRS / StRS）・Amazon Working Backwards（PR/FAQ）・Impa
 | 基本設計・外部設計：外部 I/F の入出力・エラー規約 | **`contract`** | API / MCP / CLI / 共有ファイル形式の厳密な契約 |
 | 基本設計・方式設計：システム全体構成・横断方針 | **`architecture`** | HLD / C4 Level 1–2 相当の全体地図と依存境界 |
 | 詳細設計・内部設計：機能単位の構造・データフロー・状態 | **`design`** | C4 Level 3 相当の現行設計図 ＋ `<SourceRef>` で実コード接続 |
-| 詳細設計・RFC：代替案比較・なぜそれを選んだかの経緯 | **`decision`** | 追記型の ADR ログ ＋ `<Outcome>` 結論 |
+| 詳細設計・RFC：代替案比較・なぜそれを選んだかの経緯 | **`decision`** | 追記型の ADR ログ ＋ `<Decision>` 結論 |
 | 詳細設計：関数内の `if`/`for`・変数名・細部ロジック | **書かない** | C4 Level 4 はコード・型・テストが正。擬似コードは陳腐化と AI 劣化を招く |
 
 ### 3.2 各 Type の責務と AI レビューでの位置づけ
@@ -179,13 +179,13 @@ MADR 4.0・Y-Statement などの ADR 標準および AI 時代の運用知見を
 - **`design` との違い**: `design` は「今どう組まれているか（How）」の現行版（上書き更新）、`decision` は「なぜそれを選び何を捨てたか（Why）」の履歴（追記型）。1 つの `design` から重要な判断だけ 0〜数本の `decision` を切り出す。
 - **メタデータ・命名**: frontmatter に **`date: YYYY-MM-DD`**（MADR 4.0 準拠・降順ソート）を付与し、ファイル名は **`decisions/YYYY-MM-<slug>.mdx`** を推奨する（並列 AI 作業での連番衝突を回避し、目次一覧は Web UI / MCP が自動生成する）。
 - **構成（規模に応じて Minimal / Full を使い分け）**:
-  1. **`<Outcome id="dec.xxx">`（必須・2〜4 行）**: Y-Statement 調で「文脈・採用案・棄却案・狙い・受け入れるトレードオフ」を凝縮する。`get_project_map` で AI へ常時投入されるため、最小トークンで既決事項の蒸し返し（Re-litigation）を防げる。
+  1. **`<Decision id="dec.xxx">`（必須・2〜4 行）**: Y-Statement 調で「文脈・採用案・棄却案・狙い・受け入れるトレードオフ」を凝縮する。`get_project_map` で AI へ常時投入されるため、最小トークンで既決事項の蒸し返し（Re-litigation）を防げる。
   2. **背景・判断軸（Context / Drivers）**: 直面していた制約や課題。
   3. **検討した選択肢と棄却理由（Options Considered）**: 特に **捨てた案と理由** を明記する。
   4. **影響・将来の見直し条件（Consequences）**: 受け入れるマイナス面と再検討トリガ。
 - **更新ルールと AI レビューでの扱い**:
   - 確定後は基本 **追記型（不変）** とし、方針を覆すときは新 ADR に `supersedes: [decisions/<old>]` を付けて記録する（検討中ドラフト段階の加筆は可）。
-  - AI レビューでは **`<Outcome>` を判定基準（正）** とし、既決の棄却案を蒸し返さない。ただし要件や前提が大きく崩れた場合は「`supersedes` の検討」として提案してよい（古い ADR への盲目的な過適合を防ぐ）。
+  - AI レビューでは **`<Decision>` を判定基準（正）** とし、既決の棄却案を蒸し返さない。ただし要件や前提が大きく崩れた場合は「`supersedes` の検討」として提案してよい（古い ADR への盲目的な過適合を防ぐ）。
 
 ---
 
@@ -237,7 +237,7 @@ Diátaxis の 4 象限のうち、Reference は `contract` / `domain` / `spec`�
 | **マクロ (`docs/`)** | `domain` | **Vocabulary / Invariants** | 共通言語・禁止語・概念モデル・状態遷移・ドメイン不変条件 |
 | **マクロ (`docs/`)** | `spec` / `contract` | **What / Interface** | 外部から観測できる振る舞い・異常系・厳密な I/F 契約 |
 | **マクロ (`docs/`)** | `architecture` / `design` | **Overview / Structure** | 全体地図・依存境界・機能単位の構成と `<SourceRef>` |
-| **マクロ (`docs/`)** | `decision` (ADR) | **Big Why & Why not** | 後戻りが高い構造選択の理由と棄却した代替案（`<Outcome>`） |
+| **マクロ (`docs/`)** | `decision` (ADR) | **Big Why & Why not** | 後戻りが高い構造選択の理由と棄却した代替案（`<Decision>`） |
 | **マクロ (`docs/`)** | `verification` | **How to Prove** | 証拠主義のテスト戦略・実物検証経路・Out of Scope・品質ゲート |
 | **マクロ (`docs/`)** | `guide` | **How to Use / Operate** | 人間向けチュートリアル・日常運用手順・プレイブック（Informative） |
 | **ミクロ (Git/Code)** | **コミットログ / PR** | **Change Why** | 個別の変更・バグ修正を行った今回の動機 |

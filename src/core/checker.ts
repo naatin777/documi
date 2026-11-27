@@ -203,7 +203,7 @@ export async function runDocsCheck(options: CheckOptions): Promise<CheckReport> 
         ...fullHealth,
         bloatedSpecDocs: fullHealth.bloatedSpecDocs.filter((d) => scopedDocIds.has(d.docId)),
         overloadedHubDocs: fullHealth.overloadedHubDocs.filter((d) => scopedDocIds.has(d.docId)),
-        staleArchitectureDocs: fullHealth.staleArchitectureDocs.filter((d) => scopedDocIds.has(d.docId)),
+        staleSystemDesignDocs: fullHealth.staleSystemDesignDocs.filter((d) => scopedDocIds.has(d.docId)),
         hints: fullHealth.hints.filter(
           (h) => (h.docId && scopedDocIds.has(h.docId)) || (h.blockId && scopedBlockIds.has(h.blockId)),
         ),

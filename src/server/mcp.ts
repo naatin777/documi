@@ -146,7 +146,7 @@ function createDocumiMcpServer(store: DocsStore, projectRoot?: string, ragConfig
     'get_project_map',
     {
       description:
-        'Return the project-wide overview (Goal/Architecture summaries, Decision <Outcome>s, Domain Terms, Review/Realization stats, and health hints). Pass full: true to include full Goal/Architecture bodies.',
+        'Return the project-wide overview (Goal / System Design summaries, top-level <Decision> conclusions, Domain Terms, Review/Realization stats, and health hints). Pass full: true to include full Goal / System Design bodies.',
       inputSchema: {
         full: optionalBoolSchema('Include full Goal/Architecture bodies and unabridged descriptions (default: false)'),
       },
@@ -223,7 +223,7 @@ function createDocumiMcpServer(store: DocsStore, projectRoot?: string, ragConfig
     'query_specs',
     {
       description:
-        'Filter semantic blocks (<Spec> / <Constraint> / <Outcome> / <Note> / <TermDef>) by kind, intent, stability, review, realization, suspect, or keyword.',
+        'Filter semantic blocks (<Spec> / <Constraint> / <Decision> / <Test> / <Note> / <TermDef>) by kind, intent, stability, review, realization, suspect, or keyword.',
       inputSchema: {
         kind: optionalKindSchema,
         intent: optionalIntentSchema,
@@ -253,7 +253,7 @@ function createDocumiMcpServer(store: DocsStore, projectRoot?: string, ragConfig
     'get_spec_context',
     {
       description:
-        'Assemble implementation/verification context for a Spec block ID (or document ID): upstream Goals, related Design/Contract docs, Decision <Outcome>s, Terms, and <SourceRef>s.',
+        'Assemble implementation/verification context for a Spec block ID (or document ID): upstream Goals, related Design/Contract docs, <Decision> conclusions (including micro-ADRs), colocated <Test> scenarios, Terms, and <SourceRef>s.',
       inputSchema: {
         id: nodeIdSchema,
         full: optionalBoolSchema(
@@ -275,7 +275,7 @@ function createDocumiMcpServer(store: DocsStore, projectRoot?: string, ragConfig
     'search_documents',
     {
       description:
-        'Search documents and semantic blocks using BM25 + glossary alias expansion (or local Embedding + RRF hybrid search when semantic: true or rag.enabled is configured). Pass includeContext: true to expand graph-neighbor context (upstream Goals, Decision <Outcome>s, related Contract/Design docs, Terms, and <SourceRef>s) within a character budget.',
+        'Search documents and semantic blocks using BM25 + glossary alias expansion (or local Embedding + RRF hybrid search when semantic: true or rag.enabled is configured). Pass includeContext: true to expand graph-neighbor context (upstream Goals, <Decision> conclusions, related Contract/Design docs, Terms, and <SourceRef>s) within a character budget.',
       inputSchema: {
         query: z.string().min(1).describe('Search keywords or natural-language query'),
         type: optionalTypeSchema,

@@ -21,8 +21,8 @@ tags: [spec, graph, traceability]
   - `intent="normative"` の `<Spec>` から `derives` を辿って `type === "goal"` に到達できない場合は `orphan-spec` issue を記録。
 - **`supersedes` による現行／廃止分離**:
   - 新しいドキュメントまたはブロックから `supersedes` エッジで指された旧ドキュメント・旧ブロックには `supersededBy: string[]` を自動付与する。
-  - 旧 `decision` 文書自体が `supersedes` されている場合、その文書配下の `<Outcome>` ブロックも廃止済み（親文書の `supersededBy` を継承）として扱う。
-  - `get_project_map`・`documi map`・`/api/overview` の `decisionOutcomes` には **現行（未廃止）の `<Outcome>` のみ** を返し、廃止済み決定は `supersededOutcomes` として分離することで、AI・人間の双方が古い決定と現行仕様を混同しないようにする。
+  - 旧 `decision` 文書自体が `supersedes` されている場合、その文書配下の `<Decision>` ブロックも廃止済み（親文書の `supersededBy` を継承）として扱う。
+  - `get_project_map`・`documi map`・`/api/overview` の `decisions` には **現行（未廃止）の `<Decision>` のみ** を返し、廃止済み決定は `supersededDecisions` として分離することで、AI・人間の双方が古い決定と現行仕様を混同しないようにする。
 
 ## 2. 自動参照 (`mentions`) とローカルメディア検証
 

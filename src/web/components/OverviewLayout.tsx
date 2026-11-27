@@ -256,9 +256,9 @@ export default function OverviewLayout() {
                     </span>
                     <span className="text-xs text-fg-muted">{t('overview.designCoverage')}</span>
                   </div>
-                  <div className={statCard(data.health.uncoveredByVerification.length > 0)}>
+                  <div className={statCard(data.health.uncoveredByTest.length > 0)}>
                     <span className="text-xl leading-[1.2] font-bold tabular-nums">
-                      {data.health.verificationCoveredSpecs} / {data.health.totalNormativeSpecs}
+                      {data.health.testCoveredSpecs} / {data.health.totalNormativeSpecs}
                     </span>
                     <span className="text-xs text-fg-muted">{t('overview.testCoverage')}</span>
                   </div>

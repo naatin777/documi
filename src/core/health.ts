@@ -7,10 +7,10 @@ const STALE_ARCH_GRACE_MS = 24 * 60 * 60 * 1000
 
 type DocumentHealthHintCode =
   | 'missing-design'
-  | 'missing-verification'
+  | 'missing-test'
   | 'bloated-spec-doc'
   | 'overloaded-hub-doc'
-  | 'stale-architecture'
+  | 'stale-system-design'
 
 interface DocumentHealthHint {
   code: DocumentHealthHintCode
@@ -36,7 +36,7 @@ interface OverloadedHubDocInfo {
   threshold: number
 }
 
-interface StaleArchitectureInfo {
+interface StaleSystemDesignInfo {
   docId: string
   path: string
   updatedAt?: string
@@ -46,12 +46,12 @@ interface StaleArchitectureInfo {
 export interface DocumentHealthSummary {
   totalNormativeSpecs: number
   designCoveredSpecs: number
-  verificationCoveredSpecs: number
+  testCoveredSpecs: number
   uncoveredByDesign: string[]
-  uncoveredByVerification: string[]
+  uncoveredByTest: string[]
   bloatedSpecDocs: BloatedSpecDocInfo[]
   overloadedHubDocs: OverloadedHubDocInfo[]
-  staleArchitectureDocs: StaleArchitectureInfo[]
+  staleSystemDesignDocs: StaleSystemDesignInfo[]
   hints: DocumentHealthHint[]
 }
 
@@ -92,11 +92,11 @@ export function computeDocumentHealth(index: DocsIndex, options: ComputeHealthOp
   }
 
   const uncoveredByDesign: string[] = []
-  const uncoveredByVerification: string[] = []
+  const uncoveredByTest: string[] = []
   const hints: DocumentHealthHint[] = []
   let totalNormativeSpecs = 0
   let designCoveredSpecs = 0
-  let verificationCoveredSpecs = 0
+  let testCoveredSpecs = 0
 
   for (const block of index.blocksById.values()) {
     if (block.kind !== 'spec' || block.intent !== 'normative') continue
@@ -117,13 +117,13 @@ export function computeDocumentHealth(index: DocsIndex, options: ComputeHealthOp
       })
     }
 
-    const hasVerification = verificationTargets.has(block.id) || verificationTargets.has(block.docId)
-    if (hasVerification) {
-      verificationCoveredSpecs++
+    const hasTest = verificationTargets.has(block.id) || verificationTargets.has(block.docId)
+    if (hasTest) {
+      testCoveredSpecs++
     } else {
-      uncoveredByVerification.push(block.id)
+      uncoveredByTest.push(block.id)
       hints.push({
-        code: 'missing-verification',
+        code: 'missing-test',
         message: `<Spec id="${block.id}"> has no <Test verifies="${block.id}"> or verifies edge covering it`,
         path: ownerDoc?.path,
         docId: block.docId,
@@ -133,7 +133,7 @@ export function computeDocumentHealth(index: DocsIndex, options: ComputeHealthOp
   }
 
   uncoveredByDesign.sort()
-  uncoveredByVerification.sort()
+  uncoveredByTest.sort()
 
   const bloatedSpecDocs: BloatedSpecDocInfo[] = []
   for (const doc of index.documents) {
@@ -178,13 +178,13 @@ export function computeDocumentHealth(index: DocsIndex, options: ComputeHealthOp
     }
   }
 
-  const staleArchitectureDocs: StaleArchitectureInfo[] = []
-  const archDocs = index.documents.filter((d) => d.type === 'design' && d.scope === 'system')
+  const staleSystemDesignDocs: StaleSystemDesignInfo[] = []
+  const systemDesignDocs = index.documents.filter((d) => d.type === 'design' && d.scope === 'system')
   const specOrDesignDocs = index.documents.filter(
     (d) => d.type === 'spec' || (d.type === 'design' && d.scope !== 'system'),
   )
 
-  for (const arch of archDocs) {
+  for (const arch of systemDesignDocs) {
     const archUpdatedMs = arch.freshness?.updatedAt ? Date.parse(arch.freshness.updatedAt) : Number.NaN
     if (!Number.isFinite(archUpdatedMs)) continue
     let newerDocsCount = 0
@@ -195,15 +195,15 @@ export function computeDocumentHealth(index: DocsIndex, options: ComputeHealthOp
       }
     }
     if (newerDocsCount >= STALE_ARCH_MIN_NEWER_DOCS) {
-      staleArchitectureDocs.push({
+      staleSystemDesignDocs.push({
         docId: arch.id,
         path: arch.path,
         updatedAt: arch.freshness?.updatedAt,
         newerDocsCount,
       })
       hints.push({
-        code: 'stale-architecture',
-        message: `${newerDocsCount} spec/design documents were updated after ${arch.path} (consider refreshing the architecture overview)`,
+        code: 'stale-system-design',
+        message: `${newerDocsCount} spec/design documents were updated after ${arch.path} (consider refreshing the system design overview)`,
         path: arch.path,
         docId: arch.id,
       })
@@ -213,12 +213,12 @@ export function computeDocumentHealth(index: DocsIndex, options: ComputeHealthOp
   return {
     totalNormativeSpecs,
     designCoveredSpecs,
-    verificationCoveredSpecs,
+    testCoveredSpecs,
     uncoveredByDesign,
-    uncoveredByVerification,
+    uncoveredByTest,
     bloatedSpecDocs,
     overloadedHubDocs,
-    staleArchitectureDocs,
+    staleSystemDesignDocs,
     hints,
   }
 }

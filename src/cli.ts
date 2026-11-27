@@ -788,7 +788,7 @@ async function cmdCheck(flags: CliFlags, io: CliIo): Promise<number> {
     `  realization: verified=${report.realizationCounts.verified} implemented=${report.realizationCounts.implemented} in-progress=${report.realizationCounts['in-progress']} unimplemented=${report.realizationCounts.unimplemented} drifted=${report.realizationCounts.drifted}`,
   )
   io.out(
-    `  coverage:    design=${report.health.designCoveredSpecs}/${report.health.totalNormativeSpecs} verification=${report.health.verificationCoveredSpecs}/${report.health.totalNormativeSpecs}`,
+    `  coverage:    design=${report.health.designCoveredSpecs}/${report.health.totalNormativeSpecs} test=${report.health.testCoveredSpecs}/${report.health.totalNormativeSpecs}`,
   )
 
   if (report.health.hints.length > 0) {
@@ -926,7 +926,7 @@ async function cmdMap(flags: CliFlags, io: CliIo): Promise<number> {
     `  realization: verified=${map.realizationSummary.verified} implemented=${map.realizationSummary.implemented} in-progress=${map.realizationSummary['in-progress']} unimplemented=${map.realizationSummary.unimplemented} drifted=${map.realizationSummary.drifted}`,
   )
   io.out(
-    `  coverage:    design=${map.health.designCoveredSpecs}/${map.health.totalNormativeSpecs} verification=${map.health.verificationCoveredSpecs}/${map.health.totalNormativeSpecs}${map.health.hints.length > 0 ? ` (${map.health.hints.length} health hints)` : ''}`,
+    `  coverage:    design=${map.health.designCoveredSpecs}/${map.health.totalNormativeSpecs} test=${map.health.testCoveredSpecs}/${map.health.totalNormativeSpecs}${map.health.hints.length > 0 ? ` (${map.health.hints.length} health hints)` : ''}`,
   )
 
   if (map.goals.length > 0) {

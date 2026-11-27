@@ -60,7 +60,7 @@ describe('REST API', () => {
     expect(await res.json()).toEqual({ ok: true })
   })
 
-  test('GET /api/overview は統計・Goals・Outcomes・Orphan Specs を返す', async () => {
+  test('GET /api/overview は統計・Goals・Decisions・Orphan Specs を返す', async () => {
     const res = await app.fetch(new Request('http://localhost/api/overview'))
     expect(res.status).toBe(200)
     const body = (await res.json()) as {
@@ -342,7 +342,7 @@ describe('MCP endpoint', () => {
     ])
   })
 
-  test('get_project_map は Goal・Decision Outcome・Terms をまとめて返す', async () => {
+  test('get_project_map は Goal・Decision・Terms をまとめて返す', async () => {
     const res = await app.fetch(
       mcpRequest({ jsonrpc: '2.0', id: 2, method: 'tools/call', params: { name: 'get_project_map', arguments: {} } }),
     )

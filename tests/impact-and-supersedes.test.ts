@@ -9,7 +9,7 @@ import { createApp } from '../src/server/app'
 import { DocsStore } from '../src/server/store'
 
 describe('supersedes separation & impact analysis', () => {
-  test('[core.rooted-dag] separates active and superseded Decision Outcomes across graph, map, and /api/overview', async () => {
+  test('[core.rooted-dag] separates active and superseded Decisions across graph, map, and /api/overview', async () => {
     const tmp = await mkdtemp(path.join(os.tmpdir(), 'documi-supersedes-'))
     const docsDir = path.join(tmp, 'docs')
     try {
@@ -48,7 +48,7 @@ supersedes:
       const store = await DocsStore.open(docsDir, { projectRoot: tmp })
       const index = store.getIndex()
 
-      // Old ADR doc and its <Outcome> inherit supersededBy
+      // Old ADR doc and its <Decision> inherit supersededBy
       expect(index.byId.get('decisions/2026-01-old-choice')?.supersededBy).toEqual(['decisions/2026-02-new-choice'])
       expect(index.blocksById.get('dec.old')?.supersededBy).toEqual(['decisions/2026-02-new-choice'])
       expect(index.blocksById.get('dec.new')?.supersededBy).toBeUndefined()

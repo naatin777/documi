@@ -101,7 +101,7 @@ describe('MDX コンポーネント', () => {
     expect(steps).toContain('一')
   })
 
-  test('セマンティックタグ (Spec / Constraint / Outcome / Note / TermDef / Term) を描画する', () => {
+  test('セマンティックタグ (Spec / Constraint / Decision / Test / Note / TermDef / Term) を描画する', () => {
     const spec = render('<Spec id="auth.lockout" stability="stable" derives="goals/core">5回失敗でロック</Spec>')
     expect(spec).toContain('sem-spec')
     expect(spec).toContain('id="block-auth.lockout"')

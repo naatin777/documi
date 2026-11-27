@@ -358,7 +358,7 @@ function buildCorpusEntries(index: DocsIndex, typeFilter?: ArtifactType): Corpus
 
 /**
  * BM25（日英＋コード識別子トークナイザ）＋ `<TermDef aliases>` 同義語展開による全文検索。
- * `searchIndex`・Web UI (`Cmd+K`)・CLI (`documi search` / `retrieve`)・MCP (`search_documents` / `retrieve_context`) の共通エンジン。
+ * `searchIndex`・Web UI (`Cmd+K`)・CLI (`documi search`)・MCP (`search_documents`) の共通エンジン。
  * @implements core.full-text-search
  * @implements core.graph-retrieval
  */
@@ -511,7 +511,7 @@ export interface RetrieveContextOptions {
   limit?: number
   /** 返却ペイロードの文字数予算（既定: 6000、範囲: 500〜40000） */
   budget?: number
-  /** グラフ近傍（上流 Goal・Decision Outcome・関連文書・用語・SourceRef）を展開するか（既定: true） */
+  /** グラフ近傍（上流 Goal・<Decision>・関連文書・用語・SourceRef）を展開するか（既定: true） */
   includeGraph?: boolean
 }
 
@@ -819,7 +819,7 @@ export function assembleGraphContext(
 /**
  * 自然文の質問・タスク記述から、BM25 + 用語集同義語展開 + 明示グラフ展開（Goal / Decision Outcome / Contract / Design / 用語 / SourceRef）を
  * トークン（文字数）予算内にパックして 1 発で返す Graph-aware Retrieval。
- * CLI (`documi retrieve`) および MCP (`retrieve_context`) が共通利用する。
+ * CLI (`documi search --context`) および MCP (`search_documents` with `includeContext: true`) が共通利用する。
  * @implements core.graph-retrieval
  */
 export function retrieveContext(
