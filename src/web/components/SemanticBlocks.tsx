@@ -252,13 +252,16 @@ export function NoteBlock({ intent, title, children }: NoteBlockProps) {
 export interface TermDefBlockProps {
   id?: string
   aliases?: string
+  antiTerms?: string
+  context?: string
   symbols?: string
   children?: ReactNode
 }
 
-export function TermDefBlock({ id, aliases, symbols, children }: TermDefBlockProps) {
+export function TermDefBlock({ id, aliases, antiTerms, context, symbols, children }: TermDefBlockProps) {
   const { block, onMutate } = useSemanticBlock(id)
   const aliasList = splitCsv(aliases)
+  const antiTermList = splitCsv(antiTerms)
   const symbolList = splitCsv(symbols)
   const reviewClass = block ? ` sem-state-${block.review}${block.suspect ? ' sem-state-suspect' : ''}` : ''
 
@@ -267,6 +270,7 @@ export function TermDefBlock({ id, aliases, symbols, children }: TermDefBlockPro
       <header className="sem-header">
         <span className="sem-kind sem-kind-term">TERM</span>
         {id && <strong className="sem-term-name">{id}</strong>}
+        {context && <span className="sem-pill sem-pill-scope">@{context}</span>}
         {aliasList.length > 0 && (
           <span className="sem-badges">
             {aliasList.map((a) => (
@@ -279,14 +283,28 @@ export function TermDefBlock({ id, aliases, symbols, children }: TermDefBlockPro
       </header>
       {block && onMutate && <BlockReviewControls block={block} onMutate={onMutate} />}
       <div className="sem-body">{children}</div>
-      {symbolList.length > 0 && (
+      {(antiTermList.length > 0 || symbolList.length > 0) && (
         <footer className="sem-footer">
-          <span className="sem-meta-label">symbols</span>
-          {symbolList.map((sym) => (
-            <code key={sym} className="sem-ref-chip">
-              {sym}
-            </code>
-          ))}
+          {antiTermList.length > 0 && (
+            <>
+              <span className="sem-meta-label">avoid</span>
+              {antiTermList.map((anti) => (
+                <code key={anti} className="sem-ref-chip sem-anti-chip">
+                  {anti}
+                </code>
+              ))}
+            </>
+          )}
+          {symbolList.length > 0 && (
+            <>
+              <span className="sem-meta-label">symbols</span>
+              {symbolList.map((sym) => (
+                <code key={sym} className="sem-ref-chip">
+                  {sym}
+                </code>
+              ))}
+            </>
+          )}
         </footer>
       )}
     </section>

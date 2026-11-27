@@ -204,6 +204,7 @@ export async function runDocsCheck(options: CheckOptions): Promise<CheckReport> 
         bloatedSpecDocs: fullHealth.bloatedSpecDocs.filter((d) => scopedDocIds.has(d.docId)),
         overloadedHubDocs: fullHealth.overloadedHubDocs.filter((d) => scopedDocIds.has(d.docId)),
         staleSystemDesignDocs: fullHealth.staleSystemDesignDocs.filter((d) => scopedDocIds.has(d.docId)),
+        antiTermUsages: fullHealth.antiTermUsages.filter((u) => scopedDocIds.has(u.docId)),
         hints: fullHealth.hints.filter(
           (h) => (h.docId && scopedDocIds.has(h.docId)) || (h.blockId && scopedBlockIds.has(h.blockId)),
         ),

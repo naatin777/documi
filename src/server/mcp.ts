@@ -390,6 +390,8 @@ function createDocumiMcpServer(store: DocsStore, projectRoot?: string, ragConfig
         supersedes: optionalStringListSchema('Supersedes references'),
         scope: z.string().optional().describe('Constraint scope (optional)'),
         aliases: optionalStringListSchema('TermDef aliases'),
+        antiTerms: optionalStringListSchema('TermDef forbidden/confused anti-terms'),
+        context: z.string().optional().describe('Optional Bounded Context name for TermDef'),
         symbols: optionalStringListSchema('TermDef code symbols (src/...#Symbol)'),
       },
     },
@@ -407,6 +409,8 @@ function createDocumiMcpServer(store: DocsStore, projectRoot?: string, ragConfig
       supersedes?: string[]
       scope?: string
       aliases?: string[]
+      antiTerms?: string[]
+      context?: string
       symbols?: string[]
     }) => {
       const res = await updateBlockInDocs(store.rootDir, getIndex(), args)
@@ -439,6 +443,8 @@ function createDocumiMcpServer(store: DocsStore, projectRoot?: string, ragConfig
         supersedes: optionalStringListSchema('Supersedes references'),
         scope: z.string().optional().describe('Constraint scope (optional)'),
         aliases: optionalStringListSchema('TermDef aliases'),
+        antiTerms: optionalStringListSchema('TermDef forbidden/confused anti-terms'),
+        context: z.string().optional().describe('Optional Bounded Context name for TermDef'),
         symbols: optionalStringListSchema('TermDef code symbols (src/...#Symbol)'),
       },
     },
@@ -459,6 +465,8 @@ function createDocumiMcpServer(store: DocsStore, projectRoot?: string, ragConfig
       supersedes?: string[]
       scope?: string
       aliases?: string[]
+      antiTerms?: string[]
+      context?: string
       symbols?: string[]
     }) => {
       const res = await addBlockToDoc(store.rootDir, getIndex(), args)
@@ -478,11 +486,21 @@ function createDocumiMcpServer(store: DocsStore, projectRoot?: string, ragConfig
         id: z.string().min(1).describe('Term ID (e.g. "Artifact")'),
         definition: z.string().min(1).describe('Term definition body'),
         aliases: optionalStringListSchema('Term aliases'),
+        antiTerms: optionalStringListSchema('Forbidden or easily confused anti-terms'),
+        context: z.string().optional().describe('Optional Bounded Context name'),
         symbols: optionalStringListSchema('Code symbols (src/...#Symbol)'),
         docId: z.string().optional().describe('Target glossary document ID (default: domain/glossary)'),
       },
     },
-    async (args: { id: string; definition: string; aliases?: string[]; symbols?: string[]; docId?: string }) => {
+    async (args: {
+      id: string
+      definition: string
+      aliases?: string[]
+      antiTerms?: string[]
+      context?: string
+      symbols?: string[]
+      docId?: string
+    }) => {
       const res = await upsertTermInDocs(store.rootDir, getIndex(), args)
       if (res.isErr()) return errorResult(res.error.message)
       const nextIndex = await store.reload()

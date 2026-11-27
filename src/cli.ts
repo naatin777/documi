@@ -179,6 +179,8 @@ Options:
   --date <YYYY-MM-DD>     Decision date (scaffold)
   --scope <scope>         Export scope (export), Document scope "system" (scaffold), or Constraint scope (block)
   --aliases <a,b>         Comma-separated term aliases (block / term)
+  --anti-terms <a,b>      Comma-separated forbidden/confused anti-terms (block / term)
+  --domain-context <ctx>  Optional Bounded Context name for a term (block / term)
   --symbols <a,b>         Comma-separated code symbols (block / term)
   --doc <doc-id>          Target glossary document ID (term upsert, default: domain/glossary)
   --dry-run               Preview planned changes without writing files (block rename)
@@ -256,6 +258,8 @@ const CLI_OPTIONS = {
   description: { type: 'string' },
   date: { type: 'string' },
   aliases: { type: 'string' },
+  'anti-terms': { type: 'string' },
+  'domain-context': { type: 'string' },
   symbols: { type: 'string' },
   doc: { type: 'string' },
   'dry-run': { type: 'boolean' },
@@ -344,11 +348,23 @@ const COMMAND_ALLOWED_FLAGS: Record<string, ReadonlySet<string>> = {
     'supersedes',
     'scope',
     'aliases',
+    'anti-terms',
+    'domain-context',
     'symbols',
     'dry-run',
     'json',
   ]),
-  term: new Set(['definition', 'body', 'body-file', 'aliases', 'symbols', 'doc', 'json']),
+  term: new Set([
+    'definition',
+    'body',
+    'body-file',
+    'aliases',
+    'anti-terms',
+    'domain-context',
+    'symbols',
+    'doc',
+    'json',
+  ]),
   scaffold: new Set([
     'mount',
     'title',
@@ -946,11 +962,24 @@ async function cmdMap(flags: CliFlags, io: CliIo): Promise<number> {
       io.out(`  - ${o.id} (${o.docId}${o.date ? `, ${o.date}` : ''}): ${firstLine}`)
     }
   }
+  if (map.domainModels.length > 0) {
+    io.out(`\nDomain Models (${map.domainModels.length}):`)
+    for (const d of map.domainModels) io.out(`  - ${d.id}: ${d.title}`)
+  }
+  if (map.domainInvariants.length > 0) {
+    io.out(`\nDomain Invariants (${map.domainInvariants.length}):`)
+    for (const inv of map.domainInvariants) {
+      const firstLine = inv.body.trim().split('\n')[0] ?? ''
+      io.out(`  - ${inv.id} (${inv.docId}): ${firstLine}`)
+    }
+  }
   if (map.terms.length > 0) {
     io.out(`\nDomain Terms (${map.terms.length}):`)
     for (const t of map.terms) {
       const aliases = t.aliases.length > 0 ? ` [${t.aliases.join(', ')}]` : ''
-      io.out(`  - ${t.id}${aliases}`)
+      const ctx = t.context ? ` @${t.context}` : ''
+      const avoid = t.antiTerms.length > 0 ? ` (avoid: ${t.antiTerms.join(', ')})` : ''
+      io.out(`  - ${t.id}${ctx}${aliases}${avoid}`)
     }
   }
   return 0
@@ -1472,6 +1501,8 @@ async function cmdBlock(positionals: string[], flags: CliFlags, io: CliIo): Prom
       supersedes: parseCsvFlag(flags, 'supersedes'),
       scope: getStringFlag(flags, 'scope'),
       aliases: parseCsvFlag(flags, 'aliases'),
+      antiTerms: parseCsvFlag(flags, 'anti-terms'),
+      context: getStringFlag(flags, 'domain-context'),
       symbols: parseCsvFlag(flags, 'symbols'),
     })
     if (addRes.isErr()) {
@@ -1510,6 +1541,8 @@ async function cmdBlock(positionals: string[], flags: CliFlags, io: CliIo): Prom
       supersedes: parseCsvFlag(flags, 'supersedes'),
       scope: getStringFlag(flags, 'scope'),
       aliases: parseCsvFlag(flags, 'aliases'),
+      antiTerms: parseCsvFlag(flags, 'anti-terms'),
+      context: getStringFlag(flags, 'domain-context'),
       symbols: parseCsvFlag(flags, 'symbols'),
     })
     if (updateRes.isErr()) {
@@ -1590,6 +1623,8 @@ async function cmdTerm(positionals: string[], flags: CliFlags, io: CliIo): Promi
     id,
     definition,
     aliases: parseCsvFlag(flags, 'aliases'),
+    antiTerms: parseCsvFlag(flags, 'anti-terms'),
+    context: getStringFlag(flags, 'domain-context'),
     symbols: parseCsvFlag(flags, 'symbols'),
     docId: getStringFlag(flags, 'doc'),
   })

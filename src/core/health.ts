@@ -11,6 +11,7 @@ type DocumentHealthHintCode =
   | 'bloated-spec-doc'
   | 'overloaded-hub-doc'
   | 'stale-system-design'
+  | 'anti-term-used'
 
 interface DocumentHealthHint {
   code: DocumentHealthHintCode
@@ -43,6 +44,14 @@ interface StaleSystemDesignInfo {
   newerDocsCount: number
 }
 
+interface AntiTermUsageInfo {
+  docId: string
+  path: string
+  blockId: string
+  antiTerm: string
+  preferredTermId: string
+}
+
 export interface DocumentHealthSummary {
   totalNormativeSpecs: number
   designCoveredSpecs: number
@@ -52,6 +61,7 @@ export interface DocumentHealthSummary {
   bloatedSpecDocs: BloatedSpecDocInfo[]
   overloadedHubDocs: OverloadedHubDocInfo[]
   staleSystemDesignDocs: StaleSystemDesignInfo[]
+  antiTermUsages: AntiTermUsageInfo[]
   hints: DocumentHealthHint[]
 }
 
@@ -210,6 +220,8 @@ export function computeDocumentHealth(index: DocsIndex, options: ComputeHealthOp
     }
   }
 
+  const antiTermUsages = detectAntiTermUsages(index, hints)
+
   return {
     totalNormativeSpecs,
     designCoveredSpecs,
@@ -219,6 +231,61 @@ export function computeDocumentHealth(index: DocsIndex, options: ComputeHealthOp
     bloatedSpecDocs,
     overloadedHubDocs,
     staleSystemDesignDocs,
+    antiTermUsages,
     hints,
   }
+}
+
+function stripCodeFromMarkdown(text: string): string {
+  return text.replace(/```[\s\S]*?```/g, ' ').replace(/`[^`]*`/g, ' ')
+}
+
+function escapeRegExp(s: string): string {
+  return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+}
+
+function buildAntiTermMatcher(antiTerm: string): RegExp {
+  const escaped = escapeRegExp(antiTerm)
+  if (/^[a-zA-Z0-9_-]+$/.test(antiTerm)) {
+    return new RegExp(`(?<![a-zA-Z0-9_-])${escaped}(?![a-zA-Z0-9_-])`, 'i')
+  }
+  return new RegExp(escaped, 'i')
+}
+
+function detectAntiTermUsages(index: DocsIndex, hints: DocumentHealthHint[]): AntiTermUsageInfo[] {
+  const rules: Array<{ antiTerm: string; preferredTermId: string; matcher: RegExp }> = []
+  for (const block of index.blocksById.values()) {
+    if (block.kind !== 'term' || block.antiTerms.length === 0) continue
+    for (const anti of block.antiTerms) {
+      rules.push({ antiTerm: anti, preferredTermId: block.id, matcher: buildAntiTermMatcher(anti) })
+    }
+  }
+  if (rules.length === 0) return []
+
+  const usages: AntiTermUsageInfo[] = []
+  for (const doc of index.documents) {
+    if (doc.type !== 'spec' && doc.type !== 'contract' && doc.type !== 'design') continue
+    for (const block of doc.blocks) {
+      if ((block.kind !== 'spec' && block.kind !== 'decision') || block.intent !== 'normative') continue
+      const prose = stripCodeFromMarkdown(block.rawBody)
+      for (const rule of rules) {
+        if (!rule.matcher.test(prose)) continue
+        usages.push({
+          docId: doc.id,
+          path: doc.path,
+          blockId: block.id,
+          antiTerm: rule.antiTerm,
+          preferredTermId: rule.preferredTermId,
+        })
+        hints.push({
+          code: 'anti-term-used',
+          message: `<${block.kind === 'spec' ? 'Spec' : 'Decision'} id="${block.id}"> uses anti-term "${rule.antiTerm}" (prefer "${rule.preferredTermId}")`,
+          path: doc.path,
+          docId: doc.id,
+          blockId: block.id,
+        })
+      }
+    }
+  }
+  return usages
 }

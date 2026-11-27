@@ -9,7 +9,7 @@ tags: [domain, glossary]
 
 Documi の仕様・設計・ソースコードで共有される共通語彙を定義する。
 
-<TermDef id="Artifact" aliases="ドキュメント, 文書" symbols="src/core/types.ts#Document, src/core/types.ts#ArtifactType">
+<TermDef id="Artifact" aliases="ドキュメント, 文書" antiTerms="requirement" symbols="src/core/types.ts#Document, src/core/types.ts#ArtifactType">
   Documi が管理する Markdown / MDX ファイル単位。拡張子を除いた POSIX 相対パスが ID となり、`goal` / `decision` / `domain` / `spec` / `contract` / `design`（全体設計は `scope: system`） / `guide` の 7 種類の Type を持つ。
 </TermDef>
 
@@ -37,7 +37,7 @@ Documi の仕様・設計・ソースコードで共有される共通語彙を�
   `docs/guard/reviews.json` に保存されるブロック単位の人間承認レコード。承認時の SHA-256 ハッシュ・Git コミット SHA・上流ハッシュ・任意の確認メモ（`note`）を保持し、MDX 本文とは物理分離される。
 </TermDef>
 
-<TermDef id="Realization" aliases="実装状態" symbols="src/core/types.ts#RealizationSummary, src/core/trace.ts#enrichWithRealization">
+<TermDef id="Realization" aliases="実装状態" antiTerms="draft, progress" symbols="src/core/types.ts#RealizationSummary, src/core/trace.ts#enrichWithRealization">
   コードアンカー (`@implements` / `<SourceRef>`)・テスト (`@verifies` / `test("[id]")`)・JUnit 実行結果・PR 情報から完全自動で算出される仕様の実現状態 (`unimplemented` / `in-progress` / `implemented` / `verified` / `drifted`)。
 </TermDef>
 

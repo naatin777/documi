@@ -330,6 +330,10 @@ export interface TermSemanticBlock extends SemanticBlockBase {
   intent: SpecIntent
   /** TermDef 用の別名一覧 */
   aliases: string[]
+  /** 混同・誤用を避けるべき禁止語・非推奨表現 (Anti-Terms) */
+  antiTerms: string[]
+  /** 任意の Bounded Context 名（小規模では省略可） */
+  context?: string
   /** TermDef 用のコードシンボル参照一覧 (例: src/core/types.ts#Document) */
   symbols: string[]
 }

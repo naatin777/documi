@@ -61,8 +61,22 @@ stateDiagram-v2
 
 ## 3. ドメイン不変条件（Domain Invariants）
 
-1. **ID の一意性**: すべての <Term name="Artifact" /> ID（拡張子なしの POSIX 相対パス）および <Term name="SemanticBlock" /> ID（`^[a-zA-Z][a-zA-Z0-9._-]*$`）はプロジェクト全体で一意でなければならない。
-2. **Rooted DAG（脱線と循環の禁止）**: `intent="normative"` な `<Spec>` ブロックは、`derives` を辿って必ず 1 つ以上の `goal` に到達可能でなければならず、トレーサビリティ辺（`derives` / `satisfies` / `verifies` / `supersedes`）に循環を含んではならない。
-3. **承認と本文の物理分離**: 人間の承認事実（<Term name="ReviewRecord" />）は仕様本文に混在させず、AI エージェントは承認記録を改変してはならない。
-4. **実現状態の非手書き性**: <Term name="Realization" /> は手動で上書きできず、コード・テスト・JUnit・PR の実測のみから決定される。
-5. **参照境界の安全性**: すべての <Term name="SourceRef" /> および `<TermDef symbols>` は <Term name="ProjectRoot" /> 内の POSIX 相対パスであり、ルート外への脱出を一切許さない。
+<Constraint id="domain.unique-ids" scope="domain" stability="stable">
+  **ID の一意性**: すべての <Term name="Artifact" /> ID（拡張子なしの POSIX 相対パス）および <Term name="SemanticBlock" /> ID（`^[a-zA-Z][a-zA-Z0-9._-]*$`）はプロジェクト全体で一意でなければならない。
+</Constraint>
+
+<Constraint id="domain.rooted-dag" scope="domain" stability="stable">
+  **Rooted DAG（脱線と循環の禁止）**: `intent="normative"` な `<Spec>` ブロックは、`derives` を辿って必ず 1 つ以上の `goal` に到達可能でなければならず、トレーサビリティ辺（`derives` / `satisfies` / `verifies` / `supersedes`）に循環を含んではならない。
+</Constraint>
+
+<Constraint id="domain.review-separation" scope="domain" stability="stable">
+  **承認と本文の物理分離**: 人間の承認事実（<Term name="ReviewRecord" />）は仕様本文に混在させず、AI エージェントは承認記録を改変してはならない。
+</Constraint>
+
+<Constraint id="domain.derived-realization" scope="domain" stability="stable">
+  **実現状態の非手書き性**: <Term name="Realization" /> は手動で上書きできず、コード・テスト・JUnit・PR の実測のみから決定される。
+</Constraint>
+
+<Constraint id="domain.project-root-boundary" scope="domain" stability="stable">
+  **参照境界の安全性**: すべての <Term name="SourceRef" /> および `<TermDef symbols>` は <Term name="ProjectRoot" /> 内の POSIX 相対パスであり、ルート外への脱出を一切許さない。
+</Constraint>
