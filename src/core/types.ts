@@ -400,6 +400,8 @@ export interface Document extends DocumentMeta {
   outgoing: ResolvedRelation[]
   /** 解決済みの逆参照 */
   incoming: ResolvedRelation[]
+  /** 本文内リンク (hash 除外) -> 解決先 docId マップ（複数マウント間のクロス相対リンク等を Web UI と共有） */
+  resolvedLinks?: Record<string, string>
   /** この文書を `supersedes` で置き換えた新しいドキュメント/ブロック ID 一覧 */
   supersededBy?: string[]
   /** Git 履歴またはファイル時刻から算出した鮮度情報 */

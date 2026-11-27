@@ -31,8 +31,8 @@ afterEach(async () => {
   }
 })
 
-describe('Multi-docs Monorepo Mounts & --scope (core.project-config)', () => {
-  test('[core.project-config] 複数 docs マウント・クロスリンク・マウント別 reviews.json・複数 testReport・--scope が統合動作する', async () => {
+describe('Multi-docs Monorepo Mounts & --mount (core.project-config)', () => {
+  test('[core.project-config] 複数 docs マウント・クロスリンク・マウント別 reviews.json・複数 testReport・--mount が統合動作する', async () => {
     const pngBytes = new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a])
     const root = await makeMonorepo({
       '.documi.json': JSON.stringify(
@@ -76,8 +76,10 @@ describe('Multi-docs Monorepo Mounts & --scope (core.project-config)', () => {
     expect(webDoc?.mountId).toBe('web')
     expect(webDoc?.issues).toHaveLength(0)
 
-    // doc:<docId> とクロス相対パスの両方が api/contracts/rest への mentions エッジとして解決される
+    // doc:<docId> とクロス相対パスの両方が api/contracts/rest への mentions エッジおよび Web UI 用 resolvedLinks として解決される
     expect(webDoc?.outgoing.some((e) => e.docId === 'api/contracts/rest' && e.kind === 'mentions')).toBe(true)
+    expect(webDoc?.resolvedLinks?.['../../../../packages/api/docs/contracts/rest.mdx']).toBe('api/contracts/rest')
+    expect(webDoc?.resolvedLinks?.['doc:api/contracts/rest']).toBe('api/contracts/rest')
 
     // 承認は各ブロックの所属マウント配下の guard/reviews.json へ保存される
     const approveWeb = await approveBlock(resolved.docsDir, index, 'web.login', { author: 'alice', cacheRoot: root })
@@ -106,11 +108,11 @@ describe('Multi-docs Monorepo Mounts & --scope (core.project-config)', () => {
     expect(checkAll.reviewCounts.approved).toBe(2)
     expect(checkAll.realizationCounts.verified).toBe(2)
 
-    // --scope web は全体グラフをロードした上で web だけ絞り込み、root の goals/product 参照も壊れない
+    // --mount web は全体グラフをロードした上で web だけ絞り込み、root の goals/product 参照も壊れない
     const checkWeb = await runDocsCheck({
       docsDir: resolved.docsDir,
       mounts: resolved.docsMounts,
-      scope: 'web',
+      mount: 'web',
       projectRoot: root,
       testReportPaths: resolved.testReportPaths,
     })
@@ -119,19 +121,19 @@ describe('Multi-docs Monorepo Mounts & --scope (core.project-config)', () => {
     expect(checkWeb.blockCount).toBe(1)
     expect(checkWeb.realizationCounts.verified).toBe(1)
 
-    // 存在しない --scope は unknown-scope エラー
+    // 存在しない --mount は unknown-mount エラー
     const checkInvalid = await runDocsCheck({
       docsDir: resolved.docsDir,
       mounts: resolved.docsMounts,
-      scope: 'nonexistent',
+      mount: 'nonexistent',
       projectRoot: root,
     })
     expect(checkInvalid.ok).toBe(false)
-    expect(checkInvalid.errors.some((e) => e.code === 'unknown-scope')).toBe(true)
+    expect(checkInvalid.errors.some((e) => e.code === 'unknown-mount')).toBe(true)
 
-    // CLI: list / query / scaffold の --scope 対応
+    // CLI: list / query / scaffold の --mount 対応
     const listOut: string[] = []
-    const listCode = await runCli(['list', '--project', root, '--scope', 'web', '--json'], {
+    const listCode = await runCli(['list', '--project', root, '--mount', 'web', '--json'], {
       out: (s) => listOut.push(s),
       err: () => {},
       readStdin: async () => '',
@@ -143,7 +145,7 @@ describe('Multi-docs Monorepo Mounts & --scope (core.project-config)', () => {
 
     const scaffoldOut: string[] = []
     const scaffoldCode = await runCli(
-      ['scaffold', 'designs/auth.mdx', '--project', root, '--scope', 'web', '--title', 'Web Auth Design', '--json'],
+      ['scaffold', 'designs/auth.mdx', '--project', root, '--mount', 'web', '--title', 'Web Auth Design', '--json'],
       {
         out: (s) => scaffoldOut.push(s),
         err: () => {},

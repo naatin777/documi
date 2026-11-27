@@ -1,7 +1,7 @@
 ---
 type: decision
 title: Monorepo 向け複数 docs 統合マウントとマウント別 reviews.json の採用
-description: 複数 docs ディレクトリを名前空間付きで 1 グラフへ統合マウントし、reviews.json はマウント別分散・--scope は全体グラフ上で絞り込む設計判断
+description: 複数 docs ディレクトリを名前空間付きで 1 グラフへ統合マウントし、reviews.json はマウント別分散・--mount は全体グラフ上で絞り込む設計判断
 date: 2026-11-27
 tags: [decision, monorepo, config, architecture]
 derives:
@@ -12,7 +12,7 @@ derives:
 # Monorepo 向け複数 docs 統合マウントとマウント別 reviews.json の採用
 
 <Outcome id="decision.multi-docs-monorepo-mounts" stability="evolving">
-  Monorepo 等で複数の `docs/` ディレクトリをコード近傍に分散配置できるよう、`.documi.json` の `docs` に単一文字列または配列 `{ id?, path, label? }[]` を許可し、名前空間付きで **1 つの統合グラフ** へマウントする。承認サイドカー `guard/reviews.json` は各マウント配下へ分散配置し、`--scope <mountId>` は全体グラフをロードした上で検証・検索対象を絞り込む。
+  Monorepo 等で複数の `docs/` ディレクトリをコード近傍に分散配置できるよう、`.documi.json` の `docs` に単一文字列または配列 `{ id?, path, label? }[]` を許可し、名前空間付きで **1 つの統合グラフ** へマウントする。承認サイドカー `guard/reviews.json` は各マウント配下へ分散配置し、`--mount <id>` は全体グラフをロードした上で検証・検索対象を絞り込む。
 </Outcome>
 
 ## 背景・判断軸
@@ -28,7 +28,7 @@ derives:
 | **統合マウント方式（採用）** | 採用 | 1 つの Web UI・グラフ・検索・MCP でパッケージ間トレースが繋がる。既定マウント（`id` 省略／`"root"`）はプレフィックスなしで既存互換を維持し、名前付きマウントだけ `<id>/...` を付与 |
 | 独立ワークスペース切替方式 | 棄却 | パッケージ間の `derives` / `satisfies` / `mentions` が途切れ、Monorepo 全体を横断検索・影響分析できない |
 | プライマリ 1 ファイルへ `reviews.json` 集約 | 棄却 | チーム間の PR で毎回同一ファイルがコンフリクトし、`CODEOWNERS` 分離もできず、`root` が無い構成で不自然 |
-| `--scope` 時に指定マウントのみ単独ロード | 棄却 | 別マウントの `goal` / `contract` への `derives` 参照が偽陽性で `missing-relation` / `orphan-spec` になる |
+| `--mount` 時に指定マウントのみ単独ロード | 棄却 | 別マウントの `goal` / `contract` への `derives` 参照が偽陽性で `missing-relation` / `orphan-spec` になる |
 
 ## 影響・見直し条件
 

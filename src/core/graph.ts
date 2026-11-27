@@ -129,6 +129,11 @@ export function buildGraphAndValidate(
       const target = resolveTarget(href, doc, byId, blocksById, mounts)
       if (target) {
         addEdge(doc.id, doc, target, 'mentions', false)
+        const rawPath = href.trim().split('#')[0]?.trim()
+        if (rawPath) {
+          doc.resolvedLinks ??= {}
+          doc.resolvedLinks[rawPath] = target.doc.id
+        }
       } else if (looksLikeInternalDocLink(href)) {
         doc.issues.push({ code: 'missing-relation', message: `Broken internal link: ${href}` })
       }

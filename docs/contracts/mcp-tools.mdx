@@ -29,14 +29,14 @@ AI エージェント向けに **2 種類のトランスポート** で同一の
 | Tool | 入力 | 役割 |
 |---|---|---|
 | `get_project_map` | `full?` | Goal / Architecture 概要・現行 Decision `<Outcome>` 一覧（廃止済みは `supersededOutcomes` へ分離）・Domain 用語集・Review & Realization サマリを一括取得（`full: true` で全文展開） |
-| `list_documents` | `type?` | ドキュメントサマリ一覧を取得 |
+| `list_documents` | `type?`, `mount?` | ドキュメントサマリ一覧を取得（`mount` で複数 docs 構成のマウント絞り込み可） |
 | `get_document` | `id` | パス ID から本文・セマンティックブロック（`startLine` / `endLine` 含む）・関係・問題一覧を取得 |
 | `get_relations` | `id` | ドキュメント ID またはブロック ID の外向き/逆参照を取得 |
 | `get_impact` | `id`, `maxDepth?` | 指定ドキュメントまたはブロックを変更した際に影響する下流文書・ブロック・`<SourceRef>`・コード／テスト参照を再帰走査で一覧化（既定 `maxDepth: 4`） |
-| `query_specs` | `kind?`, `intent?`, `stability?`, `review?`, `realization?`, `suspect?`, `query?`, `full?` | セマンティックブロックを多軸フィルタ検索（既定は `docPath`・`startLine`・`endLine`・要約付き軽量サマリ、`full: true` で詳細配列込み） |
+| `query_specs` | `kind?`, `intent?`, `stability?`, `review?`, `realization?`, `suspect?`, `mount?`, `query?`, `full?` | セマンティックブロックを多軸フィルタ検索（既定は `docPath`・`startLine`・`endLine`・要約付き軽量サマリ、`full: true` で詳細配列込み） |
 | `get_spec_context` | `id`, `full?` | 指定 Spec の本文・`docPath`・`startLine`・`endLine`・上流 Goal 概要・関連 Design/Contract・Decision `<Outcome>`・関連用語・`<SourceRef>` を一括集約（`full: true` で完全展開） |
-| `search_documents` | `query`, `type?`, `limit?`, `semantic?` | ドキュメントとセマンティックブロックを BM25＋用語集同義語展開（`semantic: true` または `rag.enabled` 時はローカル Embedding＋RRF）で横断全文検索 |
-| `retrieve_context` | `query`, `type?`, `limit?`, `budget?`, `includeGraph?`, `semantic?` | 自然文から BM25（＋任意でローカル Embedding RRF）＋明示グラフ展開（上流 Goal・Decision `<Outcome>`・関連 Contract/Design・用語・`<SourceRef>`）を文字数予算内で 1 発取得 |
+| `search_documents` | `query`, `type?`, `mount?`, `limit?`, `semantic?` | ドキュメントとセマンティックブロックを BM25＋用語集同義語展開（`semantic: true` または `rag.enabled` 時はローカル Embedding＋RRF）で横断全文検索 |
+| `retrieve_context` | `query`, `type?`, `mount?`, `limit?`, `budget?`, `includeGraph?`, `semantic?` | 自然文から BM25（＋任意でローカル Embedding RRF）＋明示グラフ展開（上流 Goal・Decision `<Outcome>`・関連 Contract/Design・用語・`<SourceRef>`）を文字数予算内で 1 発取得 |
 | `validate_docs` | なし | `orphan-spec`・参照切れ・循環・重複 ID・MDX 未対応構文・AST `<SourceRef>` / `<TermDef>` シンボル切れを一括検証 |
 
 ## 精密編集・構造操作ツール（Surgical Write）
@@ -48,7 +48,7 @@ AI が 1 ブロック修正するために無関係な文書全体を読み込�
 | `update_block` | `id`, `body`, `title?`, `stability?`, `intent?`, `derives?`, `supersedes?`, `scope?`, `aliases?`, `symbols?` | 既存セマンティックブロック（`<Spec>` / `<Constraint>` / `<Outcome>` / `<TermDef>`）の該当行範囲のみを更新し、再読込後の検証結果を返却 |
 | `add_block` | `docId`, `kind`, `id`, `body`, `afterHeading?`, `title?`, `stability?`, `intent?`, `derives?`, `supersedes?`, `scope?`, `aliases?`, `symbols?` | 指定ドキュメント末尾（または指定見出し直下）にセマンティックブロックを 1 件追記し、検証結果を返却 |
 | `upsert_term` | `id`, `definition`, `aliases?`, `symbols?`, `docId?` | 用語集（既定: `domain/glossary`）に `<TermDef>` を追加または更新し、検証結果を返却 |
-| `scaffold_document` | `path`, `title`, `type?`, `description?`, `date?`, `tags?`, `derives?`, `satisfies?`, `verifies?`, `body?` | 規約通りの YAML frontmatter を持つ新規 `.mdx` ドキュメントを作成（既存ファイルの上書きは拒否） |
+| `scaffold_document` | `path`, `title`, `mount?`, `type?`, `description?`, `date?`, `tags?`, `derives?`, `satisfies?`, `verifies?`, `body?` | 規約通りの YAML frontmatter を持つ新規 `.mdx` ドキュメントを作成（既存ファイルの上書きは拒否、`mount` 省略時はプライマリへ出力） |
 | `rename_block_id` | `oldId`, `newId`, `dryRun?` | 全 `docs/` のブロック定義・`derives` / `supersedes` / `satisfies` / `verifies`・`<SourceRef>` と、`projectRoot` 配下の `@implements` / `@verifies` / `test("[id]")` を一括リネーム（`dryRun: true` で変更予定一覧のみ返却） |
 
 ## コンパクト出力 vs `full: true` 契約

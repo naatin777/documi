@@ -125,7 +125,7 @@ export interface ScaffoldDocumentInput {
   path: string
   title: string
   /** 出力先マウント ID（省略時はプライマリマウントへ作成） */
-  scope?: string
+  mount?: string
   type?: ArtifactType
   description?: string
   date?: string
@@ -610,15 +610,15 @@ export async function scaffoldDocument(
   input: ScaffoldDocumentInput,
 ): Promise<Result<ScaffoldDocumentResult, EditDomainError>> {
   return Result.gen(async function* () {
-    const scope = input.scope?.trim() || undefined
+    const mountId = input.mount?.trim() || undefined
     let targetMount = index.mounts.find((m) => !m.prefixed) ?? index.mounts[0]
-    if (scope) {
-      const matched = index.mounts.find((m) => m.id === scope)
+    if (mountId) {
+      const matched = index.mounts.find((m) => m.id === mountId)
       if (!matched) {
         const available = index.mounts.map((m) => m.id).join(', ')
         return Result.err(
           new InvalidEditInputError({
-            message: `Unknown docs scope "${scope}" (available mounts: ${available})`,
+            message: `Unknown docs mount "${mountId}" (available mounts: ${available})`,
           }),
         )
       }

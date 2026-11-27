@@ -180,6 +180,7 @@ export default function DocPeekPane({ docId, focusBlockId, onBack, onClose, extr
                       body={doc.body}
                       format={doc.format}
                       currentDir={doc.dir}
+                      resolvedLinks={doc.resolvedLinks}
                       terms={terms}
                       headingPrefix="peek"
                     />
