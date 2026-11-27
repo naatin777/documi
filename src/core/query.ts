@@ -7,6 +7,7 @@ import { validateSourceLinks } from './trace'
 import type {
   ArtifactType,
   BlockKind,
+  DecisionSemanticBlock,
   DocsIndex,
   RealizationStatus,
   ReviewStatus,
@@ -78,18 +79,22 @@ function toMapDocEntry(d: DocsIndex['documents'][number], full: boolean) {
 }
 
 /**
- * プロジェクトの初期コンテキスト (Goal / Architecture / Decision Outcome / Domain 用語 / 統計) を構築する。
+ * プロジェクトの初期コンテキスト (Goal / System Design / Decision 結論 / Domain 用語 / 統計) を構築する。
  * MCP (`get_project_map`) と CLI (`documi map`) が共通利用する。
- * 既定では Goal / Architecture を概要＋見出し一覧に圧縮し、コンテキスト肥大化を防ぐ（`full: true` で全文を含める）。
+ * 既定では Goal / System Design を概要＋見出し一覧に圧縮し、コンテキスト肥大化を防ぐ（`full: true` で全文を含める）。
  */
 export function buildProjectMap(index: DocsIndex, options: { full?: boolean } = {}) {
   const full = options.full === true
   const goals = index.documents.filter((d) => d.type === 'goal').map((d) => toMapDocEntry(d, full))
-  const architecture = index.documents.filter((d) => d.type === 'architecture').map((d) => toMapDocEntry(d, full))
+  const architecture = index.documents
+    .filter((d) => d.type === 'design' && d.scope === 'system')
+    .map((d) => toMapDocEntry(d, full))
+  // 常時 map に載せるのは独立 decision ファイル内の <Decision> のみ（design/spec 内マイクロ ADR は context/search でオンデマンド取得）
   const allOutcomes = [...index.blocksById.values()]
-    .filter((b) => b.kind === 'outcome')
+    .filter((b): b is DecisionSemanticBlock => b.kind === 'decision' && index.byId.get(b.docId)?.type === 'decision')
     .map((b) => {
       const doc = index.byId.get(b.docId)
+      const conclusion = b.summary ?? b.chosen ?? b.rawBody
       const item: {
         id: string
         docId: string
@@ -101,10 +106,11 @@ export function buildProjectMap(index: DocsIndex, options: { full?: boolean } = 
         id: b.id,
         docId: b.docId,
         stability: b.stability,
-        body: full ? b.rawBody : summarizeText(b.rawBody, 240),
+        body: full ? b.rawBody : summarizeText(conclusion, 240),
       }
       if (b.supersededBy && b.supersededBy.length > 0) item.supersededBy = b.supersededBy
-      if (doc?.date) item.date = doc.date
+      const date = b.date ?? doc?.date
+      if (date) item.date = date
       return item
     })
   const decisionOutcomes = allOutcomes.filter((o) => !o.supersededBy)
@@ -478,9 +484,10 @@ export function getSpecContext(index: DocsIndex, id: string, options: { full?: b
     .map((rid) => index.byId.get(rid))
     .filter((d): d is NonNullable<typeof d> => Boolean(d))
 
-  const outcomes: SemanticBlock[] = relatedDocs
-    .filter((d) => d.type === 'decision')
-    .flatMap((d) => d.blocks.filter((b) => b.kind === 'outcome'))
+  // 独立 decision 文書および対象文書・関連文書内のインライン <Decision>（マイクロ ADR）を収集
+  const decisionBlocks = [doc, ...relatedDocs]
+    .flatMap((d) => d.blocks.filter((b): b is DecisionSemanticBlock => b.kind === 'decision'))
+    .filter((b, i, arr) => arr.findIndex((x) => x.id === b.id) === i)
 
   const terms = [...index.blocksById.values()]
     .filter((b) => b.kind === 'term')
@@ -533,7 +540,15 @@ export function getSpecContext(index: DocsIndex, id: string, options: { full?: b
     relatedDocuments: full
       ? relatedDocs.map(toDocumentSummary)
       : relatedDocs.map((d) => ({ id: d.id, type: d.type, title: d.title, description: d.description })),
-    decisionOutcomes: outcomes.map((o) => ({ id: o.id, docId: o.docId, body: o.rawBody })),
+    decisionOutcomes: decisionBlocks.map((o) => {
+      const entry: { id: string; docId: string; summary?: string; body: string } = {
+        id: o.id,
+        docId: o.docId,
+        body: full ? o.rawBody : summarizeText(o.summary ?? o.chosen ?? o.rawBody, 240),
+      }
+      if (o.summary) entry.summary = o.summary
+      return entry
+    }),
     relevantTerms: terms.map((t) => ({
       id: t.id,
       aliases: t.aliases,

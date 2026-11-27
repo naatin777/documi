@@ -35,11 +35,15 @@ import { approveBlock, unapproveBlock } from './core/reviews'
 import {
   ARTIFACT_TYPES,
   BLOCK_KINDS,
+  DOC_SCOPES,
+  TEST_LEVELS,
   isArtifactType,
+  isDocScope,
   isNoteIntent,
   isReviewStatus,
   isSpecIntent,
   isStability,
+  isTestLevel,
   REALIZATION_STATUSES,
   REVIEW_STATUSES,
   SPEC_INTENTS,
@@ -48,11 +52,13 @@ import {
 import type {
   ArtifactType,
   BlockKind,
+  DocScope,
   NoteIntent,
   RealizationStatus,
   ReviewStatus,
   SpecIntent,
   Stability,
+  TestLevel,
 } from './core/types'
 import { syncVectorIndex } from './core/vector-store'
 import { createApp } from './server/app'
@@ -150,9 +156,11 @@ Options:
   --model <id>            Embedding model ID (Ollama default: embeddinggemma / OpenAI default: text-embedding-3-small)
   --endpoint <url>        Ollama / OpenAI-compatible endpoint URL
   --api-key-env <var>     Environment variable name holding the OpenAI-compatible API key (default: OPENAI_API_KEY)
-  --kind <kind>           Block kind: spec|constraint|outcome|note|term (query / block add)
+  --kind <kind>           Block kind: spec|constraint|decision|test|note|term (query / block add)
   --intent <intent>       Intent: normative|idea|rejected|informative (query / block)
   --stability <level>     Stability: stable|evolving|volatile (query / block)
+  --summary <text>        One-line conclusion summary for <Decision> (block)
+  --level <level>         Test level for <Test>: unit|integration|e2e|contract|manual (block)
   --review <status>       Review status: unreviewed|approved|stale (query)
   --realization <status>  Realization status: unimplemented|in-progress|implemented|verified|drifted (query)
   --suspect               Only include suspect blocks (query, --no-suspect to exclude)
@@ -169,7 +177,7 @@ Options:
   --tags <a,b>            Comma-separated tags (scaffold)
   --description <text>    Short description (scaffold)
   --date <YYYY-MM-DD>     Decision date (scaffold)
-  --scope <scope>         Export scope (export) or Constraint scope (block)
+  --scope <scope>         Export scope (export), Document scope "system" (scaffold), or Constraint scope (block)
   --aliases <a,b>         Comma-separated term aliases (block / term)
   --symbols <a,b>         Comma-separated code symbols (block / term)
   --doc <doc-id>          Target glossary document ID (term upsert, default: domain/glossary)
@@ -228,6 +236,8 @@ const CLI_OPTIONS = {
   kind: { type: 'string' },
   intent: { type: 'string' },
   stability: { type: 'string' },
+  summary: { type: 'string' },
+  level: { type: 'string' },
   review: { type: 'string' },
   realization: { type: 'string' },
   suspect: { type: 'boolean' },
@@ -324,6 +334,10 @@ const COMMAND_ALLOWED_FLAGS: Record<string, ReadonlySet<string>> = {
     'body-file',
     'after-heading',
     'title',
+    'summary',
+    'date',
+    'level',
+    'verifies',
     'stability',
     'intent',
     'derives',
@@ -339,6 +353,7 @@ const COMMAND_ALLOWED_FLAGS: Record<string, ReadonlySet<string>> = {
     'mount',
     'title',
     'type',
+    'scope',
     'description',
     'date',
     'tags',
@@ -418,6 +433,24 @@ function parseOptionalArtifactType(flags: CliFlags): ArtifactType | undefined {
   if (raw === undefined) return undefined
   if (!isArtifactType(raw)) {
     throw new CliArgError(`Invalid --type: "${raw}" (allowed: ${ARTIFACT_TYPES.join(', ')})`)
+  }
+  return raw
+}
+
+function parseOptionalDocScope(flags: CliFlags): DocScope | undefined {
+  const raw = getStringFlag(flags, 'scope')
+  if (raw === undefined) return undefined
+  if (!isDocScope(raw)) {
+    throw new CliArgError(`Invalid --scope: "${raw}" (allowed: ${DOC_SCOPES.join(', ')})`)
+  }
+  return raw
+}
+
+function parseOptionalTestLevel(flags: CliFlags): TestLevel | undefined {
+  const raw = getStringFlag(flags, 'level')
+  if (raw === undefined) return undefined
+  if (!isTestLevel(raw)) {
+    throw new CliArgError(`Invalid --level: "${raw}" (allowed: ${TEST_LEVELS.join(', ')})`)
   }
   return raw
 }
@@ -1315,7 +1348,8 @@ async function cmdQuery(flags: CliFlags, io: CliIo): Promise<number> {
 
   io.out(`Blocks (${res.count}):`)
   for (const b of res.blocks) {
-    const status = 'summary' in b ? b.realizationStatus : b.realization?.status
+    const status =
+      'realizationStatus' in b ? b.realizationStatus : 'realization' in b ? b.realization?.status : undefined
     const real = status ? ` realization=${status}` : ''
     const suspect = b.suspect ? ' suspect' : ''
     io.out(`  [${b.kind}] ${b.id} (${b.docPath}:${b.startLine}-${b.endLine}) review=${b.review}${real}${suspect}`)
@@ -1417,6 +1451,10 @@ async function cmdBlock(positionals: string[], flags: CliFlags, io: CliIo): Prom
       body,
       afterHeading: getStringFlag(flags, 'after-heading'),
       title: getStringFlag(flags, 'title'),
+      summary: getStringFlag(flags, 'summary'),
+      date: getStringFlag(flags, 'date'),
+      level: parseOptionalTestLevel(flags),
+      verifies: parseCsvFlag(flags, 'verifies'),
       stability: parseOptionalStability(flags),
       intent: parseOptionalBlockIntent(flags),
       derives: parseCsvFlag(flags, 'derives'),
@@ -1451,6 +1489,10 @@ async function cmdBlock(positionals: string[], flags: CliFlags, io: CliIo): Prom
       id,
       body,
       title: getStringFlag(flags, 'title'),
+      summary: getStringFlag(flags, 'summary'),
+      date: getStringFlag(flags, 'date'),
+      level: parseOptionalTestLevel(flags),
+      verifies: parseCsvFlag(flags, 'verifies'),
       stability: parseOptionalStability(flags),
       intent: parseOptionalBlockIntent(flags),
       derives: parseCsvFlag(flags, 'derives'),
@@ -1578,6 +1620,7 @@ async function cmdScaffold(positionals: string[], flags: CliFlags, io: CliIo): P
     title,
     mount: getStringFlag(flags, 'mount'),
     type: parseOptionalArtifactType(flags),
+    scope: parseOptionalDocScope(flags),
     description: getStringFlag(flags, 'description'),
     date: getStringFlag(flags, 'date'),
     tags: parseCsvFlag(flags, 'tags'),

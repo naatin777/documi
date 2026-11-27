@@ -1,7 +1,7 @@
 ---
 type: spec
 title: ドキュメントモデル・型推論・MDX 安全解析仕様
-description: 連番廃止・階層走査・9 Type 自動推論・MDX セマンティックブロック抽出・MDX JS 非実行安全解析の仕様
+description: 連番廃止・階層走査・7 Type 自動推論・scope:system・MDX セマンティックブロック抽出・MDX JS 非実行安全解析の仕様
 tags: [spec, document-model, mdx]
 ---
 
@@ -22,7 +22,7 @@ tags: [spec, document-model, mdx]
 
 <Spec id="core.type-inference" stability="stable" derives="goals/low-friction-governance">
   **When** ドキュメントの frontmatter に `type` が省略されたとき、
-  **the** Document Core **shall** 最上位ディレクトリ名 → ファイル名の順に 9 種類の Artifact Type を自動推論し、判別できない場合は警告を記録しつつ `guide` として読み込む。
+  **the** Document Core **shall** 最上位ディレクトリ名 → ファイル名の順に 7 種類の Artifact Type を自動推論し、判別できない場合は警告を記録しつつ `guide` として読み込む。また `type: design` に `scope: system` が指定された文書を全体設計として識別する。
 </Spec>
 
 | 推論キー（大文字小文字無視） | Artifact Type | Layer |
@@ -32,18 +32,17 @@ tags: [spec, document-model, mdx]
 | `domain`, `domains`, `glossary` | `domain` | `domain` |
 | `spec`, `specs` | `spec` | `normative` |
 | `contract`, `contracts` | `contract` | `normative` |
-| `architecture`, `arch` | `architecture` | `realization` |
-| `design`, `designs` | `design` | `realization` |
-| `verification`, `verifications` | `verification` | `realization` |
+| `design`, `designs`, `architecture`, `arch` | `design` | `realization` |
 | `guide`, `guides` | `guide` | `informative` |
 
 - frontmatter に未定義の `type` が明示指定された場合は `invalid-type` issue を記録して自動推論へフォールバックする。
 - 最上位ディレクトリ名・ファイル名のいずれにも一致しない場合は `inferred-default-type` 警告を記録し `guide` とする。
+- frontmatter の `scope` は `system` のみ受理し（不正値は `invalid-field`）、`type: design` + `scope: system` をプロジェクト全体設計として `documi map` へ常時投入する。
 
 ## 2. セマンティックブロックと安全解析
 
 <Spec id="core.mdx-blocks" stability="stable" derives="goals/ai-reproducibility">
-  **When** MDX 本文に `<Spec>` / `<Constraint>` / `<Outcome>` / `<Note>` / `<TermDef>` が記述されているとき、
+  **When** MDX 本文に `<Spec>` / `<Constraint>` / `<Decision>` / `<Test>` / `<Note>` / `<TermDef>` が記述されているとき、
   **the** Document Core **shall** mdast からブロック構造と正規化 SHA-256 `contentHash` を抽出し、プロジェクト全体でのブロック ID 重複を検出する。
 </Spec>
 
@@ -52,6 +51,8 @@ tags: [spec, document-model, mdx]
 - **属性既定値と検証**:
   - `intent`: `<Note>` は `informative` 既定（許可: `idea` / `informative` / `rejected`）、その他ブロックは `normative` 既定（許可: `normative` / `idea` / `rejected`）。違反時は `invalid-block-attr`。
   - `stability`: 既定 `evolving`（許可: `stable` / `evolving` / `volatile`）。違反時は `invalid-block-attr`。
+  - `<Decision>`: `summary`（1〜2 行の結論）と `date` に加え、任意の子要素 `<Context>` / `<Chosen>` / `<Rejected option="...">` / `<Tradeoff>` を構造化抽出する。独立 `decision` ファイル内の `<Decision>` のみ `map` へ常時投入し、`design`/`spec` 内のインラインマイクロ ADR は `context` / `search --context` でオンデマンド取得する。
+  - `<Test>`: `verifies`（CSV）から `verifies` グラフ辺を張り、`level`（`unit` / `integration` / `e2e` / `contract` / `manual`）を検証する。
   - `<TermDef>`: `id` と `aliases` の大文字小文字無視での重複を `duplicate-term` として検出する。
   - `startLine` / `endLine`: frontmatter 行オフセット加算済みの 1 始まりファイル行番号を保持する。
 
@@ -60,8 +61,22 @@ tags: [spec, document-model, mdx]
   **then the** Document Core **shall** コードを実行せず `mdx-unsupported` 問題として報告する。
 </Spec>
 
-- **許可コンポーネント一覧（計 20 種・サーバーとブラウザで共有）**:
+- **許可コンポーネント一覧（計 25 種・サーバーとブラウザで共有）**:
   - リッチ・視覚表現: `Callout`, `Tabs`, `Tabs.Tab`, `Tab`, `Steps`, `Steps.Step`, `Step`, `Details`, `Columns`, `Column`, `Timeline`, `Timeline.Item`, `TimelineItem`, `SourceRef`
-  - セマンティックタグ: `Spec`, `Constraint`, `Outcome`, `Note`, `TermDef`, `Term`
-- **禁止構文**: `mdxjsEsm`（`import` / `export`）、`mdxFlowExpression` / `mdxTextExpression`（`{...}`）、属性値式（`prop={...}`）、スプレッド属性（`{...props}`）、上記 20 種以外の JSX コンポーネント。コードブロック／インラインコード内は対象外。
+  - セマンティックタグ: `Spec`, `Constraint`, `Decision`, `Context`, `Chosen`, `Rejected`, `Tradeoff`, `Test`, `Note`, `TermDef`, `Term`
+- **禁止構文**: `mdxjsEsm`（`import` / `export`）、`mdxFlowExpression` / `mdxTextExpression`（`{...}`）、属性値式（`prop={...}`）、スプレッド属性（`{...props}`）、上記 25 種以外の JSX コンポーネント。コードブロック／インラインコード内は対象外。
 - **パース失敗時**: MDX パースエラー時は Markdown パーサーへフォールバックし、`mdx-parse-error` issue を記録する。
+
+## 3. 保証シナリオ
+
+<Test id="test.core.document-model" verifies="core.document-model, core.type-inference" level="unit">
+  - **Given**: 連番なし多階層ディレクトリ、`.mdx` と `.md` の衝突、`type` 省略ファイル、および `date` 付き `decision` を含む `docs/`
+  - **When**: `loadDocuments()` で読み込む
+  - **Then**: `.mdx` が優先され、7 種 Type 自動推論と `decision` の `date` 降順ソートが行われる
+</Test>
+
+<Test id="test.core.mdx-blocks-and-safety" verifies="core.mdx-blocks, core.mdx-safety" level="unit">
+  - **Given**: `<Spec>` / `<Decision>`（子要素含む） / `<Test>` / `<TermDef>` と、ESM import・JSX 式・未許可コンポーネントを含む MDX
+  - **When**: `extractMdxArtifacts()` を実行する
+  - **Then**: 正規ブロックは SHA-256 ハッシュ付きで抽出され、危険構文は実行されず `mdx-unsupported` として報告される
+</Test>

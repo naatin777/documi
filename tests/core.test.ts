@@ -4,6 +4,7 @@ import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { stringify } from 'yaml'
 import { buildDocTree, getDocument, loadDocuments } from '../src/core/loader'
+import { buildProjectMap, getSpecContext } from '../src/core/query'
 
 let root: string
 
@@ -110,9 +111,12 @@ describe('loadDocuments', () => {
       [
         '# Bun 採用',
         '',
-        '<Outcome id="dec.runtime" stability="stable">',
-        'Bun + Hono を採用する。',
-        '</Outcome>',
+        '<Decision id="dec.runtime" summary="Bun + Hono を採用する" stability="stable">',
+        '  <Context>高速起動と単一ランタイムが必要。</Context>',
+        '  <Chosen>Bun + Hono を採用する。</Chosen>',
+        '  <Rejected option="Node">起動とビルドが遅い。</Rejected>',
+        '  <Tradeoff>一部 Node ネイティブ拡張の互換性に注意。</Tradeoff>',
+        '</Decision>',
         '',
       ].join('\n'),
     )
@@ -130,8 +134,58 @@ describe('loadDocuments', () => {
     expect(term?.id).toBe('Artifact')
     expect(term?.symbols).toEqual(['src/core/types.ts#Document'])
 
-    const outcome = index.blocksById.get('dec.runtime')!
-    expect(outcome.kind).toBe('outcome')
+    const decision = index.blocksById.get('dec.runtime')!
+    expect(decision.kind).toBe('decision')
+    if (decision.kind === 'decision') {
+      expect(decision.summary).toBe('Bun + Hono を採用する')
+      expect(decision.chosen).toContain('Bun + Hono')
+      expect(decision.rejected?.[0]?.option).toBe('Node')
+      expect(decision.tradeoff).toContain('互換性')
+    }
+  })
+
+  test('[core.mdx-blocks] scope:system 全体設計・インラインマイクロ ADR・<Test> 仕様同居が map と context で段階開示される', async () => {
+    await writeDoc('goals/core.mdx', { type: 'goal', title: 'Core Goal' })
+    await writeDoc(
+      'designs/overview.mdx',
+      { type: 'design', scope: 'system', title: 'System Overview' },
+      '# System Overview\n',
+    )
+    await writeDoc(
+      'decisions/2026-11-global.mdx',
+      { type: 'decision', title: 'Global Decision', date: '2026-11-27' },
+      '<Decision id="dec.global" summary="全体方針を採用">詳細</Decision>\n',
+    )
+    await writeDoc(
+      'specs/cache.mdx',
+      { type: 'spec', title: 'Cache Spec', derives: ['goals/core'] },
+      [
+        '<Spec id="cache.ttl" derives="goals/core">キャッシュは TTL で失効する。</Spec>',
+        '',
+        '<Test id="test.cache.ttl" verifies="cache.ttl" level="unit">Given/When/Then</Test>',
+      ].join('\n'),
+    )
+    await writeDoc(
+      'designs/cache.mdx',
+      { type: 'design', title: 'Cache Design', satisfies: ['cache.ttl'] },
+      '<Decision id="dec.cache-ttl" summary="TTL は 5 分にする"><Rejected option="永続">整合性コスト高</Rejected></Decision>\n',
+    )
+
+    const index = await loadDocuments(root)
+    const map = buildProjectMap(index)
+    // map には scope: system の design と独立 decision のみ含まれる（機能 design やインラインマイクロ ADR は含めない）
+    expect(map.architecture.map((d) => d.id)).toEqual(['designs/overview'])
+    expect(map.decisionOutcomes.map((d) => d.id)).toEqual(['dec.global'])
+
+    // getSpecContext では関連 design 内のインラインマイクロ ADR が返る
+    const ctx = getSpecContext(index, 'cache.ttl')
+    expect(ctx?.decisionOutcomes.map((d) => d.id)).toEqual(['dec.cache-ttl'])
+    expect(ctx?.decisionOutcomes[0]?.body).toBe('TTL は 5 分にする')
+
+    // <Test verifies="cache.ttl"> から verifies エッジが張られる
+    expect(index.edges.some((e) => e.from === 'test.cache.ttl' && e.to === 'cache.ttl' && e.kind === 'verifies')).toBe(
+      true,
+    )
   })
 
   test('[core.auto-mentions] 本文リンク・Term・SourceRef・Frontmatter からグラフエッジと逆参照を構築する', async () => {

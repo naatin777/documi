@@ -8,9 +8,9 @@ tags: [adr, export, pdf]
 
 # 複数まとめ Export における /bundle × Bun.WebView.navigate() 方式の採用
 
-<Outcome id="dec.bundle-export" stability="stable">
+<Decision id="dec.bundle-export" stability="stable">
   複数ドキュメントのまとめ出力は、React 側の専用ルート `/bundle` で表紙・自動目次・章区切り・ページ内アンカー変換・見出し ID 名前空間化・`<Tabs>` 全展開を描画し、`Bun.WebView` (Chrome backend) がローカルループバックの `/bundle` URL を直接 `navigate()` して `Page.printToPDF` / 単一 HTML 抽出を行う方式を採用する。
-</Outcome>
+</Decision>
 
 ## 検討した代替案とトレードオフ
 

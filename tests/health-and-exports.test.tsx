@@ -40,17 +40,17 @@ describe('Document Health & Coverage (core.doc-health)', () => {
 
     const { projectRoot, docsDir } = await makeTempProject({
       'docs/goals/root.mdx': `---\ntype: goal\ntitle: Root Goal\n---\n\n# Root Goal\n`,
-      'docs/architecture/overview.mdx': `---\ntype: architecture\ntitle: System Overview\n---\n\n# System Overview\n`,
-      'docs/specs/bloated.mdx': `---\ntype: spec\ntitle: Bloated Specs\n---\n\n# Bloated Specs\n\n${specBlocks}\n`,
+      'docs/designs/overview.mdx': `---\ntype: design\nscope: system\ntitle: System Overview\n---\n\n# System Overview\n`,
+      'docs/specs/bloated.mdx': `---\ntype: spec\ntitle: Bloated Specs\n---\n\n# Bloated Specs\n\n${specBlocks}\n\n<Test id="test.partial" verifies="app.spec1, app.spec2" level="unit">\n  Given/When/Then\n</Test>\n`,
       'docs/designs/partial.mdx': `---\ntype: design\ntitle: Partial Design\nsatisfies:\n  - app.spec1\n---\n\n# Partial Design\n`,
-      'docs/verification/partial.mdx': `---\ntype: verification\ntitle: Partial Verification\nverifies:\n  - app.spec1\n  - app.spec2\n---\n\n# Partial Verification\n`,
     })
 
     const index = await loadDocuments(docsDir)
 
-    // Architecture が古く、Spec/Design が 5 件以上新しく更新された状態を模倣
-    const archDoc = index.byId.get('architecture/overview')
+    // System Design が古く、Spec/Design が 5 件以上新しく更新された状態を模倣
+    const archDoc = index.byId.get('designs/overview')
     expect(archDoc).toBeDefined()
+    expect(archDoc?.scope).toBe('system')
     if (archDoc) {
       archDoc.freshness = { updatedAt: '2026-01-01T00:00:00.000Z' }
     }
@@ -104,10 +104,10 @@ describe('Document Health & Coverage (core.doc-health)', () => {
     expect(output).toContain('Health Hints')
   })
 
-  test('[core.doc-health] architecture 最終更新以降に 5 件以上の spec / design が更新されると stale-architecture ヒントを出す', async () => {
+  test('[core.doc-health] design (scope: system) 最終更新以降に 5 件以上の spec / design が更新されると stale-architecture ヒントを出す', async () => {
     const files: Record<string, string> = {
       'docs/goals/root.mdx': `---\ntype: goal\ntitle: Root\n---\n\n# Root\n`,
-      'docs/architecture/overview.mdx': `---\ntype: architecture\ntitle: Overview\n---\n\n# Overview\n`,
+      'docs/designs/overview.mdx': `---\ntype: design\nscope: system\ntitle: Overview\n---\n\n# Overview\n`,
     }
     for (let i = 1; i <= 5; i++) {
       files[`docs/specs/s${i}.mdx`] =
@@ -116,7 +116,7 @@ describe('Document Health & Coverage (core.doc-health)', () => {
     const { docsDir } = await makeTempProject(files)
     const index = await loadDocuments(docsDir)
 
-    const arch = index.byId.get('architecture/overview')
+    const arch = index.byId.get('designs/overview')
     if (arch) arch.freshness = { updatedAt: '2026-01-01T00:00:00.000Z' }
     for (let i = 1; i <= 5; i++) {
       const s = index.byId.get(`specs/s${i}`)
@@ -129,7 +129,7 @@ describe('Document Health & Coverage (core.doc-health)', () => {
     expect(health.hints.some((h) => h.code === 'stale-architecture')).toBe(true)
   })
 
-  test('[core.doc-health] design / verification の外向きトレース辺が 10 件を超えると overloaded-hub-doc ヒントを出す', async () => {
+  test('[core.doc-health] design の外向き satisfies 辺が 10 件を超えると overloaded-hub-doc ヒントを出す', async () => {
     const specIds = Array.from({ length: 11 }, (_, i) => `cap.spec${i + 1}`)
     const files: Record<string, string> = {
       'docs/goals/root.mdx': `---\ntype: goal\ntitle: Root\n---\n\n# Root\n`,
@@ -142,15 +142,14 @@ describe('Document Health & Coverage (core.doc-health)', () => {
         .map((id) => `<Spec id="${id}" derives="goals/root">Rule ${id}</Spec>`)
         .join('\n\n')}\n`,
       'docs/designs/hub.mdx': `---\ntype: design\ntitle: Hub Design\nsatisfies:\n${specIds.map((id) => `  - ${id}`).join('\n')}\n---\n\n# Hub Design\n`,
-      'docs/verification/hub.mdx': `---\ntype: verification\ntitle: Hub Verification\nverifies:\n${specIds.map((id) => `  - ${id}`).join('\n')}\n---\n\n# Hub Verification\n`,
     }
     const { projectRoot, docsDir } = await makeTempProject(files)
     const index = await loadDocuments(docsDir)
 
     const health = computeDocumentHealth(index)
-    expect(health.overloadedHubDocs).toHaveLength(2)
-    expect(health.overloadedHubDocs.map((d) => d.edgeKind).toSorted()).toEqual(['satisfies', 'verifies'])
-    expect(health.hints.filter((h) => h.code === 'overloaded-hub-doc')).toHaveLength(2)
+    expect(health.overloadedHubDocs).toHaveLength(1)
+    expect(health.overloadedHubDocs[0]?.edgeKind).toBe('satisfies')
+    expect(health.hints.filter((h) => h.code === 'overloaded-hub-doc')).toHaveLength(1)
 
     const report = await runDocsCheck({ docsDir, projectRoot })
     expect(report.ok).toBe(true)
@@ -235,10 +234,9 @@ pub fn run_engine() {}
         'export function buildGreeting(input: ServiceInput): string { return input.name + hiddenHelper() }',
       ].join('\n'),
       'docs/goals/root.mdx': `---\ntype: goal\ntitle: Root\n---\n\n# Root\n`,
-      'docs/specs/service.mdx': `---\ntype: spec\ntitle: Service Spec\n---\n\n# Service Spec\n\n<Spec id="svc.greet" derives="goals/root">Service greets caller.</Spec>\n`,
+      'docs/specs/service.mdx': `---\ntype: spec\ntitle: Service Spec\n---\n\n# Service Spec\n\n<Spec id="svc.greet" derives="goals/root">Service greets caller.</Spec>\n\n<Test id="test.svc.greet" verifies="svc.greet" level="unit">Given/When/Then</Test>\n`,
       'src/helper.ts': 'export function unrelatedHelper(): number { return 1 }\n',
       'docs/designs/service.mdx': `---\ntype: design\ntitle: Service Design\nsatisfies:\n  - svc.greet\n---\n\n# Service Design\n\n<SourceRef file="src/service.ts" mode="exports" satisfies="svc.greet" />\n\n<SourceRef file="src/helper.ts" symbol="unrelatedHelper" />\n`,
-      'docs/verification/service.mdx': `---\ntype: verification\ntitle: Service Verification\nverifies:\n  - svc.greet\n---\n\n# Service Verification\n`,
     })
 
     // 1. AST 抽出 API と check 検証

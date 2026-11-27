@@ -14,3 +14,11 @@ tags: [spec, static-site]
 
 - 出力ファイル構成およびキャッシュヘッダ契約の詳細は [永続ファイル・設定・キャッシュ・静的出力スキーマ契約](../contracts/storage-formats.mdx) を参照する。
 - 静的サイトモードでは `HashRouter` と静的 JSON フェッチへ自動切替し、承認・取り消し・AI プロンプトコピー等の書き込み／ローカル連携操作を非表示にする。
+
+## 保証シナリオ
+
+<Test id="test.static-site" verifies="core.static-site" level="integration">
+  - **Given**: ドキュメントとソースコードを含むプロジェクト
+  - **When**: `documi build-site`（および `--no-code`）を実行する
+  - **Then**: `index.html` / `404.html` / `_headers` / `.nojekyll` / `data/*.json` 一式が生成され、静的ホスティングで完全動作する
+</Test>

@@ -24,9 +24,9 @@ title: Old Choice
 date: 2026-01-10
 ---
 
-<Outcome id="dec.old">
+<Decision id="dec.old">
   Use legacy approach.
-</Outcome>
+</Decision>
 `,
       )
       await writeFile(
@@ -39,9 +39,9 @@ supersedes:
   - decisions/2026-01-old-choice
 ---
 
-<Outcome id="dec.new">
+<Decision id="dec.new">
   Use unified approach instead.
-</Outcome>
+</Decision>
 `,
       )
 

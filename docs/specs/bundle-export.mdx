@@ -22,3 +22,11 @@ tags: [spec, export, pdf]
   **When** ユーザーが Export モーダルまたは `/bundle` を操作するとき、
   **the** Web UI **shall** 単一文書・全文書・Goal 関連一式・ディレクトリ配下・任意複数選択を対象に、表紙・自動目次・ページ内アンカー変換・見出し ID 名前空間化・全タブ展開を備えた HTML / PDF / 印刷出力を提供する。
 </Spec>
+
+## 保証シナリオ
+
+<Test id="test.bundle-export" verifies="core.bundle-export, ui.bundle-export" level="integration">
+  - **Given**: `all` / `dir` / `goal` / `ids` スコープのドキュメント群と内部リンク・Tabs を含む MDX
+  - **When**: バンドル解決・バンドル描画および PDF 出力を実行する
+  - **Then**: 対象ドキュメントが順序通りに結合され、内部リンクのページ内アンカー化・全タブ展開・ループバック限定 PDF 検証が行われる
+</Test>

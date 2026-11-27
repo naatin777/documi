@@ -8,9 +8,9 @@ tags: [adr, review, trace, pr, workflow]
 
 # 承認サイドカー分離・自動実装状態算出・PR 連携ワークフローの採用
 
-<Outcome id="dec.review-and-pr" stability="stable">
+<Decision id="dec.review-and-pr" stability="stable">
   人間の承認・フィードバック・安定度上書きは MDX 本文ではなく **`docs/.documi/reviews.json`** に分離保存し、承認時のハッシュと Git コミット SHA から `stale` / Suspect Links / 行 diff を自動算出する。仕様の実装状態 (`realization`) は手書きせず、コード (`@implements` / `<SourceRef>`)・テスト (`@verifies` / `test("[spec.id]")` / JUnit XML)・PR (`Implements:`) から完全自動算出し、`tasks.md` は作らない。
-</Outcome>
+</Decision>
 
 ## 背景と設計根拠
 

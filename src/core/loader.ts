@@ -8,11 +8,12 @@ import { extractMdxArtifacts } from './mdx'
 import { isSafeExternalMediaUrl, isSupportedLocalMedia, resolveLocalMediaPath } from './media'
 import { applyReviewsAndSuspects, loadReviewsForMounts } from './reviews'
 import { sortDocuments } from './tree'
-import { ARTIFACT_TYPE_ALIASES, TRACE_EDGE_KINDS, isArtifactType } from './types'
+import { ARTIFACT_TYPE_ALIASES, TRACE_EDGE_KINDS, isArtifactType, isDocScope } from './types'
 import type {
   ArtifactType,
   DocFormat,
   DocIssue,
+  DocScope,
   DocsIndex,
   DocsMount,
   Document,
@@ -246,6 +247,7 @@ async function parseDocumentFile(
 
   const mountLocalId = stripDocExt(mountRelPath)
   const { type, typeInferred } = resolveArtifactType(rawFm.type, mountLocalId, docIssues)
+  const scope = parseScopeField(rawFm.scope, docIssues)
   const title = resolveTitle(rawFm.title, extracted.firstHeading, docId, docIssues)
   const description = typeof rawFm.description === 'string' ? rawFm.description : ''
   const date = parseDateField(rawFm.date, docIssues)
@@ -266,6 +268,7 @@ async function parseDocumentFile(
     mountId: mount.id,
     mountRelPath,
     type,
+    ...(scope ? { scope } : {}),
     typeInferred,
     title,
     description,
@@ -417,6 +420,19 @@ function formatUnknown(value: unknown): string {
   } catch {
     return Object.prototype.toString.call(value)
   }
+}
+
+function parseScopeField(value: unknown, issues: DocIssue[]): DocScope | undefined {
+  if (value === undefined || value === null || value === '') return undefined
+  if (typeof value === 'string') {
+    const trimmed = value.trim()
+    if (isDocScope(trimmed)) return trimmed
+  }
+  issues.push({
+    code: 'invalid-field',
+    message: `scope must be "system": ${formatUnknown(value)}`,
+  })
+  return undefined
 }
 
 function parseDateField(value: unknown, issues: DocIssue[]): string | undefined {

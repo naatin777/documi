@@ -42,7 +42,7 @@ beforeEach(async () => {
   await writeDoc(
     'decisions/bun.mdx',
     { title: 'Bun 採用' },
-    '<Outcome id="dec.bun">Bun を採用する。</Outcome>\n\n詳細な比較メモ。\n',
+    '<Decision id="dec.bun">Bun を採用する。</Decision>\n\n詳細な比較メモ。\n',
   )
 
   store = await DocsStore.open(root, { projectRoot: root })

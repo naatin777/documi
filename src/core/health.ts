@@ -30,8 +30,8 @@ interface BloatedSpecDocInfo {
 interface OverloadedHubDocInfo {
   docId: string
   path: string
-  docType: 'design' | 'verification'
-  edgeKind: 'satisfies' | 'verifies'
+  docType: 'design'
+  edgeKind: 'satisfies'
   targetCount: number
   threshold: number
 }
@@ -86,14 +86,8 @@ export function computeDocumentHealth(index: DocsIndex, options: ComputeHealthOp
         outgoingTargetsByDoc.set(fromDoc.id, set)
       }
       set.add(edge.to)
-    } else if (edge.kind === 'verifies' && fromDoc.type === 'verification') {
+    } else if (edge.kind === 'verifies') {
       verificationTargets.add(edge.to)
-      let set = outgoingTargetsByDoc.get(fromDoc.id)
-      if (!set) {
-        set = new Set<string>()
-        outgoingTargetsByDoc.set(fromDoc.id, set)
-      }
-      set.add(edge.to)
     }
   }
 
@@ -130,7 +124,7 @@ export function computeDocumentHealth(index: DocsIndex, options: ComputeHealthOp
       uncoveredByVerification.push(block.id)
       hints.push({
         code: 'missing-verification',
-        message: `<Spec id="${block.id}"> has no verification document verifying it`,
+        message: `<Spec id="${block.id}"> has no <Test verifies="${block.id}"> or verifies edge covering it`,
         path: ownerDoc?.path,
         docId: block.docId,
         blockId: block.id,
@@ -163,22 +157,21 @@ export function computeDocumentHealth(index: DocsIndex, options: ComputeHealthOp
 
   const overloadedHubDocs: OverloadedHubDocInfo[] = []
   for (const doc of index.documents) {
-    if (doc.type !== 'design' && doc.type !== 'verification') continue
+    if (doc.type !== 'design') continue
     const targets = outgoingTargetsByDoc.get(doc.id)
     const targetCount = targets?.size ?? 0
     if (targetCount > maxTraceTargetsPerDoc) {
-      const edgeKind = doc.type === 'design' ? 'satisfies' : 'verifies'
       overloadedHubDocs.push({
         docId: doc.id,
         path: doc.path,
-        docType: doc.type,
-        edgeKind,
+        docType: 'design',
+        edgeKind: 'satisfies',
         targetCount,
         threshold: maxTraceTargetsPerDoc,
       })
       hints.push({
         code: 'overloaded-hub-doc',
-        message: `${doc.path} has ${targetCount} ${edgeKind} targets (recommended max: ${maxTraceTargetsPerDoc}; consider splitting by capability/domain)`,
+        message: `${doc.path} has ${targetCount} satisfies targets (recommended max: ${maxTraceTargetsPerDoc}; consider splitting by capability/domain)`,
         path: doc.path,
         docId: doc.id,
       })
@@ -186,8 +179,10 @@ export function computeDocumentHealth(index: DocsIndex, options: ComputeHealthOp
   }
 
   const staleArchitectureDocs: StaleArchitectureInfo[] = []
-  const archDocs = index.documents.filter((d) => d.type === 'architecture')
-  const specOrDesignDocs = index.documents.filter((d) => d.type === 'spec' || d.type === 'design')
+  const archDocs = index.documents.filter((d) => d.type === 'design' && d.scope === 'system')
+  const specOrDesignDocs = index.documents.filter(
+    (d) => d.type === 'spec' || (d.type === 'design' && d.scope !== 'system'),
+  )
 
   for (const arch of archDocs) {
     const archUpdatedMs = arch.freshness?.updatedAt ? Date.parse(arch.freshness.updatedAt) : Number.NaN

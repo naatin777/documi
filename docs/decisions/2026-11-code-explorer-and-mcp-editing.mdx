@@ -8,9 +8,9 @@ tags: [adr, architecture, code-explorer, mcp, workflow]
 
 # 同一リポジトリ原則・読み取り専用 Code Explorer・MCP 精密編集ハイブリッドの採用
 
-<Outcome id="dec.repo-code-and-mcp-edit" stability="stable">
+<Decision id="dec.repo-code-and-mcp-edit" stability="stable">
   `docs/` とプロジェクトコードは **同一リポジトリ・同一ブランチ（Docs-as-Code）** を標準既定とし、1 つの PR 内で仕様・実装・テスト・`documi check` を原子的に検証する（同一 repo 内の別ブランチ運用は非推奨、マルチリポは将来の設定拡張で扱う）。Web UI には **読み取り専用の Code Explorer** を搭載し、ドキュメント⇄ソースコードの双方向参照と仕様カバレッジ可視化を提供する（コード編集可能な Web IDE にはしない）。AI のドキュメント編集は **探索・検証・ブロック単位の精密編集＆ID リネームを MCP、大規模な自由記述をファイル直書き** とする 3 層ハイブリッドを採用し、AI が 1 ブロック修正するためにファイル全体の不要な文脈を読み込む汚染を防ぐ。なお **`docs/.documi/reviews.json` の更新（承認）は引き続き人間専用** とし、MCP 書き込みツールからは一切変更不可とする。
-</Outcome>
+</Decision>
 
 ## 背景と判断軸（Context / Drivers）
 

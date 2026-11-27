@@ -28,14 +28,14 @@ AI エージェント向けに **2 種類のトランスポート** で同一の
 
 | Tool | 入力 | 役割 |
 |---|---|---|
-| `get_project_map` | `full?` | Goal / Architecture 概要・現行 Decision `<Outcome>` 一覧（廃止済みは `supersededOutcomes` へ分離）・Domain 用語集・Review & Realization サマリを一括取得（`full: true` で全文展開） |
+| `get_project_map` | `full?` | Goal / System Design（`design` + `scope: system`）概要・現行独立 `<Decision>` 結論一覧（廃止済みは `supersededOutcomes` へ分離）・Domain 用語集・Review & Realization サマリを一括取得（`full: true` で全文展開） |
 | `list_documents` | `type?`, `mount?` | ドキュメントサマリ一覧を取得（`mount` で複数 docs 構成のマウント絞り込み可） |
 | `get_document` | `id` | パス ID から本文・セマンティックブロック（`startLine` / `endLine` 含む）・関係・問題一覧を取得 |
 | `get_relations` | `id` | ドキュメント ID またはブロック ID の外向き/逆参照を取得 |
 | `get_impact` | `id`, `maxDepth?` | 指定ドキュメントまたはブロックを変更した際に影響する下流文書・ブロック・`<SourceRef>`・コード／テスト参照を再帰走査で一覧化（既定 `maxDepth: 4`） |
 | `query_specs` | `kind?`, `intent?`, `stability?`, `review?`, `realization?`, `suspect?`, `mount?`, `query?`, `full?` | セマンティックブロックを多軸フィルタ検索（既定は `docPath`・`startLine`・`endLine`・要約付き軽量サマリ、`full: true` で詳細配列込み） |
-| `get_spec_context` | `id`, `full?` | 指定 Spec の本文・`docPath`・`startLine`・`endLine`・上流 Goal 概要・関連 Design/Contract・Decision `<Outcome>`・関連用語・`<SourceRef>` を一括集約（`full: true` で完全展開） |
-| `search_documents` | `query`, `type?`, `mount?`, `limit?`, `semantic?`, `includeContext?`, `budget?`, `includeGraph?` | ドキュメントとセマンティックブロックを BM25＋用語集同義語展開（`semantic: true` または `rag.enabled` 時はローカル Embedding＋RRF）で横断検索。`includeContext: true` 時は上流 Goal・Decision `<Outcome>`・関連 Contract/Design・用語・`<SourceRef>` を文字数予算内で 1 発展開 |
+| `get_spec_context` | `id`, `full?` | 指定 Spec の本文・`docPath`・`startLine`・`endLine`・上流 Goal 概要・関連 Design/Contract・`<Decision>` 結論（マイクロ ADR 含む）・関連用語・`<SourceRef>` を一括集約（`full: true` で完全展開） |
+| `search_documents` | `query`, `type?`, `mount?`, `limit?`, `semantic?`, `includeContext?`, `budget?`, `includeGraph?` | ドキュメントとセマンティックブロックを BM25＋用語集同義語展開（`semantic: true` または `rag.enabled` 時はローカル Embedding＋RRF）で横断検索。`includeContext: true` 時は上流 Goal・`<Decision>` 結論・関連 Contract/Design・用語・`<SourceRef>` を文字数予算内で 1 発展開 |
 | `validate_docs` | なし | `orphan-spec`・参照切れ・循環・重複 ID・MDX 未対応構文・AST `<SourceRef>` / `<TermDef>` シンボル切れを一括検証 |
 
 ## 精密編集・構造操作ツール（Surgical Write）
@@ -44,7 +44,7 @@ AI が 1 ブロック修正するために無関係な文書全体を読み込�
 
 | Tool | 入力 | 役割 |
 |---|---|---|
-| `update_block` | `id`, `body`, `title?`, `stability?`, `intent?`, `derives?`, `supersedes?`, `scope?`, `aliases?`, `symbols?` | 既存セマンティックブロック（`<Spec>` / `<Constraint>` / `<Outcome>` / `<TermDef>`）の該当行範囲のみを更新し、再読込後の検証結果を返却 |
+| `update_block` | `id`, `body`, `title?`, `summary?`, `date?`, `level?`, `verifies?`, `stability?`, `intent?`, `derives?`, `supersedes?`, `scope?`, `aliases?`, `symbols?` | 既存セマンティックブロック（`<Spec>` / `<Constraint>` / `<Decision>` / `<Test>` / `<TermDef>` / `<Note>`）の該当行範囲のみを更新し、再読込後の検証結果を返却 |
 | `add_block` | `docId`, `kind`, `id`, `body`, `afterHeading?`, `title?`, `stability?`, `intent?`, `derives?`, `supersedes?`, `scope?`, `aliases?`, `symbols?` | 指定ドキュメント末尾（または指定見出し直下）にセマンティックブロックを 1 件追記し、検証結果を返却 |
 | `upsert_term` | `id`, `definition`, `aliases?`, `symbols?`, `docId?` | 用語集（既定: `domain/glossary`）に `<TermDef>` を追加または更新し、検証結果を返却 |
 | `scaffold_document` | `path`, `title`, `mount?`, `type?`, `description?`, `date?`, `tags?`, `derives?`, `satisfies?`, `verifies?`, `body?` | 規約通りの YAML frontmatter を持つ新規 `.mdx` ドキュメントを作成（既存ファイルの上書きは拒否、`mount` 省略時はプライマリへ出力） |
@@ -56,7 +56,7 @@ AI のコンテキスト消費を抑えるため、主要読み取りツール�
 
 | Tool | 既定 (`full: false`) の主要返却構造 | `full: true` で追加展開される項目 |
 |---|---|---|
-| `get_project_map` | `documentCount`, `blockCount`, `issueCount`, `reviewSummary`, `realizationSummary`, `health`, `goals`（概要＋見出し）, `architecture`（概要＋見出し）, `decisionOutcomes`（現行のみ・240 字要約）, `supersededOutcomes`（廃止済み・`supersededBy` 付き）, `terms`（160 字要約） | `goals[].body`, `architecture[].body`, `decisionOutcomes[].body` 全文, `terms[].definition` 全文 |
+| `get_project_map` | `documentCount`, `blockCount`, `issueCount`, `reviewSummary`, `realizationSummary`, `health`, `goals`（概要＋見出し）, `architecture`（`scope: system` の `design` 概要＋見出し）, `decisionOutcomes`（現行独立 `<Decision>` の結論のみ・240 字要約）, `supersededOutcomes`（廃止済み・`supersededBy` 付き）, `terms`（160 字要約） | `goals[].body`, `architecture[].body`, `decisionOutcomes[].body` 全文, `terms[].definition` 全文 |
 | `query_specs` | `{ count, blocks: [{ id, kind, docId, docPath, startLine, endLine, intent, stability, review, suspect, realizationStatus?, derives?, summary }] }` | 各ブロック全文 `rawBody`・完全な `realization` 詳細配列 |
 | `get_spec_context` | `target`（本文＋要約 `realization`）, `docPath`, `startLine`, `endLine`, `document`, `upstreamGoals`（概要）, `relatedDocuments`（概要）, `decisionOutcomes`, `relevantTerms`（160 字要約）, `sourceRefs`, `exportedSymbols?`（`mode="exports"` 参照のみ） | 上流 Goal 本文全文・完全な `realization` 配列・全 `sourceRefs` ファイルの公開シンボル |
 | `search_documents`（`includeContext: true`） | `{ query, mode, budget, usedChars, hits, upstreamGoals, decisionOutcomes, relatedDocuments, terms, sourceRefs }`（既定 `limit = 8`, `budget = 6000`） | —（`budget` で上限調整） |

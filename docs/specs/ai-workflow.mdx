@@ -68,3 +68,11 @@ tags: [spec, ai, cli, mcp]
   - `BLOCK_ID_PATTERN` 違反・既存ブロック ID との重複
   - 本文中の MDX 危険構文（`import`/`export`・JSX 式 `{...}`・スプレッド属性・未許可コンポーネント）
 - **`rename_block_id` の置換範囲**: 全 `docs/` のブロック定義・frontmatter/属性の `derives`/`satisfies`/`verifies`/`supersedes`・`<SourceRef>` および `projectRoot` 配下の `@implements`/`@verifies`/`test("[id]")` を対象とし、`dryRun: true` / `--dry-run` で変更予定一覧のみ確認できる。
+
+## 保証シナリオ
+
+<Test id="test.ai-workflow" verifies="core.project-config, core.agent-skills-init, core.ai-cli, core.mcp-surgical-edit" level="integration">
+  - **Given**: `.documi.json`（単一・複数マウント含む）を持つプロジェクト
+  - **When**: `documi init`・CLI 各種コマンド（`check --format github`・フラグ検証含む）・MCP 精密編集ツールを実行する
+  - **Then**: 設定検証・冪等な Skills 生成・安全な外科的 MDX 編集・不正引数拒否が仕様通りに動作する
+</Test>

@@ -20,9 +20,7 @@
       "domain": "Domain",
       "spec": "Spec",
       "contract": "Contract",
-      "architecture": "Architecture",
       "design": "Design",
-      "verification": "Verification",
       "guide": "Guide"
     },
     "section": {
@@ -31,9 +29,7 @@
       "domain": "Domain & Glossary",
       "spec": "Specs",
       "contract": "Contracts",
-      "architecture": "Architecture",
       "design": "Designs",
-      "verification": "Verification",
       "guide": "Guides"
     }
   },

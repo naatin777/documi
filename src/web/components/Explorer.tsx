@@ -21,13 +21,11 @@ type DocListMode = 'flow' | 'files'
  */
 const READING_FLOW_ORDER: readonly ArtifactType[] = [
   'goal',
-  'architecture',
   'domain',
   'spec',
   'contract',
   'design',
   'decision',
-  'verification',
   'guide',
 ]
 

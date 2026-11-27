@@ -44,3 +44,11 @@ tags: [spec, graph, traceability]
 </Spec>
 
 - **操作規約**: トラックパッド 2 本指スワイプ＝慣性付きパン、ピンチ操作または `⌘`/`Ctrl`＋ホイール＝カーソル位置中心のズーム、ノードドラッグ＝接続ノードの弾性追従、ノードクリック＝右ペインへ文書本文＆繋がりを即時プレビュー。
+
+## 保証シナリオ
+
+<Test id="test.trace-graph" verifies="core.rooted-dag, core.auto-mentions, ui.graph-view" level="integration">
+  - **Given**: Goal へ到達する Spec・孤立 Spec・循環 derives・本文相対リンクおよび `<Term>` を含むドキュメント群
+  - **When**: グラフ構築および Graph View を描画する
+  - **Then**: 循環と `orphan-spec` が検出され、相対リンクと用語参照から `mentions` エッジが自動抽出される
+</Test>

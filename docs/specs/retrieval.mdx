@@ -62,3 +62,11 @@ tags: [spec, search, rag]
   - チャンク（`doc:<id>` / `block:<id>`）は `contentHash` と `model_id` でキャッシュ照合し、変更分のみバッチ埋め込み・削除済みチャンクを自動掃除する（スキーマ詳細は [永続ファイル契約](../contracts/storage-formats.mdx)）。
   - BM25 順位とベクトル順位（正規化済み `Float32Array` 内積）を RRF（定数 `k = 60`）で統合する。
   - プロバイダ未接続・API キー欠如・タイムアウト・ランタイム例外発生時は、既定（`fallbackOnError: true`）でエラー終了せず BM25＋用語展開＋グラフ展開の結果へ安全にフォールバックし、`mode: "bm25"`（またはフォールバック通知付き）で返す。
+
+## 保証シナリオ
+
+<Test id="test.retrieval" verifies="core.full-text-search, ui.search-palette, core.graph-retrieval, core.hybrid-rag" level="integration">
+  - **Given**: 用語別名・グラフ関係・複数マウント・SQLite ベクトルキャッシュを持つドキュメント群
+  - **When**: `documi search`（`--context` / `--semantic`）および検索モーダルを実行する
+  - **Then**: BM25＋用語展開＋RRF＋文字数予算内グラフ展開が期待通りに動作し、増分キャッシュ更新も破綻しない
+</Test>

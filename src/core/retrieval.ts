@@ -680,36 +680,35 @@ export function assembleGraphContext(
     }
   }
 
-  // 3a. 関連 Decision の <Outcome> を優先収録
+  // 3a. 関連 Decision（独立 ADR および設計/仕様内のインラインマイクロ ADR）の <Decision> 結論を優先収録
   const seenOutcomeIds = new Set<string>()
   for (const docId of [...seedDocIds, ...relatedByDocId.keys()]) {
     const d = index.byId.get(docId)
-    if (d?.type !== 'decision') continue
+    if (!d) continue
     for (const b of d.blocks) {
-      if (b.kind !== 'outcome' || seenOutcomeIds.has(b.id)) continue
+      if (b.kind !== 'decision' || seenOutcomeIds.has(b.id)) continue
       seenOutcomeIds.add(b.id)
-      const body = summarize(b.rawBody, 240)
+      const body = summarize(b.summary ?? b.chosen ?? b.rawBody, 240)
       if (!tryConsume(`${b.id} ${body}`)) break
+      const date = b.date ?? d.date
       decisionOutcomes.push({
         id: b.id,
         docId: d.id,
-        ...(d.date ? { date: d.date } : {}),
+        ...(date ? { date } : {}),
         body,
       })
     }
   }
 
-  // 3b. 関連ドキュメント（Goal 以外、Contract / Design / Verification 優先）
+  // 3b. 関連ドキュメント（Goal 以外、Contract / Design / Spec 優先）
   const typePriority: Record<ArtifactType, number> = {
     contract: 1,
     design: 2,
     spec: 3,
     decision: 4,
-    architecture: 5,
-    verification: 6,
-    domain: 7,
-    guide: 8,
-    goal: 9,
+    domain: 5,
+    guide: 6,
+    goal: 7,
   }
   const sortedRelated = [...relatedByDocId.entries()]
     .map(([docId, relation]) => ({ doc: index.byId.get(docId), relation }))

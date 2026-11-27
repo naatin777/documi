@@ -1,9 +1,10 @@
 import { createHash } from 'node:crypto'
 import type { MdxJsxFlowElement, MdxJsxTextElement } from 'mdast-util-mdx'
 import { ALLOWED_MDX_COMPONENTS, parseMarkdownAst } from './mdast-parser'
-import { BLOCK_ID_PATTERN, isNoteIntent, isSpecIntent, isStability } from './types'
+import { BLOCK_ID_PATTERN, isNoteIntent, isSpecIntent, isStability, isTestLevel } from './types'
 import type {
   BlockKind,
+  DecisionRejectedOption,
   DocFormat,
   DocIssue,
   NoteIntent,
@@ -11,6 +12,7 @@ import type {
   SourceRefDecl,
   SpecIntent,
   Stability,
+  TestLevel,
 } from './types'
 
 export { ALLOWED_MDX_COMPONENTS } from './mdast-parser'
@@ -18,7 +20,8 @@ export { ALLOWED_MDX_COMPONENTS } from './mdast-parser'
 const SEMANTIC_BLOCK_TAGS: Record<string, BlockKind> = {
   Spec: 'spec',
   Constraint: 'constraint',
-  Outcome: 'outcome',
+  Decision: 'decision',
+  Test: 'test',
   Note: 'note',
   TermDef: 'term',
 }
@@ -324,10 +327,88 @@ function extractSemanticBlock(
       symbols: splitCsv(props.symbols),
     }
   }
-  if (kind === 'outcome') {
-    return { ...base, kind: 'outcome', intent: specIntent }
+  if (kind === 'decision') {
+    const summary = props.summary?.trim() || undefined
+    const date = props.date?.trim() || undefined
+    const details = extractDecisionSubElements(node, source)
+    return {
+      ...base,
+      kind: 'decision',
+      intent: specIntent,
+      ...(summary ? { summary } : {}),
+      ...(date ? { date } : {}),
+      ...(details.context ? { context: details.context } : {}),
+      ...(details.chosen ? { chosen: details.chosen } : {}),
+      ...(details.rejected.length > 0 ? { rejected: details.rejected } : {}),
+      ...(details.tradeoff ? { tradeoff: details.tradeoff } : {}),
+    }
+  }
+  if (kind === 'test') {
+    let level: TestLevel | undefined
+    if (props.level !== undefined && props.level.trim() !== '') {
+      if (isTestLevel(props.level.trim())) {
+        level = props.level.trim() as TestLevel
+      } else {
+        issues.push({
+          code: 'invalid-block-attr',
+          message: `Invalid <Test> level: ${props.level} (expected: unit / integration / e2e / contract / manual)`,
+          blockId: id,
+        })
+      }
+    }
+    return {
+      ...base,
+      kind: 'test',
+      intent: specIntent,
+      verifies: splitCsv(props.verifies),
+      ...(level ? { level } : {}),
+    }
   }
   return { ...base, kind: 'spec', intent: specIntent }
+}
+
+function extractDecisionSubElements(
+  node: GenericNode,
+  source: string,
+): {
+  context?: string
+  chosen?: string
+  rejected: DecisionRejectedOption[]
+  tradeoff?: string
+} {
+  let context: string | undefined
+  let chosen: string | undefined
+  const rejected: DecisionRejectedOption[] = []
+  let tradeoff: string | undefined
+
+  const visit = (nodes: readonly GenericNode[]) => {
+    for (const child of nodes) {
+      if (child.type === 'mdxJsxFlowElement' || child.type === 'mdxJsxTextElement') {
+        const tag = child.name
+        if (tag === 'Context' || tag === 'Chosen' || tag === 'Rejected' || tag === 'Tradeoff') {
+          const text = extractInnerBody(child, source)
+          if (!text) continue
+          if (tag === 'Context') {
+            context = context ? `${context}\n${text}` : text
+          } else if (tag === 'Chosen') {
+            chosen = chosen ? `${chosen}\n${text}` : text
+          } else if (tag === 'Rejected') {
+            const optionAttr = child.attributes?.find((a) => a.name === 'option' && typeof a.value === 'string')
+            const option = typeof optionAttr?.value === 'string' ? optionAttr.value.trim() : undefined
+            rejected.push({ ...(option ? { option } : {}), reason: text })
+          } else if (tag === 'Tradeoff') {
+            tradeoff = tradeoff ? `${tradeoff}\n${text}` : text
+          }
+          continue
+        }
+      }
+      if (child.children && child.children.length > 0) {
+        visit(child.children)
+      }
+    }
+  }
+  visit(node.children ?? [])
+  return { context, chosen, rejected, tradeoff }
 }
 
 function extractSourceRef(
@@ -381,8 +462,10 @@ function capitalizeKind(kind: BlockKind): string {
       return 'Spec'
     case 'constraint':
       return 'Constraint'
-    case 'outcome':
-      return 'Outcome'
+    case 'decision':
+      return 'Decision'
+    case 'test':
+      return 'Test'
     case 'note':
       return 'Note'
     case 'term':

@@ -115,36 +115,104 @@ export function ConstraintBlock({ id, scope, stability, title, children }: Const
   )
 }
 
-export interface OutcomeBlockProps {
+export interface DecisionBlockProps {
   id?: string
+  summary?: string
+  date?: string
   supersedes?: string
   stability?: string
   title?: string
   children?: ReactNode
 }
 
-export function OutcomeBlock({ id, supersedes, stability, title, children }: OutcomeBlockProps) {
+export function DecisionBlock({ id, summary, date, supersedes, stability, title, children }: DecisionBlockProps) {
   const { block, onMutate } = useSemanticBlock(id)
   const safeStability = block?.stability ?? (isStability(stability) ? stability : 'stable')
   const superseded = splitCsv(supersedes)
   const reviewClass = block ? ` sem-state-${block.review}${block.suspect ? ' sem-state-suspect' : ''}` : ''
 
   return (
-    <section id={id ? `block-${id}` : undefined} className={`sem-block sem-outcome${reviewClass}`}>
+    <section id={id ? `block-${id}` : undefined} className={`sem-block sem-decision${reviewClass}`}>
       <header className="sem-header">
-        <span className="sem-kind sem-kind-outcome">OUTCOME</span>
+        <span className="sem-kind sem-kind-decision">DECISION</span>
         {id && <code className="sem-id">{id}</code>}
         {title && <span className="sem-title">{title}</span>}
         <span className="sem-badges">
+          {date && <span className="sem-pill sem-pill-scope">{date}</span>}
           {!block && <span className={`sem-pill sem-pill-${safeStability}`}>{safeStability}</span>}
         </span>
       </header>
       {block && onMutate && <BlockReviewControls block={block} onMutate={onMutate} />}
+      {summary && <div className="sem-decision-summary">{summary}</div>}
       <div className="sem-body">{children}</div>
       {superseded.length > 0 && (
         <footer className="sem-footer">
           <span className="sem-meta-label">supersedes</span>
           {superseded.map((ref) => (
+            <code key={ref} className="sem-ref-chip">
+              {ref}
+            </code>
+          ))}
+        </footer>
+      )}
+    </section>
+  )
+}
+
+export function DecisionSubBlock({
+  kind,
+  option,
+  children,
+}: {
+  kind: 'context' | 'chosen' | 'rejected' | 'tradeoff'
+  option?: string
+  children?: ReactNode
+}) {
+  const label =
+    kind === 'context' ? 'Context' : kind === 'chosen' ? 'Chosen' : kind === 'rejected' ? 'Rejected' : 'Trade-off'
+  return (
+    <div className={`sem-decision-sub sem-decision-sub-${kind}`}>
+      <span className="sem-decision-sub-label">
+        {label}
+        {option ? `: ${option}` : ''}
+      </span>
+      <div className="sem-decision-sub-body">{children}</div>
+    </div>
+  )
+}
+
+export interface TestBlockProps {
+  id?: string
+  verifies?: string
+  level?: string
+  stability?: string
+  title?: string
+  children?: ReactNode
+}
+
+export function TestBlock({ id, verifies, level, stability, title, children }: TestBlockProps) {
+  const { block, onMutate } = useSemanticBlock(id)
+  const safeStability = block?.stability ?? (isStability(stability) ? stability : 'evolving')
+  const verifiedTargets = splitCsv(verifies)
+  const reviewClass = block ? ` sem-state-${block.review}${block.suspect ? ' sem-state-suspect' : ''}` : ''
+
+  return (
+    <section id={id ? `block-${id}` : undefined} className={`sem-block sem-test${reviewClass}`}>
+      <header className="sem-header">
+        <span className="sem-kind sem-kind-test">TEST</span>
+        {id && <code className="sem-id">{id}</code>}
+        {title && <span className="sem-title">{title}</span>}
+        <span className="sem-badges">
+          {level && <span className="sem-pill sem-pill-scope">{level}</span>}
+          {!block && <span className={`sem-pill sem-pill-${safeStability}`}>{safeStability}</span>}
+        </span>
+      </header>
+      {block && onMutate && <BlockReviewControls block={block} onMutate={onMutate} />}
+      <div className="sem-body">{children}</div>
+      {verifiedTargets.length > 0 && (
+        <footer className="sem-footer">
+          <span className="sem-meta-label">verifies</span>
+          {verifiedTargets.map((ref) => (
             <code key={ref} className="sem-ref-chip">
               {ref}
             </code>

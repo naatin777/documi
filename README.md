@@ -10,7 +10,7 @@ Markdown / MDX + YAML Frontmatter in Git is the Single Source of Truth. Web UI, 
 
 ## 5-Minute Quickstart (Start Small)
 
-You don't need all 9 artifact types on day one. Start with just **3 core types** (`goal`, `spec`, `decision`) + `<SourceRef>` + `documi check`:
+You don't need all 7 artifact types on day one. Start with just **3 core types** (`goal`, `spec`, `decision`) + `<SourceRef>` + `documi check`:
 
 ### 1. Run Documi from source (pre-release)
 
@@ -67,10 +67,10 @@ bun src/cli.ts serve --project /path/to/your-repo       # Start Web UI + REST AP
 ## Why Documi?
 
 - **Solves Day-2 Spec Rot**: Instead of disposable `plan.md` / `tasks.md`, specs live in Git and stay linked to real AST symbols (`@ast-grep/napi`), `@implements` anchors, and JUnit XML test results (`realization`: `unimplemented` → `in-progress` → `implemented` → `verified` / `drifted`).
-- **Convergent AI Reviews**: Records architectural decisions (`<Outcome>`) and Non-Goals in a Rooted DAG so AI agents stop re-litigating settled design choices.
+- **Convergent AI Reviews**: Records architectural decisions (`<Decision>` — both top-level ADRs and inline micro-ADRs) and Non-Goals in a Rooted DAG so AI agents stop re-litigating settled design choices.
 - **Dual AI Interface (Zero Lock-In)**: Use **CLI + Agent Skills** (works with any coding agent, no MCP setup required) or **MCP Server** (14 tools over stdio `documi mcp` or HTTP `/mcp`) — both powered by the same core.
 - **Human-Only Approval Guard (`docs/guard/reviews.json`)**: Keeps human approvals physically separate from MDX prose, computes line diffs on edit (`stale`), surfaces lightweight upstream change notices (`suspect`), and blocks AI edits via `documi check --no-review-edit`.
-- **Safe Static MDX**: Renders semantic tags (`<Spec>`, `<Constraint>`, `<Outcome>`, `<Note>`, `<TermDef>`, `<Term>`, `<SourceRef>`) plus Mermaid, KaTeX, and Shiki through a static mdast pipeline — arbitrary JS/ESM execution is strictly forbidden.
+- **Safe Static MDX**: Renders semantic tags (`<Spec>`, `<Constraint>`, `<Decision>`, `<Test>`, `<Note>`, `<TermDef>`, `<Term>`, `<SourceRef>`) plus Mermaid, KaTeX, and Shiki through a static mdast pipeline — arbitrary JS/ESM execution is strictly forbidden.
 - **Zero-Dependency Search + Optional Local Hybrid RAG**: Built-in Japanese (`Intl.Segmenter`) / English / code-identifier BM25 + glossary synonym expansion + graph expansion (`documi search --context`), plus optional Ollama / OpenAI-compatible HTTP embeddings cached in `bun:sqlite`.
 - **Read-Only Static Site & Bundle Export**: Export a provider-agnostic static site (`documi build-site`) for Cloudflare Pages / GitHub Pages / Vercel / S3, or bundle multiple docs into a single HTML/PDF (`documi export`).
 

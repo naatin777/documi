@@ -1,14 +1,4 @@
-export const ARTIFACT_TYPES = [
-  'goal',
-  'decision',
-  'domain',
-  'spec',
-  'contract',
-  'architecture',
-  'design',
-  'verification',
-  'guide',
-] as const
+export const ARTIFACT_TYPES = ['goal', 'decision', 'domain', 'spec', 'contract', 'design', 'guide'] as const
 
 export type ArtifactType = (typeof ARTIFACT_TYPES)[number]
 
@@ -20,9 +10,7 @@ export const ARTIFACT_TYPE_LAYERS: Record<ArtifactType, ArtifactLayer> = {
   domain: 'domain',
   spec: 'normative',
   contract: 'normative',
-  architecture: 'realization',
   design: 'realization',
-  verification: 'realization',
   guide: 'informative',
 }
 
@@ -41,15 +29,19 @@ export const ARTIFACT_TYPE_ALIASES: Record<string, ArtifactType> = {
   specs: 'spec',
   contract: 'contract',
   contracts: 'contract',
-  architecture: 'architecture',
-  arch: 'architecture',
+  architecture: 'design',
+  arch: 'design',
   design: 'design',
   designs: 'design',
-  verification: 'verification',
-  verifications: 'verification',
   guide: 'guide',
   guides: 'guide',
 }
+
+export const DOC_SCOPES = ['system'] as const
+export type DocScope = (typeof DOC_SCOPES)[number]
+
+export const TEST_LEVELS = ['unit', 'integration', 'e2e', 'contract', 'manual'] as const
+export type TestLevel = (typeof TEST_LEVELS)[number]
 
 /** ドキュメント本文の形式 */
 export type DocFormat = 'markdown' | 'mdx'
@@ -69,7 +61,7 @@ export type ReviewStatus = (typeof REVIEW_STATUSES)[number]
 export const REALIZATION_STATUSES = ['unimplemented', 'in-progress', 'implemented', 'verified', 'drifted'] as const
 export type RealizationStatus = (typeof REALIZATION_STATUSES)[number]
 
-export const BLOCK_KINDS = ['spec', 'constraint', 'outcome', 'note', 'term'] as const
+export const BLOCK_KINDS = ['spec', 'constraint', 'decision', 'test', 'note', 'term'] as const
 export type BlockKind = (typeof BLOCK_KINDS)[number]
 
 export const EDGE_KINDS = ['derives', 'satisfies', 'verifies', 'supersedes', 'mentions'] as const
@@ -83,6 +75,14 @@ export const BLOCK_ID_PATTERN = /^[a-zA-Z][a-zA-Z0-9._-]*$/
 
 export function isArtifactType(value: unknown): value is ArtifactType {
   return typeof value === 'string' && (ARTIFACT_TYPES as readonly string[]).includes(value)
+}
+
+export function isDocScope(value: unknown): value is DocScope {
+  return typeof value === 'string' && (DOC_SCOPES as readonly string[]).includes(value)
+}
+
+export function isTestLevel(value: unknown): value is TestLevel {
+  return typeof value === 'string' && (TEST_LEVELS as readonly string[]).includes(value)
 }
 
 export function isSpecIntent(value: unknown): value is SpecIntent {
@@ -292,9 +292,32 @@ export interface ConstraintSemanticBlock extends SemanticBlockBase {
   scope?: string
 }
 
-export interface OutcomeSemanticBlock extends SemanticBlockBase {
-  kind: 'outcome'
+export interface DecisionRejectedOption {
+  option?: string
+  reason: string
+}
+
+export interface DecisionSemanticBlock extends SemanticBlockBase {
+  kind: 'decision'
   intent: SpecIntent
+  /** 1〜2行の結論サマリ（map / context で優先的に開示） */
+  summary?: string
+  /** 決定日 (YYYY-MM-DD / YYYY-MM、マイクロ ADR 用) */
+  date?: string
+  /** 構造化詳細（任意の子タグ <Context> / <Chosen> / <Rejected> / <Tradeoff>） */
+  context?: string
+  chosen?: string
+  rejected?: DecisionRejectedOption[]
+  tradeoff?: string
+}
+
+export interface TestSemanticBlock extends SemanticBlockBase {
+  kind: 'test'
+  intent: SpecIntent
+  /** 検証対象の Spec ID 一覧 */
+  verifies: string[]
+  /** テスト層 (unit | integration | e2e | contract | manual) */
+  level?: TestLevel
 }
 
 export interface NoteSemanticBlock extends SemanticBlockBase {
@@ -314,7 +337,8 @@ export interface TermSemanticBlock extends SemanticBlockBase {
 export type SemanticBlock =
   | SpecSemanticBlock
   | ConstraintSemanticBlock
-  | OutcomeSemanticBlock
+  | DecisionSemanticBlock
+  | TestSemanticBlock
   | NoteSemanticBlock
   | TermSemanticBlock
 
@@ -373,6 +397,8 @@ export interface DocumentMeta {
   /** 所属マウントディレクトリからの POSIX 相対パス（拡張子あり、例: specs/auth.mdx） */
   mountRelPath: string
   type: ArtifactType
+  /** ドキュメント粒度（system のとき全体設計として map に常時投入） */
+  scope?: DocScope
   /** frontmatter ではなくパス/ファイル名から推論された場合 true */
   typeInferred: boolean
   title: string
@@ -414,6 +440,7 @@ export interface DocumentSummary {
   id: string
   mountId: string
   type: ArtifactType
+  scope?: DocScope
   title: string
   description: string
   /** 作成日・決定日 (任意、ISO 8601 の YYYY-MM-DD または YYYY-MM。ADR 等で時系列管理に利用) */

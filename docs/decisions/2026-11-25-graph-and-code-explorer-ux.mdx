@@ -8,9 +8,9 @@ tags: [adr, ui, ux, graph, code-explorer]
 
 # Traceability Matrix 廃止・Figma 風グラフ操作・Code Explorer 3 ペイン化の採用
 
-<Outcome id="dec.graph-and-code-ux" stability="stable">
+<Decision id="dec.graph-and-code-ux" stability="stable">
   2D の Traceability Matrix（表形式マトリクス）は廃止し、依存構造の俯瞰は **フルビューポートの Sigma.js 力学ネットワークグラフ（`/graph`）＋右サイドプレビュー** へ一本化する。グラフ操作は **Figma 風トラックパッド規約（2 本指スワイプ＝パン、ピンチまたは `⌘`/`Ctrl`＋ホイール＝カーソル中心ズーム）** を採用する。Code Explorer（`/code`）は **左ファイルツリー（開閉可）・中央 Shiki コード・右インスペクタ（`Symbols` 公開シンボル一覧 / `Links` 逆リンク、伸縮・開閉可）** の 3 ペイン構成とする。
-</Outcome>
+</Decision>
 
 ## 背景と検討した代替案
 

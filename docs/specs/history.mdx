@@ -28,3 +28,11 @@ tags: [spec, history, git]
   **When** ユーザーが Overview・Explorer・ドキュメント閲覧画面を操作するとき、
   **the** Web UI **shall** 各文書の作成日時・最終更新日時・未コミット変更マーク・最近更新された文書一覧を表示し、本文内の最新変更箇所（未コミット変更または最新コミット由来）を左アクセントバーと目次ドットで強調表示（ON/OFF 切替可）するとともに、Context Inspector の `History` タブから過去のコミット時点の文書を右ペインへ並べて参照できるようにする。
 </Spec>
+
+## 保証シナリオ
+
+<Test id="test.history" verifies="core.doc-history, ui.doc-history" level="integration">
+  - **Given**: 複数コミット履歴を持つドキュメント
+  - **When**: `GET /api/documents/*/history` および履歴 Diff UI を表示する
+  - **Then**: コミット一覧と行単位の Unified Diff が返され、非 Git 環境でも安全にフォールバックする
+</Test>

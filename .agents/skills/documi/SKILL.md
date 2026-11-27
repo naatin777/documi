@@ -11,8 +11,8 @@ description: Documi CLI を使って Living Specification（仕様・設計・AD
 
 ## 1. 段階的コンテキスト取得（実装前に読む）
 
-1. **Spec ID がまだ分からないタスク**: `documi search "<自然文のタスクや質問>" --context` — BM25＋用語集同義語展開＋グラフ展開で関連 Spec・上流 Goal・Decision `<Outcome>`・用語・`<SourceRef>` を文字数予算内で 1 発取得する。
-2. **全体像の把握**: `documi map` — Goal・Architecture・Decision `<Outcome>`・ドメイン用語・Review / Realization 全体像を一括取得する（機械処理時は `documi map --json`）。
+1. **Spec ID がまだ分からないタスク**: `documi search "<自然文のタスクや質問>" --context` — BM25＋用語集同義語展開＋グラフ展開で関連 Spec・上流 Goal・`<Decision>` 結論（マイクロ ADR 含む）・用語・`<SourceRef>` を文字数予算内で 1 発取得する。
+2. **全体像の把握**: `documi map` — Goal・全体設計（`design` / `scope: system`）・独立 Decision `<Decision>` 結論・ドメイン用語・Review / Realization 全体像を一括取得する（機械処理時は `documi map --json`）。
 3. **条件絞り込み・横断検索**: `documi query [--kind spec] [--review ...] [--realization ...] [--q <語>]` または `documi search "<query>"`。
 4. **特定 Spec の深掘り・変更影響の確認**: `documi context <spec-id>` で対象 Spec 本文・上流 Goal・関連文書・用語・`<SourceRef>` を取得する。**仕様変更の前には必ず `documi impact <id>` を実行し、影響を受ける全下流文書・ブロック・コード・テストを洗い出す**（全文や直接参照だけ見たい場合は `documi show <doc-id>` / `documi relations <id>`）。
 
@@ -21,7 +21,7 @@ description: Documi CLI を使って Living Specification（仕様・設計・AD
 - **Spec-First**: 仕様・振る舞い・契約を変えるときは、**コードやテストを触る前にまず `docs/` を更新し、`documi check` で整合を確認する**。
 - **1 事実 1 箇所（Single Source of Truth）**: 同じ仕様表や列挙を Spec・Contract・Design に重複コピーせず、正規の置き場所（`spec`＝振る舞い／`contract`＝外部 I/F・スキーマ／`design`＝モジュール責務）を 1 箇所に決め、他文書からはリンクや `<Term>` で参照する。
 - **古い決定は `supersedes` で廃止**: 方針転換や旧 ADR の撤回時は、新しい ADR に `supersedes: [decisions/<old-adr>]` を付け、古い決定を現行一覧から分離する（横に v2 仕様ファイルを乱立させない）。
-- **チャット合意の即時永続化**: チャット履歴にしか残っていない合意は別セッションでは失われる。ユーザーと合意した方針・却下案は `<Outcome>`、振る舞いは `<Spec>`、禁止事項は `<Constraint>`、未確定の仮案・保留は `<Note intent="idea">` に**その場で即記録する**。
+- **チャット合意の即時永続化**: チャット履歴にしか残っていない合意は別セッションでは失われる。ユーザーと合意した方針・却下案は `<Decision>`（全体判断は独立 `decision`、局所判断は `design`/`spec` 内マイクロ ADR）、振る舞いは `<Spec>`、保証シナリオは `<Test verifies="..." level="...">`、禁止事項は `<Constraint>`、未確定の仮案・保留は `<Note intent="idea">` に**その場で即記録する**。
 - **読みやすさ・視覚ファースト執筆（長文ダラダラ禁止）**: 人間はドキュメントを斜め読みするため、散文の壁を作らず以下を徹底する：
   - **結論ファースト＆3 行ルール**: 冒頭に 1〜2 文の要約を置き、1 段落は 3 行以内・箇条書きの先頭 2〜4 語を **太字** にする。
   - **図表・コンポーネント優先**: 処理フロー・状態遷移は **Mermaid 図**、条件分岐・エラー規約は **表**、長い補足や JSON 例は **`<Details title="...">`** に畳み、並列比較は **`<Columns><Column>`**、時系列は **`<Timeline><Timeline.Item>`** を使う。
@@ -54,9 +54,9 @@ EOF
   3. **入出力・永続ファイルのスキーマ変更**を `contract` に同期したか？
   4. **公開シンボル**（export された `class`/`interface`/`type`/公開関数）は手書きコピペせず `<SourceRef file="src/..." mode="exports" />` や `<SourceRef symbol="..." />` で AST 紐づけし、非公開ヘルパーや関数内の `if`/`for` 擬似コードは書いていないか？
 - **更新トリガー（PR 完了前セルフチェック）**:
-  - 新サブシステム・主要モジュール追加 → `architecture` 更新 ＋ `design`（`satisfies`・`<SourceRef>`）追加・更新
-  - 後戻りコストが高い構造・技術判断 → `decision`（ADR＋`<Outcome>`）を追加
-  - 新しい `<Spec>` やテストスイート追加 → 該当機能領域の `verification` に `verifies`・**宣言的な Given / When / Then 保証シナリオ**・テストスイート一覧を同期する（1 ファイルに 10 件超の `verifies` / `satisfies` を集中させない：`overloaded-hub-doc` で検知）
+  - 新サブシステム・主要モジュール追加 → 全体設計（`design` / `scope: system`）更新 ＋ 機能別 `design`（`satisfies`・`<SourceRef>`）追加・更新
+  - 後戻りコストが高い全体判断 → 独立 `decision`（ADR＋`<Decision>`）、機能固有の局所トレードオフ → `design`/`spec` 内インライン `<Decision>`（マイクロ ADR）
+  - 新しい `<Spec>` 追加 → 同じ `spec` / `contract` 内に `<Test id="..." verifies="<spec.id>" level="unit|integration|e2e|contract|manual">` で**宣言的な Given / When / Then 保証シナリオ**を同居させる
   - **Capability 単位のファイル分割（相乗り禁止）**: `spec` ファイルは技術レイヤー（`core/`・`ui/`）やスプリント単位ではなく **Capability（システムが提供する 1 つの能力・機能ドメイン）単位で 1 ファイル** にする。タイトルに無関係な機能が `and` や中黒で並び始めたら件数に関係なく `documi scaffold` で別ファイルへ切り出す（10 件超は安全網の `bloated-spec-doc` で検知）
 
 ## 4. 守るべき不変ルール

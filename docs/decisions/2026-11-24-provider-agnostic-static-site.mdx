@@ -8,9 +8,9 @@ tags: [adr, static-site, web-ui, hosting]
 
 # プロバイダ非依存・オプションの静的サイト書き出し（HashRouter + インメモリ事前計算）を採用する
 
-<Outcome id="dec.provider-agnostic-static-site" stability="stable">
+<Decision id="dec.provider-agnostic-static-site" stability="stable">
   Documi はオプション機能として `documi build-site`（`src/server/site.ts`）を提供し、既存の React SPA とインメモリ Hono アプリ（`createApp().request()`）をそのまま再利用して、**特定ホスティングに依存しない読み取り専用の静的ディレクトリ**を出力する。クライアント側は `window.__DOCUMI_STATIC__` の有無で自動的に `HashRouter` と静的 JSON 取得モードへ切り替わり、任意サブパス配信（GitHub Pages の `/<repo>/` 等）でもサーバー側のリライト設定なしで動作する。Code Explorer 用のファイル JSON は SHA-256 ハッシュ索引（`data/code/files/file-index.json`）経由で安全に配置し、`--no-code` でソース全文を除外できる。
-</Outcome>
+</Decision>
 
 ## 背景と課題
 

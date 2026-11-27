@@ -1,34 +1,35 @@
 ---
-type: verification
+type: design
+scope: system
 title: テスト戦略・品質ゲート・検証方針
-description: 証拠主義（Prove It Works）のテスト戦略、領域別 Verification と Given / When / Then シナリオの役割分担、品質ゲート、意図的対象外（Out of Scope）
-tags: [testing, verification, strategy]
+description: 証拠主義（Prove It Works）のテスト戦略、仕様同居の <Test> 保証シナリオと実行テストの役割分担、品質ゲート、意図的対象外（Out of Scope）
+tags: [testing, strategy, design]
 ---
 
 # テスト戦略・品質ゲート・検証方針
 
 ## 1. 証拠主義（Prove It Works）と 2 層検証モデル
 
-Documi の検証は **ドキュメント側（受入基準・保証シナリオ）** と **テストコード側（実行証拠）** の 2 層で責務を分担し、二重管理とドリフトを防ぐ。
+Documi の検証は **仕様同居の保証シナリオ（`<Test>`）** と **実行テストコード（`tests/` + JUnit XML）** の 2 層で責務を分担し、二重管理とドリフトを防ぐ。
 
 | 層 | 置き場所 | 役割 |
 |---|---|---|
-| **保証シナリオ層** | `docs/verification/<domain>.mdx` | 機能領域ごとに、絶対に壊れてはいけない振る舞い・境界値・セキュリティ／異常系を **宣言的な Given / When / Then** で明記する（1 ファイルあたり `verifies` 10 件以下） |
+| **保証シナリオ層** | 各 `docs/specs/*.mdx` / `docs/contracts/*.mdx` 内の `<Test id="..." verifies="..." level="unit\|integration\|e2e\|contract\|manual">` | `<Spec>` のすぐ隣に、絶対に壊れてはいけない振る舞い・境界値・異常系を **宣言的な Given / When / Then** とテスト層（`level`）付きで明記する |
 | **実行証拠層** | `tests/*.test.ts(x)` + `.documi/test-results.xml` | `test('[<spec.id>] ...', ...)` と JUnit XML で実挙動を自動検証し、各 `<Spec>` の `realization`（`verified` / `drifted`）を自動算出する |
 
 - **ビルド通過や自己申告を完了とみなさない**: 仕様・契約・修正の完了は、自動テスト実行結果（JUnit XML）および静的・構造チェックの通過という客観的証拠で証明する。
 - **形骸テストと過剰モックの禁止**: 定数を写しただけの落ちないテストや、内部実装を過剰モックしたテストは避け、実際のファイルシステム（一時ディレクトリ）・Hono アプリ・`bun:sqlite`・mdast / `@ast-grep/napi`・MCP ツールを通して振る舞いを検証する。
 - **バグ修正は Red → Green で確認**: 不具合修正時は、修正前の状態で失敗する再現テストを先に確認してから修正を通す。
 
-## 2. 領域別 Verification マップ
+## 2. テストスイートと対象領域
 
-| ドキュメント | 検証領域 | 主なテストスイート |
+| 領域 | 仕様ドキュメント | 主なテストスイート |
 |---|---|---|
-| [文書モデル・MDX・グラフ・履歴の検証](./document-and-graph.mdx) | 再帰走査・MDX 安全性・Rooted DAG・メディア検証・Git 履歴 | `core`, `mdx`, `media`, `history` |
-| [レビュー・Realization・AST 検証・健全性の検証](./governance-and-check.mdx) | 承認サイドカー・Realization・AST 参照・健全性ヒント・設定・Code Explorer | `reviews`, `trace`, `source`, `health-and-exports`, `config`, `code` |
-| [検索・Hybrid RAG・AI ワークフローの検証](./retrieval-and-ai.mdx) | BM25・グラフ展開・SQLite ベクトル検索・CLI・MCP 精密編集・Skills 生成 | `retrieval`, `hybrid-rag`, `cli-agent`, `mcp-edit`, `init` |
-| [Web UI・REST API・i18n の検証](./web-ui-and-api.mdx) | Web ビューア・SSE・Review UI・Graph・検索・REST API・多言語カタログ | `ui`, `api`, `i18n` |
-| [バンドル・PDF・静的サイトの検証](./bundle-and-static-site.mdx) | スコープ別バンドル・PDF 出力境界・プロバイダ非依存静的サイト書き出し | `bundle`, `site` |
+| 文書モデル・MDX・グラフ・履歴 | [document-model](../specs/document-model.mdx), [trace-graph](../specs/trace-graph.mdx), [history](../specs/history.mdx) | `core`, `mdx`, `media`, `history`, `impact-and-supersedes` |
+| レビュー・Realization・AST 検証・健全性 | [human-review](../specs/human-review.mdx), [realization-and-check](../specs/realization-and-check.mdx), [code-explorer](../specs/code-explorer.mdx) | `reviews`, `trace`, `source`, `health-and-exports`, `config`, `code`, `multi-docs` |
+| 検索・Hybrid RAG・AI ワークフロー | [retrieval](../specs/retrieval.mdx), [ai-workflow](../specs/ai-workflow.mdx) | `retrieval`, `hybrid-rag`, `cli-agent`, `mcp-edit`, `init` |
+| Web UI・REST API・i18n | [web-viewer](../specs/web-viewer.mdx) | `ui`, `api`, `i18n` |
+| バンドル書き出し・静的サイト | [bundle-export](../specs/bundle-export.mdx), [static-site](../specs/static-site.mdx) | `bundle`, `site` |
 
 ## 3. 品質ゲート（マージ前必須コマンド）
 

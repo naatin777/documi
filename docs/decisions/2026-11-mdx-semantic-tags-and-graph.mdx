@@ -8,9 +8,9 @@ tags: [adr, mdx, graph, sigmajs]
 
 # MDX 細切れセマンティックタグと Rooted DAG + Sigma.js グラフ構造の採用
 
-<Outcome id="dec.semantic-graph" stability="stable">
-  文書内部を `<Spec>` / `<Constraint>` / `<Outcome>` / `<Note>` / `<TermDef>` のセマンティックタグで細切れに構造化し、ブロック単位のドット区切り ID を付与する。グラフは **本文リンク・用語からの自動接続 (`mentions`)** と **トレーサビリティ用の意味付き辺 (`derives` / `satisfies` / `verifies` / `supersedes`)** のハイブリッドとし、`normative` な `<Spec>` は `goal` を根に持つ Rooted DAG を必須とする。グラフ可視化には WebGL ベースの **Sigma.js + Graphology + リアルタイム力学シミュレーション** を採用する。
-</Outcome>
+<Decision id="dec.semantic-graph" stability="stable">
+  文書内部を `<Spec>` / `<Constraint>` / `<Decision>` / `<Note>` / `<TermDef>` のセマンティックタグで細切れに構造化し、ブロック単位のドット区切り ID を付与する。グラフは **本文リンク・用語からの自動接続 (`mentions`)** と **トレーサビリティ用の意味付き辺 (`derives` / `satisfies` / `verifies` / `supersedes`)** のハイブリッドとし、`normative` な `<Spec>` は `goal` を根に持つ Rooted DAG を必須とする。グラフ可視化には WebGL ベースの **Sigma.js + Graphology + リアルタイム力学シミュレーション** を採用する。
+</Decision>
 
 ## 背景と根拠
 

@@ -20,9 +20,7 @@
       "domain": "用語・モデル",
       "spec": "仕様",
       "contract": "契約・I/F",
-      "architecture": "構成",
       "design": "設計",
-      "verification": "検証",
       "guide": "ガイド"
     },
     "section": {
@@ -31,9 +29,7 @@
       "domain": "用語・モデル",
       "spec": "仕様",
       "contract": "契約・I/F",
-      "architecture": "全体構成",
       "design": "設計",
-      "verification": "検証",
       "guide": "ガイド"
     }
   },

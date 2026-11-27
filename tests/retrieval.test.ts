@@ -56,9 +56,9 @@ beforeEach(async () => {
     [
       '# ロックアウト方式の選定',
       '',
-      '<Outcome id="dec.lockout-policy" stability="stable">',
+      '<Decision id="dec.lockout-policy" stability="stable">',
       '  5回連続失敗で 15 分間の指数バックオフ付きロックを適用する。',
-      '</Outcome>',
+      '</Decision>',
       '',
       '関連仕様: [認証仕様](../specs/auth.mdx)',
       '',

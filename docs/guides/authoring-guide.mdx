@@ -1,17 +1,17 @@
 ---
 type: guide
 title: ドキュメント執筆ガイド（各 Type の役割と粒度）
-description: 9 種類の Artifact Type に何を書くか・何を書かないか、Goal の 2 階層分割と粒度ルール、基本設計/詳細設計との対応
+description: "7 種類の Artifact Type に何を書くか・何を書かないか、Goal の 2 階層分割・JTBD、design (scope: system)、マイクロ ADR (<Decision>)、仕様同居テスト (<Test>)"
 tags: [guide, authoring, taxonomy, goal]
 ---
 
 # ドキュメント執筆ガイド（各 Type の役割と粒度）
 
-Documi の 9 種類の Artifact Type について、**「どこに何を書いて、何を書かないか」** の基準と粒度を定めるガイド。
+Documi の 7 種類の Artifact Type について、**「どこに何を書いて、何を書かないか」** の基準と粒度を定めるガイド。
 ドキュメントの責務や記述が曖昧なままだと、AI の実装がブレるだけでなく **AI コードレビューも無限に修正案を出し続けて収束しなくなる** ため、各 Type の境界を明確に保つことを目的とする。
 
 <Note id="note.authoring-guide-wip" intent="informative">
-  全 9 種類の Artifact Type（`goal`・`domain`・`spec`・`contract`・`architecture`・`design`・`decision`・`verification`・`guide`）およびコード・テスト・コミット・コメントとの責務境界の初版を確定済み。今後の Dogfooding と運用の中で得た知見に応じて継続的に磨き込んでいく。
+  7 種類の Artifact Type（`goal`・`domain`・`spec`・`contract`・`design`［全体設計は `scope: system`］・`decision`・`guide`）および `<Decision>`（マイクロ ADR）・`<Test>`（仕様同居保証シナリオ）とコード・テスト・コミット・コメントの責務境界を定義済み。
 </Note>
 
 ---
@@ -22,14 +22,12 @@ Documi の 9 種類の Artifact Type について、**「どこに何を書い�
 
 | 層 / 日本の工程対応 | Type | 一言でいう役割 | 書くこと | 書かないこと |
 |---|---|---|---|---|
-| **Problem Space** *(企画・業務要件)* | **`goal`** | なぜ・どうなりたいか | 誰のどんな課題か、目指す状態、コンセプト、Non-Goals、不変制約 (`<Constraint>`) | 具体的な画面仕様・API・実装詳細 |
-| **Problem Space** *(業務の共通言語)* | **`domain`** | 共通言語と概念モデル | 用語定義 (`<TermDef>`)、別名、実コードの型・シンボル対応、概念の関係 | 画面操作や細かい条件分岐 |
-| **Solution: 外側** *(システム要件・基本/外部設計)* | **`spec`** | システムが満たすべき振る舞い | テスト可能な要件・体験・非機能・異常系（EARS 構文の `<Spec>`） | 内部クラス構造や技術選定の経緯 |
-| **Solution: 外側** *(外部 I/F 設計)* | **`contract`** | 外部境界の厳密な約束 | REST API・MCP・CLI・ファイル形式の入出力スキーマとエラー規約 | UI の見た目や内部処理手順 |
-| **Solution: 全体** *(方式・全体構成)* | **`architecture`** | システム全体の地図 | レイヤー構成、責務境界、技術スタック全体像、横断ルール（常時 AI 投入） | 個別機能の細かいアルゴリズム |
-| **Solution: 内側** *(詳細/内部設計)* | **`design`** | 特定機能をどう作るか（現行版） | モジュール構成、データフロー、状態遷移、純粋性/副作用、`<SourceRef>`（常に最新へ更新） | 過去の棄却案の長文比較、関数内の擬似コード |
-| **判断ログ** *(設計経緯)* | **`decision`** | なぜそれを選んだか（ADR） | 結論 (`<Outcome>`)、決定日 (`date`)、代替案比較・トレードオフ（基本追記型） | 現行の詳細な内部設計 |
-| **検証** *(テスト計画)* | **`verification`** | 正しさをどう証明するか | テスト戦略、テストスイート一覧、品質ゲート・CI 基準 | テストコード全文 |
+| **Problem Space** *(企画・業務要件)* | **`goal`** | なぜ・誰のため | 対象アクター / JTBD（状況・動機・期待成果）、目指す状態、Non-Goals、不変制約 (`<Constraint>`) | 具体的な画面仕様・API・実装詳細 |
+| **Problem Space** *(業務の共通言語)* | **`domain`** | 共通言語と概念モデル | 用語定義 (`<TermDef>`)、別名、実コードの型・シンボル対応、概念の関係・状態遷移 | 画面操作や細かい条件分岐 |
+| **Solution: ユーザー目線の外側** *(システム要件・外部設計)* | **`spec`** | ユーザーから見た振る舞いと保証 | テスト可能な要件・体験・非機能・異常系 (`<Spec>`) ＋ 宣言的な保証シナリオ (`<Test verifies="..." level="...">`) | 内部クラス構造や技術選定の経緯 |
+| **Solution: 開発者目線の外側** *(外部 I/F 設計)* | **`contract`** | 外部境界の厳密な約束 | REST API・MCP・CLI・ファイル形式の入出力スキーマとエラー規約 ＋ 契約テスト (`<Test level="contract">`) | UI の見た目や内部処理手順 |
+| **Solution: 内側** *(全体構成〜内部設計)* | **`design`** | 全体地図〜特定機能の作り方（現行版） | 全体アーキテクチャ・テスト戦略（`scope: system` → `map` 常時投入）および機能別モジュール構成・データフロー・`<SourceRef>` | 過去の棄却案の長文比較、関数内の擬似コード |
+| **判断ログ** *(設計経緯)* | **`decision`** | なぜそれを選んだか（重い ADR） | 全体に関わる重い判断の結論 (`<Decision summary="...">`)、決定日 (`date`)、代替案比較・トレードオフ（基本追記型）。※ 機能固有の局所判断は `design`/`spec` 内にインライン `<Decision>`（マイクロ ADR）で記述 | 現行の詳細な内部設計 |
 | **解説** *(マニュアル)* | **`guide`** | 人間向けの手順・書き方 | セットアップ、日常運用、ショートカット、執筆ガイド（Informative） | 必須仕様や不変制約 |
 
 ---
@@ -268,11 +266,10 @@ Diátaxis の 4 象限のうち、Reference は `contract` / `domain` / `spec`�
 
 | 今回の変更内容 | 必ず同期するドキュメント |
 |---|---|
-| 新しいサブシステム・主要モジュールの追加・境界変更 | `architecture`（全体図）＋ `design`（`satisfies`＋`<SourceRef>` / `mode="exports"`） |
-| 後戻りコストが高い技術選定・トレードオフ判断 | `decision`（ADR 1 ファイル＋`<Outcome>`＋棄却案） |
-| 新しい振る舞い・制約・エラー・フォールバックの追加変更 | `spec`（`<Spec>`）＋ 外部 I/F 変更なら `contract` |
-| 新しい `<Spec>` やテストスイートの追加 | 該当機能領域の `verification`（`verifies` ＋宣言的 Given / When / Then 保証シナリオ＋対応テストスイート） |
-| 1 つの `spec` に別 Capability が相乗りした／`spec` の `<Spec>` や `design`/`verification` のトレース辺が 10 件を超えた | 機能領域（Capability）単位で `documi scaffold` により分割（`documi check` の `bloated-spec-doc` / `overloaded-hub-doc` で確認） |
+| 新しいサブシステム・主要モジュールの追加・境界変更 | 全体設計（`design` / `scope: system`）＋機能別 `design`（`satisfies`＋`<SourceRef>` / `mode="exports"`） |
+| 後戻りコストが高い全体技術選定・トレードオフ判断 | 独立 `decision`（ADR 1 ファイル＋`<Decision summary="...">`＋棄却案）。機能固有の局所判断は `design`/`spec` 内インライン `<Decision>`（マイクロ ADR） |
+| 新しい振る舞い・制約・エラー・フォールバックの追加変更 | `spec`（`<Spec>` ＋ `<Test verifies="..." level="...">`）＋ 外部 I/F 変更なら `contract` |
+| 1 つの `spec` に別 Capability が相乗りした／`spec` の `<Spec>` や `design` の `satisfies` 辺が 10 件を超えた | 機能領域（Capability）単位で `documi scaffold` により分割（`documi check` の `bloated-spec-doc` / `overloaded-hub-doc` で確認） |
 
 ---
 

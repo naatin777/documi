@@ -11,7 +11,7 @@ Web UI・REST API・MCP Server・CLI のすべてが同じフレームワーク�
 
 ## 5 分クイックスタート（小さく始める）
 
-最初から 9 種類の Artifact Type を全部使う必要はありません。まずは **3 類型（`goal` / `spec` / `decision`）＋ `<SourceRef>` ＋ `documi check`** だけで始められます。
+最初から 7 種類の Artifact Type を全部使う必要はありません。まずは **3 類型（`goal` / `spec` / `decision`）＋ `<SourceRef>` ＋ `documi check`** だけで始められます。
 
 ### 1. ソースから準備する（未リリース期間）
 
@@ -75,9 +75,9 @@ bun src/cli.ts serve --project /path/to/your-repo
 ## 主な特徴
 
 - **連番廃止 & 自由な階層構造**: `docs/` 配下を再帰走査し、拡張子なし POSIX 相対パスをドキュメント ID とする
-- **4 層・9 種類の Artifact Type（段階導入可）**: `goal` / `decision` / `domain` / `spec` / `contract` / `architecture` / `design` / `verification` / `guide`
+- **7 種類の Artifact Type（段階導入可）**: `goal` / `decision` / `domain` / `spec` / `contract` / `design`（全体設計は `scope: system`） / `guide`
 - **Goal を根にした Rooted DAG**: `normative` な `<Spec>` が `goal` に繋がっていない場合は `orphan-spec` として検知
-- **安全な静的 MDX（任意 JS 実行禁止）**: `<Spec>`, `<Constraint>`, `<Outcome>`, `<Note>`, `<TermDef>`, `<Term>`, `<SourceRef>` + Mermaid, KaTeX, Shiki
+- **安全な静的 MDX（任意 JS 実行禁止）**: `<Spec>`, `<Constraint>`, `<Decision>`（独立 ADR・マイクロ ADR 共用）, `<Test>`, `<Note>`, `<TermDef>`, `<Term>`, `<SourceRef>` + Mermaid, KaTeX, Shiki
 - **自動 `realization` 算出 & AST 検証**: `@implements` / `@verifies` / `test("[spec.id]")` / `<SourceRef mode="exports">` / JUnit XML / `gh` PR から実装状態を自動算出
 - **AI デュアルチャネル連携**: **CLI + Agent Skills 4 種** と **MCP Server 14 ツール**（stdio / HTTP）を同一コアで提供
 - **ゼロ依存検索 + 任意ローカル Hybrid RAG**: 日本語（`Intl.Segmenter`）・英語・コード識別子 BM25＋用語集展開＋グラフ展開に加え、任意の Ollama / OpenAI 互換 HTTP Embedding + `bun:sqlite` キャッシュに対応

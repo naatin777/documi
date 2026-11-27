@@ -71,9 +71,9 @@ tags: [adr]
 
 # 初期アーキテクチャ方針
 
-<Outcome id="dec.initial-architecture" stability="evolving">
-  決定した結論を 2〜3 行で簡潔に記述します。AI への常時コンテキストとして優先投入されます。
-</Outcome>
+<Decision id="dec.initial-architecture" summary="初期アーキテクチャ方針の結論を 1〜2 行で簡潔に記述する" stability="evolving">
+  決定した結論を 2〜3 行で簡潔に記述します。独立 \`decision\` ファイル内の \`<Decision>\` は AI への常時コンテキストとして優先投入されます。
+</Decision>
 
 ## 背景・比較検討
 
@@ -94,6 +94,12 @@ derives:
   **When** ユーザーが対象操作を行ったとき、
   **the** システム **shall** 期待される結果を返す。
 </Spec>
+
+<Test id="test.example.behavior" verifies="example.behavior" level="unit">
+  - **Given**: 正常な入力が与えられている
+  - **When**: 対象操作を実行する
+  - **Then**: 期待される結果が返る
+</Test>
 `,
     }
   }
@@ -134,9 +140,9 @@ tags: [adr]
 
 # Initial Architecture Direction
 
-<Outcome id="dec.initial-architecture" stability="evolving">
-  Summarize the decision in 2–3 concise sentences. Outcome blocks are surfaced upfront in project maps.
-</Outcome>
+<Decision id="dec.initial-architecture" summary="Summarize the initial architecture decision in 1–2 concise lines" stability="evolving">
+  Summarize the decision in 2–3 concise sentences. Top-level Decision blocks are surfaced upfront in project maps.
+</Decision>
 
 ## Context & Trade-offs
 
@@ -157,6 +163,12 @@ derives:
   **When** a user performs the target action,
   **the** system **shall** return the expected observable result.
 </Spec>
+
+<Test id="test.example.behavior" verifies="example.behavior" level="unit">
+  - **Given**: Valid input is provided
+  - **When**: The target action is executed
+  - **Then**: The expected observable result is returned
+</Test>
 `,
   }
 }

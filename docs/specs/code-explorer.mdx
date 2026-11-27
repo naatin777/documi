@@ -15,3 +15,11 @@ tags: [spec, ui, code-explorer]
 - **ツリー除外対象**: `node_modules`, `.git`, `dist`, `coverage`, `.documi`, `.next`, `.turbo`, `target`, `build`, `public`, `docs/` 配下、およびドット始まりディレクトリ。
 - **フィルタと URL 遷移**: ファイル名インクリメンタル検索およびカバレッジフィルタ（`すべて` / `リンクあり` / `その他`）。`/code?file=src/...&line=10&end=25` クエリで対象ファイル・強調行へ直接ジャンプする。
 - **静的サイト `--no-code` 時**: `isCodeIncluded() === false` の場合はコードツリーやソース全文を要求せず、コード非同梱の案内表示に切り替える。
+
+## 保証シナリオ
+
+<Test id="test.code-explorer" verifies="ui.code-explorer" level="integration">
+  - **Given**: `@implements` アンカーと公開シンボルを含むプロジェクトソース
+  - **When**: Code Explorer API (`/api/code/tree`, `/api/code/file`) を呼び出す
+  - **Then**: `.env` 等を除外した安全なソース閲覧・行ハイライト・公開シンボル一覧が返される
+</Test>

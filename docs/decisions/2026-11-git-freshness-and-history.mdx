@@ -8,9 +8,9 @@ tags: [adr, git, history, ui, core]
 
 # 読み取り専用 Git 連携による鮮度表示・最新変更箇所ハイライト・過去版 Side-by-Side 参照を採用する
 
-<Outcome id="dec.git-freshness-history" stability="stable">
+<Decision id="dec.git-freshness-history" stability="stable">
   Documi は `docs/` に対する **読み取り専用の Git 連携** を Document Core に備え、以下の 3 点に責務を絞ってドキュメント鮮度と変更追跡を提供する。（1）`git log` / `git status` の一括スキャンによる各文書の作成日時・最終更新日時・未コミット変更状態の自動取得（非 Git 環境は `fs.stat` へフォールバック）、（2）未コミット変更または最新コミットの変更行レンジと mdast 位置情報の突き合わせによる「最新変更箇所」の左バー強調・目次ドット表示、（3）Context Inspector の履歴一覧から任意の過去コミット時点の文書を Side-by-Side 右ペインでそのままレンダリング参照する体験。MDX 本文上の複雑なリッチインライン Diff や、Git への書き込み操作（commit / checkout / revert）は提供しない。
-</Outcome>
+</Decision>
 
 ## 背景と課題
 

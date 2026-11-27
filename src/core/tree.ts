@@ -6,6 +6,7 @@ export function toDocumentSummary(doc: Document): DocumentSummary {
     id: doc.id,
     mountId: doc.mountId,
     type: doc.type,
+    ...(doc.scope ? { scope: doc.scope } : {}),
     title: doc.title,
     description: doc.description,
     ...(doc.date ? { date: doc.date } : {}),

@@ -76,9 +76,7 @@
 .type-domain,
 .type-spec,
 .type-contract,
-.type-architecture,
 .type-design,
-.type-verification,
 .type-guide {
   --tc-soft: light-dark(color-mix(in oklab, var(--tc) 14%, var(--bg)), color-mix(in oklab, var(--tc) 16%, transparent));
 }
@@ -98,14 +96,8 @@
 .type-contract {
   --tc: light-dark(#15803d, #5fce85);
 }
-.type-architecture {
-  --tc: light-dark(#6d28d9, #b18cf5);
-}
 .type-design {
   --tc: light-dark(#0f766e, #45c8bc);
-}
-.type-verification {
-  --tc: light-dark(#b91c1c, #ef7b7b);
 }
 .type-guide {
   --tc: light-dark(#a21caf, #e070d8);

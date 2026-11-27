@@ -152,13 +152,13 @@ export function createDocumentsRoutes(store: DocsStore, projectRoot?: string, ra
             if (block.kind === 'spec') {
               specsByIntent[block.intent]++
               specsByStability[block.stability]++
-            } else if (block.kind === 'outcome') {
+            } else if (block.kind === 'decision' && doc.type === 'decision') {
               const entry: OverviewOutcomeEntry = {
                 id: block.id,
                 docId: doc.id,
                 docTitle: doc.title,
-                ...(doc.date ? { date: doc.date } : {}),
-                rawBody: block.rawBody,
+                ...((block.date ?? doc.date) ? { date: block.date ?? doc.date } : {}),
+                rawBody: block.summary ?? block.chosen ?? block.rawBody,
                 stability: block.stability,
                 ...(block.supersededBy && block.supersededBy.length > 0 ? { supersededBy: block.supersededBy } : {}),
               }

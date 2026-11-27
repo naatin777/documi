@@ -98,6 +98,20 @@ export function buildGraphAndValidate(
         }
         addEdge(block.id, doc, target, 'supersedes', true)
       }
+      if (block.kind === 'test') {
+        for (const rawTarget of block.verifies) {
+          const target = resolveTarget(rawTarget, doc, byId, blocksById)
+          if (!target) {
+            doc.issues.push({
+              code: 'missing-relation',
+              message: `Broken reference (verifies): ${rawTarget}`,
+              blockId: block.id,
+            })
+            continue
+          }
+          addEdge(block.id, doc, target, 'verifies', true)
+        }
+      }
     }
 
     // 3. SourceRef の satisfies / verifies
@@ -262,8 +276,8 @@ function populateSupersededBy(
 
   for (const block of blocksById.values()) {
     const merged = new Set<string>(blockMap.get(block.id))
-    // 旧 decision 文書自体が supersedes されている場合、配下の <Outcome> も廃止済みとして継承する
-    if (block.kind === 'outcome') {
+    // 旧 decision 文書自体が supersedes されている場合、配下の <Decision> も廃止済みとして継承する
+    if (block.kind === 'decision') {
       const parentBy = docMap.get(block.docId)
       if (parentBy) {
         for (const id of parentBy) merged.add(id)

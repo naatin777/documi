@@ -40,3 +40,11 @@ tags: [spec, ui, viewer]
   **When** 本文中に `<TermDef>` で登録された用語または別名が出現するとき、
   **the** Web UI **shall** コード・見出し・既存リンク内を除いて自動で用語リンク化し、ホバー時に定義と紐づくコードシンボル定義をポップオーバー表示する。
 </Spec>
+
+## 保証シナリオ
+
+<Test id="test.web-viewer" verifies="ui.web-viewer, ui.explorer-modes, ui.live-reload, ui.glossary-autolink" level="integration">
+  - **Given**: 複数 Artifact Type の文書・`<TermDef>` 用語・視覚 MDX コンポーネントを持つワークスペース
+  - **When**: Web ビューアを描画し、Explorer モード切替・SSE 更新・用語ホバーを実行する
+  - **Then**: Flow/Files 切替・用語自動リンク・安全なコンポーネント描画・ライブ再読込が破綻なく動作する
+</Test>
