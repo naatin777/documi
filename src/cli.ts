@@ -497,14 +497,16 @@ async function cmdInit(flags: CliFlags, io: CliIo): Promise<number> {
 }
 
 async function cmdServe(flags: CliFlags): Promise<number> {
-  const { docsDir, projectRoot, testReportPath, config } = resolveCliPaths(flags)
+  const { docsDir, docsMounts, projectRoot, testReportPath, testReportPaths, config } = resolveCliPaths(flags)
   const port = typeof flags.port === 'string' ? Number(flags.port) : undefined
   const hostname = typeof flags.host === 'string' ? flags.host : undefined
 
   await startServer({
     docsDir,
+    mounts: docsMounts,
     projectRoot,
     testReportPath,
+    testReportPaths,
     ragConfig: config.rag,
     port: Number.isFinite(port) ? port : undefined,
     hostname,
@@ -515,8 +517,8 @@ async function cmdServe(flags: CliFlags): Promise<number> {
 }
 
 async function cmdMcp(flags: CliFlags): Promise<number> {
-  const { docsDir, projectRoot, testReportPath, config } = resolveCliPaths(flags)
-  const store = await DocsStore.open(docsDir, { projectRoot, testReportPath })
+  const { docsDir, docsMounts, projectRoot, testReportPath, testReportPaths, config } = resolveCliPaths(flags)
+  const store = await DocsStore.open(docsDir, { mounts: docsMounts, projectRoot, testReportPath, testReportPaths })
   const stopWatch = store.watch()
 
   process.on('SIGINT', () => {
@@ -544,13 +546,17 @@ function parseOptionalReviewGate(flags: CliFlags): ReviewGate | undefined {
 }
 
 async function cmdCheck(flags: CliFlags, io: CliIo): Promise<number> {
-  const { docsDir, projectRoot, testReportPath, config } = resolveCliPaths(flags)
+  const { docsDir, docsMounts, projectRoot, testReportPath, testReportPaths, config } = resolveCliPaths(flags)
   const reviewGate = parseOptionalReviewGate(flags) ?? config.reviewGate
+  const scope = getStringFlag(flags, 'scope')
 
   const report = await runDocsCheck({
     docsDir,
+    mounts: docsMounts,
+    scope,
     projectRoot,
     testReportPath,
+    testReportPaths,
     strict: flags.strict === true,
     reviewGate,
     noReviewEdit: flags['no-review-edit'] === true,
@@ -561,6 +567,7 @@ async function cmdCheck(flags: CliFlags, io: CliIo): Promise<number> {
     printJson(io, {
       ok: report.ok,
       docsDir: report.docsDir,
+      ...(report.scope ? { scope: report.scope } : {}),
       documentCount: report.documentCount,
       blockCount: report.blockCount,
       reviewCounts: report.reviewCounts,
@@ -572,7 +579,7 @@ async function cmdCheck(flags: CliFlags, io: CliIo): Promise<number> {
     return report.ok ? 0 : 1
   }
 
-  io.out(`Documi Check: ${report.docsDir}`)
+  io.out(`Documi Check: ${report.docsDir}${report.scope ? ` (scope=${report.scope})` : ''}`)
   io.out(`  documents:   ${report.documentCount} (${report.blockCount} blocks)`)
   io.out(
     `  reviews:     approved=${report.reviewCounts.approved} unreviewed=${report.reviewCounts.unreviewed} stale=${report.reviewCounts.stale} suspect=${report.reviewCounts.suspect}`,
@@ -614,10 +621,10 @@ async function cmdApprove(ids: string[], flags: CliFlags, io: CliIo): Promise<nu
     io.err('Specify at least one block ID to approve (e.g. documi approve auth.lockout)')
     return 1
   }
-  const { docsDir, projectRoot } = resolveCliPaths(flags)
+  const { docsDir, docsMounts, projectRoot } = resolveCliPaths(flags)
   const author = typeof flags.author === 'string' ? flags.author : undefined
   const note = typeof flags.note === 'string' ? flags.note : undefined
-  const index = await loadDocuments(docsDir)
+  const index = await loadDocuments(docsDir, { mounts: docsMounts })
 
   let failed = 0
   for (const id of ids) {
@@ -639,8 +646,8 @@ async function cmdUnapprove(ids: string[], flags: CliFlags, io: CliIo): Promise<
     io.err('Specify at least one block ID to unapprove (e.g. documi unapprove auth.lockout)')
     return 1
   }
-  const { docsDir, projectRoot } = resolveCliPaths(flags)
-  const index = await loadDocuments(docsDir)
+  const { docsDir, docsMounts, projectRoot } = resolveCliPaths(flags)
+  const index = await loadDocuments(docsDir, { mounts: docsMounts })
 
   let failed = 0
   for (const id of ids) {
@@ -657,7 +664,7 @@ async function cmdUnapprove(ids: string[], flags: CliFlags, io: CliIo): Promise<
 
 async function cmdExport(flags: CliFlags, io: CliIo): Promise<number> {
   const format = flags.format === 'html' ? 'html' : 'pdf'
-  const { docsDir, projectRoot, testReportPath } = resolveCliPaths(flags)
+  const { docsDir, docsMounts, projectRoot, testReportPath, testReportPaths } = resolveCliPaths(flags)
   const clientDist = resolveDefaultClientDist()
   if (!existsSync(clientDist)) {
     io.err(`Built frontend not found (${clientDist}). Run "bun run build" first.`)
@@ -665,7 +672,7 @@ async function cmdExport(flags: CliFlags, io: CliIo): Promise<number> {
   }
 
   const outPath = path.resolve(typeof flags.out === 'string' ? flags.out : `documi-bundle.${format}`)
-  const store = await DocsStore.open(docsDir, { projectRoot, testReportPath })
+  const store = await DocsStore.open(docsDir, { mounts: docsMounts, projectRoot, testReportPath, testReportPaths })
   const app = createApp(store, { clientDist, projectRoot })
   const server = Bun.serve({ port: 0, hostname: '127.0.0.1', fetch: app.fetch })
 
@@ -702,8 +709,8 @@ async function cmdExport(flags: CliFlags, io: CliIo): Promise<number> {
 // @implements core.ai-cli
 
 async function cmdMap(flags: CliFlags, io: CliIo): Promise<number> {
-  const { docsDir, projectRoot, testReportPath } = resolveCliPaths(flags)
-  const store = await DocsStore.open(docsDir, { projectRoot, testReportPath })
+  const { docsDir, docsMounts, projectRoot, testReportPath, testReportPaths } = resolveCliPaths(flags)
+  const store = await DocsStore.open(docsDir, { mounts: docsMounts, projectRoot, testReportPath, testReportPaths })
   const map = buildProjectMap(store.getIndex(), { full: flags.full === true })
 
   if (flags.json === true) {
@@ -751,9 +758,10 @@ async function cmdMap(flags: CliFlags, io: CliIo): Promise<number> {
 
 async function cmdList(flags: CliFlags, io: CliIo): Promise<number> {
   const type = parseOptionalArtifactType(flags)
-  const { docsDir } = resolveCliPaths(flags)
-  const index = await loadDocuments(docsDir)
-  const res = listDocuments(index, type)
+  const scope = getStringFlag(flags, 'scope')
+  const { docsDir, docsMounts } = resolveCliPaths(flags)
+  const index = await loadDocuments(docsDir, { mounts: docsMounts })
+  const res = listDocuments(index, type, scope)
 
   if (flags.json === true) {
     printJson(io, res)
@@ -771,8 +779,8 @@ async function cmdList(flags: CliFlags, io: CliIo): Promise<number> {
 async function cmdShow(positionals: string[], flags: CliFlags, io: CliIo): Promise<number> {
   const id = positionals[0]
   if (!id) throw new CliArgError('Document ID is required (e.g. documi show specs/document-model)')
-  const { docsDir, projectRoot, testReportPath } = resolveCliPaths(flags)
-  const store = await DocsStore.open(docsDir, { projectRoot, testReportPath })
+  const { docsDir, docsMounts, projectRoot, testReportPath, testReportPaths } = resolveCliPaths(flags)
+  const store = await DocsStore.open(docsDir, { mounts: docsMounts, projectRoot, testReportPath, testReportPaths })
   const detail = getDocumentDetail(store.getIndex(), id)
   if (!detail) {
     io.err(`✗ Document not found: ${id}`)
@@ -801,8 +809,8 @@ async function cmdShow(positionals: string[], flags: CliFlags, io: CliIo): Promi
 async function cmdRelations(positionals: string[], flags: CliFlags, io: CliIo): Promise<number> {
   const id = positionals[0]
   if (!id) throw new CliArgError('Document ID or block ID is required (e.g. documi relations core.document-model)')
-  const { docsDir } = resolveCliPaths(flags)
-  const index = await loadDocuments(docsDir)
+  const { docsDir, docsMounts } = resolveCliPaths(flags)
+  const index = await loadDocuments(docsDir, { mounts: docsMounts })
   const rel = getNodeRelations(index, id)
   if (!rel) {
     io.err(`✗ Document or block not found: ${id}`)
@@ -842,8 +850,8 @@ async function cmdImpact(positionals: string[], flags: CliFlags, io: CliIo): Pro
     maxDepth = parsed
   }
 
-  const { docsDir, projectRoot, testReportPath } = resolveCliPaths(flags)
-  const store = await DocsStore.open(docsDir, { projectRoot, testReportPath })
+  const { docsDir, docsMounts, projectRoot, testReportPath, testReportPaths } = resolveCliPaths(flags)
+  const store = await DocsStore.open(docsDir, { mounts: docsMounts, projectRoot, testReportPath, testReportPaths })
   const impact = getImpactAnalysis(store.getIndex(), id, { maxDepth })
   if (!impact) {
     io.err(`✗ Document or block not found: ${id}`)
@@ -910,10 +918,10 @@ function shouldUseSemantic(flags: CliFlags, ragConfig?: RagConfig): boolean {
 }
 
 async function cmdIndex(flags: CliFlags, io: CliIo): Promise<number> {
-  const { docsDir, projectRoot, config } = resolveCliPaths(flags)
+  const { docsDir, docsMounts, projectRoot, config } = resolveCliPaths(flags)
   const ragConfig = resolveCliRagConfig(flags, config.rag)
   const provider = createEmbeddingProvider(ragConfig)
-  const index = await loadDocuments(docsDir)
+  const index = await loadDocuments(docsDir, { mounts: docsMounts })
   const syncRes = await syncVectorIndex(docsDir, index, provider, {
     cachePath: ragConfig.cachePath,
     projectRoot,
@@ -949,14 +957,16 @@ async function cmdSearch(positionals: string[], flags: CliFlags, io: CliIo): Pro
     limit = parsed
   }
 
-  const { docsDir, projectRoot, config } = resolveCliPaths(flags)
-  const index = await loadDocuments(docsDir)
+  const scope = getStringFlag(flags, 'scope')
+  const { docsDir, docsMounts, projectRoot, config } = resolveCliPaths(flags)
+  const index = await loadDocuments(docsDir, { mounts: docsMounts })
   const useSemantic = shouldUseSemantic(flags, config.rag)
 
   if (useSemantic) {
     const ragConfig = resolveCliRagConfig(flags, config.rag)
     const hybrid = await searchIndexHybrid(docsDir, index, query, {
       type,
+      scope,
       limit: limit ?? 20,
       ragConfig,
       projectRoot,
@@ -985,7 +995,7 @@ async function cmdSearch(positionals: string[], flags: CliFlags, io: CliIo): Pro
     return 0
   }
 
-  const res = searchDocuments(index, query, { type, limit })
+  const res = searchDocuments(index, query, { type, scope, limit })
 
   if (flags.json === true) {
     printJson(io, res)
@@ -1028,12 +1038,14 @@ async function cmdRetrieve(positionals: string[], flags: CliFlags, io: CliIo): P
     budget = parsed
   }
 
-  const { docsDir, projectRoot, testReportPath, config } = resolveCliPaths(flags)
-  const store = await DocsStore.open(docsDir, { projectRoot, testReportPath })
+  const scope = getStringFlag(flags, 'scope')
+  const { docsDir, docsMounts, projectRoot, testReportPath, testReportPaths, config } = resolveCliPaths(flags)
+  const store = await DocsStore.open(docsDir, { mounts: docsMounts, projectRoot, testReportPath, testReportPaths })
   const useSemantic = shouldUseSemantic(flags, config.rag)
   const res = useSemantic
     ? await retrieveContextHybrid(docsDir, store.getIndex(), query, {
         type,
+        scope,
         limit,
         budget,
         includeGraph: flags['no-graph'] !== true,
@@ -1042,6 +1054,7 @@ async function cmdRetrieve(positionals: string[], flags: CliFlags, io: CliIo): P
       })
     : retrieveContext(store.getIndex(), query, {
         type,
+        scope,
         limit,
         budget,
         includeGraph: flags['no-graph'] !== true,
@@ -1117,11 +1130,12 @@ async function cmdQuery(flags: CliFlags, io: CliIo): Promise<number> {
     realization: parseOptionalRealizationStatus(flags),
     suspect: flags.suspect === true ? true : flags['no-suspect'] === true ? false : undefined,
     query: getStringFlag(flags, 'q'),
+    scope: getStringFlag(flags, 'scope'),
     full: flags.full === true,
   }
 
-  const { docsDir, projectRoot, testReportPath } = resolveCliPaths(flags)
-  const store = await DocsStore.open(docsDir, { projectRoot, testReportPath })
+  const { docsDir, docsMounts, projectRoot, testReportPath, testReportPaths } = resolveCliPaths(flags)
+  const store = await DocsStore.open(docsDir, { mounts: docsMounts, projectRoot, testReportPath, testReportPaths })
   const res = querySpecs(store.getIndex(), filters)
 
   if (flags.json === true) {
@@ -1142,8 +1156,8 @@ async function cmdQuery(flags: CliFlags, io: CliIo): Promise<number> {
 async function cmdContext(positionals: string[], flags: CliFlags, io: CliIo): Promise<number> {
   const id = positionals[0]
   if (!id) throw new CliArgError('Spec block ID or document ID is required (e.g. documi context core.document-model)')
-  const { docsDir, projectRoot, testReportPath } = resolveCliPaths(flags)
-  const store = await DocsStore.open(docsDir, { projectRoot, testReportPath })
+  const { docsDir, docsMounts, projectRoot, testReportPath, testReportPaths } = resolveCliPaths(flags)
+  const store = await DocsStore.open(docsDir, { mounts: docsMounts, projectRoot, testReportPath, testReportPaths })
   const ctx = getSpecContext(store.getIndex(), id, { full: flags.full === true })
   if (!ctx) {
     io.err(`✗ Target not found: ${id}`)
@@ -1205,8 +1219,14 @@ async function cmdBlock(positionals: string[], flags: CliFlags, io: CliIo): Prom
     throw new CliArgError('documi block subcommand must be one of: add, update, rename')
   }
 
-  const { docsDir, projectRoot, testReportPath } = resolveCliPaths(flags)
-  const store = await DocsStore.open(docsDir, { projectRoot, testReportPath, enrichTrace: false })
+  const { docsDir, docsMounts, projectRoot, testReportPath, testReportPaths } = resolveCliPaths(flags)
+  const store = await DocsStore.open(docsDir, {
+    mounts: docsMounts,
+    projectRoot,
+    testReportPath,
+    testReportPaths,
+    enrichTrace: false,
+  })
 
   if (action === 'add') {
     const docId = positionals[1]
@@ -1335,8 +1355,14 @@ async function cmdTerm(positionals: string[], flags: CliFlags, io: CliIo): Promi
   if (!id) throw new CliArgError('Term ID is required (e.g. documi term upsert Artifact --definition "...")')
   const definition = (await resolveBodyContent(flags, io, { allowDefinition: true, required: true }))!
 
-  const { docsDir, projectRoot, testReportPath } = resolveCliPaths(flags)
-  const store = await DocsStore.open(docsDir, { projectRoot, testReportPath, enrichTrace: false })
+  const { docsDir, docsMounts, projectRoot, testReportPath, testReportPaths } = resolveCliPaths(flags)
+  const store = await DocsStore.open(docsDir, {
+    mounts: docsMounts,
+    projectRoot,
+    testReportPath,
+    testReportPaths,
+    enrichTrace: false,
+  })
   const upsertRes = await upsertTermInDocs(store.rootDir, store.getIndex(), {
     id,
     definition,
@@ -1369,11 +1395,18 @@ async function cmdScaffold(positionals: string[], flags: CliFlags, io: CliIo): P
   if (!title) throw new CliArgError('--title is required')
   const body = await resolveBodyContent(flags, io, { required: false })
 
-  const { docsDir, projectRoot, testReportPath } = resolveCliPaths(flags)
-  const store = await DocsStore.open(docsDir, { projectRoot, testReportPath, enrichTrace: false })
+  const { docsDir, docsMounts, projectRoot, testReportPath, testReportPaths } = resolveCliPaths(flags)
+  const store = await DocsStore.open(docsDir, {
+    mounts: docsMounts,
+    projectRoot,
+    testReportPath,
+    testReportPaths,
+    enrichTrace: false,
+  })
   const scaffoldRes = await scaffoldDocument(store.rootDir, store.getIndex(), {
     path: relPath,
     title,
+    scope: getStringFlag(flags, 'scope'),
     type: parseOptionalArtifactType(flags),
     description: getStringFlag(flags, 'description'),
     date: getStringFlag(flags, 'date'),
@@ -1398,7 +1431,7 @@ async function cmdScaffold(positionals: string[], flags: CliFlags, io: CliIo): P
 }
 
 async function cmdBuildSite(flags: CliFlags, io: CliIo): Promise<number> {
-  const { docsDir, projectRoot, testReportPath } = resolveCliPaths(flags)
+  const { docsDir, docsMounts, projectRoot, testReportPath, testReportPaths } = resolveCliPaths(flags)
   const outDir = path.resolve(typeof flags.out === 'string' ? flags.out : 'dist-site')
   const basePath = typeof flags.base === 'string' ? flags.base : undefined
   const maxRevisions = typeof flags.revisions === 'string' ? Number(flags.revisions) : undefined
@@ -1406,8 +1439,10 @@ async function cmdBuildSite(flags: CliFlags, io: CliIo): Promise<number> {
   try {
     const result = await buildStaticSite({
       docsDir,
+      mounts: docsMounts,
       projectRoot,
       testReportPath,
+      testReportPaths,
       outDir,
       basePath,
       includeCode: flags['no-code'] !== true,

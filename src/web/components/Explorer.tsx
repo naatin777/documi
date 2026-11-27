@@ -57,13 +57,38 @@ export default function Explorer({
 }: ExplorerProps) {
   const { t } = useTranslation()
   const [mode, setMode] = useState<DocListMode>('flow')
+  const [selectedScope, setSelectedScope] = useState<string>('all')
   const [collapsedDirs, setCollapsedDirs] = useState<ReadonlySet<string>>(new Set())
   const [collapsedTypes, setCollapsedTypes] = useState<ReadonlySet<ArtifactType>>(new Set())
 
   const treeQuery = useTreeQuery()
   const statusQuery = useStatusQuery()
-  const tree = treeQuery.data?.tree ?? []
-  const documents = treeQuery.data?.documents
+  const mounts = treeQuery.data?.mounts ?? []
+  const hasMultipleMounts = mounts.length > 1
+  const activeScope = hasMultipleMounts && mounts.some((m) => m.id === selectedScope) ? selectedScope : 'all'
+  const allDocuments = treeQuery.data?.documents
+  const documents = useMemo(() => {
+    if (!allDocuments) return undefined
+    if (activeScope === 'all') return allDocuments
+    return allDocuments.filter((d) => d.mountId === activeScope)
+  }, [allDocuments, activeScope])
+  const tree = useMemo(() => {
+    const rawTree = treeQuery.data?.tree ?? []
+    if (activeScope === 'all') return rawTree
+    const filterTree = (nodes: DocTreeNode[]): DocTreeNode[] => {
+      const out: DocTreeNode[] = []
+      for (const node of nodes) {
+        if (node.kind === 'doc') {
+          if (node.doc.mountId === activeScope) out.push(node)
+        } else {
+          const children = filterTree(node.children)
+          if (children.length > 0) out.push({ ...node, children })
+        }
+      }
+      return out
+    }
+    return filterTree(rawTree)
+  }, [treeQuery.data?.tree, activeScope])
   const status = statusQuery.data ?? null
   const error = toErrorMessage(treeQuery.error ?? statusQuery.error)
 
@@ -204,6 +229,37 @@ export default function Explorer({
           </button>
         </div>
       </div>
+
+      {hasMultipleMounts && (
+        <div className="flex flex-wrap gap-1 border-b border-line px-3 py-1.5" role="group" aria-label="Docs Scope">
+          <button
+            type="button"
+            className={`cursor-pointer rounded-full border px-2 py-0.5 text-[11px] font-semibold ${
+              activeScope === 'all'
+                ? 'border-accent bg-accent text-surface'
+                : 'border-line bg-subtle text-fg-muted hover:text-fg'
+            }`}
+            onClick={() => setSelectedScope('all')}
+          >
+            All
+          </button>
+          {mounts.map((m) => (
+            <button
+              key={m.id}
+              type="button"
+              className={`cursor-pointer rounded-full border px-2 py-0.5 text-[11px] font-semibold ${
+                activeScope === m.id
+                  ? 'border-accent bg-accent text-surface'
+                  : 'border-line bg-subtle text-fg-muted hover:text-fg'
+              }`}
+              onClick={() => setSelectedScope(m.id)}
+            >
+              {m.label}
+              <span className="ml-1 opacity-70">{m.docCount}</span>
+            </button>
+          ))}
+        </div>
+      )}
 
       <nav className="min-h-0 flex-1 overflow-y-auto py-1.5" aria-label={t('nav.documents')}>
         {mode === 'flow' ? (

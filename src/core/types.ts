@@ -354,9 +354,24 @@ export interface ResolvedRelation {
   path: string
 }
 
-export interface DocumentMeta {
-  /** docs/ からの拡張子なし POSIX 相対パス (例: goals/core, auth/lockout) */
+export interface DocsMount {
+  /** マウント識別子（既定: "root"）。"root" 以外は Document ID に "<id>/" プレフィックスを付与 */
   id: string
+  /** マウントディレクトリの絶対パス */
+  dir: string
+  /** 表示用ラベル（任意） */
+  label?: string
+  /** Document ID に "<id>/" を付与するか（id !== "root"） */
+  prefixed: boolean
+}
+
+export interface DocumentMeta {
+  /** docs/ からの拡張子なし POSIX 相対パス (例: goals/core, web/specs/auth) */
+  id: string
+  /** 所属マウント ID（単一 docs や既定マウント時は "root"） */
+  mountId: string
+  /** 所属マウントディレクトリからの POSIX 相対パス（拡張子あり、例: specs/auth.mdx） */
+  mountRelPath: string
   type: ArtifactType
   /** frontmatter ではなくパス/ファイル名から推論された場合 true */
   typeInferred: boolean
@@ -366,7 +381,7 @@ export interface DocumentMeta {
   date?: string
   tags: string[]
   format: DocFormat
-  /** rootDir からの相対パス (posix 区切り、拡張子あり) */
+  /** 論理相対パス (単一/root マウントは mountRelPath、名前付きマウントは "<mountId>/<mountRelPath>") */
   path: string
   /** 親ディレクトリ (posix 区切り、ルート直下は '') */
   dir: string
@@ -395,6 +410,7 @@ export interface Document extends DocumentMeta {
 
 export interface DocumentSummary {
   id: string
+  mountId: string
   type: ArtifactType
   title: string
   description: string
@@ -430,6 +446,8 @@ export type DocTreeNode = DocTreeDir | DocTreeFile
 
 export interface DocsIndex {
   rootDir: string
+  /** 構成されているドキュメントマウント一覧（単一 docs 時は 1 件の root マウント） */
+  mounts: DocsMount[]
   loadedAt: string
   documents: Document[]
   byId: Map<string, Document>

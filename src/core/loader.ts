@@ -6,15 +6,16 @@ import { applyGitFreshness } from './git'
 import { buildGraphAndValidate, stripDocExt, type RawDocEntry } from './graph'
 import { extractMdxArtifacts } from './mdx'
 import { isSafeExternalMediaUrl, isSupportedLocalMedia, resolveLocalMediaPath } from './media'
-import { applyReviewsAndSuspects, loadReviews } from './reviews'
+import { applyReviewsAndSuspects, loadReviewsForMounts } from './reviews'
 import { sortDocuments } from './tree'
 import { ARTIFACT_TYPE_ALIASES, TRACE_EDGE_KINDS, isArtifactType } from './types'
 import type {
   ArtifactType,
   DocFormat,
   DocIssue,
-  Document,
   DocsIndex,
+  DocsMount,
+  Document,
   IndexIssue,
   SemanticBlock,
   TermSemanticBlock,
@@ -23,75 +24,110 @@ import type {
 
 export { buildDocTree, toDocumentSummary } from './tree'
 
+export interface LoadDocumentsOptions {
+  /** Monorepo 統合マウント一覧（省略時は rootDir を単一 root マウントとして扱う） */
+  mounts?: DocsMount[]
+}
+
+/** 単一 rootDir または複数 mounts 設定を正規化する */
+function normalizeMounts(rootDir: string, mounts?: readonly DocsMount[]): DocsMount[] {
+  if (mounts && mounts.length > 0) {
+    return mounts.map((m) => ({
+      id: m.id,
+      dir: path.resolve(m.dir),
+      ...(m.label ? { label: m.label } : {}),
+      prefixed: m.prefixed,
+    }))
+  }
+  return [{ id: 'root', dir: path.resolve(rootDir), prefixed: false }]
+}
+
+/** ドキュメントが属するマウント定義を返す */
+export function resolveDocMount(
+  index: Pick<DocsIndex, 'rootDir' | 'mounts'>,
+  doc: Pick<Document, 'mountId'>,
+): DocsMount {
+  return (
+    index.mounts.find((m) => m.id === doc.mountId) ??
+    index.mounts[0] ?? { id: 'root', dir: path.resolve(index.rootDir), prefixed: false }
+  )
+}
+
 /**
- * docs ディレクトリを再帰走査し、全ドキュメント・セマンティックブロック・
+ * docs ディレクトリ（単一または複数マウント）を再帰走査し、全ドキュメント・セマンティックブロック・
  * グラフエッジ（Rooted DAG + 本文リンク自動抽出）を構築する。
  * 個別ファイルの不備は issues に記録しつつ読み込みを継続する。
  */
-export async function loadDocuments(rootDir: string): Promise<DocsIndex> {
-  const root = path.resolve(rootDir)
-  const realRoot = await realpath(root).catch(() => root)
+export async function loadDocuments(rootDir: string, options: LoadDocumentsOptions = {}): Promise<DocsIndex> {
+  const mounts = normalizeMounts(rootDir, options.mounts)
+  const primaryMount = mounts.find((m) => !m.prefixed) ?? mounts[0]!
+  const root = primaryMount.dir
   const issues: IndexIssue[] = []
   const entries: RawDocEntry[] = []
   const byId = new Map<string, Document>()
   const blocksById = new Map<string, SemanticBlock>()
   const termsByName = new Map<string, TermSemanticBlock>()
 
-  const relFiles = await collectMarkdownFiles(root, '', issues)
-  // .mdx を .md より優先処理して同名衝突時に .mdx を採用する
-  relFiles.sort((a, b) => {
-    const idA = stripDocExt(a)
-    const idB = stripDocExt(b)
-    if (idA !== idB) return idA.localeCompare(idB)
-    return a.endsWith('.mdx') ? -1 : 1
-  })
+  for (const mount of mounts) {
+    const realMountRoot = await realpath(mount.dir).catch(() => mount.dir)
+    const relFiles = await collectMarkdownFiles(mount.dir, '', issues)
+    // .mdx を .md より優先処理して同名衝突時に .mdx を採用する
+    relFiles.sort((a, b) => {
+      const idA = stripDocExt(a)
+      const idB = stripDocExt(b)
+      if (idA !== idB) return idA.localeCompare(idB)
+      return a.endsWith('.mdx') ? -1 : 1
+    })
 
-  for (const relPath of relFiles) {
-    const docId = stripDocExt(relPath)
-    if (byId.has(docId)) {
-      issues.push({
-        code: 'duplicate-doc-id',
-        message: `Duplicate document ID "${docId}" (${byId.get(docId)!.path} and ${relPath})`,
-        path: relPath,
-      })
-      continue
-    }
-
-    const parsed = await parseDocumentFile(root, realRoot, relPath, docId, issues)
-    if (!parsed) continue
-
-    const { doc } = parsed
-    // ブロック ID のプロジェクト全体一意チェック & 用語登録
-    const validBlocks: SemanticBlock[] = []
-    for (const block of doc.blocks) {
-      if (blocksById.has(block.id)) {
-        const prev = blocksById.get(block.id)!
-        doc.issues.push({
-          code: 'duplicate-block-id',
-          message: `Duplicate block ID "${block.id}" (${prev.docId} and ${doc.id})`,
-          blockId: block.id,
+    for (const mountRelPath of relFiles) {
+      const logicalRelPath = mount.prefixed ? `${mount.id}/${mountRelPath}` : mountRelPath
+      const docId = stripDocExt(logicalRelPath)
+      if (byId.has(docId)) {
+        issues.push({
+          code: 'duplicate-doc-id',
+          message: `Duplicate document ID "${docId}" (${byId.get(docId)!.path} and ${logicalRelPath})`,
+          path: logicalRelPath,
         })
         continue
       }
-      blocksById.set(block.id, block)
-      validBlocks.push(block)
 
-      if (block.kind === 'term') {
-        registerTerm(block, termsByName, doc.issues)
+      const parsed = await parseDocumentFile(mount, realMountRoot, mountRelPath, logicalRelPath, docId, issues)
+      if (!parsed) continue
+
+      const { doc } = parsed
+      // ブロック ID のプロジェクト全体一意チェック & 用語登録
+      const validBlocks: SemanticBlock[] = []
+      for (const block of doc.blocks) {
+        if (blocksById.has(block.id)) {
+          const prev = blocksById.get(block.id)!
+          doc.issues.push({
+            code: 'duplicate-block-id',
+            message: `Duplicate block ID "${block.id}" (${prev.docId} and ${doc.id})`,
+            blockId: block.id,
+          })
+          continue
+        }
+        blocksById.set(block.id, block)
+        validBlocks.push(block)
+
+        if (block.kind === 'term') {
+          registerTerm(block, termsByName, doc.issues)
+        }
       }
-    }
-    doc.blocks = validBlocks
+      doc.blocks = validBlocks
 
-    byId.set(doc.id, doc)
-    entries.push(parsed)
+      byId.set(doc.id, doc)
+      entries.push(parsed)
+    }
   }
 
-  const edges = buildGraphAndValidate(entries, byId, blocksById, termsByName)
+  const edges = buildGraphAndValidate(entries, byId, blocksById, termsByName, mounts)
   const documents = entries.map((e) => e.doc)
   sortDocuments(documents)
 
   const index: DocsIndex = {
     rootDir: root,
+    mounts,
     loadedAt: new Date().toISOString(),
     documents,
     byId,
@@ -101,7 +137,7 @@ export async function loadDocuments(rootDir: string): Promise<DocsIndex> {
     issues,
   }
 
-  const reviews = await loadReviews(root, issues)
+  const reviews = await loadReviewsForMounts(mounts, issues)
   applyReviewsAndSuspects(index, reviews)
   await applyGitFreshness(index)
 
@@ -145,25 +181,26 @@ async function collectMarkdownFiles(root: string, relDir: string, issues: IndexI
 }
 
 async function parseDocumentFile(
-  root: string,
-  realRoot: string,
-  relPath: string,
+  mount: DocsMount,
+  realMountRoot: string,
+  mountRelPath: string,
+  logicalRelPath: string,
   docId: string,
   indexIssues: IndexIssue[],
 ): Promise<RawDocEntry | undefined> {
   let source: string
   try {
-    source = await readFile(path.join(root, relPath), 'utf-8')
+    source = await readFile(path.join(mount.dir, mountRelPath), 'utf-8')
   } catch (error) {
     indexIssues.push({
       code: 'read-error',
       message: `Failed to read file: ${errorMessage(error)}`,
-      path: relPath,
+      path: logicalRelPath,
     })
     return undefined
   }
 
-  const format: DocFormat = relPath.toLowerCase().endsWith('.mdx') ? 'mdx' : 'markdown'
+  const format: DocFormat = mountRelPath.toLowerCase().endsWith('.mdx') ? 'mdx' : 'markdown'
   const docIssues: DocIssue[] = []
 
   let rawFm: Record<string, unknown> = {}
@@ -172,7 +209,7 @@ async function parseDocumentFile(
     indexIssues.push({
       code: 'invalid-frontmatter',
       message: fmRes.error.message,
-      path: relPath,
+      path: logicalRelPath,
     })
     return undefined
   }
@@ -185,7 +222,7 @@ async function parseDocumentFile(
       indexIssues.push({
         code: 'invalid-frontmatter',
         message: parsedRes.error.message,
-        path: relPath,
+        path: logicalRelPath,
       })
       return undefined
     }
@@ -207,7 +244,8 @@ async function parseDocumentFile(
   const extracted = extractMdxArtifacts(body, format, docId, bodyLineOffset)
   docIssues.push(...extracted.issues)
 
-  const { type, typeInferred } = resolveArtifactType(rawFm.type, docId, docIssues)
+  const mountLocalId = stripDocExt(mountRelPath)
+  const { type, typeInferred } = resolveArtifactType(rawFm.type, mountLocalId, docIssues)
   const title = resolveTitle(rawFm.title, extracted.firstHeading, docId, docIssues)
   const description = typeof rawFm.description === 'string' ? rawFm.description : ''
   const date = parseDateField(rawFm.date, docIssues)
@@ -216,13 +254,17 @@ async function parseDocumentFile(
 
   const slashIdx = docId.lastIndexOf('/')
   const dir = slashIdx >= 0 ? docId.slice(0, slashIdx) : ''
+  const mountSlashIdx = mountLocalId.lastIndexOf('/')
+  const mountRelDir = mountSlashIdx >= 0 ? mountLocalId.slice(0, mountSlashIdx) : ''
 
   if (extracted.mediaRefs.length > 0) {
-    await validateMediaRefs(root, realRoot, dir, extracted.mediaRefs, docIssues)
+    await validateMediaRefs(mount.dir, realMountRoot, mountRelDir, extracted.mediaRefs, docIssues)
   }
 
   const doc: Document = {
     id: docId,
+    mountId: mount.id,
+    mountRelPath,
     type,
     typeInferred,
     title,
@@ -230,7 +272,7 @@ async function parseDocumentFile(
     ...(date ? { date } : {}),
     tags,
     format,
-    path: relPath,
+    path: logicalRelPath,
     dir,
     body,
     blocks: extracted.blocks,

@@ -289,6 +289,8 @@ describe('Document Git Freshness, Highlight & History', () => {
 
     const sampleDoc = {
       id: 'specs/demo',
+      mountId: 'root',
+      mountRelPath: 'specs/demo.mdx',
       type: 'spec' as const,
       typeInferred: false,
       title: 'Demo Spec',

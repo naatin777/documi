@@ -4,7 +4,7 @@ import { copyFile, cp, mkdir, readdir, readFile, realpath, rm, stat, writeFile }
 import path from 'node:path'
 import type { CodeTreeNode } from '../core/code'
 import { isSupportedLocalMedia } from '../core/media'
-import type { DocumentHistory, DocTreeNode } from '../core/types'
+import type { DocsMount, DocumentHistory, DocTreeNode } from '../core/types'
 import { createApp } from './app'
 import { resolveDefaultClientDist } from './dist'
 import type { MaterialIconManifest } from './routes/icons'
@@ -12,8 +12,10 @@ import { DocsStore } from './store'
 
 export interface BuildStaticSiteOptions {
   docsDir: string
+  mounts?: DocsMount[]
   projectRoot?: string
   testReportPath?: string
+  testReportPaths?: string[]
   outDir: string
   clientDist?: string
   /** アセット参照のベースパス（既定: "./" の相対パス） */
@@ -215,7 +217,9 @@ export async function buildStaticSite(options: BuildStaticSiteOptions): Promise<
 
   const store = await DocsStore.open(docsDir, {
     projectRoot,
+    mounts: options.mounts,
     testReportPath: options.testReportPath,
+    testReportPaths: options.testReportPaths,
   })
   const app = createApp(store, { projectRoot })
   const index = store.getIndex()
@@ -418,14 +422,15 @@ export async function buildStaticSite(options: BuildStaticSiteOptions): Promise<
     }
   }
 
-  // 4.5. docs/ 配下のローカルメディアファイル（画像・動画・音声）を media/ へ同梱
-  const mediaFiles = await collectLocalMediaFiles(store.rootDir)
+  // 4.5. 全マウント配下のローカルメディアファイル（画像・動画・音声）を media/ へ同梱
   let mediaFileCount = 0
-  if (mediaFiles.length > 0) {
-    const mediaOutDir = path.join(outDir, 'media')
+  const mediaOutDir = path.join(outDir, 'media')
+  for (const mount of index.mounts) {
+    const mediaFiles = await collectLocalMediaFiles(mount.dir)
     for (const relPath of mediaFiles) {
-      const srcPath = path.join(store.rootDir, relPath)
-      const destPath = path.join(mediaOutDir, relPath)
+      const srcPath = path.join(mount.dir, relPath)
+      const destRel = mount.prefixed ? path.join(mount.id, relPath) : relPath
+      const destPath = path.join(mediaOutDir, destRel)
       await mkdir(path.dirname(destPath), { recursive: true })
       await copyFile(srcPath, destPath)
       mediaFileCount++

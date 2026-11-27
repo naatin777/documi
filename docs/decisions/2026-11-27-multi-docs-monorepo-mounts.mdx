@@ -1,0 +1,37 @@
+---
+type: decision
+title: Monorepo 向け複数 docs 統合マウントとマウント別 reviews.json の採用
+description: 複数 docs ディレクトリを名前空間付きで 1 グラフへ統合マウントし、reviews.json はマウント別分散・--scope は全体グラフ上で絞り込む設計判断
+date: 2026-11-27
+tags: [decision, monorepo, config, architecture]
+derives:
+  - goals/low-friction-governance
+  - goals/ai-reproducibility
+---
+
+# Monorepo 向け複数 docs 統合マウントとマウント別 reviews.json の採用
+
+<Outcome id="decision.multi-docs-monorepo-mounts" stability="evolving">
+  Monorepo 等で複数の `docs/` ディレクトリをコード近傍に分散配置できるよう、`.documi.json` の `docs` に単一文字列または配列 `{ id?, path, label? }[]` を許可し、名前空間付きで **1 つの統合グラフ** へマウントする。承認サイドカー `guard/reviews.json` は各マウント配下へ分散配置し、`--scope <mountId>` は全体グラフをロードした上で検証・検索対象を絞り込む。
+</Outcome>
+
+## 背景・判断軸
+
+- Monorepo では `apps/web/docs`・`packages/api/docs` のようにコードと仕様を隣り合わせ（Colocation）に置きたい需要がある。
+- 一方で「`web` の `<Spec>` が `api` の `contract` やルート `goal` を参照する」横断トレースや、1 つのグラフ・検索・MCP での俯瞰を失いたくない。
+- 複数チームが並行して仕様承認を行う環境では、承認サイドカー `reviews.json` の Git コンフリクト回避と `CODEOWNERS` による権限分離も重要。
+
+## 検討した選択肢と棄却理由
+
+| 選択肢 | 採否 | 理由 |
+|---|---|---|
+| **統合マウント方式（採用）** | 採用 | 1 つの Web UI・グラフ・検索・MCP でパッケージ間トレースが繋がる。既定マウント（`id` 省略／`"root"`）はプレフィックスなしで既存互換を維持し、名前付きマウントだけ `<id>/...` を付与 |
+| 独立ワークスペース切替方式 | 棄却 | パッケージ間の `derives` / `satisfies` / `mentions` が途切れ、Monorepo 全体を横断検索・影響分析できない |
+| プライマリ 1 ファイルへ `reviews.json` 集約 | 棄却 | チーム間の PR で毎回同一ファイルがコンフリクトし、`CODEOWNERS` 分離もできず、`root` が無い構成で不自然 |
+| `--scope` 時に指定マウントのみ単独ロード | 棄却 | 別マウントの `goal` / `contract` への `derives` 参照が偽陽性で `missing-relation` / `orphan-spec` になる |
+
+## 影響・見直し条件
+
+- `Document` は `mountId`・`mountRelPath` を保持し、編集・Git 履歴・ローカルメディア・承認保存は常に所属マウントのディレクトリ境界で処理する。
+- `testReport` は `string | string[]` に対応し、パッケージごとに異なるテストランナーが出力した JUnit XML を統合する。
+- 単一 `docs` プロジェクトでは `mounts = [{ id: "root", dir: docsDir, prefixed: false }]` となり、従来の挙動・ファイル構造と 100% 互換。

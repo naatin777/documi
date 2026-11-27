@@ -12,6 +12,8 @@ import type {
   BlockReviewRecord,
   DiffLine,
   DocsIndex,
+  DocsMount,
+  Document,
   IndexIssue,
   ReviewsFile,
   SemanticBlock,
@@ -21,6 +23,29 @@ export const REVIEWS_REL_PATH = 'guard/reviews.json'
 const SNAPSHOT_CACHE_REL_PATH = '.documi/cache/approved-bodies.json'
 
 const UPSTREAM_EDGE_KINDS = new Set(['derives', 'satisfies', 'verifies'])
+
+export async function loadReviewsForMounts(mounts: readonly DocsMount[], issues: IndexIssue[]): Promise<ReviewsFile> {
+  const merged: Record<string, BlockReviewRecord> = {}
+  for (const mount of mounts) {
+    const mountIssues: IndexIssue[] = []
+    const file = await loadReviews(mount.dir, mountIssues)
+    for (const issue of mountIssues) {
+      issues.push({
+        ...issue,
+        path: mount.prefixed ? `${mount.id}/${issue.path ?? REVIEWS_REL_PATH}` : (issue.path ?? REVIEWS_REL_PATH),
+      })
+    }
+    for (const [blockId, rec] of Object.entries(file.blocks)) {
+      merged[blockId] = rec
+    }
+  }
+  return { version: 1, blocks: merged }
+}
+
+function resolveReviewMountDir(fallbackDocsDir: string, index: DocsIndex, doc?: Pick<Document, 'mountId'>): string {
+  if (!doc) return fallbackDocsDir
+  return index.mounts.find((m) => m.id === doc.mountId)?.dir ?? fallbackDocsDir
+}
 
 export async function loadReviews(docsDir: string, issues: IndexIssue[]): Promise<ReviewsFile> {
   const filePath = path.join(docsDir, REVIEWS_REL_PATH)
@@ -312,14 +337,15 @@ export async function approveBlock(
     )
   }
 
+  const targetDocsDir = resolveReviewMountDir(docsDir, index, doc)
   const upstreamHashes = collectUpstreamHashes(index, block)
   const note = options.note?.trim() || undefined
-  const approvedBy = options.author?.trim() || getGitUserName(docsDir)
+  const approvedBy = options.author?.trim() || getGitUserName(targetDocsDir)
 
   const record: BlockReviewRecord = {
-    docPath: doc.path,
+    docPath: doc.mountRelPath || doc.path,
     hash: block.contentHash,
-    approvedCommit: getGitHeadShortSha(docsDir),
+    approvedCommit: getGitHeadShortSha(targetDocsDir),
     approvedAt: new Date().toISOString(),
     ...(approvedBy ? { approvedBy } : {}),
     ...(note ? { note } : {}),
@@ -327,10 +353,10 @@ export async function approveBlock(
   }
 
   await withReviewLock(async () => {
-    const reviews = await loadReviews(docsDir, [])
+    const reviews = await loadReviews(targetDocsDir, [])
     reviews.blocks[blockId] = record
-    await saveReviews(docsDir, reviews)
-    await writeBodyCache(docsDir, blockId, block.rawBody, options.cacheRoot)
+    await saveReviews(targetDocsDir, reviews)
+    await writeBodyCache(targetDocsDir, blockId, block.rawBody, options.cacheRoot)
   })
   return Result.ok(record)
 }
@@ -349,15 +375,17 @@ export async function unapproveBlock(
   if (!block) {
     return Result.err(new BlockNotFoundError({ blockId, message: `Block not found: ${blockId}` }))
   }
+  const doc = index.byId.get(block.docId)
+  const targetDocsDir = resolveReviewMountDir(docsDir, index, doc)
 
   const removed = await withReviewLock(async () => {
-    const reviews = await loadReviews(docsDir, [])
+    const reviews = await loadReviews(targetDocsDir, [])
     const prev = reviews.blocks[blockId]
     if (!prev || !prev.hash) return false
 
     delete reviews.blocks[blockId]
-    await saveReviews(docsDir, reviews)
-    await removeBodyCache(docsDir, blockId, options.cacheRoot)
+    await saveReviews(targetDocsDir, reviews)
+    await removeBodyCache(targetDocsDir, blockId, options.cacheRoot)
     return true
   })
   return Result.ok({ removed })
@@ -387,15 +415,17 @@ export async function getBlockDiff(
   if (!block) {
     return Result.err(new BlockNotFoundError({ blockId, message: `Block not found: ${blockId}` }))
   }
+  const doc = index.byId.get(block.docId)
+  const targetDocsDir = resolveReviewMountDir(docsDir, index, doc)
 
-  const reviews = await loadReviews(docsDir, [])
+  const reviews = await loadReviews(targetDocsDir, [])
   const rec = reviews.blocks[blockId]
   if (!rec || !rec.hash) {
     return Result.ok({ blockId, baseSource: 'none', changed: false, lines: [] })
   }
 
   if (rec.approvedCommit && rec.docPath) {
-    const fromGit = readBlockFromGitCommit(docsDir, rec.approvedCommit, rec.docPath, blockId)
+    const fromGit = readBlockFromGitCommit(targetDocsDir, rec.approvedCommit, rec.docPath, blockId)
     if (fromGit !== undefined && computeContentHash(fromGit) === rec.hash) {
       const lines = computeLineDiff(fromGit, block.rawBody)
       return Result.ok({
@@ -408,7 +438,7 @@ export async function getBlockDiff(
     }
   }
 
-  const cache = await readBodyCache(docsDir, options.cacheRoot)
+  const cache = await readBodyCache(targetDocsDir, options.cacheRoot)
   const fromCache = cache[blockId]
   if (typeof fromCache === 'string') {
     const lines = computeLineDiff(fromCache, block.rawBody)

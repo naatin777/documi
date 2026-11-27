@@ -16,7 +16,7 @@ Documi がファイルシステム上で読み書きする永続ファイル・�
 
 ## 1. 人間承認ガードファイル (`docs/guard/reviews.json`)
 
-- **配置**: `<docsDir>/guard/reviews.json`（Git コミット対象・非隠しフォルダ・AI 編集禁止）
+- **配置**: `<mountDir>/guard/reviews.json`（Git コミット対象・非隠しフォルダ・AI 編集禁止）。複数マウント構成では各マウント配下に分散配置され、読み込み時に統合・承認書込時は対象ブロックの所属マウントへ保存する。
 - **決定論的フォーマット**: `blocks` キーおよび各ブロック内の `upstreamHashes` キーは常に昇順ソート＋2 スペース JSON＋末尾改行で保存し、Git diff ノイズを防ぐ。
 - **検証と耐障害性**: ファイル未存在時は `{ "version": 1, "blocks": {} }` として正常読み込みする。JSON 破損・ルート型不正・必須フィールド（`docPath` / `hash` / `approvedAt`）が欠損または空文字のレコードは `invalid-reviews` issue を記録してスキップし、存在しないブロック ID のレコードは `orphan-review` issue を記録する。
 
@@ -62,8 +62,8 @@ Documi がファイルシステム上で読み書きする永続ファイル・�
 
 | キー | 型 | 既定値 | 説明 |
 |---|---|---|---|
-| `docs` | `string` (非空) | `"docs"` | `projectRoot` からの相対パス |
-| `testReport` | `string` (非空) | 未指定時は自動探索 | JUnit XML テストレポートの相対パス |
+| `docs` | `string \| { id?, path, label? }[]` | `"docs"` | 単一 `projectRoot` 相対パス、または Monorepo 統合マウント配列（`id` 省略／`"root"` は Document ID プレフィックスなし、名前付きは `<id>/...`） |
+| `testReport` | `string \| string[]` | 未指定時は自動探索 | JUnit XML テストレポートの相対パス（配列指定時は全結果を統合） |
 | `reviewGate` | `"none" \| "stable" \| "all"` | `"none"` | `documi check` の既定レビュー承認ゲート（`--review-gate` で上書き可） |
 | `rag.enabled` | `boolean` | `false` | `true` で `search` / `retrieve` の既定をハイブリッド検索化 |
 | `rag.provider` | `"ollama" \| "openai" \| "gemini"` | `"ollama"` | Embedding プロバイダ種別 |

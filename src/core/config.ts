@@ -4,9 +4,11 @@ import { Result } from 'better-result'
 import { parse as parseYaml } from 'yaml'
 import { z } from 'zod'
 import { ConfigParseError, ConfigReadError, ConfigValidationError, type ConfigDomainError } from './errors'
+import type { DocsMount } from './types'
 
 /** プロジェクトルート直下で探索する設定ファイル名（優先順） */
 const CONFIG_FILE_NAMES = ['.documi.json', '.documi.yml', '.documi.yaml', 'documi.json'] as const
+const MOUNT_ID_PATTERN = /^[a-z0-9][a-z0-9_-]*$/
 
 export const RAG_PROVIDERS = ['ollama', 'openai', 'gemini'] as const
 export type RagProvider = (typeof RAG_PROVIDERS)[number]
@@ -38,12 +40,44 @@ const ragConfigSchema = z
 
 export type RagConfig = z.infer<typeof ragConfigSchema>
 
+const docsMountConfigSchema = z
+  .object({
+    /** マウント識別子（省略または "root" でプレフィックスなし、それ以外は "<id>/" を Document ID に付与） */
+    id: z.string().trim().regex(MOUNT_ID_PATTERN, 'Mount id must match /^[a-z0-9][a-z0-9_-]*$/').optional(),
+    /** ドキュメントディレクトリ（projectRoot からの相対パス） */
+    path: z.string().trim().min(1),
+    /** Web UI 等の表示ラベル（任意） */
+    label: z.string().trim().min(1).optional(),
+  })
+  .strict()
+
 const documiConfigSchema = z
   .object({
-    /** ドキュメントルートディレクトリ（projectRoot からの相対パス、既定: "docs"） */
-    docs: z.string().trim().min(1).optional(),
-    /** JUnit XML テストレポートのパス（projectRoot からの相対パス） */
-    testReport: z.string().trim().min(1).optional(),
+    /** ドキュメントルートディレクトリ（単一相対パス、または Monorepo 統合マウント配列。既定: "docs"） */
+    docs: z
+      .union([
+        z.string().trim().min(1),
+        z
+          .array(docsMountConfigSchema)
+          .min(1)
+          .superRefine((entries, ctx) => {
+            const seenIds = new Set<string>()
+            entries.forEach((entry, idx) => {
+              const effectiveId = entry.id ?? 'root'
+              if (seenIds.has(effectiveId)) {
+                ctx.addIssue({
+                  code: 'custom',
+                  path: [idx, 'id'],
+                  message: `Duplicate docs mount id "${effectiveId}"`,
+                })
+              }
+              seenIds.add(effectiveId)
+            })
+          }),
+      ])
+      .optional(),
+    /** JUnit XML テストレポートのパス（単一または複数配列、projectRoot からの相対パス） */
+    testReport: z.union([z.string().trim().min(1), z.array(z.string().trim().min(1)).min(1)]).optional(),
     /** `documi check` の既定レビュー承認ゲート ("none" | "stable" | "all"、既定: "none") */
     reviewGate: z.enum(REVIEW_GATES).optional(),
     /** ローカル Hybrid RAG（BM25 + Embedding + RRF）設定（任意） */
@@ -68,8 +102,14 @@ export interface ResolveProjectPathsOptions {
 
 export interface ResolvedProjectPaths {
   projectRoot: string
+  /** プライマリドキュメントディレクトリ（単一 docs、または root / 先頭マウントのパス） */
   docsDir: string
+  /** 解決済みドキュメントマウント一覧（常に 1 件以上） */
+  docsMounts: DocsMount[]
+  /** 最初の JUnit XML テストレポートパス（後方互換用） */
   testReportPath?: string
+  /** 解決済み JUnit XML テストレポートパス一覧 */
+  testReportPaths: string[]
   configPath?: string
   config: DocumiConfig
 }
@@ -172,13 +212,31 @@ export function loadProjectConfig(projectRoot: string): Result<LoadedDocumiConfi
   return Result.ok({ config: {} })
 }
 
+function resolveConfiguredMounts(projectRoot: string, rawDocsConfig: DocumiConfig['docs']): DocsMount[] {
+  if (!rawDocsConfig) {
+    return [{ id: 'root', dir: path.resolve(projectRoot, 'docs'), prefixed: false }]
+  }
+  if (typeof rawDocsConfig === 'string') {
+    return [{ id: 'root', dir: path.resolve(projectRoot, rawDocsConfig), prefixed: false }]
+  }
+  return rawDocsConfig.map((entry) => {
+    const id = entry.id ?? 'root'
+    return {
+      id,
+      dir: path.resolve(projectRoot, entry.path),
+      ...(entry.label ? { label: entry.label } : {}),
+      prefixed: id !== 'root',
+    }
+  })
+}
+
 // @implements core.project-config
 /**
- * CLI 引数・環境変数・プロジェクト設定ファイルから `projectRoot` と `docsDir` を双方向推論で解決する。
+ * CLI 引数・環境変数・プロジェクト設定ファイルから `projectRoot`・`docsDir`・`docsMounts`・`testReportPaths` を双方向推論で解決する。
  *
  * 解決ルール:
- * 1. `--project` / `DOCUMI_PROJECT_ROOT` のみ指定 → `<projectRoot>` の設定ファイル `docs`、無ければ `<projectRoot>/docs`
- * 2. `--docs` / `DOCUMI_DOCS_DIR` のみ指定 → `projectRoot` は `dirname(docsDir)`
+ * 1. `--project` / `DOCUMI_PROJECT_ROOT` のみ指定 → `<projectRoot>` の設定ファイル `docs`（単一または複数マウント）、無ければ `<projectRoot>/docs`
+ * 2. `--docs` / `DOCUMI_DOCS_DIR` のみ指定 → `projectRoot` は `dirname(docsDir)`（明示指定の単一マウントとして採用）
  * 3. 両方省略 → `projectRoot = cwd`、設定ファイル `docs` または `<cwd>/docs`
  * 4. 両方指定 → それぞれを明示採用
  */
@@ -193,37 +251,48 @@ export function resolveProjectPaths(
     const rawTestReport = nonEmpty(options.testReport)
 
     let projectRoot: string
-    let docsDir: string
+    let docsMounts: DocsMount[]
     let loaded: LoadedDocumiConfig
 
     if (rawProject) {
       projectRoot = path.resolve(cwd, rawProject)
       loaded = yield* loadProjectConfig(projectRoot)
-      docsDir = rawDocs ? path.resolve(cwd, rawDocs) : path.resolve(projectRoot, loaded.config.docs ?? 'docs')
+      docsMounts = rawDocs
+        ? [{ id: 'root', dir: path.resolve(cwd, rawDocs), prefixed: false }]
+        : resolveConfiguredMounts(projectRoot, loaded.config.docs)
     } else if (rawDocs) {
-      docsDir = path.resolve(cwd, rawDocs)
-      projectRoot = path.dirname(docsDir)
+      const explicitDocsDir = path.resolve(cwd, rawDocs)
+      projectRoot = path.dirname(explicitDocsDir)
       loaded = yield* loadProjectConfig(projectRoot)
+      docsMounts = [{ id: 'root', dir: explicitDocsDir, prefixed: false }]
     } else {
       projectRoot = cwd
       loaded = yield* loadProjectConfig(projectRoot)
-      docsDir = path.resolve(projectRoot, loaded.config.docs ?? 'docs')
+      docsMounts = resolveConfiguredMounts(projectRoot, loaded.config.docs)
     }
+
+    const primaryMount = docsMounts.find((m) => !m.prefixed) ?? docsMounts[0]!
+    const docsDir = primaryMount.dir
 
     if (!options.env) {
       loadProjectDotEnv(projectRoot, process.env)
     }
 
-    const testReportPath = rawTestReport
-      ? path.resolve(cwd, rawTestReport)
+    const testReportPaths: string[] = rawTestReport
+      ? [path.resolve(cwd, rawTestReport)]
       : loaded.config.testReport
-        ? path.resolve(projectRoot, loaded.config.testReport)
-        : undefined
+        ? (Array.isArray(loaded.config.testReport) ? loaded.config.testReport : [loaded.config.testReport]).map((p) =>
+            path.resolve(projectRoot, p),
+          )
+        : []
+    const testReportPath = testReportPaths[0]
 
     return Result.ok({
       projectRoot,
       docsDir,
+      docsMounts,
       ...(testReportPath ? { testReportPath } : {}),
+      testReportPaths,
       ...(loaded.configPath ? { configPath: loaded.configPath } : {}),
       config: loaded.config,
     })

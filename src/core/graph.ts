@@ -1,6 +1,6 @@
 import path from 'node:path'
 import { TRACE_EDGE_KINDS } from './types'
-import type { Document, EdgeKind, GraphEdge, ResolvedRelation, SemanticBlock } from './types'
+import type { DocsMount, Document, EdgeKind, GraphEdge, ResolvedRelation, SemanticBlock } from './types'
 
 export interface RawDocEntry {
   doc: Document
@@ -27,6 +27,7 @@ export function buildGraphAndValidate(
   byId: Map<string, Document>,
   blocksById: Map<string, SemanticBlock>,
   termsByName: Map<string, SemanticBlock>,
+  mounts: readonly DocsMount[] = [],
 ): GraphEdge[] {
   const edges: GraphEdge[] = []
   const edgeKeys = new Set<string>()
@@ -125,7 +126,7 @@ export function buildGraphAndValidate(
     // 4. 本文 Markdown リンクから mentions エッジを自動抽出
     for (const href of bodyLinks) {
       if (isExternalOrAnchorHref(href)) continue
-      const target = resolveTarget(href, doc, byId, blocksById)
+      const target = resolveTarget(href, doc, byId, blocksById, mounts)
       if (target) {
         addEdge(doc.id, doc, target, 'mentions', false)
       } else if (looksLikeInternalDocLink(href)) {
@@ -368,9 +369,23 @@ function resolveTarget(
   fromDoc: Document,
   byId: Map<string, Document>,
   blocksById: Map<string, SemanticBlock>,
+  mounts: readonly DocsMount[] = [],
 ): ResolvedTarget | undefined {
   const cleaned = raw.trim().split('#')[0]?.split('?')[0]?.trim() ?? ''
   if (!cleaned) return undefined
+
+  // 0. doc:<docId> 明示スキーム
+  if (cleaned.startsWith('doc:')) {
+    const refId = stripDocExt(cleaned.slice(4).replace(/^\/+/, ''))
+    const blockByScheme = blocksById.get(refId)
+    if (blockByScheme) {
+      const doc = byId.get(blockByScheme.docId)
+      if (doc) return { ref: blockByScheme.id, kind: 'block', doc }
+    }
+    const docByScheme = byId.get(refId)
+    if (docByScheme) return { ref: docByScheme.id, kind: 'doc', doc: docByScheme }
+    return undefined
+  }
 
   // 1. ブロック ID に完全一致
   const block = blocksById.get(cleaned)
@@ -384,11 +399,29 @@ function resolveTarget(
   const direct = byId.get(stripDocExt(withoutRoute))
   if (direct) return { ref: direct.id, kind: 'doc', doc: direct }
 
-  // 3. 相対パス解決 (./foo.mdx, ../goals/core.mdx)
+  // 3. 相対パス解決 (同一マウント内 ./foo.mdx, ../goals/core.mdx)
   if (cleaned.startsWith('./') || cleaned.startsWith('../') || /\.(md|mdx)$/i.test(cleaned)) {
     const joined = path.posix.normalize(path.posix.join(fromDoc.dir, cleaned))
     const relDoc = byId.get(stripDocExt(joined))
     if (relDoc) return { ref: relDoc.id, kind: 'doc', doc: relDoc }
+
+    // 4. マウント間クロス相対パス解決 (../../../packages/api/docs/contracts/rest.mdx)
+    if (mounts.length > 1) {
+      const fromMount = mounts.find((m) => m.id === fromDoc.mountId)
+      if (fromMount) {
+        const fromDirRel = path.posix.dirname(fromDoc.mountRelPath)
+        const baseDir = fromDirRel === '.' ? fromMount.dir : path.resolve(fromMount.dir, fromDirRel)
+        const absTarget = path.resolve(baseDir, cleaned)
+        for (const candidate of mounts) {
+          const rel = path.relative(candidate.dir, absTarget)
+          if (!rel || rel.startsWith('..') || path.isAbsolute(rel)) continue
+          const posixRel = rel.split(path.sep).join('/')
+          const targetId = stripDocExt(candidate.prefixed ? `${candidate.id}/${posixRel}` : posixRel)
+          const crossDoc = byId.get(targetId)
+          if (crossDoc) return { ref: crossDoc.id, kind: 'doc', doc: crossDoc }
+        }
+      }
+    }
   }
 
   return undefined
@@ -397,10 +430,11 @@ function resolveTarget(
 function isExternalOrAnchorHref(href: string): boolean {
   const t = href.trim()
   if (t.startsWith('#')) return true
+  if (t.startsWith('doc:')) return false
   return /^(?:https?|mailto|tel|data|javascript):/i.test(t)
 }
 
 function looksLikeInternalDocLink(href: string): boolean {
   const t = href.trim().split('#')[0]?.split('?')[0] ?? ''
-  return /\.(md|mdx)$/i.test(t) || t.startsWith('/docs/') || t.startsWith('/pages/')
+  return t.startsWith('doc:') || /\.(md|mdx)$/i.test(t) || t.startsWith('/docs/') || t.startsWith('/pages/')
 }

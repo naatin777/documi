@@ -49,10 +49,23 @@ export function createMediaRoutes(store: DocsStore) {
       return c.json({ error: 'Unsupported media type' }, 403)
     }
 
-    const rootDir = path.resolve(store.rootDir)
-    const realRoot = await realpath(rootDir).catch(() => rootDir)
+    // 複数マウント時は先頭セグメントが名前付きマウント ID に一致すればそのマウントディレクトリへ解決する
+    const index = store.getIndex()
+    let targetRootDir = path.resolve(store.rootDir)
+    let targetRelPath = resolved.relPath
+    const slashIdx = resolved.relPath.indexOf('/')
+    if (slashIdx > 0) {
+      const firstSeg = resolved.relPath.slice(0, slashIdx)
+      const matchedMount = index.mounts.find((m) => m.prefixed && m.id === firstSeg)
+      if (matchedMount) {
+        targetRootDir = path.resolve(matchedMount.dir)
+        targetRelPath = resolved.relPath.slice(slashIdx + 1)
+      }
+    }
+
+    const realRoot = await realpath(targetRootDir).catch(() => targetRootDir)
     const rootPrefix = realRoot.endsWith(path.sep) ? realRoot : `${realRoot}${path.sep}`
-    const absPath = path.join(rootDir, resolved.relPath)
+    const absPath = path.join(targetRootDir, targetRelPath)
 
     let realAbs: string
     let size: number

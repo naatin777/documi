@@ -225,7 +225,7 @@ function isReadableCodeFile(name: string): boolean {
   return ext !== '' && TEXT_EXTS.has(ext)
 }
 
-async function collectProjectCodeFiles(root: string, relDir: string, docsRel: string): Promise<string[]> {
+async function collectProjectCodeFiles(root: string, relDir: string, docsRels: readonly string[]): Promise<string[]> {
   const absDir = relDir ? path.join(root, relDir) : root
   let entries: Dirent[]
   try {
@@ -238,9 +238,9 @@ async function collectProjectCodeFiles(root: string, relDir: string, docsRel: st
   for (const entry of entries) {
     if (entry.name.startsWith('.') || IGNORED_DIRS.has(entry.name)) continue
     const rel = relDir ? `${relDir}/${entry.name}` : entry.name
-    if (docsRel && (rel === docsRel || rel.startsWith(`${docsRel}/`))) continue
+    if (docsRels.some((d) => rel === d || rel.startsWith(`${d}/`))) continue
     if (entry.isDirectory()) {
-      const nested = await collectProjectCodeFiles(root, rel, docsRel)
+      const nested = await collectProjectCodeFiles(root, rel, docsRels)
       out.push(...nested)
     } else if (entry.isFile() && isReadableCodeFile(entry.name)) {
       out.push(rel)
@@ -277,10 +277,12 @@ function finalizeDirCounts(node: CodeTreeDir): { covered: number; total: number 
  */
 export async function buildCodeTree(projectRoot: string, index: DocsIndex): Promise<CodeTreeResult> {
   const root = path.resolve(projectRoot)
-  const docsRel = normalizeRelPath(path.relative(root, index.rootDir))
-  const safeDocsRel = docsRel.startsWith('..') ? '' : docsRel
+  const mountDirs = index.mounts.length > 0 ? index.mounts.map((m) => m.dir) : [index.rootDir]
+  const safeDocsRels = mountDirs
+    .map((dir) => normalizeRelPath(path.relative(root, dir)))
+    .filter((rel) => rel && !rel.startsWith('..') && !path.isAbsolute(rel))
 
-  const relFiles = (await collectProjectCodeFiles(root, '', safeDocsRel)).toSorted((a, b) => a.localeCompare(b))
+  const relFiles = (await collectProjectCodeFiles(root, '', safeDocsRels)).toSorted((a, b) => a.localeCompare(b))
   const rev = buildFileReverseIndex(index)
 
   const files: CodeFileSummary[] = []

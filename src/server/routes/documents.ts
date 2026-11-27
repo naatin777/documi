@@ -5,7 +5,7 @@ import type { RagConfig } from '../../core/config'
 import { getDocumentHistory, getDocumentRevision } from '../../core/git'
 import { computeDocumentHealth } from '../../core/health'
 import { searchIndexHybrid } from '../../core/hybrid-retrieval'
-import { buildDocTree, getDocument, toDocumentSummary } from '../../core/loader'
+import { buildDocTree, getDocument, resolveDocMount, toDocumentSummary } from '../../core/loader'
 import { ARTIFACT_TYPES, REALIZATION_STATUSES, SPEC_INTENTS, STABILITIES } from '../../core/types'
 import type {
   ArtifactType,
@@ -221,10 +221,16 @@ export function createDocumentsRoutes(store: DocsStore, projectRoot?: string, ra
       })
       .get('/tree', (c) => {
         const index = store.getIndex()
+        const mounts = index.mounts.map((m) => ({
+          id: m.id,
+          label: m.label ?? m.id,
+          docCount: index.documents.filter((d) => d.mountId === m.id).length,
+        }))
         return c.json(
           {
             tree: buildDocTree(index.documents),
             documents: index.documents.map(toDocumentSummary),
+            mounts,
           },
           200,
         )
@@ -262,7 +268,7 @@ export function createDocumentsRoutes(store: DocsStore, projectRoot?: string, ra
         if (!doc) return c.json({ code: 'DocumentNotFoundError', error: `Document not found: ${docId}` }, 404)
         const rawLimit = Number(rawLimitStr ?? 20)
         const limit = Number.isFinite(rawLimit) && rawLimit > 0 ? Math.min(rawLimit, 50) : 20
-        const history = await getDocumentHistory(index.rootDir, doc, limit)
+        const history = await getDocumentHistory(resolveDocMount(index, doc).dir, doc, limit)
         return c.json(history, 200)
       })
       .get('/history/revision', zValidator('query', revisionQuerySchema), (c) => {
@@ -273,7 +279,7 @@ export function createDocumentsRoutes(store: DocsStore, projectRoot?: string, ra
         }
         const doc = getDocument(index, docId)
         if (!doc) return c.json({ code: 'DocumentNotFoundError', error: `Document not found: ${docId}` }, 404)
-        const revisionRes = getDocumentRevision(index.rootDir, doc, commit)
+        const revisionRes = getDocumentRevision(resolveDocMount(index, doc).dir, doc, commit)
         if (revisionRes.isErr()) {
           const http = historyErrorToHttp(revisionRes.error)
           return c.json(http.body, http.status)
