@@ -44,10 +44,10 @@ AI が 1 ブロック修正するために無関係な文書全体を読み込�
 
 | Tool | 入力 | 役割 |
 |---|---|---|
-| `update_block` | `id`, `body`, `title?`, `summary?`, `date?`, `level?`, `verifies?`, `stability?`, `intent?`, `derives?`, `supersedes?`, `scope?`, `aliases?`, `symbols?` | 既存セマンティックブロック（`<Spec>` / `<Constraint>` / `<Decision>` / `<Test>` / `<TermDef>` / `<Note>`）の該当行範囲のみを更新し、再読込後の検証結果を返却 |
-| `add_block` | `docId`, `kind`, `id`, `body`, `afterHeading?`, `title?`, `stability?`, `intent?`, `derives?`, `supersedes?`, `scope?`, `aliases?`, `symbols?` | 指定ドキュメント末尾（または指定見出し直下）にセマンティックブロックを 1 件追記し、検証結果を返却 |
-| `upsert_term` | `id`, `definition`, `aliases?`, `symbols?`, `docId?` | 用語集（既定: `domain/glossary`）に `<TermDef>` を追加または更新し、検証結果を返却 |
-| `scaffold_document` | `path`, `title`, `mount?`, `type?`, `description?`, `date?`, `tags?`, `derives?`, `satisfies?`, `verifies?`, `body?` | 規約通りの YAML frontmatter を持つ新規 `.mdx` ドキュメントを作成（既存ファイルの上書きは拒否、`mount` 省略時はプライマリへ出力） |
+| `update_block` | `id`, `body`, `title?`, `summary?`, `date?`, `level?`, `verifies?`, `stability?`, `intent?`, `derives?`, `supersedes?`, `scope?`, `aliases?`, `antiTerms?`, `context?`, `symbols?` | 既存セマンティックブロック（`<Spec>` / `<Constraint>` / `<Decision>` / `<Test>` / `<TermDef>` / `<Note>`）の該当行範囲のみを更新し、再読込後の検証結果を返却 |
+| `add_block` | `docId`, `kind`, `id`, `body`, `afterHeading?`, `title?`, `summary?`, `date?`, `level?`, `verifies?`, `stability?`, `intent?`, `derives?`, `supersedes?`, `scope?`, `aliases?`, `antiTerms?`, `context?`, `symbols?` | 指定ドキュメント末尾（または指定見出し直下）にセマンティックブロックを 1 件追記し、検証結果を返却 |
+| `upsert_term` | `id`, `definition`, `aliases?`, `antiTerms?`, `context?`, `symbols?`, `docId?` | 用語集（既定: `domain/glossary`）に `<TermDef>` を追加または更新し、検証結果を返却 |
+| `scaffold_document` | `path`, `title`, `mount?`, `type?`, `scope?`, `description?`, `date?`, `tags?`, `derives?`, `satisfies?`, `verifies?`, `body?` | 規約通りの YAML frontmatter を持つ新規 `.mdx` ドキュメントを作成（既存ファイルの上書きは拒否、`mount` 省略時はプライマリへ出力、`scope: "system"` で全体設計を作成） |
 | `rename_block_id` | `oldId`, `newId`, `dryRun?` | 全 `docs/` のブロック定義・`derives` / `supersedes` / `satisfies` / `verifies`・`<SourceRef>` と、`projectRoot` 配下の `@implements` / `@verifies` / `test("[id]")` を一括リネーム（`dryRun: true` で変更予定一覧のみ返却） |
 
 ## コンパクト出力 vs `full: true` 契約
