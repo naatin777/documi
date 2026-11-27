@@ -106,3 +106,21 @@ flowchart TB
 | **Normative** | `spec`, `contract` | 実装・検証対象の機能について必須投入（保証シナリオ `<Test>` を同居） |
 | **Realization** | `design` | 全体設計（`scope: system`）は常時、機能別 `design` は対象機能のみ投入 |
 | **Informative** | `guide` | 手順確認など必要時のみ参照 |
+
+## 5. システム横断の不変制約（System Constraints）
+
+<Constraint id="sys.no-arbitrary-js" scope="mdx" stability="stable">
+  MDX 内の任意 JavaScript (ESM import/export、JSX 式、未許可コンポーネント) は一切実行しない。許可リストのセマンティックタグのみを AST ベースで安全に処理する。
+</Constraint>
+
+<Constraint id="sys.fs-sot" scope="architecture" stability="stable">
+  ファイルシステム上の Markdown / MDX を Single Source of Truth とし、Web UI・REST API・MCP Server・CLI はすべてフレームワーク非依存の Document Core (`src/core/`) を共有する。
+</Constraint>
+
+<Constraint id="sys.web-readonly-mdx" scope="ui" stability="stable">
+  Web UI に高機能な MDX 本文エディタは作らない。Web UI からの書き込みは承認ガードファイル (`docs/guard/reviews.json`) に限定し、MDX 本文の編集は AI エージェントまたはローカルエディタが担う。
+</Constraint>
+
+<Constraint id="sys.pre-release-policy" scope="workflow" stability="evolving">
+  未リリース開発期間中は後方互換レイヤ（v1/v2 分岐・非推奨エイリアス・DB マイグレーション）を溜めず現行実装を直接書き換える。パッケージ公開・タグ打ち・リリースノート作成等のリリース準備は、人間の明示的な指示なしに開始しない。
+</Constraint>

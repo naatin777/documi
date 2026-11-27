@@ -960,6 +960,13 @@ async function cmdMap(flags: CliFlags, io: CliIo): Promise<number> {
     io.out(`\nSystem Designs (${map.systemDesigns.length}):`)
     for (const a of map.systemDesigns) io.out(`  - ${a.id}: ${a.title}`)
   }
+  if (map.systemConstraints.length > 0) {
+    io.out(`\nSystem Constraints (${map.systemConstraints.length}):`)
+    for (const c of map.systemConstraints) {
+      const firstLine = c.body.trim().split('\n')[0] ?? ''
+      io.out(`  - ${c.id} (${c.docId}): ${firstLine}`)
+    }
+  }
   if (map.decisions.length > 0) {
     const supersededNote =
       map.supersededDecisions.length > 0 ? `, ${map.supersededDecisions.length} superseded hidden` : ''

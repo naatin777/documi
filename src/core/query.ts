@@ -103,6 +103,21 @@ export function buildProjectMap(index: DocsIndex, options: { full?: boolean } = 
   const systemDesigns = index.documents
     .filter((d) => d.type === 'design' && d.scope === 'system')
     .map((d) => toMapDocEntry(d, full))
+  const systemConstraints = [...index.blocksById.values()]
+    .filter((b) => {
+      if (b.kind !== 'constraint') return false
+      const doc = index.byId.get(b.docId)
+      return doc?.type === 'design' && doc.scope === 'system'
+    })
+    .map((b) => {
+      const item: { id: string; docId: string; scope?: string; body: string } = {
+        id: b.id,
+        docId: b.docId,
+        body: full ? b.rawBody : summarizeText(b.rawBody, 200),
+      }
+      if (b.kind === 'constraint' && b.scope) item.scope = b.scope
+      return item
+    })
   // 常時 map に載せるのは独立 decision ファイル内の <Decision> のみ（design/spec 内マイクロ ADR は context/search でオンデマンド取得）
   const allDecisions = [...index.blocksById.values()]
     .filter((b): b is DecisionSemanticBlock => b.kind === 'decision' && index.byId.get(b.docId)?.type === 'decision')
@@ -194,6 +209,7 @@ export function buildProjectMap(index: DocsIndex, options: { full?: boolean } = 
     goals,
     goalConstraints,
     systemDesigns,
+    systemConstraints,
     domainModels,
     domainInvariants,
     decisions,

@@ -371,6 +371,7 @@ description: 既存のソースコード・テストと Documi の仕様・契�
 3. **永続ファイル＆設定スキーマ契約 (\`contract\`)**: JSON / YAML / DB / 出力ファイルの実パス・フィールド・型・既定値・厳格検証。
 4. **外部 I/F の入出力契約 (\`contract\`)**: REST API・MCP・CLI の引数・主要レスポンス構造・エラーコード・副作用範囲。
 5. **公開境界の AST 紐づけと未記録 ADR 漏れ**: 主要モジュールの export を \`<SourceRef file="src/..." mode="exports" />\` で接続し、後戻りコストが高い判断や Non-Goals を ADR / Goal に記録する。
+6. **層の漏れ・用語リンク健全性**: \`goal\`（Problem Space）に実装詳細（タグ名・関数名・ファイルパス・技術制約）や宣伝文が漏れ込んでいないか、技術制約は全体設計（\`design\` / \`scope: system\`）へ分離されているか、登録済み用語がバッククォート囲みで自動リンク無効になっていないかを確認する。
 
 ## 3. 書きすぎ防止ガード（リファクタリングテスト）
 
@@ -482,8 +483,8 @@ Use this skill when introducing Documi into an **existing codebase** so that ini
 
 Use \`documi\` CLI commands (\`documi scaffold\`, \`documi block add\`, \`documi term upsert\`) rather than hand-crafting large files:
 
-1. **Root Goal (\`goals/\`)**: Create 1 concise Root Goal describing the product purpose, target users, and explicit Non-Goals. Capture hard architectural invariants as \`<Constraint id="...">\`.
-2. **System Overview (\`designs/system-overview.mdx\`, \`scope: system\`)**: Create 1 system-scope design document describing modules, boundaries, and data flow with real \`<SourceRef file="src/..." mode="exports" />\` links.
+1. **Root Goal (\`goals/\`)**: Create 1 concise Root Goal describing the product purpose, target users, and explicit Non-Goals.
+2. **System Overview (\`designs/system-overview.mdx\`, \`scope: system\`)**: Create 1 system-scope design document describing modules, boundaries, data flow, and system-wide technical constraints (\`<Constraint id="sys....">\`) with real \`<SourceRef file="src/..." mode="exports" />\` links.
 3. **Existing Key Decisions (\`decisions/\`)**: Record only the 1–3 most consequential architectural decisions already baked into the codebase, each with a 2–3 line \`<Decision id="dec....">\`.
 
 ## 3. Extract Bottom-Up Living Specs From Real Code
@@ -585,6 +586,7 @@ Ask: *"If another AI re-implemented this domain from \`${relDocsDir}/\` alone, w
 3. **Persistent File & Config Schemas (\`contract\`)**: exact file paths, required/optional fields, types, defaults, and strict validation rules (e.g., unknown-key rejection).
 4. **External I/F Contracts (\`contract\`)**: REST API, MCP tool, and CLI arguments, key request/response fields, side-effect boundaries, and idempotency.
 5. **Public AST Anchors & Unrecorded ADRs**: link public module exports with \`<SourceRef file="src/..." mode="exports" />\`, and record any hard-to-reverse structural decisions or Non-Goals in \`decisions/\` or \`goals/\`.
+6. **Layer Leakage & Glossary Link Hygiene**: verify \`goal\` docs stay in the Problem Space (no leaked implementation tags, function names, file paths, technical constraints, or marketing pitches; move system-wide technical constraints to \`design\` with \`scope: system\`) and ensure glossary terms are not accidentally wrapped in backticks that suppress autolinking.
 
 ## 3. Anti-Pseudocode Guardrail (Refactoring Test)
 

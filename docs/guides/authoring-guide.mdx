@@ -38,7 +38,7 @@ ISO/IEC/IEEE 29148（BRS / StRS）・Amazon Working Backwards（PR/FAQ）・Impa
 
 ### 2.1 新 Type (`vision`) は増やさず、最大 2 階層で構造化する
 
-- **Root Goal（1 枚・`derives` なし）**: プロジェクト全体の **芯（Vision）・存在意義・哲学・Non-Goals・不変制約 (`<Constraint>`)** を担う。
+- **Root Goal（1 枚・`derives` なし）**: プロジェクト全体の対象アクター・全体課題・目指す状態・Non-Goals を担う。
 - **Sub-Goal（3〜6 枚・`derives: [goals/<root>]`）**: 解決したい **顧客の課題・価値テーマ** ごとに分割する。
 - 3 階層以上に深くしない（管理コストと形骸化を防ぐ）。
 
@@ -53,21 +53,16 @@ ISO/IEC/IEEE 29148（BRS / StRS）・Amazon Working Backwards（PR/FAQ）・Impa
    - **自動テスト (`expect(...)`) に直接書けない「目指す状態・価値（Outcome）」** → **`goal`**
    - **「When 〜, the system shall 〜」とテストで合否判定できる「振る舞い（Output）」** → **`spec`**
 
-### 2.3 `goal` に書くべき 6 要素（テンプレート指針）
+### 2.3 `goal` の統一フォーマット（Root Goal / Sub-Goal 共通）
 
-**Root Goal（1 枚）** に含める要素：
-1. **存在意義・ビジョン（Vision）**: なぜこのプロダクトを作るのか
-2. **誰のためのものか（Who / Actors）**: 漠然と「ユーザー」と書かず役割を具体化
-3. **プロダクトの芯・哲学（Core Concept / Philosophy）**: 迷ったときの判断基準
-4. **課題別の柱（Sub-Goals へのリンク）**: 3〜6 本の Sub-Goal を束ねる
-5. **やらないこと（Non-Goals / No-Gos）**: 意図的にスコープ外にする領域
-6. **不変制約（`<Constraint>`）**: どの仕様・設計でも破ってはならないガードレール
+Root Goal と Sub-Goal で型を分けず、**同じ 6 要素のフォーマット** で統一する（5・6 は該当がある場合のみ記載）。「〜を目指すプラットフォーム」のような宣伝文・ポエムは避け、**誰のどんな困りごとがどう変わっていれば達成か** を簡潔に言い切る。
 
-**Sub-Goal（3〜6 枚）** に含める要素：
-1. **誰の課題か（Target Actors / Who）**
-2. **いま何が困っているのか（Problem Statement）** — 解決策をこっそり混ぜずに生の困りごとを書く
-3. **どうなってほしいか（Desired Outcome）** — 機能を作ったことではなく、人の行動・状態がどう変わっていれば成功かを書く
-4. **成功のサイン（Success Signals）** — 定性・定量で「うまくいっている状態」を言語化
+1. **誰の課題か（Target Actors / Who）**: 漠然と「ユーザー」と書かず役割を具体化
+2. **いま何が困っているのか（Problem Statement）**: 解決策をこっそり混ぜずに生の困りごとを書く（Root では全体課題、Sub-Goal では個別課題）
+3. **どうなってほしいか（Desired Outcome）**: 機能を作ったことではなく、人の行動・状態がどう変わっていれば成功かを書く（Root では Sub-Goal への分解リンクもここに束ねる）
+4. **成功のサイン（Success Signals）**: 定性・定量で「うまくいっている状態」を言語化
+5. **やらないこと（Non-Goals / No-Gos）** *(任意)*: その Goal スコープで意図的に対象外にする領域
+6. **不変制約（`<Constraint>`）** *(任意)*: その Goal 配下の仕様・設計で破ってはならないガードレール（`get_project_map` がすべての `goal` 文書から自動収集する）
 
 ---
 
@@ -111,7 +106,7 @@ ISO/IEC/IEEE 29148（BRS / StRS）・Amazon Working Backwards（PR/FAQ）・Impa
 
 | 観点 | 主な記述先 | 記述内容の例 |
 |---|---|---|
-| **システム全体の不変条件** | `goal` (`<Constraint>`) / `design` (`scope: system`) | 任意 JS 実行禁止、`src/core/` フレームワーク非依存、パストラバーサル拒否 |
+| **システム全体の技術・運用不変制約** | `design` (`scope: system`, `<Constraint>`) | 任意 JS 実行禁止、`src/core/` フレームワーク非依存、パストラバーサル拒否、未リリース方針（`get_project_map` が `systemConstraints` として常時収集） |
 | **ドメインの不変条件** | `domain` (`<Constraint>`) | Doc ID は POSIX 相対パス、承認状態と実現状態は独立した 2 軸 |
 | **外部境界の事前・事後条件・副作用** | `spec`（振る舞い）/ `contract`（厳密 I/F） | 入力制約と違反時エラー、出力保証、どの永続状態だけを書き換えるか、冪等性 |
 | **純粋領域 vs 副作用領域の方針** | `design` (`scope: system`) | Functional Core（純粋計算）と Imperative Shell（FS/DB/HTTP 副作用）の境界ルール |
@@ -147,7 +142,7 @@ DDD（Domain-Driven Design）のユビキタス言語・概念モデル・ドメ
 
 ### 4.2 `domain` に書くべき 5 要素
 
-1. **ユビキタス言語（`<TermDef>` ＋ `symbols`）**: 名詞だけでなく重要な動詞の意味（例：「承認する」「検証済みになる」）も定義し、コードシンボルと対応づける。
+1. **ユビキタス言語（`<TermDef>` ＋ `symbols`）— 1 概念 ＝ 1 正準表記**: 名詞だけでなく重要な動詞の意味（例：「承認する」「検証済みになる」）も定義し、コードシンボルと対応づける。**同じ概念を日本語と英語でバラバラに表記すると人間にも AI にも混ざるため、本文中は正準 ID（`<TermDef id="...">`）の 1 表記で統一する**。`aliases` は `documi search` の検索同義語ヒット専用とし、Web UI の自動リンク対象には含めない（日常語への誤爆と表記ブレを防ぐため）。
 2. **禁止語・混同注意（Anti-Terms）**: AI や人間が混ぜやすい類義語・使ってはいけない言葉（例：`delete` と `cancel` の違い、曖昧な単一 `status` の禁止）を明示し、命名ブレとレビュー発散を防ぐ。
 3. **概念モデルと関係（Conceptual Model）**: 物理 DB スキーマではなく、概念同士の意味的な関係・多重度・一貫性の単位（集約）。
 4. **ライフサイクル・状態遷移（State Machines）**: 取り得る状態と許可される遷移／禁止される遷移（Mermaid `stateDiagram-v2` で 1 枚に表すと人間にも AI にも効く）。

@@ -11,7 +11,7 @@ AI がコードを書く前にやりがちな 4 大事故（**車輪の再発明
 
 コードを 1 行も書く前に、必ずリポジトリ内の既存資産と前提制約を確認する。
 
-1. `documi map` — Goal・`goalConstraints`（未リリース方針等）・`systemDesigns`・`domainInvariants`・`decisions`・`terms`（`antiTerms` 含む）を把握する。
+1. `documi map` — Goal・`goalConstraints`・`systemDesigns`・`systemConstraints`（未リリース方針等）・`domainInvariants`・`decisions`・`terms`（`antiTerms` 含む）を把握する。
 2. `documi search "<今回のテーマ>" --context` — 関連仕様・既存設計・`<SourceRef>` を一括取得する。
 3. 対象領域の `design` にある `<SourceRef mode="exports">` や既存ユーティリティを確認し、**社内に既にある関数・型・UI コンポーネント・エラー型を再発明しない**。
 

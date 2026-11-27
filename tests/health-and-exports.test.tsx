@@ -159,6 +159,7 @@ describe('Document Health & Coverage (core.doc-health)', () => {
   test('[core.doc-health] <TermDef antiTerms> 違反を anti-term-used ヒントで検知し、domainInvariants と /api/terms usedIn を返す', async () => {
     const { projectRoot, docsDir } = await makeTempProject({
       'docs/goals/root.mdx': `---\ntype: goal\ntitle: Root\n---\n\n# Root\n\n<Constraint id="goal.pre-release" scope="workflow" stability="evolving">\n  未リリース期間中は後方互換シムを溜めない。\n</Constraint>\n`,
+      'docs/designs/system-overview.mdx': `---\ntype: design\nscope: system\ntitle: System Overview\n---\n\n# System Overview\n\n<Constraint id="sys.no-arbitrary-js" scope="mdx" stability="stable">\n  任意 JS を実行しない。\n</Constraint>\n`,
       'docs/domain/glossary.mdx': `---\ntype: domain\ntitle: Glossary\n---\n\n# Glossary\n\n<TermDef id="Customer" aliases="顧客" antiTerms="Client, UserEntity" context="billing">\n  請求対象の契約者。\n</TermDef>\n`,
       'docs/domain/model.mdx': `---\ntype: domain\ntitle: Domain Model\n---\n\n# Domain Model\n\n<Constraint id="domain.customer-id" scope="billing" stability="stable">\n  Customer ID は不変である。\n</Constraint>\n`,
       'docs/specs/billing.mdx': `---\ntype: spec\ntitle: Billing Spec\n---\n\n# Billing Spec\n\n<Spec id="billing.charge" derives="goals/root">\n  <Term name="Customer" /> に課金する。Client へ通知する（コード上の \`UserEntity\` は対象外）。\n</Spec>\n`,
@@ -174,6 +175,7 @@ describe('Document Health & Coverage (core.doc-health)', () => {
 
     const map = buildProjectMap(index)
     expect(map.goalConstraints.map((c) => c.id)).toEqual(['goal.pre-release'])
+    expect(map.systemConstraints.map((c) => c.id)).toEqual(['sys.no-arbitrary-js'])
     expect(map.domainModels.map((d) => d.id)).toEqual(['domain/model'])
     expect(map.domainInvariants.map((c) => c.id)).toEqual(['domain.customer-id'])
     expect(map.terms[0]?.antiTerms).toEqual(['Client', 'UserEntity'])
