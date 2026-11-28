@@ -33,7 +33,13 @@ Documi の検証は **仕様同居の保証シナリオ（`<Test>`）** と **�
 
 ## 3. 品質ゲート（マージ前必須コマンド）
 
-PR および変更完了時は、以下をすべてエラー・警告 0 件で通過させる。加えて、PR 作成直前に **① 会話で合意した原則・判断・地雷の `docs/` 昇格漏れ確認（Context Drift 防止）** と **② 会話履歴を持たない別コンテキスト（サブエージェント等）での差分クロスチェック** を行う。
+PR および変更完了時は、一括検証コマンド `bun run verify`（下記の 7 項目を順番に実行）をエラー・警告 0 件で通過させる。加えて、PR 作成直前に **① 会話で合意した原則・判断・地雷の `docs/` 昇格漏れ確認（Context Drift 防止）** と **② 会話履歴を持たない別コンテキスト（サブエージェント等）での差分クロスチェック** を行う。
+
+```bash
+bun run verify
+```
+
+`bun run verify` は以下を順次実行する：
 
 ```bash
 mkdir -p .documi && bun test --reporter=junit --reporter-outfile=.documi/test-results.xml
@@ -42,7 +48,7 @@ bun run lint
 bun run format:check
 bun run knip
 bun run build
-bun run documi:check
+bun run documi:check -- --no-review-edit
 ```
 
 ## 4. 意図的な対象外（Out of Scope）

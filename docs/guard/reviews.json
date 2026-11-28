@@ -1,0 +1,27 @@
+{
+  "version": 1,
+  "blocks": {
+    "dec.capability-colocated-structure": {
+      "docPath": "decisions/2026-11-27-capability-colocated-structure.mdx",
+      "hash": "sha256:6c84ec67072fc3ebd860d0342f16af3bfe9f8bcc358e17af5bea1a80bf7a2aa2",
+      "approvedCommit": "cb6d344",
+      "approvedAt": "2026-11-27T14:04:14.830Z",
+      "approvedBy": "naatin777",
+      "note": "capability同居構造の配置ルールをクイズで確認済み",
+      "upstreamHashes": {
+        "goals/living-specification": "sha256:346503f3870ff59cc8547c6ae3322cc719142c7368d80bc8658e83c714c3fe93"
+      }
+    },
+    "dec.misalignment-as-asset": {
+      "docPath": "decisions/2026-11-27-misalignment-as-living-asset.mdx",
+      "hash": "sha256:c9005bca8b105807af2f6c070d9adb8cb371b0b12620fee6e747f5c04ea7e43d",
+      "approvedCommit": "cb6d344",
+      "approvedAt": "2026-11-27T14:00:00.317Z",
+      "approvedBy": "naatin777",
+      "note": "認識のズレ資産化の方向性をクイズで確認済み",
+      "upstreamHashes": {
+        "goals/living-specification": "sha256:346503f3870ff59cc8547c6ae3322cc719142c7368d80bc8658e83c714c3fe93"
+      }
+    }
+  }
+}

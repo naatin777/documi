@@ -70,11 +70,27 @@ Documi の仕様・設計・ソースコードで共有される共通語彙を�
 </TermDef>
 
 <TermDef id="AgentSkills" aliases="エージェントスキル, スキル" symbols="src/core/init.ts#initDocumiProject">
-  `documi init` で `<projectRoot>/.agents/skills/` に生成される AI エージェント向け標準手順書 4 種（日常運用 `documi`・既存コード導入 `documi-bootstrap`・対話レビュークイズ `documi-review`・再現性監査 `documi-audit`）。`AGENTS.md` と競合せず、CLI ベースで自己完結したワークフローを提供する。
+  `documi init` で `<projectRoot>/.agents/skills/` に生成される AI エージェント向け標準手順書 5 種（日常運用 `documi`・上流設計 `documi-design`・既存コード導入 `documi-bootstrap`・対話レビュークイズ `documi-review`・再現性監査 `documi-audit`）。`AGENTS.md` と競合せず、CLI ベースで自己完結したワークフローを提供する。
 </TermDef>
 
 <TermDef id="StaticSite" aliases="静的サイト, 静的書き出し" symbols="src/server/site.ts#buildStaticSite">
   `documi build-site` によって生成される、サーバー不要・読み取り専用の Web UI 配布物。事前計算した JSON・ハッシュ索引化コード・`HashRouter` 対応 SPA を含み、任意の静的ホスティングでそのまま配信できる。
+</TermDef>
+
+<TermDef id="Provisional" aliases="仮置き">
+  <Term name="ReviewCard" /> で人間が選んだ選択肢を暫定適用して先に進める仕上げ状態。確定ではないため覆せる。見直しは義務ではなく、必要になったとき（その上に大きく建てるとき・問題が起きたとき）に行う。仮置きできないと判定されたカードでは仮置きボタン自体が表示されない。
+</TermDef>
+
+<TermDef id="Committed" aliases="確定">
+  <Term name="ReviewCard" /> で人間が選んだ選択肢を確定する仕上げ状態。その方向の判断を人間が確定したことを示し、後続の「記録に残す」操作で `<Decision>` として docs に蒸留できる。「やらない」選択肢の確定も通常の確定として扱い、やらないと決めた記録が再検討の蒸発を防ぐ。
+</TermDef>
+
+<TermDef id="Incomprehensible" aliases="理解不能, 破損状態">
+  <Term name="ReviewCard" /> で「意味がわからない」が押された状態。カードは破損し、決定も仮置きもできなくなる。問いや選択肢の説明が人間に通じなかった信号であり、カードの修理が必要なことを示す。
+</TermDef>
+
+<TermDef id="CardObjection" aliases="異議あり, 納得いかない">
+  <Term name="ReviewCard" /> で「納得いかない」が押された状態の異議フラグ。進行は妨げない。前提や枠組みへの違和感の信号で、チャットでの修理経路につながる。人間が選択肢にないやり方を持っている場合は「他のやり方がある」書き込み選択肢を使う。
 </TermDef>
 
 ## 混同しやすい言葉・使わない表現（Anti-Terms）
@@ -90,3 +106,7 @@ AI や人間が語彙を混同して仕様・実装・レビューがブレる�
 | コード全文のベクトル DB 化（RAG 対象として） | `docs/` のみを検索対象とし、コードは `<SourceRef>` と `@implements` で辿る | ソースコードを別ベクトル化すると二重管理と陳腐化を招くため |
 
 概念同士の関係・状態遷移・ドメイン不変条件は [ドメインモデル](./domain-model.mdx) を参照。
+
+<TermDef id="ReviewCard" aliases="判断カード, レビューカード, カード" antiTerms="Decision Card" symbols="src/core/cards.ts#StoredCard, src/web/components/ReviewCardsLayout.tsx#ReviewCardsLayout">
+  AI が作業中の判断点で書き出し、人間が選択肢の比較と4つのボタン（意味がわからない・納得いかない・<Term name="Provisional" />・<Term name="Committed" />）だけで判断する入力界面。問い・状況となぜ今か・何もしないとどうなるか・具体例・選択肢（得るもの/失うもの付き）を持ち、選択肢には固有の「やらない」選択肢1つと人間が一行で書き込める「他のやり方がある」を含む。`<Decision>` は確定した判断の記録であり、Review Card は判断を求めるための入力界面である。操作状態は `.documi/cards/` に永続化され、確定内容は「記録に残す」操作で `<Decision>` として docs に蒸留される。蒸留済みカードは操作対象として一覧から消える。
+</TermDef>

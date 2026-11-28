@@ -35,6 +35,18 @@ export interface CheckFinding {
   blockId?: string
 }
 
+export interface SignalEvaluation {
+  id: string
+  docId: string
+  method: string
+  /** machine のみ achieved / not-achieved。experiment / manual-review / llm-judge は unevaluated */
+  status: 'achieved' | 'not-achieved' | 'unevaluated'
+  metric?: string
+  actual?: number
+  op?: string
+  expected?: number
+}
+
 export interface CheckReport {
   ok: boolean
   docsDir: string
@@ -45,11 +57,32 @@ export interface CheckReport {
   warnings: CheckFinding[]
   realizationCounts: Record<RealizationStatus, number>
   reviewCounts: { approved: number; unreviewed: number; stale: number; suspect: number }
+  signalEvaluations: SignalEvaluation[]
   health: DocumentHealthSummary
   index: DocsIndex
 }
 
 const WARNING_ONLY_CODES = new Set(['missing-frontmatter', 'missing-title', 'inferred-default-type'])
+
+// @implements core.signal-evaluation
+function compareSignalOp(actual: number, op: string, expected: number): boolean {
+  switch (op) {
+    case 'eq':
+      return actual === expected
+    case 'neq':
+      return actual !== expected
+    case 'lt':
+      return actual < expected
+    case 'lte':
+      return actual <= expected
+    case 'gt':
+      return actual > expected
+    case 'gte':
+      return actual >= expected
+    default:
+      return false
+  }
+}
 
 /**
  * ドキュメント構造・Rooted DAG・MDX 安全・AST シンボル・テスト結果・レビュー改ざんを一括検証する。
@@ -215,6 +248,46 @@ export async function runDocsCheck(options: CheckOptions): Promise<CheckReport> 
       }
     : fullHealth
 
+  const metricValue = (metric: string): number | undefined => {
+    if (metric === 'check.errors') return errors.length
+    if (metric === 'check.warnings') return warnings.length
+    const rPrefix = 'realization.'
+    if (metric.startsWith(rPrefix)) {
+      const key = metric.slice(rPrefix.length) as RealizationStatus
+      return realizationCounts[key]
+    }
+    const vPrefix = 'review.'
+    if (metric.startsWith(vPrefix)) {
+      const key = metric.slice(vPrefix.length) as keyof typeof reviewCounts
+      return reviewCounts[key]
+    }
+    return undefined
+  }
+  const signalEvaluations: SignalEvaluation[] = []
+  for (const doc of scopedDocs) {
+    for (const block of doc.blocks) {
+      if (block.kind !== 'signal') continue
+      if (block.method !== 'machine' || block.metric === undefined) {
+        signalEvaluations.push({ id: block.id, docId: block.docId, method: block.method, status: 'unevaluated' })
+        continue
+      }
+      const actual = metricValue(block.metric)
+      const op = block.op ?? 'eq'
+      const expected = block.value ?? 0
+      const achieved = actual !== undefined && compareSignalOp(actual, op, expected)
+      signalEvaluations.push({
+        id: block.id,
+        docId: block.docId,
+        method: block.method,
+        status: achieved ? 'achieved' : 'not-achieved',
+        metric: block.metric,
+        ...(actual !== undefined ? { actual } : {}),
+        op,
+        expected,
+      })
+    }
+  }
+
   return {
     ok: errors.length === 0,
     docsDir,
@@ -225,6 +298,7 @@ export async function runDocsCheck(options: CheckOptions): Promise<CheckReport> 
     warnings,
     realizationCounts,
     reviewCounts,
+    signalEvaluations,
     health,
     index,
   }

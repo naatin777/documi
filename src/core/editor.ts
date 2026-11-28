@@ -38,6 +38,7 @@ const BLOCK_TAG_NAME: Record<BlockKind, string> = {
   test: 'Test',
   note: 'Note',
   term: 'TermDef',
+  signal: 'Signal',
 }
 
 const IGNORED_CODE_DIRS = new Set([

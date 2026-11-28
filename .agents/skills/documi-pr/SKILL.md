@@ -1,63 +1,48 @@
 ---
 name: documi-pr
-description: Documi 運用リポジトリで Pull Request を作成・更新する手順。PR テンプレート厳守・Before/After 視覚化（表・Mermaid・出力抜粋）・レビュー順 Walkthrough・Spec ID 自動抽出・PR 前検証ゲートを徹底するときに使用します。
+description: Documi 運用リポジトリで Pull Request を作成・更新・レビュー準備するときに必ず使用するスキル。一括品質ゲート（bun run verify）・会話合意の蒸留・別コンテキストでの PR 前クロスチェック・PR テンプレート厳守・Before/After 視覚化・Spec ID 自動抽出を徹底する。通常の仕様更新や実装作業中だけの検証には使わない（documi を使う）。
 ---
 
 # Documi PR 作成・更新スキル
 
-AI エージェントが作成する Pull Request を、人間が最短時間で正確に理解・判断できる「Context Pump」として仕上げるための運用手順です。
+> ワークフロー位置: `documi-design` → `documi` → `documi-audit` → **`documi-pr`（PR 作成・更新）** → `documi-review`（人間承認）
 
-## 1. PR 作成前の必須ゲート
+AI が作成する Pull Request を、人間が最短時間で正確に理解・判断できる「Context Pump」として仕上げるための手順です。
 
-PR を作成・更新する前に、以下をすべて通過させること。
+## Hard Gates（PR 作成・更新前にすべて通過必須）
 
-1. **テスト・静的検査・ビルド・Documi 検証**（すべてエラー・警告 0 件）
+1. **一括品質ゲート通過（エラー・警告 0 件）**:
    ```bash
-   mkdir -p .documi && bun test --reporter=junit --reporter-outfile=.documi/test-results.xml
-   bun run check
-   bun run lint
-   bun run format:check
-   bun run knip
-   bun run build
-   bun run documi:check --no-review-edit
+   bun run verify
    ```
+   （内部で JUnit XML 付き `bun test` → `check` → `lint` → `format:check` → `knip` → `build` → `documi:check -- --no-review-edit` を順次実行）
 2. **承認ガード非編集確認**: `docs/guard/reviews.json` に AI による変更が含まれていないこと。
 3. **プライバシー確認**: `git diff` にローカルユーザー名・ホーム絶対パス・個人情報が含まれていないこと。
-4. **会話合意の蒸留（Context Drift 防止）**: 「今この会話の中では覚えている」錯覚で次のセッションへ消えるのを防ぐため、PR 作成前にこの会話で合意した **今後も破ってほしくない原則・判断・地雷** を振り返り、コードや `spec` だけでなく `docs/`（`goal` / `domain` / `decision` / `guide`）へ昇格漏れがないか確認する（一時メモや途中経過は書かない）。
-5. **真っ白な別コンテキストでの PR 前クロスチェック**: 書いた本人の思い込みによる見落としを防ぐため、履歴を持たない別サブエージェント（`research` 等）に `git diff main...HEAD` を渡し、以下 3 点を必ず点検してから PR を作成・更新する：
+4. **会話合意の蒸留（Context Drift 防止）**: この会話で合意した **今後も破ってほしくない原則・判断・地雷** を振り返り、`docs/`（`goal` / `domain` / `decision` / `guide`）への昇格漏れがないか確認する（一時メモや途中経過は書かない）。
+5. **真っ白な別コンテキストでの PR 前クロスチェック**: 履歴を持たない別サブエージェント（`research` 等）に `git diff main...HEAD` を渡し、以下 3 点を点検してから PR を作成・更新する：
    - 変更した仕様・オプション・挙動と `contracts/`・`designs/`・`decisions/`・`src/core/init.ts`・`.agents/skills/` の間にズレや旧表現の残存がないか
    - `goal` への実装詳細混入など層の逆流がないか
    - セキュリティ境界（パス脱出・Origin 検証・権限）に抜けがないか
+6. **勝手なマージ禁止**: 人間の明示指示なしに PR をマージしない。
 
-## 2. テンプレート厳守とタイトル規約
+## 1. テンプレート厳守とタイトル規約
 
-- **必ず `.github/pull_request_template.md` を読んで準拠する**。テンプレートの見出し構造を無視しない。
-- **空セクションや未該当のコメント行は削除**し、ノイズを残さない。
-- **PR タイトル規約**:
-  - 会話内の段取りラベル（`Phase 1`, `Wave 2`, `Step 3`, `P0` 等）や空虚なバズワードを書かない。
-  - 「何をどう変えたか」の具体的な事実だけを端的に書く（例: `feat: domain に antiTerms と不変条件の map 投入を追加`）。
+- **必ず `.github/pull_request_template.md` を読んで準拠する**。見出し構造を無視しない。
+- **空セクションや未該当コメント行は削除**し、ノイズを残さない。
+- **PR タイトル規約**: 会話内の段取りラベル（`Phase 1`, `Wave 2`, `Step 3`, `P0` 等）や空虚なバズワードを書かず、「何をどう変えたか」の具体的な事実だけを端的に書く（例: `feat: domain に antiTerms と不変条件の map 投入を追加`）。
 
-## 3. 本文の書き方ルール（認知負荷の最小化）
+## 2. 本文の書き方ルール（認知負荷の最小化）
 
-### 3.1 概要・背景（結論ファースト）
-- 1〜2 文で「課題 → 解決」だけを書く。コミット履歴の書き写しやファイル名羅列は禁止。
+- **概要・背景（結論ファースト）**: 1〜2 文で「課題 → 解決」だけを書く（コミット履歴の羅列禁止）。
+- **Before / After（視覚化ファースト）**: 変更に最も合う表現を 1〜2 個選ぶ — 挙動・API 変更は 3〜5 行の **比較表**、構造・フロー変更は **Mermaid 図**、CLI 変更は **出力抜粋（3〜6 行）**、Web UI 変更は **Before / After スクリーンショット**。
+- **変更のポイント（レビュー順 Walkthrough）**: 複数ファイルの PR では読むべき順を **3〜5 項目・先頭太字**（1〜2 行以内）で案内し、詳細は `<details>` に畳む（1〜2 ファイルの小さな修正は省略可）。
+- **レビュー観点・判断・見送ったこと**: 破壊的変更・トレードオフ・エッジケース・Out of Scope を明記し、人間の判断ポイントへ視線を誘導する。
+- **仕様トレース & 検証証拠**: `git diff` の `@implements <spec.id>` / `<Spec id="...">` / `test('[<spec.id>] ...')` から `Implements:` / `Verifies:` を自動抽出し、関連 `docs/` パスと検証結果（1〜3 行）を記載する。
 
-### 3.2 Before / After（視覚化ファースト）
-変更の性質に合わせて最も伝わる表現を 1〜2 個選ぶ（長文の箇条書きだけで済ませない）：
-- **挙動・API・仕様の変更**: 3〜5 行の **Before / After 比較表**
-- **構造・データフロー・状態遷移の変更**: 簡潔な **Mermaid 図**（`flowchart` / `sequenceDiagram` / `stateDiagram-v2`）
-- **CLI の変更**: 実際の実行出力サンプル（3〜6 行）
-- **Web UI の変更**: Before / After スクリーンショット
+## Gotchas（よくある失敗と言い訳封じ）
 
-### 3.3 変更のポイント（レビュー順 Walkthrough）
-- 複数ファイルにまたがる PR では、レビュアーがどこから読むべきかを **3〜5 項目・先頭太字**（`**コア変更（要確認）**: ...`）で案内する。
-- 1 項目は 1〜2 行以内。細かいファイル一覧や補足は `<details><summary>...</summary>...</details>` に折りたたむ。
-- 1〜2 ファイルの小さな修正では本セクションを省略して簡潔に保つ。
-
-### 3.4 レビュー観点・判断・見送ったこと（Automation Bias 対策）
-- 破壊的変更、採用したトレードオフ（捨てた別案）、エッジケース、今回あえて見送った範囲（Out of Scope）を明記し、人間の判断が必要なポイントへ視線を誘導する。
-
-### 3.5 仕様トレース & 検証証拠
-- `git diff` に含まれる `@implements <spec.id>` / `<Spec id="...">` / `test('[<spec.id>] ...')` から該当 ID を抽出し、`Implements: <spec.id>` / `Verifies: <spec.id>` を記載する（`documi check --prs` と自動連動）。
-- 関連する `docs/` ファイルや ADR パスを記載する。
-- 実行したテスト件数・静的検査・手動確認（バグ修正時は Red → Green の再現結果）を 1〜3 行で記載する。
+| やりがちな言い訳・失敗 | 正しい対処 |
+| :--- | :--- |
+| 「テストだけ通ったし `knip` や `format:check` は大丈夫だろう」 | **NG**。必ず `bun run verify` 1 本で全 7 ゲートを通す |
+| 「自分が全部書いたから別コンテキストレビューは省略していい」 | **NG**。書いた本人の思い込みで `init.ts` や `contracts/` のズレを必ず見落とす |
+| 「会話で決めたルールは今の PR のコードに反映したから十分」 | **NG**。次のセッションで消える。原則・地雷は `docs/` へ蒸留する |

@@ -7,6 +7,7 @@ satisfies:
   - core.human-review
   - core.realization
   - core.ast-check
+  - core.signal-evaluation
   - core.doc-health
   - core.bundle-export
   - ui.bundle-export
@@ -23,6 +24,14 @@ satisfies:
 <SourceRef file="src/core/reviews.ts" symbol="approveBlock" satisfies="core.human-review" />
 
 <SourceRef file="src/core/reviews.ts" symbol="getBlockDiff" satisfies="core.human-review" />
+
+## 1.5 machine Signal の評価
+
+- `<Signal method="machine">` は check 実行時に、確定済みの errors / warnings / realizationCounts / reviewCounts を閉じた語彙のメトリクスとして参照し、`op`・`value` で比較して達成／未達を算出する
+- 評価は check の全エラー・警告が確定した後に行う（`check.errors` / `check.warnings` メトリクスが自己言及で不安定にならないよう、評価自体は新たなエラーを生まない）
+- 未達は内部整合性のエラーではなく目標未達の観測であるため、`ok`／終了コードに影響させず独立セクションで報告する
+
+<SourceRef file="src/core/checker.ts" symbol="runDocsCheck" satisfies="core.signal-evaluation" />
 
 ## 2. コード・テスト・PR からの Realization 自動算出
 

@@ -47,6 +47,15 @@ tags: [spec, realization, ast, check]
   - `--strict`: `spec-drifted` および全 `normative` ブロック（`--review-gate all` 相当）の `unreviewed` / `stale` を `error` に昇格する（`suspect` は対象外）。
   - `--no-review-edit`: Git 作業ツリー／ステージ上で `docs/guard/reviews.json` が変更されていれば `review-file-modified` エラーを返す。
 
+<Spec id="core.signal-evaluation" stability="evolving" derives="goals/low-friction-governance">
+  **When** `documi check` が実行されたとき、
+  **the** Document Core **shall** 全 `<Signal method="machine">` を閉じた語彙のメトリクス（`check.errors` / `check.warnings` / `realization.*` / `review.*`）に対して `op`・`value` で比較評価し、達成／未達を check エラーとは独立したシグナルセクションとして報告する。
+</Spec>
+
+- **評価対象メトリクス（閉じた語彙）**: `check.errors`、`check.warnings`、`realization.verified` / `realization.implemented` / `realization.in-progress` / `realization.unimplemented` / `realization.drifted`、`review.approved` / `review.unreviewed` / `review.stale` / `review.suspect`。
+- **比較**: `op`（`eq` / `neq` / `lt` / `lte` / `gt` / `gte`、既定 `eq`）で実測値と `value`（整数）を比較する。未知メトリクス・非整数 `value` は `invalid-block-attr`。
+- **報告と終了コード**: machine Signal の未達は内部整合性エラーとは別概念のため、check の `ok`／終了コードには影響させず、達成・未達・非 machine（`experiment` / `manual-review` / `llm-judge` は「未評価」）を独立セクションで表示する。
+
 <Spec id="core.doc-health" stability="evolving" derives="goals/low-friction-governance">
   **When** `documi check`・`documi map`・MCP `get_project_map` / `validate_docs`・REST `/api/overview` / `/api/check` が実行されたとき、
   **the** Document Core **shall** 全 `normative` `<Spec>` に対する `design` (`satisfies`) および `<Test>` (`verifies`) カバレッジ、肥大化 `spec`・過密 `design` ハブ・全体設計鮮度差・禁止語混入に加え、`<SourceRef>` の脆い結合（`lines=` 参照・`design` 外配置）およびコード／スキル変更時の `docs/` 未更新を CI を失敗させない Advisory 健全性ヒントとして算出・提示する。
@@ -84,4 +93,10 @@ tags: [spec, realization, ast, check]
   - **Given**: 未カバー Spec・11 件超の `satisfies` を持つ `design`・`<SourceRef lines="...">` や `design` 外 `<SourceRef>`・`src/` / `.agents/skills/` のみ未コミット変更された Git リポジトリ・TS/Go/Rust/Python ソースファイル
   - **When**: `computeDocumentHealth()`・`runDocsCheck()` および `extractExportedSymbols()` を実行する
   - **Then**: `missing-design` / `missing-test` / `overloaded-hub-doc` / `source-ref-fragile-lines` / `source-ref-outside-design` / `docs-sync-missing` が非ブロッキング Advisory ヒントとして算出され、公開シンボルのみが抽出される
+</Test>
+
+<Test id="test.core.signal-evaluation" verifies="core.signal-evaluation" level="unit">
+  - **Given**: `method="machine"` の `<Signal>`（達成条件・未達条件・未知メトリクス・非整数 value）と `experiment` の `<Signal>` を含む docs
+  - **When**: `runDocsCheck()` を実行する
+  - **Then**: machine Signal は実測値との比較で達成／未達が算出され、experiment は未評価となり、いずれも check の `ok` に影響しない。未知メトリクスと非整数 value は `invalid-block-attr` になる
 </Test>

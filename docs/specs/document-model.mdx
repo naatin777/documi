@@ -18,6 +18,7 @@ tags: [spec, document-model, mdx]
 - **拡張子衝突時の優先順位**: 同一ドキュメント ID で `.mdx` と `.md` が両方存在する場合は **`.mdx` を採用**し、後続の `.md` は `duplicate-doc-id` issue として記録する。
 - **タイトル補完優先順位**: frontmatter `title` → 本文最初の H1 見出し → ファイル名（`missing-title` 警告を記録）。
 - **`date` メタデータ規則**: `YYYY-MM-DD` または `YYYY-MM`（月 1〜12・日 1〜31）を受理し、不正形式は `invalid-date` issue を記録する。`decision` 文書は `date` 降順（未設定は末尾）で整列する。
+- **タイプ内の整列規則**: `decision` は `date` 降順（同日または双方未設定の場合はドキュメント ID 昇順でタイブレーク）、それ以外の Type はドキュメント ID（POSIX パス）の昇順で整列する。この順序は `documi list`・`GET /api/tree`・Explorer の Flow 表示へそのまま引き継がれる。
 - **耐障害性**: 個別ファイルの読み込み・frontmatter 解析失敗時は処理を中断せず `issues` に記録して残りの文書読み込みを継続する。
 
 <Spec id="core.type-inference" stability="stable" derives="goals/low-friction-governance">
@@ -35,6 +36,18 @@ tags: [spec, document-model, mdx]
 | `design`, `designs`, `architecture`, `arch` | `design` | `realization` |
 | `guide`, `guides` | `guide` | `informative` |
 
+- **マッチング規則**: キー照合は **完全一致・大文字小文字無視** とし、ディレクトリは **最上位セグメントのみ**（中間階層は対象外）、ファイル名は **拡張子を除くベース名全体** を照合する。部分一致（`my-spec` 等）や中間階層のディレクトリ名では推論しない。複数 docs マウント構成では **マウントルートからの相対パス** で照合し、マウント ID のプレフィックスは推論結果に影響しない。
+- **解決優先順位**: 有効な frontmatter `type` → 最上位ディレクトリ名 → ファイルベース名 → `guide`（`inferred-default-type` 警告）。
+
+| パス例 | 推論結果 | 理由 |
+|---|---|---|
+| `specs/auth.mdx` | `spec` | 最上位ディレクトリ `specs` が一致 |
+| `auth/spec.mdx` | `spec` | ファイルベース名 `spec` が一致 |
+| `adr/2026-11-bun.mdx` | `decision` | `adr` は `decision` のエイリアス |
+| `foo/specs/bar.mdx` | `guide` | 中間階層の `specs` は照合対象外 |
+| `notes/my-spec.mdx` | `guide` | 部分一致は推論しない |
+| `Glossary.mdx` | `domain` | 大文字小文字を無視した完全一致 |
+
 - frontmatter に未定義の `type` が明示指定された場合は `invalid-type` issue を記録して自動推論へフォールバックする。
 - 最上位ディレクトリ名・ファイル名のいずれにも一致しない場合は `inferred-default-type` 警告を記録し `guide` とする。
 - frontmatter の `scope` は `system` のみ受理し（不正値は `invalid-field`）、`type: design` + `scope: system` をプロジェクト全体設計として `documi map` へ常時投入する。
@@ -42,7 +55,7 @@ tags: [spec, document-model, mdx]
 ## 2. セマンティックブロックと安全解析
 
 <Spec id="core.mdx-blocks" stability="stable" derives="goals/ai-reproducibility">
-  **When** MDX 本文に `<Spec>` / `<Constraint>` / `<Decision>` / `<Test>` / `<Note>` / `<TermDef>` が記述されているとき、
+  **When** MDX 本文に `<Spec>` / `<Constraint>` / `<Decision>` / `<Test>` / `<Note>` / `<TermDef>` / `<Signal>` が記述されているとき、
   **the** Document Core **shall** mdast からブロック構造と正規化 SHA-256 `contentHash` を抽出し、プロジェクト全体でのブロック ID 重複を検出する。
 </Spec>
 
@@ -53,6 +66,7 @@ tags: [spec, document-model, mdx]
   - `stability`: 既定 `evolving`（許可: `stable` / `evolving` / `volatile`）。違反時は `invalid-block-attr`。
   - `<Decision>`: `summary`（1〜2 行の結論）と `date` に加え、任意の子要素 `<Context>` / `<Chosen>` / `<Rejected option="...">` / `<Tradeoff>` を構造化抽出する。独立 `decision` ファイル内の `<Decision>` のみ `map` へ常時投入し、`design`/`spec` 内のインラインマイクロ ADR は `context` / `search --context` でオンデマンド取得する。
   - `<Test>`: `verifies`（CSV）から `verifies` グラフ辺を張り、`level`（`unit` / `integration` / `e2e` / `contract` / `manual`）を検証する。
+  - `<Signal>`: Goal の成功基準を操作的判定手続きつきで構造化するブロック。`method`（`machine` / `experiment` / `manual-review` / `llm-judge`）は必須で違反時は `invalid-block-attr`。`cadence` は任意の観測頻度文字列。`method="machine"` の場合は `metric`（閉じた語彙）・`op`（`eq` / `neq` / `lt` / `lte` / `gt` / `gte`、既定 `eq`）・`value`（整数）を必須とし、欠落・未知メトリクス・非整数は `invalid-block-attr`。`<Test>` が実装の正しさを検証するのに対し、`<Signal>` は目標の達成を観測する。
   - `<TermDef>`: `id` と `aliases` の大文字小文字無視での重複を `duplicate-term` として検出する。
   - `startLine` / `endLine`: frontmatter 行オフセット加算済みの 1 始まりファイル行番号を保持する。
 
@@ -61,18 +75,18 @@ tags: [spec, document-model, mdx]
   **then the** Document Core **shall** コードを実行せず `mdx-unsupported` 問題として報告する。
 </Spec>
 
-- **許可コンポーネント一覧（計 25 種・サーバーとブラウザで共有）**:
+- **許可コンポーネント一覧（計 26 種・サーバーとブラウザで共有）**:
   - リッチ・視覚表現: `Callout`, `Tabs`, `Tabs.Tab`, `Tab`, `Steps`, `Steps.Step`, `Step`, `Details`, `Columns`, `Column`, `Timeline`, `Timeline.Item`, `TimelineItem`, `SourceRef`
-  - セマンティックタグ: `Spec`, `Constraint`, `Decision`, `Context`, `Chosen`, `Rejected`, `Tradeoff`, `Test`, `Note`, `TermDef`, `Term`
-- **禁止構文**: `mdxjsEsm`（`import` / `export`）、`mdxFlowExpression` / `mdxTextExpression`（`{...}`）、属性値式（`prop={...}`）、スプレッド属性（`{...props}`）、上記 25 種以外の JSX コンポーネント。コードブロック／インラインコード内は対象外。
+  - セマンティックタグ: `Spec`, `Constraint`, `Decision`, `Context`, `Chosen`, `Rejected`, `Tradeoff`, `Test`, `Note`, `TermDef`, `Term`, `Signal`
+- **禁止構文**: `mdxjsEsm`（`import` / `export`）、`mdxFlowExpression` / `mdxTextExpression`（`{...}`）、属性値式（`prop={...}`）、スプレッド属性（`{...props}`）、上記 26 種以外の JSX コンポーネント。コードブロック／インラインコード内は対象外。
 - **パース失敗時**: MDX パースエラー時は Markdown パーサーへフォールバックし、`mdx-parse-error` issue を記録する。
 
 ## 3. 保証シナリオ
 
-<Test id="test.core.document-model" verifies="core.document-model, core.type-inference" level="unit">
-  - **Given**: 連番なし多階層ディレクトリ、`.mdx` と `.md` の衝突、`type` 省略ファイル、および `date` 付き `decision` を含む `docs/`
+<Test id="test.core.document-model" level="unit" verifies="core.document-model, core.type-inference">
+  - **Given**: 連番なし多階層ディレクトリ、`.mdx` と `.md` の衝突、`type` 省略ファイル、部分一致のみのファイル名（`my-spec` 等）、および `date` 付き `decision` を含む `docs/`
   - **When**: `loadDocuments()` で読み込む
-  - **Then**: `.mdx` が優先され、7 種 Type 自動推論と `decision` の `date` 降順ソートが行われる
+  - **Then**: `.mdx` が優先され、完全一致ベースの 7 種 Type 自動推論（部分一致は `guide` へフォールバック）と `decision` の `date` 降順ソートが行われる
 </Test>
 
 <Test id="test.core.mdx-blocks-and-safety" verifies="core.mdx-blocks, core.mdx-safety" level="unit">

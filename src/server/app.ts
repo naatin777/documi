@@ -8,6 +8,7 @@ import type { RagConfig } from '../core/config'
 import type { DocsIndex } from '../core/types'
 import { handleMcpRequest } from './mcp'
 import { createBlocksRoutes } from './routes/blocks'
+import { createCardsRoutes } from './routes/cards'
 import { createCodeRoutes } from './routes/code'
 import { createDocumentsRoutes } from './routes/documents'
 import { createGraphRoutes } from './routes/graph'
@@ -40,6 +41,7 @@ function createApiApp(
     .route('/', createDocumentsRoutes(store, projectRoot, ragConfig))
     .route('/', createGraphRoutes(store))
     .route('/blocks', createBlocksRoutes(store))
+    .route('/', createCardsRoutes(projectRoot))
     .route('/code', createCodeRoutes(store, projectRoot))
     .route('/icons', createIconsRoutes())
     .route('/media', createMediaRoutes(store))

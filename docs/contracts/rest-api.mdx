@@ -13,6 +13,7 @@ satisfies:
   - core.full-text-search
   - core.hybrid-rag
   - core.doc-history
+  - core.review-card-store
   - ui.web-viewer
   - ui.live-reload
   - ui.graph-view
@@ -32,7 +33,7 @@ satisfies:
 | `GET /api/health` | ヘルスチェック (`{ ok: true }`) |
 | `GET /api/overview` | 全体統計・Type 別件数・Review & Realization 内訳・ドキュメント健全性 (`health`)・要確認ブロック・未確定仮案 (`ideaBlocks`)・Goals・現行 `decisions`（廃止済みは `supersededDecisions`）・Orphan Specs |
 | `GET /api/status` | `rootDir`, `loadedAt`, `documentCount`, `blockCount`, `issues` |
-| `GET /api/tree` | 階層ツリー (`DocTreeNode[]`) と全ドキュメントサマリ |
+| `GET /api/tree` | 階層ツリー (`DocTreeNode[]`)・全ドキュメントサマリ・マウント一覧 `mounts`（`id` / `label` / `docCount`、Explorer のマルチマウントスコープフィルタ用） |
 | `GET /api/documents` | サマリ一覧 (`?type=` 絞り込み対応) |
 | `GET /api/documents/*path` | 任意階層パス ID による単一ドキュメント詳細 (ブロック・エッジ・Realization・鮮度・問題込み) |
 | `GET /api/history` | 指定ドキュメント (`?id=&limit=`) の Git 鮮度・コミット履歴・最新変更の本文基準行レンジ一覧 |
@@ -46,6 +47,11 @@ satisfies:
 | `GET /api/blocks/:id/diff` | 承認時点コミット (またはローカルキャッシュ) と現在本文の行 diff |
 | `POST /api/blocks/:id/approve` | ブロックを承認し `docs/guard/reviews.json` を更新（任意 `author` / `note`） |
 | `DELETE /api/blocks/:id/approve` | ブロックの承認を取り消し未承認 (`unreviewed`) へ戻す |
+| `GET /api/cards` | 未蒸留の Review Card 一覧を返す（`/cards` 画面用） |
+| `GET /api/cards/:id` | Review Card 1件を回答状態・フラグ・蒸留状態込みで返す |
+| `POST /api/cards/:id/answer` | Review Card の選択肢回答を仮置きまたは確定として保存する |
+| `POST /api/cards/:id/flag` | Review Card の異議・理解不能フラグを更新する |
+| `POST /api/cards/:id/distill` | 確定済み Review Card を `docs/decisions/` の `<Decision>` レコードへ蒸留し `distilledAt` を記録する |
 | `GET /api/events` | SSE ライブ更新ストリーム (`connected` / `reload` イベント) |
 | `GET /api/source` | `<SourceRef>` 用の AST シンボル / 行範囲コード取得 |
 | `GET /api/source/exports` | `<SourceRef mode="exports">` 用の AST 公開シンボル（class / interface / type / function 等）自動抽出 (`?file=src/...`) |
@@ -63,6 +69,17 @@ satisfies:
 - **Origin / CORS ガード**: `Origin` ヘッダがあるリクエストは `http://localhost:*`・`http://127.0.0.1:*`・`http://[::1]:*` のみ許可し、それ以外の外部 Origin は `/api/*` と `/mcp` の両方で読み書きとも `403` で拒否する（CSRF / DNS rebinding 対策）。`Origin` が無いローカルクライアント（CLI・curl 等）は許可する。
 - **PDF 出力の境界**: `POST /api/export/pdf` は受け取った HTML を `Content-Security-Policy: default-src 'none'; style-src 'unsafe-inline'; img-src data:; font-src data:` 付きで描画し、スクリプト実行と外部・ローカルネットワークアクセスを許可しない。`POST /api/export/bundle-pdf` は常に自サーバー自身の Origin の `/bundle`（完全一致）のみを開き、リクエストでベース URL を指定できない。
 - **ソース取得の除外**: `.env` など環境変数ファイルは `/api/source` / `/api/code/file` の対象外（拡張子 allowlist に含めない）。
+- **`GET /api/cards`**:
+  - レスポンス `200`: `{ cards: StoredCard[] }`。`distilledAt` を持つ蒸留済みカードは含めない。
+- **`POST /api/cards/:id/answer`**:
+  - リクエスト JSON: `{ selectedOptionId: string, writeIn?: string, finish: "provisional" | "committed" }`
+  - レスポンス `200`: 更新後の `StoredCard`。破損中の回答、仮置きできないカードへの仮置き、未知の選択肢 ID は `400`、未存在カードは `404`。
+- **`POST /api/cards/:id/flag`**:
+  - リクエスト JSON: `{ objected?: boolean, incomprehensible?: boolean }`
+  - レスポンス `200`: 更新後の `StoredCard`。`incomprehensible: true` は既存回答を取り消す。未存在カードは `404`。
+- **`POST /api/cards/:id/distill`**:
+  - リクエストボディなし。
+  - レスポンス `200`: `distilledAt` を記録した `StoredCard`。確定していないカードは `400`、未存在カードは `404`、蒸留済みカードまたは内容の異なる出力先決定レコードの既存による競合は `409` とし、既存の `<Decision>` レコードは上書きしない。既存レコードが今回生成すべき内容と完全一致する場合は、レコード作成後に `distilledAt` 記録が中断した状態として `200` で `distilledAt` を補完する。
 - **`GET /api/blocks`**:
   - レスポンス: `{ blocks: ReviewBlockSummary[], counts: { approved, unreviewed, stale, suspect, changed } }`
   - 各要素は `id`, `kind`, `docId`, `docTitle`, `docPath`, `docDir`, `docFormat`, `rawBody`, `stability`, `review`, `suspect`, `suspectSources`, `changed`（作業ツリー／ブランチ差分で変更されたブロックか）, `approvedAt?`, `approvedBy?`, `approvedNote?`, `realization?` を返す。
@@ -93,4 +110,6 @@ satisfies:
   - `500` / `501`: サーバー内部エラー、または実行環境で未対応の PDF 出力機能
 - **副作用の範囲**:
   - すべての `GET` エンドポイントは読み取り専用（副作用なし）。
-  - 書き込み系エンドポイント（`POST /api/blocks/:id/approve`・`POST /api/blocks/approve-batch`・`DELETE /api/blocks/:id/approve`）の副作用は **`docs/guard/reviews.json`（および `.documi/cache/`）の更新と SSE `reload` 配信に限定** され、MDX 本文は一切変更しない。
+  - 承認系エンドポイント（`POST /api/blocks/:id/approve`・`POST /api/blocks/approve-batch`・`DELETE /api/blocks/:id/approve`）の副作用は **`docs/guard/reviews.json`（および `.documi/cache/`）の更新と SSE `reload` 配信に限定** され、MDX 本文は一切変更しない。
+  - Review Card の回答・フラグ系エンドポイント（`POST /api/cards/:id/answer`・`POST /api/cards/:id/flag`）の副作用は `.documi/cards/` の操作状態更新に限定する。
+  - `POST /api/cards/:id/distill` の副作用は `docs/decisions/` への新規 `<Decision>` レコード作成と対象カードへの `distilledAt` 記録に限定し、既存の `<Decision>` レコードは上書きしない。

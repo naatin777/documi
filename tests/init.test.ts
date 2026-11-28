@@ -21,6 +21,7 @@ describe('documi init & Agent Skills', () => {
       expect(first.createdDocs).toHaveLength(4)
       expect(first.createdSkills).toEqual([
         'documi/SKILL.md',
+        'documi-design/SKILL.md',
         'documi-bootstrap/SKILL.md',
         'documi-review/SKILL.md',
         'documi-audit/SKILL.md',
@@ -58,6 +59,12 @@ describe('documi init & Agent Skills', () => {
       expect(auditSkill).toContain('Reproducibility Audit')
       expect(auditSkill).toContain('documi check --no-review-edit')
       expect(auditSkill).toContain('mode="exports"')
+      expect(auditSkill).toContain('Six-Point Reproducibility Gap Check')
+
+      const designSkill = await readFile(path.join(first.skillsDir, 'documi-design/SKILL.md'), 'utf-8')
+      expect(designSkill).toContain('Upstream Design')
+      expect(designSkill).toContain('Hard Gates')
+      expect(designSkill).toContain('Gotchas')
 
       // 生成された docs/ はそのまま documi check がエラー 0 件で通る
       const report = await runDocsCheck({ docsDir, projectRoot: repo })
@@ -71,6 +78,7 @@ describe('documi init & Agent Skills', () => {
       expect(second.createdSkills).toEqual([])
       expect(second.skippedSkills).toEqual([
         'documi/SKILL.md',
+        'documi-design/SKILL.md',
         'documi-bootstrap/SKILL.md',
         'documi-review/SKILL.md',
         'documi-audit/SKILL.md',
@@ -89,6 +97,7 @@ describe('documi init & Agent Skills', () => {
       expect(forced.skippedDocs).toEqual([])
       expect(forced.updatedSkills).toEqual([
         'documi/SKILL.md',
+        'documi-design/SKILL.md',
         'documi-bootstrap/SKILL.md',
         'documi-review/SKILL.md',
         'documi-audit/SKILL.md',
@@ -98,7 +107,14 @@ describe('documi init & Agent Skills', () => {
       expect(jaSkill).toContain('Documi Living Specification 運用ワークフロー（CLI）')
       expect(jaSkill).toContain('documi map')
       expect(jaSkill).toContain("--body - <<'EOF'")
+      expect(jaSkill).toContain('## Hard Gates')
+      expect(jaSkill).toContain('## Gotchas')
       expect(jaSkill).not.toContain('get_project_map')
+
+      const jaDesignSkill = await readFile(path.join(forced.skillsDir, 'documi-design/SKILL.md'), 'utf-8')
+      expect(jaDesignSkill).toContain('上流設計・調査・仕様確定スキル')
+      expect(jaDesignSkill).toContain('## Hard Gates')
+      expect(jaDesignSkill).toContain('## Gotchas')
 
       const jaReviewSkill = await readFile(path.join(forced.skillsDir, 'documi-review/SKILL.md'), 'utf-8')
       expect(jaReviewSkill).toContain('対話型仕様レビュー・認識合わせクイズ')
@@ -106,6 +122,7 @@ describe('documi init & Agent Skills', () => {
 
       const jaAuditSkill = await readFile(path.join(forced.skillsDir, 'documi-audit/SKILL.md'), 'utf-8')
       expect(jaAuditSkill).toContain('再現性監査・ドキュメント肉付けワークフロー')
+      expect(jaAuditSkill).toContain('6 観点チェック')
       expect(jaAuditSkill).toContain('guard/reviews.json')
     } finally {
       await rm(repo, { recursive: true, force: true })
@@ -146,6 +163,7 @@ describe('documi init & Agent Skills', () => {
       expect(skillsOnly.createdDocs).toEqual([])
       expect(skillsOnly.createdSkills).toEqual([
         'documi/SKILL.md',
+        'documi-design/SKILL.md',
         'documi-bootstrap/SKILL.md',
         'documi-review/SKILL.md',
         'documi-audit/SKILL.md',

@@ -26,6 +26,7 @@ import {
   DecisionBlock,
   DecisionSubBlock,
   NoteBlock,
+  SignalBlock,
   SpecBlock,
   TermDefBlock,
   TestBlock,
@@ -578,6 +579,7 @@ const FLOW_COMPONENTS = new Set([
   'Note',
   'TermDef',
   'Term',
+  'Signal',
 ])
 const TAB_ITEM_COMPONENTS = new Set(['Tabs.Tab', 'Tab'])
 const STEP_ITEM_COMPONENTS = new Set(['Steps.Step', 'Step'])
@@ -697,6 +699,21 @@ function renderJsx(node: JsxNode, ctx: Ctx, level: 'flow' | 'text'): ReactNode {
           >
             {renderJsxChildren(node, ctx)}
           </TestBlock>
+        )
+      case 'Signal':
+        return (
+          <SignalBlock
+            id={strProp(props, 'id')}
+            method={strProp(props, 'method')}
+            cadence={strProp(props, 'cadence')}
+            metric={strProp(props, 'metric')}
+            op={strProp(props, 'op')}
+            value={strProp(props, 'value')}
+            stability={strProp(props, 'stability')}
+            title={strProp(props, 'title')}
+          >
+            {renderJsxChildren(node, ctx)}
+          </SignalBlock>
         )
       case 'Note':
         return (

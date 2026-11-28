@@ -5,6 +5,7 @@ import path from 'node:path'
 import { Hono } from 'hono'
 import { hc } from 'hono/client'
 import { stringify } from 'yaml'
+import { answerCard, createCard } from '../src/core/cards'
 import { resolveSourceLines } from '../src/core/source'
 import { createApp, type ApiRoutes } from '../src/server/app'
 import { renderPdfFromUrl } from '../src/server/pdf'
@@ -46,7 +47,7 @@ beforeEach(async () => {
   )
 
   store = await DocsStore.open(root, { projectRoot: root })
-  app = createApp(store)
+  app = createApp(store, { projectRoot: root })
 })
 
 afterEach(async () => {
@@ -314,6 +315,49 @@ describe('REST API', () => {
     await writeFile(path.join(root, '.env'), 'SECRET=hunter2\n')
     const res = await resolveSourceLines(root, '.env', '1')
     expect(res.isErr()).toBe(true)
+  })
+
+  test('[core.review-card-store] POST /api/cards/:id/distill は確定カードを蒸留し一覧から外す', async () => {
+    await createCard(root, {
+      id: 'card.api-distill',
+      fillable: 'yes',
+      title: 'API から記録に残すか',
+      whyNow: '確定した判断を docs に残したい。',
+      defaultPath: '放っておくと、AI は最初の選択肢で仮置きして進める。',
+      example: 'たとえば、確定したカードが操作一覧に残り続けると未処理に見える。',
+      createdAt: '2026-11-28T00:00:00.000Z',
+      options: [
+        { id: 'save', label: '記録に残す', consequence: '判断を後から辿れる', loses: 'docs が増える' },
+        {
+          id: 'keep-open',
+          label: '残さない',
+          consequence: 'docs を増やさない',
+          loses: '判断を辿れない',
+          negative: true as const,
+        },
+      ],
+    })
+    await answerCard(root, 'card.api-distill', {
+      selectedOptionId: 'save',
+      finish: 'committed',
+      answeredAt: '2026-11-28T01:00:00.000Z',
+    })
+
+    const before = await app.fetch(new Request('http://localhost/api/cards'))
+    expect(((await before.json()) as { cards: unknown[] }).cards).toHaveLength(1)
+
+    const res = await app.fetch(new Request('http://localhost/api/cards/card.api-distill/distill', { method: 'POST' }))
+    expect(res.status).toBe(200)
+    const body = (await res.json()) as { distilledAt?: string }
+    expect(body.distilledAt).toBeDefined()
+
+    const after = await app.fetch(new Request('http://localhost/api/cards'))
+    expect(((await after.json()) as { cards: unknown[] }).cards).toHaveLength(0)
+
+    const repeated = await app.fetch(
+      new Request('http://localhost/api/cards/card.api-distill/distill', { method: 'POST' }),
+    )
+    expect(repeated.status).toBe(409)
   })
 })
 

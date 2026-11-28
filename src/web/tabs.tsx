@@ -4,14 +4,14 @@ import { isArtifactType } from '../core/types'
 import type { ArtifactType } from '../core/types'
 import { encodeDocId } from './api'
 
-export type ViewTabId = 'home' | 'review' | 'graph' | 'code'
+export type ViewTabId = 'home' | 'review' | 'cards' | 'graph' | 'code'
 
 export type WorkspaceTab =
   | {
       kind: 'view'
       key: `view:${ViewTabId}`
       viewId: ViewTabId
-      path: '/' | '/review' | '/graph' | '/code'
+      path: '/' | '/review' | '/cards' | '/graph' | '/code'
       title: string
     }
   | {
@@ -43,6 +43,7 @@ const STORAGE_KEY = 'documi:workspace-tabs'
 const VIEW_TABS: Record<ViewTabId, Extract<WorkspaceTab, { kind: 'view' }>> = {
   home: { kind: 'view', key: 'view:home', viewId: 'home', path: '/', title: 'Home' },
   review: { kind: 'view', key: 'view:review', viewId: 'review', path: '/review', title: 'Review Queue' },
+  cards: { kind: 'view', key: 'view:cards', viewId: 'cards', path: '/cards', title: 'Review Cards' },
   graph: { kind: 'view', key: 'view:graph', viewId: 'graph', path: '/graph', title: 'Graph' },
   code: { kind: 'view', key: 'view:code', viewId: 'code', path: '/code', title: 'Code Explorer' },
 }
@@ -60,6 +61,7 @@ function docIdFromPath(pathname: string): string | null {
 export function activeTabKeyFromPath(pathname: string): string | null {
   if (pathname === '/' || pathname === '') return VIEW_TABS.home.key
   if (pathname === '/review') return VIEW_TABS.review.key
+  if (pathname === '/cards') return VIEW_TABS.cards.key
   if (pathname === '/graph') return VIEW_TABS.graph.key
   if (pathname === '/code') return VIEW_TABS.code.key
   const docId = docIdFromPath(pathname)
@@ -69,6 +71,7 @@ export function activeTabKeyFromPath(pathname: string): string | null {
 function viewTabForPath(pathname: string): Extract<WorkspaceTab, { kind: 'view' }> | null {
   if (pathname === '/' || pathname === '') return VIEW_TABS.home
   if (pathname === '/review') return VIEW_TABS.review
+  if (pathname === '/cards') return VIEW_TABS.cards
   if (pathname === '/graph') return VIEW_TABS.graph
   if (pathname === '/code') return VIEW_TABS.code
   return null
@@ -89,7 +92,11 @@ function loadTabs(initialPathname: string): WorkspaceTab[] {
       const rec = item as Record<string, unknown>
       if (
         rec.kind === 'view' &&
-        (rec.viewId === 'home' || rec.viewId === 'review' || rec.viewId === 'graph' || rec.viewId === 'code')
+        (rec.viewId === 'home' ||
+          rec.viewId === 'review' ||
+          rec.viewId === 'cards' ||
+          rec.viewId === 'graph' ||
+          rec.viewId === 'code')
       ) {
         const vt = VIEW_TABS[rec.viewId]
         if (!seen.has(vt.key)) {

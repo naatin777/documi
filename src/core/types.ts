@@ -61,7 +61,7 @@ export type ReviewStatus = (typeof REVIEW_STATUSES)[number]
 export const REALIZATION_STATUSES = ['unimplemented', 'in-progress', 'implemented', 'verified', 'drifted'] as const
 export type RealizationStatus = (typeof REALIZATION_STATUSES)[number]
 
-export const BLOCK_KINDS = ['spec', 'constraint', 'decision', 'test', 'note', 'term'] as const
+export const BLOCK_KINDS = ['spec', 'constraint', 'decision', 'test', 'note', 'term', 'signal'] as const
 export type BlockKind = (typeof BLOCK_KINDS)[number]
 
 export const EDGE_KINDS = ['derives', 'satisfies', 'verifies', 'supersedes', 'mentions'] as const
@@ -338,6 +338,42 @@ export interface TermSemanticBlock extends SemanticBlockBase {
   symbols: string[]
 }
 
+export const SIGNAL_METHODS = ['machine', 'experiment', 'manual-review', 'llm-judge'] as const
+export type SignalMethod = (typeof SIGNAL_METHODS)[number]
+
+export const SIGNAL_METRICS = [
+  'check.errors',
+  'check.warnings',
+  'realization.verified',
+  'realization.implemented',
+  'realization.in-progress',
+  'realization.unimplemented',
+  'realization.drifted',
+  'review.approved',
+  'review.unreviewed',
+  'review.stale',
+  'review.suspect',
+] as const
+export type SignalMetric = (typeof SIGNAL_METRICS)[number]
+
+export const SIGNAL_OPS = ['eq', 'neq', 'lt', 'lte', 'gt', 'gte'] as const
+export type SignalOp = (typeof SIGNAL_OPS)[number]
+
+export interface SignalSemanticBlock extends SemanticBlockBase {
+  kind: 'signal'
+  intent: SpecIntent
+  /** 判定方法: machine=自動評価 / experiment=再現実験 / manual-review=手順固定の人間判断 / llm-judge=LLM 判定（評価未実装） */
+  method: SignalMethod
+  /** 任意の観測頻度 (例: monthly) */
+  cadence?: string
+  /** machine 用: 閉じた語彙のメトリクス名 */
+  metric?: SignalMetric
+  /** machine 用: 比較演算子 (既定 eq) */
+  op?: SignalOp
+  /** machine 用: 比較対象の整数値 */
+  value?: number
+}
+
 export type SemanticBlock =
   | SpecSemanticBlock
   | ConstraintSemanticBlock
@@ -345,6 +381,7 @@ export type SemanticBlock =
   | TestSemanticBlock
   | NoteSemanticBlock
   | TermSemanticBlock
+  | SignalSemanticBlock
 
 interface SourceRefBase {
   file: string

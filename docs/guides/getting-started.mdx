@@ -24,9 +24,10 @@ documi serve --project /path/to/repo          # Web UI + API + HTTP MCP 起動
 documi mcp --project /path/to/repo            # stdio MCP サーバー起動 (MCP 派向け・Skill 不要)
 ```
 
-`documi init` は `AGENTS.md` 等と競合させないよう、標準 **Agent Skills** 形式（`.agents/skills/`）で CLI ベースの以下 4 つのスキルを自動配置します：
+`documi init` は `AGENTS.md` 等と競合させないよう、標準 **Agent Skills** 形式（`.agents/skills/`）で CLI ベースの以下 5 つのスキルを自動配置します：
 
-- **`documi/SKILL.md`**: 日常開発で `documi map` → `documi query` / `search` / `retrieve` → `documi context` → 精密編集（`documi block` / `term` / `scaffold`）→ `documi check` を使う運用スキル（再現性 4 チェック込み）
+- **`documi/SKILL.md`**: 日常開発で `documi search --context` / `documi map` → `documi context` / `impact` → 精密編集（`documi block` / `term` / `scaffold`）→ `documi check` を使う運用スキル（再現性 4 チェック込み）
+- **`documi-design/SKILL.md`**: 新機能設計・技術選定・ADR 作成の上流で、既存資産棚卸し・一次情報確認・外部比較・暗黙前提チェック・後戻りコスト基準の仮実装判断を行うスキル
 - **`documi-bootstrap/SKILL.md`**: 既存コードベース（Brownfield）を棚卸しし、初期 Goal・System Design・用語集・コア仕様を段階的に立ち上げるスキル
 - **`documi-review/SKILL.md`**: 未承認・`stale`・`suspect` な仕様を 2〜3 件ずつ取り上げ、エッジケースの選択式クイズで人間と AI の認識ズレを炙り出し、合意後に人間専用の最終確認 URL・承認コマンドを引き継ぐ対話レビュースキル
 - **`documi-audit/SKILL.md`**: 実コード・テストと `docs/` を突き合わせ、「別 AI でも同じ挙動を再現できる解像度」に不足している境界条件・優先順位・スキーマ・外部契約・ADR 漏れを監査して肉付けするスキル
@@ -55,7 +56,7 @@ Documi は **AI が CLI / MCP で仕様・設計・コード・テストを書�
 
 ## Web UI の読み方・レビューの進め方
 
-- **1 本サイドバー (`Flow` / `Files`)**: 既定の `Flow` モードでは `Goals → Architecture → Domain → Specs → Contracts → Designs → Decisions → Verification → Guides` の読み順で並びます。フォルダ構造で見たいときは `Files` へ切り替えます。
+- **1 本サイドバー (`Flow` / `Files`)**: 既定の `Flow` モードでは `Goals → Domain → Specs → Contracts → Designs → Decisions → Guides` の読み順で並びます。フォルダ構造で見たいときは `Files` へ切り替えます。
 - **Review Queue (`/review`)**: AI が新規作成・変更したブロックを `変更あり`・`要再確認 (Stale/Suspect)`・`未承認`・`承認済み` やブロック種別、最終確認 URL（`/review?ids=...&note=...`）で絞り込み、Markdown 本文・自動展開 Diff の確認、まとめて承認／個別承認／承認取消、AI 向け参照・クイズ依頼コピーが行えます。
 - **並べて読む（Side-by-Side プレビュー）**:
   - ドキュメント閲覧中、右パネルの `Links` タブにある分割ボタン（またはリンクを **`Shift+クリック`**）で関連文書を右側に並べて比較できます。

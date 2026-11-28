@@ -32,14 +32,16 @@ tags: [spec, ai, cli, mcp]
 
 <Spec id="core.agent-skills-init" stability="evolving" derives="goals/ai-reproducibility">
   **When** `documi init` が実行されたとき、
-  **the** Document Core および CLI **shall** 既存の `AGENTS.md` 等と競合させずに標準 Agent Skills 形式（既定 `<projectRoot>/.agents/skills/`）で CLI ベースの 4 スキル（日常運用 `documi/SKILL.md`・既存コードベース導入 `documi-bootstrap/SKILL.md`・対話型仕様レビュークイズ `documi-review/SKILL.md`・再現性監査＆肉付け `documi-audit/SKILL.md`）と `docs/` 雛形を指定言語（`--en` / `--ja` / `--lang`、既定 `en`）で冪等に生成する。既存ファイルは明示フラグ（`--force-skills`）なしに上書きしない。
+  **the** Document Core および CLI **shall** 既存の `AGENTS.md` 等と競合させずに標準 Agent Skills 形式（既定 `<projectRoot>/.agents/skills/`）で CLI ベースの 5 スキル（日常運用 `documi/SKILL.md`・上流設計＆調査 `documi-design/SKILL.md`・既存コードベース導入 `documi-bootstrap/SKILL.md`・対話型仕様レビュークイズ `documi-review/SKILL.md`・再現性監査＆肉付け `documi-audit/SKILL.md`）と `docs/` 雛形を指定言語（`--en` / `--ja` / `--lang`、既定 `en`）で冪等に生成する。既存ファイルは明示フラグ（`--force-skills`）なしに上書きしない。
 </Spec>
 
 - **生成ファイル（冪等・非破壊）**:
   - `docs/` 雛形 4 件: `goals/project-goal.mdx`, `domain/glossary.mdx`, `decisions/first-decision.mdx`, `specs/example.mdx`（生成直後に `documi check` がエラー 0 件で通過する完全な Rooted DAG を構成）
-  - `.agents/skills/` 4 件: `documi/SKILL.md`, `documi-bootstrap/SKILL.md`, `documi-review/SKILL.md`, `documi-audit/SKILL.md`（すべて CLI ベースで MCP ツール名と重複しない）
-  - `documi/SKILL.md` は **Spec-First 運用・Capability 単位分割・矛盾防止・合意の即時永続化・視覚ファースト執筆規約**（変更前に `documi impact` で影響範囲を棚卸し → `docs/` を実装より先に更新し 1 事実 1 箇所・1 Capability 1 ファイル・方針転換時は `supersedes` を付与 → 逆ピラミッド・1 段落 3 行以内・箇条書き先頭太字・流れは Mermaid・分岐は表・補足は `<Details>`・比較は `<Columns>`・時系列は `<Timeline>` でスキャンしやすく記述 → チャット合意は `<Decision>` / `<Spec>` / `<Test>` / `<Constraint>` / `<Note intent="idea">` へ即記録 → `documi check` → コード実装）を標準手順として内蔵する。
-  - `documi-audit/SKILL.md` はコードとの整合監査に加え、**実装前の `docs/` 同士の意味的矛盾チェック**（変更文書と `documi impact` 先のクロスチェック）および **長文散文の図表・`<Details>` 化ダイエット監査** も扱う。
+  - `.agents/skills/` 5 件: `documi/SKILL.md`, `documi-design/SKILL.md`, `documi-bootstrap/SKILL.md`, `documi-review/SKILL.md`, `documi-audit/SKILL.md`（すべて CLI ベースで MCP ツール名と重複しない）
+  - 各 `SKILL.md` は Agent Skills 標準に従い、AI の自動発火精度を高める **トリガー語＋除外条件（使わない場面）入り `description`**・**絶対ルール（MUST）と推奨手順（SHOULD）の分離**・**`Gotchas`（実戦の地雷と言い訳封じ）**・**スキル間の実行順序**・**完了時出力フォーマット** を備える。
+  - `documi/SKILL.md` は **Spec-First 運用・Capability 単位分割・矛盾防止・合意の即時永続化・視覚ファースト執筆規約**（変更前に `documi impact` で影響範囲を棚卸し → `docs/` を実装より先に更新し 1 事実 1 箇所・1 Capability 1 ファイル・方針転換時は `supersedes` を付与 → チャット合意は `<Decision>` / `<Spec>` / `<Test>` / `<Constraint>` / `<Note intent="idea">` へ即記録 → `documi check` → コード実装）を標準手順として内蔵する。
+  - `documi-design/SKILL.md` は実装前の **既存資産棚卸し・実バージョン/一次情報確認・外部比較 ADR・暗黙前提チェック・後戻りコスト基準の質問 vs 仮実装（`intent="idea"`）** を扱う。
+  - `documi-audit/SKILL.md` はコードとの整合監査に加え、**実装前の `docs/` 同士の意味的矛盾チェック**（変更文書と `documi impact` 先のクロスチェック）、**層の漏れ・用語リンク健全性**、および **長文散文の図表・`<Details>` 化ダイエット監査** も扱う。
 - **境界条件**: 既存 `AGENTS.md` / `CLAUDE.md` は作成・変更しない。`--en` と `--ja` の同時指定や不正 `--lang` は引数エラーで終了コード `1`。`--skills-only` は雛形をスキップ、`--no-skills` はスキルをスキップ、`--force-skills` のみ既存 `SKILL.md` を上書き更新する。
 
 ## 3. AI・人間向け CLI クエリ・変更影響分析・精密編集と MCP 自己完結

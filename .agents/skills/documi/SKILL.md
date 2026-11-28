@@ -1,34 +1,41 @@
 ---
 name: documi
-description: Documi CLI を使って Living Specification（仕様・設計・ADR・用語集）を検索・精密編集・検証する運用スキル。機能実装・仕様変更・API/アーキテクチャ変更・コードとテストの同期前に使用します。
+description: Documi CLI を使って Living Specification（docs/ の仕様・契約・設計・ADR・用語集）を検索・精密編集・検証する日常運用スキル。機能実装・仕様変更・バグ修正・API/スキーマ変更・コードとテストの同期・チャット合意の記録を行うときは必ず使用する。新機能の上流設計・技術選定には先に documi-design、既存コードへの初回導入には documi-bootstrap、人間との認識合わせクイズには documi-review、仕様の再現性監査には documi-audit、PR 作成には documi-pr を使う。
 ---
 
 # Documi Living Specification 運用ワークフロー（CLI）
 
+> ワークフロー位置: `documi-design`（上流設計）→ **`documi`（日常運用・実装）** → `documi-audit`（再現性監査）→ `documi-pr`（PR 作成）→ `documi-review`（人間承認）
+
 このリポジトリは `docs/` 配下の Living Specification を **Documi** で管理しています。
-ファイルを 1 件ずつ丸ごと読む代わりに、`documi` CLI を使って必要な文脈だけを段階的に取得・精密編集してください。
-コンテキストを節約するため、**読み取りは既定のコンパクトなテキスト出力を優先**し、構造化データが必要なときだけ `--json`（さらに全文・詳細配列が必要なときだけ `--full`）を付けてください（全オプションは `documi --help` で確認できます）。
+ファイルを 1 件ずつ丸ごと読む代わりに、`documi` CLI の既定コンパクト出力を使って段階的に文脈を取得・精密編集してください（構造化データが必要なときだけ `--json`、全文展開が必要なときだけ `--full`）。
+
+## Hard Gates（絶対に破らない）
+
+- **Spec-First**: 仕様・振る舞い・契約を変えるときは、コードやテストより先に `docs/` を更新し、`documi check --no-review-edit` を通す。
+- **変更前に `documi impact <id>`**: 既存仕様を変える前に必ず影響範囲（下流文書・ブロック・コード・テスト）を洗い出す。
+- **`docs/guard/reviews.json` 編集禁止**: 承認記録は人間専用。AI は絶対に編集せず `documi approve` / `unapprove` も実行しない。
+- **MDX 安全性**: MDX 内で実行可能な JS（ESM `import`/`export`・JSX 式 `{...}`・未許可コンポーネント）を書かない。
+- **一時ファイル禁止**: `docs/` 内に `tasks.md` 等を作らない（進捗は `realization` で自動算出）。
+- **チェスタートンの柵**: 理由不明な防御コード・ワークアラウンドを勝手に消さない（削除前に `git log -S` / `git blame` と `documi search --context` で経緯を確認。詳細は `documi-design`）。
 
 ## 1. 段階的コンテキスト取得（実装前に読む）
 
-1. **Spec ID がまだ分からないタスク**: `documi search "<自然文のタスクや質問>" --context` — BM25＋用語集同義語展開＋グラフ展開で関連 Spec・上流 Goal・`<Decision>` 結論（マイクロ ADR 含む）・用語・`<SourceRef>` を文字数予算内で 1 発取得する。
-2. **全体像の把握**: `documi map` — Goal・全体設計（`design` / `scope: system`）・独立 Decision `<Decision>` 結論・ドメイン用語・Review / Realization 全体像を一括取得する（機械処理時は `documi map --json`）。
-3. **条件絞り込み・横断検索**: `documi query [--kind spec] [--review ...] [--realization ...] [--q <語>]` または `documi search "<query>"`。
-4. **特定 Spec の深掘り・変更影響の確認**: `documi context <spec-id>` で対象 Spec 本文・上流 Goal・関連文書・用語・`<SourceRef>` を取得する。**仕様変更の前には必ず `documi impact <id>` を実行し、影響を受ける全下流文書・ブロック・コード・テストを洗い出す**（全文や直接参照だけ見たい場合は `documi show <doc-id>` / `documi relations <id>`）。
+1. **Spec ID が未確定のタスク**: `documi search "<自然文のタスクや質問>" --context` — BM25＋用語集同義語展開＋グラフ展開で関連 Spec・上流 Goal・`<Decision>`・用語・`<SourceRef>` を 1 発取得する。
+2. **全体像の把握**: `documi map` — Goal・`systemDesigns`・`systemConstraints`・現行独立 `<Decision>`・ドメイン用語（`antiTerms` 含む）・Review / Realization 状況を一括取得する。
+3. **条件絞り込み**: `documi query [--kind spec] [--review ...] [--realization ...] [--q <語>]` または `documi search "<query>"`。
+4. **特定 Spec の深掘り・影響確認**: `documi context <spec-id>` で対象 Spec と周辺文脈を取得し、変更前は必ず `documi impact <id>` を実行する。
 
-## 2. Spec-First・矛盾防止・合意の即時永続化（実装前に docs/ を固める）
+## 2. 矛盾防止・合意の即時永続化・執筆ルール
 
-- **Spec-First**: 仕様・振る舞い・契約を変えるときは、**コードやテストを触る前にまず `docs/` を更新し、`documi check` で整合を確認する**。
-- **1 事実 1 箇所（Single Source of Truth）**: 同じ仕様表や列挙を Spec・Contract・Design に重複コピーせず、正規の置き場所（`spec`＝振る舞い／`contract`＝外部 I/F・スキーマ／`design`＝モジュール責務）を 1 箇所に決め、他文書からはリンクや `<Term>` で参照する。
-- **古い決定は `supersedes` で廃止**: 方針転換や旧 ADR の撤回時は、新しい ADR に `supersedes: [decisions/<old-adr>]` を付け、古い決定を現行一覧から分離する（横に v2 仕様ファイルを乱立させない）。
-- **チャット合意の即時永続化**: チャット履歴にしか残っていない合意は別セッションでは失われる。ユーザーと合意した方針・却下案は `<Decision>`（全体判断は独立 `decision`、局所判断は `design`/`spec` 内マイクロ ADR）、振る舞いは `<Spec>`、保証シナリオは `<Test verifies="..." level="...">`、禁止事項は `<Constraint>`、未確定の仮案・保留は `<Note intent="idea">` に**その場で即記録する**。
-- **読みやすさ・視覚ファースト執筆（長文ダラダラ禁止）**: 人間はドキュメントを斜め読みするため、散文の壁を作らず以下を徹底する：
-  - **結論ファースト＆3 行ルール**: 冒頭に 1〜2 文の要約を置き、1 段落は 3 行以内・箇条書きの先頭 2〜4 語を **太字** にする。
-  - **図表・コンポーネント優先**: 処理フロー・状態遷移は **Mermaid 図**、条件分岐・エラー規約は **表**、長い補足や JSON 例は **`<Details title="...">`** に畳み、並列比較は **`<Columns><Column>`**、時系列は **`<Timeline><Timeline.Item>`** を使う。
+- **1 事実 1 箇所（SSOT）**: 同じ仕様表や列挙を重複コピーせず、正規の置き場所（`spec`＝振る舞い／`contract`＝外部 I/F・スキーマ／`design`＝モジュール責務）を 1 箇所に決め、他文書からはリンクや `<Term>` で参照する。
+- **古い決定は `supersedes` で廃止**: 方針転換時は新 ADR に `supersedes: [decisions/<old-adr>]` を付け、横に v2 ファイルを乱立させない。
+- **チャット合意の即時永続化**: ユーザーと合意した方針・却下案は `<Decision>`、振る舞いは `<Spec>`、保証シナリオは `<Test verifies="..." level="...">`、禁止事項は `<Constraint>`、軽い仮置きは `intent="idea"`（判断基準は `documi-design`）へ**その場で即記録する**。
+- **視覚ファースト執筆（SHOULD）**: 結論ファースト・1 段落 3 行以内・箇条書き先頭太字・フローは Mermaid・条件分岐は表・長い補足は `<Details>` に畳む（詳細は `docs/guides/authoring-guide.mdx`）。
 
-## 3. CLI による精密編集（差分を最小限に保つ）
+## 3. CLI による精密編集（差分最小化）
 
-仕様を更新するときは、MDX ファイル全体を書き換える代わりに AST 位置ベースの CLI コマンドを優先してください。**複数行の Markdown やバッククォートを含む本文はクォート崩れを防ぐため `--body -` ＋ヒアドキュメント**（または `--body-file <file>`）を使ってください：
+MDX 全体を手書きで書き換えず AST 位置ベースの CLI を優先する。複数行 Markdown やバッククォートを含む本文は `--body -` ＋シングルクォートヒアドキュメント（または `--body-file`）を使う：
 
 ```bash
 documi block update <block-id> --stability evolving --body - <<'EOF'
@@ -37,37 +44,33 @@ documi block update <block-id> --stability evolving --body - <<'EOF'
 EOF
 ```
 
-- `documi block update <block-id> --body - [--stability ...] [--derives a,b]` — 既存ブロックの該当行範囲のみを安全に更新する。
-- `documi block add <doc-id> --kind spec --id <new-id> --derives <goal> --body - [--after-heading "<見出し>"]` — セマンティックブロックを 1 件追記する。
-- `documi term upsert <term-id> --definition "..." [--aliases a,b] [--symbols src/foo.ts#Foo]` — 用語集に `<TermDef>` を追加・更新する。
-- `documi scaffold <rel-path.mdx> --title "..." [--type spec] [--derives a,b] [--body -]` — 規約通りの frontmatter を持つ新規文書を作成する（既存ファイルの上書きは拒否）。
-- `documi block rename <old-id> <new-id> --dry-run` — 全 `docs/` とコード・テストの ID 参照を一括リネームする（必ず先に `--dry-run` で対象を確認）。
+- `documi block update <block-id> --body - [--stability ...] [--derives a,b]` — 既存ブロックの該当行範囲のみ更新
+- `documi block add <doc-id> --kind spec --id <new-id> --derives <goal> --body - [--after-heading "<見出し>"]` — ブロックを 1 件追記
+- `documi term upsert <term-id> --definition "..." [--aliases a,b] [--symbols src/foo.ts#Foo]` — `<TermDef>` を追加・更新
+- `documi scaffold <rel-path.mdx> --title "..." [--type spec] [--derives a,b] [--body -]` — 新規文書を作成（既存上書き拒否）
+- `documi block rename <old-id> <new-id> --dry-run` — 全 `docs/` とコード・テストの ID 参照を一括リネーム（先に `--dry-run` 必須）
 
-## 3. コード・テストと仕様の同期・更新トリガー
+## 4. コード・テストと仕様の同期
 
-- 実装コードには `// @implements <spec.id>`（または設計書に `<SourceRef file="src/..." satisfies="<spec.id>" />`）を付与する。
-- 検証テストには `test('[<spec.id>] ...', ...)`（または `// @verifies <spec.id>`）を含め、設定されていれば JUnit XML を出力する。
-- `<SourceRef file="...">` と `<TermDef symbols="...">` は必ずプロジェクトルートからの POSIX 相対パスで記述する。
-- **書く／書かないの境界（再現性 4 チェック）**: 機能追加・仕様変更を書いたときは「別 AI が `docs/` だけで同じ挙動を再現できるか」を確認する。
-  1. **境界条件・エラー拒否**（不正入力・パス脱出・空状態・エラーコード）を明記したか？
-  2. **優先順位・フォールバック・競合解決**の順序を明記したか？
-  3. **入出力・永続ファイルのスキーマ変更**を `contract` に同期したか？
-  4. **公開シンボル**（export された `class`/`interface`/`type`/公開関数）は手書きコピペせず `<SourceRef file="src/..." mode="exports" />` や `<SourceRef symbol="..." />` で AST 紐づけし、非公開ヘルパーや関数内の `if`/`for` 擬似コードは書いていないか？
-- **更新トリガー（PR 完了前セルフチェック）**:
-  - 新サブシステム・主要モジュール追加 → 全体設計（`design` / `scope: system`）更新 ＋ 機能別 `design`（`satisfies`・`<SourceRef>`）追加・更新
-  - 後戻りコストが高い全体判断 → 独立 `decision`（ADR＋`<Decision>`）、機能固有の局所トレードオフ → `design`/`spec` 内インライン `<Decision>`（マイクロ ADR）
-  - 新しい `<Spec>` 追加 → 同じ `spec` / `contract` 内に `<Test id="..." verifies="<spec.id>" level="unit|integration|e2e|contract|manual">` で**宣言的な Given / When / Then 保証シナリオ**を同居させる
-  - **Capability 単位のファイル分割（相乗り禁止）**: `spec` ファイルは技術レイヤー（`core/`・`ui/`）やスプリント単位ではなく **Capability（システムが提供する 1 つの能力・機能ドメイン）単位で 1 ファイル** にする。タイトルに無関係な機能が `and` や中黒で並び始めたら件数に関係なく `documi scaffold` で別ファイルへ切り出す（10 件超は安全網の `bloated-spec-doc` で検知）
+- 実装には `// @implements <spec.id>`（または `<SourceRef file="src/..." satisfies="<spec.id>" />`）、テストには `test('[<spec.id>] ...', ...)`（または `// @verifies <spec.id>`）を付与する。
+- `<SourceRef file="...">` と `<TermDef symbols="...">` はプロジェクトルートからの POSIX 相対パスで記述する。
+- **再現性 4 チェック**: 別 AI が `docs/` だけで同じ挙動を再現できるか確認する — ① 境界条件・エラー拒否、② 優先順位・フォールバック、③ 入出力・永続スキーマの `contract` 同期、④ 公開シンボルは `<SourceRef mode="exports" />` / `symbol="..."` で AST 接続（非公開ヘルパーや `if`/`for` 擬似コードは書かない）。
+- **Capability 単位分割**: `spec` は 1 Capability = 1 ファイル。無関係な機能が並び始めたら件数に関係なく `documi scaffold` で分割する（10 件超は `bloated-spec-doc` で検知）。
+- **新規 `<Spec>` 追加時**: 同じ `spec` / `contract` 内に `<Test id="..." verifies="<spec.id>" level="...">` の Given / When / Then を同居させ、必要に応じ `design` / `<Decision>` も更新する。
 
-## 4. 守るべき不変ルール
+## Gotchas（よくある失敗と言い訳封じ）
 
-- **`docs/guard/reviews.json` を直接編集しない。** 承認記録は人間専用（`documi check --no-review-edit` で検証）。
-- **MDX 内で実行可能な JavaScript を書かない**（ESM `import`/`export`・JSX 式 `{...}`・未許可コンポーネントは禁止）。
-- **`docs/` 内に一時的な `tasks.md` 等を作らない。** 進捗（`realization`）はコード・テスト・PR から自動算出される。
-- **理由不明な防御コードを勝手に消さない（チェスタートンの柵）**: リファクタ時に一見ムダな分岐・ガード・ワークアラウンドを見つけたら、消す前に必ず `git log -S` / `git blame` と `documi search --context` で経緯を確認する。バグ修正・地雷回避時は「コード直前の 1 行 Why-not コメント ＋ Red → Green 再現テスト ＋ 構造的地雷なら該当 `design`/`spec` 内マイクロ ADR `<Decision>`」の 3 点セットを残す。
-- **軽い仮実装は `intent="idea"` で明示する**: 後戻りコストの低い細部（デフォルト値・UI 細部等）を「とりあえず実装」するときは、黙って確定仕様に混ぜず `<Spec intent="idea">` または `<Note intent="idea" title="仮置き: ...">` に記録して Overview と PR で人間に可視化する。
+| やりがちな言い訳・失敗 | 正しい対処 |
+| :--- | :--- |
+| 「小さな変更だから先にコードだけ直そう」 | **NG**。先に `docs/` を更新してから実装する（`docs-sync-missing` の原因） |
+| 「チャットで合意したし覚えている」 | **NG**。別セッションでは消える。その場で `docs/` に永続化する |
+| 「用語を分かりやすく日本語や別名で書こう」 | **NG**。1 概念＝1 正準表記。登録済み用語はバッククォートで囲わず正準 ID で書く |
+| 「`goal` に制約や実装タグも書いておこう」 | **NG**。`goal` は Problem Space のみ。技術制約は `design (scope: system)` へ分離する |
 
-## 5. 完了前の検証と引き継ぎ
+## 5. 検証と完了時の報告フォーマット
 
-1. `documi check --no-review-edit` を実行し、エラー 0 件（Rooted DAG・MDX 安全性・AST シンボル参照）および健全性ヒント（Design / Test カバレッジ・`anti-term-used`・Spec 肥大化・ハブ過密）を確認する。
-2. 追加・変更した Spec ID を簡潔にまとめ、人間レビュアーが Web UI（`documi serve`）で確認・承認できるようにする。
+1. `documi check --no-review-edit` を実行し、エラー 0 件・健全性ヒントを確認する。
+2. 完了時は以下の形式で簡潔に報告する：
+   - **更新した Spec / 文書**: ID と 1 行要約
+   - **検証結果**: `documi check --no-review-edit` とテスト結果
+   - **人間確認が必要な点**: 未確定の `intent="idea"` やレビュー対象（あれば `http://localhost:3000/review?filter=changed` を案内）

@@ -35,7 +35,8 @@
     "format:check": "oxfmt --check",
     "knip": "knip",
     "test": "bun test",
-    "test:coverage": "bun test --coverage"
+    "test:coverage": "bun test --coverage",
+    "verify": "mkdir -p .documi && bun test --reporter=junit --reporter-outfile=.documi/test-results.xml && bun run check && bun run lint && bun run format:check && bun run knip && bun run build && bun run documi:check -- --no-review-edit"
   },
   "dependencies": {
     "@ast-grep/lang-go": "^0.0.6",
