@@ -95,13 +95,10 @@ const USAGE_TEXT = `Documi CLI
 
 Usage:
   documi init [options]                          Scaffold docs/ templates and Agent Skills for new or existing projects
-  documi serve [options]                         Start Web UI, REST API, and MCP (HTTP) server
   documi mcp [options]                           Start MCP server over stdio (for AI editor integration)
   documi check [options]                         Validate documents, graph, AST symbols, and test results
   documi approve <block-id...> [opts]            Approve specified semantic blocks (updates reviews.json)
   documi unapprove <block-id...> [opts]          Revoke approval for specified semantic blocks (back to unreviewed)
-  documi export [options]                        Export multiple documents as a single PDF or HTML bundle
-  documi build-site [options]                    Build a read-only static site for any static hosting provider
 
   [Read & Search Commands for AI & Humans (all support --json)]
   documi map [options]                           Get Goals, Architecture, Outcomes, Glossary, and summary stats
@@ -113,12 +110,6 @@ Usage:
   documi index [options]                         Build or incrementally sync the local Embedding cache (bun:sqlite)
   documi query [filters] [options]               Filter semantic blocks across multiple dimensions
   documi context <id> [options]                  Aggregate upstream Goals, related docs, Outcomes, Terms, and SourceRefs for a Spec
-
-  documi card create [options]                   Create a review card from JSON (--body - for stdin)
-  documi card list [options]                     List review cards in the operational store
-  documi card get <card-id> [options]            Show one review card with its answer state
-  documi card answer <card-id> [options]         Record an answer (--option <id> --finish provisional|committed [--write-in <text>])
-  documi card distill <card-id> [options]        Distill a committed card into docs/decisions/ as a decision record
 
   [Precision Edit Commands for AI & Humans (all support --json)]
   documi block add <doc-id> [options]            Append a semantic block to a document
@@ -136,8 +127,6 @@ Options:
   --skills-only           Generate Agent Skills only without creating docs/ (init)
   --no-skills             Skip Agent Skills generation (init)
   --force-skills          Overwrite existing Documi SKILL.md files with the latest version (init)
-  --port <number>         Listening port (serve, default: 3000 or PORT)
-  --host <addr>           Bind address (serve, default: 127.0.0.1 or HOST)
   --test-report <xml>     Path to JUnit XML test report (check / map / query / context)
   --review-gate <level>   Graduated review gate: none|stable|all (check, default: config reviewGate or none)
   --strict                Treat all unreviewed, stale, and drifted blocks as errors (check)
@@ -177,20 +166,15 @@ Options:
   --tags <a,b>            Comma-separated tags (scaffold)
   --description <text>    Short description (scaffold)
   --date <YYYY-MM-DD>     Decision date (scaffold)
-  --scope <scope>         Export scope (export), Document scope "system" (scaffold), or Constraint scope (block)
+  --scope <scope>         Document scope "system" (scaffold) or Constraint scope (block)
   --aliases <a,b>         Comma-separated term aliases (block / term)
   --anti-terms <a,b>      Comma-separated forbidden/confused anti-terms (block / term)
   --domain-context <ctx>  Optional Bounded Context name for a term (block / term)
   --symbols <a,b>         Comma-separated code symbols (block / term)
   --doc <doc-id>          Target glossary document ID (term upsert, default: domain/glossary)
   --dry-run               Preview planned changes without writing files (block rename)
-  --format <fmt>          Output format: text|github (check, default: text) or pdf|html (export, default: pdf)
-  --ids <a,b,c>           Comma-separated document IDs to export (export)
-  --title <text>          Cover title (export) or document/block title (scaffold / block)
-  --out <file>            Output file or directory (export default: documi-bundle.pdf|html / build-site default: ./dist-site)
-  --base <path>           Asset base path for static site (build-site, default: ./)
-  --no-code               Exclude Code Explorer and source snippets (build-site)
-  --revisions <n>         Max historical commits bundled per document (build-site, default: 5)
+  --format <fmt>          Output format: text|github (check, default: text)
+  --title <text>          Document/block title (scaffold / block)
   --json                  Output results as JSON
   --full                  Include full body and detail arrays in map / query / context JSON output
   -h, --help              Show this help`
@@ -289,15 +273,11 @@ class CliArgError extends Error {
 const GLOBAL_ALLOWED_FLAGS = new Set<string>(['docs', 'project', 'help'])
 
 const COMMAND_ALLOWED_FLAGS: Record<string, ReadonlySet<string>> = {
-  card: new Set(['json', 'body', 'body-file', 'option', 'finish', 'write-in']),
   init: new Set(['ja', 'en', 'lang', 'skills-dir', 'skills-only', 'no-skills', 'force-skills', 'json']),
-  serve: new Set(['port', 'host', 'test-report']),
   mcp: new Set(['test-report']),
   check: new Set(['mount', 'test-report', 'strict', 'review-gate', 'no-review-edit', 'prs', 'format', 'json']),
   approve: new Set(['author', 'note']),
   unapprove: new Set([]),
-  export: new Set(['format', 'scope', 'ids', 'title', 'out', 'test-report']),
-  'build-site': new Set(['out', 'base', 'no-code', 'revisions', 'test-report']),
   map: new Set(['test-report', 'full', 'json']),
   list: new Set(['type', 'mount', 'json']),
   show: new Set(['test-report', 'json']),

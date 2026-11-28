@@ -309,10 +309,10 @@ describe('AI & Human CLI commands', () => {
     expect(help.code).toBe(0)
     expect(help.stdout).toContain('documi check')
     expect(help.stdout).toContain('--strict')
-    expect(help.stdout).not.toContain('documi serve')
+    expect(help.stdout).not.toContain('documi init')
     expect(help.stdout).not.toContain('--skills-dir')
 
     const full = await execCli(['--help'])
-    expect(full.stdout).toContain('documi serve')
+    expect(full.stdout).toContain('documi init')
   })
 })

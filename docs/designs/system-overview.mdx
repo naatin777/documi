@@ -2,61 +2,37 @@
 type: design
 scope: system
 title: システム全体構成
-description: Document Core・Retrieval/Hybrid RAG・Reviews/Trace・Hono サーバー・React SPA・MCP・AI CLI・静的サイト書き出しの責務境界
+description: Document Core・Retrieval/Hybrid RAG・Reviews/Trace・MCP (stdio)・AI CLI の責務境界。エージェントファースト構成で人間向け Web UI は持たない
 tags: [architecture, design]
 ---
 
 # システム全体構成
 
-Documi は単一の TypeScript プロジェクトとして 3 層で構成し、Web UI・REST API・MCP Server・CLI・静的サイト書き出しのすべてが同じ <Term name="DocsIndex" /> とフレームワーク非依存の Document Core (`src/core`) を共有する。
+Documi は単一の TypeScript プロジェクトとして、フレームワーク非依存の Document Core (`src/core`) を中心に、AI エージェント向けの 2 経路（CLI と MCP stdio）だけを持つ。**人間向けの Web UI・REST API・静的サイト書き出し・PDF エクスポートは持たない**。人間はエディタで MDX を直接読み書きし、判断はチャット上のエージェントとの会話で行う（[chat-driven decisions](./chat-driven-decisions.mdx)）。
 
 ```mermaid
 flowchart TB
-    subgraph Client["React SPA (src/web — Vite + Base UI + Tailwind v4)"]
-        UI["1本サイドバー (Flow/Files) / Home / Review Inbox / Graph / DocViewer + Peek / Code Explorer / Cmd+K"]
-        ClientAdapter["Hono RPC Client (hc<ApiRoutes>) / Static JSON Adapter (HashRouter)"]
-        BundleUI["/bundle (表紙・目次・複数章・全タブ展開)"]
-        SSE["Live Reload (EventSource /api/events — 動的時のみ)"]
-    end
-
-    subgraph Entry["Server & CLI (src/server, src/cli.ts)"]
-        API["Hono RPC + Zod API (/api/* サブルータ分割)"]
-        MCP["MCP Server (HTTP /mcp & stdio documi mcp — instructions 自己完結)"]
-        PDF["Bun.WebView PDF/HTML Renderer"]
-        Site["Static Site Exporter (documi build-site / src/server/site.ts)"]
-        CLI["Documi CLI (管理系 + AI クエリ/検索/精密編集 18+ コマンド)"]
-        Store["DocsStore (fs.watch + auto reload)"]
+    subgraph Entry["Entry Points (src/cli.ts, src/server/mcp.ts)"]
+        CLI["Documi CLI (check / approve / map / search / query / context / block / term / scaffold / init / index)"]
+        MCP["MCP Server (stdio — instructions 自己完結)"]
     end
 
     subgraph Core["Document Core (src/core — フレームワーク非依存)"]
         Loader["Loader / Config (.documi.json) / Type & Date Inference"]
         Mdx["mdast Block & Link Extractor / AST Surgical Editor"]
-        Reviews["Reviews Sidecar / Suspect / Git Freshness & History"]
-        Trace["Code & Test Trace / Realization / Code Explorer"]
-        Query["Shared Query & Bundle Resolver (query.ts / bundle.ts)"]
+        Reviews["Reviews Sidecar / Suspect / Git Freshness & Drift"]
+        Trace["Code & Test Trace / Realization"]
+        Query["Shared Query (query.ts)"]
         Rag["Retrieval & Local Hybrid RAG (BM25 + RRF + Ollama/OpenAI + bun:sqlite)"]
         Source["AST Source Resolver (@ast-grep/napi)"]
         Init["Project Init & Agent Skills Generator (init.ts)"]
     end
 
+    Store["DocsStore (src/server/store.ts — fs.watch + auto reload)"]
     FS["projectRoot (docs/ + docs/guard/reviews.json + .documi.json + .agents/skills/ + .documi/cache/ + src/ + tests/)"]
+    Human["人間 — エディタ + チャット (エージェント経由)"]
 
-    UI --> ClientAdapter
-    BundleUI --> ClientAdapter
-    ClientAdapter --> API
-    SSE --> API
-    PDF --> BundleUI
-    Site --> API
     CLI --> Core
-    CLI --> API
-    CLI --> MCP
-    CLI --> PDF
-    CLI --> Site
-    API --> Store
-    API --> PDF
-    API --> Query
-    API --> Rag
-    API --> Source
     MCP --> Store
     MCP --> Query
     MCP --> Rag
@@ -70,14 +46,16 @@ flowchart TB
     Source --> FS
     Rag --> FS
     Init --> FS
+    Human -. 会話 .-> CLI
+    Human -. 会話 .-> MCP
 ```
 
 ## 1. パス解決・設定ファイル・副作用の境界 (`projectRoot` / Functional Core)
 
 - **同一リポジトリ・同一ブランチ既定**: `docs/` とプロジェクトコードは同一リポジトリ・同一ブランチに共存させることを標準とし、1 つの PR 内で仕様・実装・テスト・`documi check` を原子的に検証する（[ADR](../decisions/2026-11-code-explorer-and-mcp-editing.mdx)）。
-- **プロジェクト設定と双方向パス解決 (`src/core/config.ts`)**: `projectRoot` 直下の `.documi.json`（または `.documi.yml` / `.documi.yaml` / `documi.json`）から `docs`・`testReport`・任意の `rag` 設定を読み込む。CLI / サーバー / MCP の全経路で `--project` のみ指定時は `<projectRoot>/<docs>` を、`--docs` のみ指定時はその親ディレクトリを `projectRoot` として双方向に自動解決する。
-- **ソース参照パスの基準**: `<SourceRef file="src/..." />`・`<TermDef symbols="src/...#Symbol">`・`@implements` / `@verifies` の走査および読み取り専用 Code Explorer はすべて **`projectRoot` からの POSIX 相対パス** で解決する。絶対パス・`..` によるパストラバーサル・`projectRoot` 外を指すシンボリックリンクは `src/core/source.ts` で拒否する。
-- **純粋計算と副作用の境界**: `src/core/` は React・Hono・MCP SDK に一切依存せず、解析・グラフ構築・ハッシュ・Diff・Realization 集計・BM25/RRF 検索・グラフ文脈組立・クエリ投影・AST ブロック書き換え計算を独立させる。HTTP・SSE・ファイル監視・PDF レンダリング・静的サイト書き出しの副作用は `src/server/` および `src/cli.ts` に閉じ込める。
+- **プロジェクト設定と双方向パス解決 (`src/core/config.ts`)**: `projectRoot` 直下の `.documi.json`（または `.documi.yml` / `.documi.yaml` / `documi.json`）から `docs`・`testReport`・任意の `rag` 設定を読み込む。CLI / MCP の全経路で `--project` のみ指定時は `<projectRoot>/<docs>` を、`--docs` のみ指定時はその親ディレクトリを `projectRoot` として双方向に自動解決する。
+- **ソース参照パスの基準**: `<SourceRef file="src/..." />`・`<TermDef symbols="src/...#Symbol">`・`@implements` / `@verifies` の走査はすべて **`projectRoot` からの POSIX 相対パス** で解決する。絶対パス・`..` によるパストラバーサル・`projectRoot` 外を指すシンボリックリンクは `src/core/source.ts` で拒否する。
+- **純粋計算と副作用の境界**: `src/core/` は MCP SDK に一切依存せず、解析・グラフ構築・ハッシュ・Realization 集計・BM25/RRF 検索・グラフ文脈組立・クエリ投影・AST ブロック書き換え計算を独立させる。ファイル監視・stdio 通信・プロセス入出力の副作用は `src/server/` および `src/cli.ts` に閉じ込める。
 
 ## 2. 永続化ファイルと派生キャッシュの分離
 
@@ -89,13 +67,12 @@ flowchart TB
 | `.agents/skills/*` | AI エージェント向け CLI 運用スキル 5 種（`documi` / `documi-design` / `documi-bootstrap` / `documi-review` / `documi-audit`） | コミット対象 | `documi init`（既存 `AGENTS.md` には非干渉） |
 | `.documi/test-results.xml` | テスト実行結果（JUnit XML） | `.gitignore` 対象 | テストランナー |
 | `.documi/cache/embeddings.sqlite` | <Term name="HybridRAG" /> 用の `contentHash` 差分ベクトルキャッシュ | `.gitignore` 対象 | `documi index` / `--semantic` 実行時に自動生成 |
-| `.documi/cache/approved-bodies.json` | 未コミット承認時の Diff 算出用本文キャッシュ | `.gitignore` 対象 | Web UI / `documi approve` |
+| `.documi/cache/approved-bodies.json` | 未コミット承認時の Diff 算出用本文キャッシュ | `.gitignore` 対象 | `documi approve` |
 
-## 3. 3 つの利用チャネル（人間 Web UI / AI CLI & MCP / 静的サイト）
+## 3. 利用チャネル（AI エージェントファースト）
 
-- **人間向け動的 Web UI (`documi serve`)**: Hono RPC + React Query + SSE ライブ更新により、閲覧・承認・Git 鮮度/履歴比較・Code Explorer・Graph・PDF Export をリアルタイムに提供する。
-- **AI 向け二本立て経路（MCP ＋ CLI & Agent Skills）**: `src/core/query.ts`・`src/core/retrieval.ts`・`src/core/hybrid-retrieval.ts`・`src/core/editor.ts` を共通基盤として、MCP サーバー（`instructions` 自己完結・14 ツール）と CLI（`documi search --context` / `map` / `query` / `context` / `block` / `term` / `scaffold`、`--json`・`--full` 対応）が同等の機能を提供する（[ADR](../decisions/2026-11-24-ai-dual-channel-and-skills.mdx)）。
-- **プロバイダ非依存の静的サイト書き出し (`documi build-site`)**: インメモリ Hono サーバーから全読み取り API JSON を事前計算し、ビルド済み SPA（`HashRouter` 切替）と合わせて任意の静的ホスティングへ配布できる読み取り専用サイトを出力する（[ADR](../decisions/2026-11-24-provider-agnostic-static-site.mdx)）。
+- **AI 向け二本立て経路（MCP ＋ CLI & Agent Skills）**: `src/core/query.ts`・`src/core/retrieval.ts`・`src/core/hybrid-retrieval.ts`・`src/core/editor.ts` を共通基盤として、MCP サーバー（stdio・`instructions` 自己完結）と CLI（`documi search --context` / `map` / `query` / `context` / `block` / `term` / `scaffold`、`--json`・`--full` 対応）が同等の機能を提供する（[ADR](../decisions/2026-11-24-ai-dual-channel-and-skills.mdx)）。
+- **人間の経路**: 人間はドキュメントをエディタで直接読み書きし、質問・判断・監査はエージェントとのチャットで行う。人間が受け身で訪れる専用画面は用意しない。pull 型の注意モデルは成立しないことがカードシステムの失敗で実証されたため（[chat-driven decisions](./chat-driven-decisions.mdx)）。
 
 ## 4. 5 層・7 種類の Artifact Type と AI コンテキスト方針
 
@@ -114,11 +91,7 @@ flowchart TB
 </Constraint>
 
 <Constraint id="sys.fs-sot" scope="architecture" stability="stable">
-  ファイルシステム上の Markdown / MDX を Single Source of Truth とし、Web UI・REST API・MCP Server・CLI はすべてフレームワーク非依存の Document Core (`src/core/`) を共有する。
-</Constraint>
-
-<Constraint id="sys.web-readonly-mdx" scope="ui" stability="stable">
-  Web UI に高機能な MDX 本文エディタは作らない。Web UI からの書き込みは承認ガードファイル (`docs/guard/reviews.json`) に限定し、MDX 本文の編集は AI エージェントまたはローカルエディタが担う。
+  ファイルシステム上の Markdown / MDX を Single Source of Truth とし、MCP Server・CLI はすべてフレームワーク非依存の Document Core (`src/core/`) を共有する。
 </Constraint>
 
 <Constraint id="sys.pre-release-policy" scope="workflow" stability="evolving">
