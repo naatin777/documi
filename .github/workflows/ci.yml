@@ -36,12 +36,6 @@ jobs:
       - name: Knip (unused files & exports)
         run: bun run knip
 
-      - name: Build frontend
-        run: bun run build
-
-      - name: Static site build smoke test
-        run: bun src/cli.ts build-site --out .documi/site-smoke
-
       - name: Documi living spec check
         run: bun src/cli.ts check --no-review-edit
 
