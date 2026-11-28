@@ -5,7 +5,7 @@ import path from 'node:path'
 import { runCli } from '../src/cli'
 import { initDocumiProject } from '../src/core/init'
 import { buildProjectMap, getImpactAnalysis } from '../src/core/query'
-import { createApp } from '../src/server/app'
+import { handleMcpRequest } from '../src/server/mcp'
 import { DocsStore } from '../src/server/store'
 
 describe('supersedes separation & impact analysis', () => {
@@ -58,18 +58,6 @@ supersedes:
       expect(map.decisions.map((o) => o.id)).toEqual(['dec.new'])
       expect(map.supersededDecisions.map((o) => o.id)).toEqual(['dec.old'])
       expect(map.supersededDecisions[0]?.supersededBy).toEqual(['decisions/2026-02-new-choice'])
-
-      // GET /api/overview separates active decisions vs supersededDecisions
-      const app = createApp(store, { projectRoot: tmp })
-      const res = await app.request('/api/overview')
-      expect(res.status).toBe(200)
-      const body = (await res.json()) as {
-        decisions: Array<{ id: string }>
-        supersededDecisions: Array<{ id: string; supersededBy?: string[] }>
-      }
-      expect(body.decisions.map((o) => o.id)).toEqual(['dec.new'])
-      expect(body.supersededDecisions.map((o) => o.id)).toEqual(['dec.old'])
-      expect(body.supersededDecisions[0]?.supersededBy).toEqual(['decisions/2026-02-new-choice'])
     } finally {
       await rm(tmp, { recursive: true, force: true })
     }
@@ -142,8 +130,8 @@ satisfies:
       expect(parsed.affectedDocuments.map((d) => d.id)).toEqual(['designs/auth-design'])
 
       // MCP `get_impact`
-      const app = createApp(store, { projectRoot: tmp })
-      const mcpRes = await app.fetch(
+      const mcpRes = await handleMcpRequest(
+        store,
         new Request('http://localhost/mcp', {
           method: 'POST',
           headers: { 'content-type': 'application/json', accept: 'application/json, text/event-stream' },
@@ -154,6 +142,7 @@ satisfies:
             params: { name: 'get_impact', arguments: { id: 'goals/core', maxDepth: 4 } },
           }),
         }),
+        tmp,
       )
       expect(mcpRes.status).toBe(200)
       const mcpBody = (await mcpRes.json()) as {

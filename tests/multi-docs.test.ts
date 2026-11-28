@@ -8,8 +8,6 @@ import { runDocsCheck } from '../src/core/checker'
 import { resolveProjectPaths } from '../src/core/config'
 import { loadDocuments } from '../src/core/loader'
 import { approveBlock } from '../src/core/reviews'
-import { createApp } from '../src/server/app'
-import { DocsStore } from '../src/server/store'
 
 const tempDirs: string[] = []
 
@@ -154,22 +152,6 @@ describe('Multi-docs Monorepo Mounts & --mount (core.project-config)', () => {
     )
     expect(scaffoldCode).toBe(0)
     expect(existsSync(path.join(root, 'apps/web/docs/designs/auth.mdx'))).toBe(true)
-
-    // REST API: /api/tree に mounts が返り、/api/media/web/... がマウント境界内で配信される
-    const store = await DocsStore.open(resolved.docsDir, {
-      mounts: resolved.docsMounts,
-      projectRoot: root,
-      testReportPaths: resolved.testReportPaths,
-    })
-    const app = createApp(store, { projectRoot: root })
-    const treeRes = await app.request('/api/tree')
-    expect(treeRes.status).toBe(200)
-    const treeJson = (await treeRes.json()) as { mounts: Array<{ id: string; docCount: number }> }
-    expect(treeJson.mounts.map((m) => m.id)).toEqual(['root', 'web', 'api'])
-
-    const mediaRes = await app.request('/api/media/web/specs/flow.png')
-    expect(mediaRes.status).toBe(200)
-    expect(mediaRes.headers.get('content-type')).toBe('image/png')
   })
 
   test('[core.project-config] 重複した docs マウント ID は ConfigValidationError で拒否する', async () => {

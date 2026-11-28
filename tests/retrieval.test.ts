@@ -12,7 +12,7 @@ import {
   searchIndexBm25,
   tokenizeForSearch,
 } from '../src/core/retrieval'
-import { createApp } from '../src/server/app'
+import { handleMcpRequest } from '../src/server/mcp'
 import { DocsStore } from '../src/server/store'
 
 let projectDir: string
@@ -184,8 +184,8 @@ describe('BM25 + Glossary Alias Expansion + Graph-Aware Retrieval', () => {
 
     // MCP search_documents (includeContext: true)
     const store = await DocsStore.open(docsDir, { projectRoot: projectDir })
-    const app = createApp(store, { projectRoot: projectDir })
-    const res = await app.fetch(
+    const res = await handleMcpRequest(
+      store,
       new Request('http://localhost/mcp', {
         method: 'POST',
         headers: {
@@ -202,6 +202,7 @@ describe('BM25 + Glossary Alias Expansion + Graph-Aware Retrieval', () => {
           },
         }),
       }),
+      projectDir,
     )
     expect(res.status).toBe(200)
     const body = (await res.json()) as {

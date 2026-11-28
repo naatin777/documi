@@ -4,12 +4,12 @@ import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { stringify } from 'yaml'
-import { createApp } from '../src/server/app'
+import { handleMcpRequest } from '../src/server/mcp'
 import { DocsStore } from '../src/server/store'
 
 let projectDir: string
 let docsDir: string
-let app: ReturnType<typeof createApp>
+let store: DocsStore
 
 function mcpCall(name: string, args: Record<string, unknown>, id = 1): Request {
   return new Request('http://localhost/mcp', {
@@ -31,7 +31,7 @@ async function callTool(
   name: string,
   args: Record<string, unknown>,
 ): Promise<{ isError: boolean; text: string; data?: Record<string, unknown> }> {
-  const res = await app.fetch(mcpCall(name, args))
+  const res = await handleMcpRequest(store, mcpCall(name, args), projectDir)
   expect(res.status).toBe(200)
   const json = (await res.json()) as {
     result?: {
@@ -106,8 +106,7 @@ beforeEach(async () => {
   )
   await writeSrc('tests/auth.test.ts', "test('[auth.lockout] locks account', () => {})\n")
 
-  const store = await DocsStore.open(docsDir, { projectRoot: projectDir })
-  app = createApp(store, { projectRoot: projectDir })
+  store = await DocsStore.open(docsDir, { projectRoot: projectDir })
 })
 
 afterEach(async () => {
@@ -308,7 +307,8 @@ describe('MCP Surgical Editing', () => {
   })
 
   test('[core.ai-cli] MCP initialize が自己完結の運用 instructions を返却する', async () => {
-    const res = await app.fetch(
+    const res = await handleMcpRequest(
+      store,
       new Request('http://localhost/mcp', {
         method: 'POST',
         headers: {
@@ -326,6 +326,7 @@ describe('MCP Surgical Editing', () => {
           },
         }),
       }),
+      projectDir,
     )
     expect(res.status).toBe(200)
     const json = (await res.json()) as {

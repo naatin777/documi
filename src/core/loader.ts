@@ -44,16 +44,6 @@ function normalizeMounts(rootDir: string, mounts?: readonly DocsMount[]): DocsMo
 }
 
 /** ドキュメントが属するマウント定義を返す */
-export function resolveDocMount(
-  index: Pick<DocsIndex, 'rootDir' | 'mounts'>,
-  doc: Pick<Document, 'mountId'>,
-): DocsMount {
-  return (
-    index.mounts.find((m) => m.id === doc.mountId) ??
-    index.mounts[0] ?? { id: 'root', dir: path.resolve(index.rootDir), prefixed: false }
-  )
-}
-
 /**
  * docs ディレクトリ（単一または複数マウント）を再帰走査し、全ドキュメント・セマンティックブロック・
  * グラフエッジ（Rooted DAG + 本文リンク自動抽出）を構築する。

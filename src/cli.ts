@@ -1,9 +1,7 @@
 #!/usr/bin/env bun
-import { existsSync } from 'node:fs'
-import { mkdir, readFile, writeFile } from 'node:fs/promises'
+import { readFile } from 'node:fs/promises'
 import path from 'node:path'
 import { parseArgs as parseNodeArgs } from 'node:util'
-import { answerCard, createCard, distillCard, getCard, listCards } from './core/cards'
 import { runDocsCheck } from './core/checker'
 import { RAG_PROVIDERS, REVIEW_GATES, resolveProjectPaths } from './core/config'
 import type { RagConfig, RagProvider, ReviewGate } from './core/config'
@@ -62,12 +60,7 @@ import type {
   TestLevel,
 } from './core/types'
 import { syncVectorIndex } from './core/vector-store'
-import { createApp } from './server/app'
-import { resolveDefaultClientDist } from './server/dist'
-import { startServer } from './server/index'
 import { startMcpStdio } from './server/mcp'
-import { PdfError, renderPdfFromUrl, renderStandaloneHtmlFromUrl } from './server/pdf'
-import { buildStaticSite } from './server/site'
 import { DocsStore } from './server/store'
 
 export interface CliIo {
@@ -646,27 +639,7 @@ async function cmdInit(flags: CliFlags, io: CliIo): Promise<number> {
   io.out('\nNext steps:')
   io.out('  documi check')
   io.out('  documi map')
-  io.out('  documi serve')
-  return 0
-}
-
-async function cmdServe(flags: CliFlags): Promise<number> {
-  const { docsDir, docsMounts, projectRoot, testReportPath, testReportPaths, config } = resolveCliPaths(flags)
-  const port = typeof flags.port === 'string' ? Number(flags.port) : undefined
-  const hostname = typeof flags.host === 'string' ? flags.host : undefined
-
-  await startServer({
-    docsDir,
-    mounts: docsMounts,
-    projectRoot,
-    testReportPath,
-    testReportPaths,
-    ragConfig: config.rag,
-    port: Number.isFinite(port) ? port : undefined,
-    hostname,
-  })
-  // サーバー稼働中は終了させない
-  await new Promise(() => {})
+  io.out('  documi mcp')
   return 0
 }
 
@@ -903,49 +876,6 @@ async function cmdUnapprove(ids: string[], flags: CliFlags, io: CliIo): Promise<
     io.out(res.value.removed ? `✓ Unapproved ${id}` : `- ${id} is not approved (no changes)`)
   }
   return failed > 0 ? 1 : 0
-}
-
-async function cmdExport(flags: CliFlags, io: CliIo): Promise<number> {
-  const format = flags.format === 'html' ? 'html' : 'pdf'
-  const { docsDir, docsMounts, projectRoot, testReportPath, testReportPaths } = resolveCliPaths(flags)
-  const clientDist = resolveDefaultClientDist()
-  if (!existsSync(clientDist)) {
-    io.err(`Built frontend not found (${clientDist}). Run "bun run build" first.`)
-    return 1
-  }
-
-  const outPath = path.resolve(typeof flags.out === 'string' ? flags.out : `documi-bundle.${format}`)
-  const store = await DocsStore.open(docsDir, { mounts: docsMounts, projectRoot, testReportPath, testReportPaths })
-  const app = createApp(store, { clientDist, projectRoot })
-  const server = Bun.serve({ port: 0, hostname: '127.0.0.1', fetch: app.fetch })
-
-  try {
-    const qs = new URLSearchParams()
-    if (typeof flags.ids === 'string' && flags.ids.trim()) qs.set('ids', flags.ids.trim())
-    else qs.set('scope', typeof flags.scope === 'string' ? flags.scope : 'all')
-    if (typeof flags.title === 'string' && flags.title.trim()) qs.set('title', flags.title.trim())
-    qs.set('mode', format)
-
-    const url = `http://127.0.0.1:${server.port}/bundle?${qs.toString()}`
-    await mkdir(path.dirname(outPath), { recursive: true })
-
-    if (format === 'pdf') {
-      const bytes = await renderPdfFromUrl(url)
-      await writeFile(outPath, bytes)
-    } else {
-      const html = await renderStandaloneHtmlFromUrl(url)
-      await writeFile(outPath, html, 'utf-8')
-    }
-
-    io.out(`✓ Exported ${format.toUpperCase()} → ${outPath}`)
-    return 0
-  } catch (e) {
-    const msg = e instanceof PdfError ? e.message : String(e)
-    io.err(`✗ Export failed: ${msg}`)
-    return 1
-  } finally {
-    void server.stop(true)
-  }
 }
 
 // ---------- AI & 人間向け 読み取り・検索コマンド ----------
@@ -1498,90 +1428,6 @@ async function cmdContext(positionals: string[], flags: CliFlags, io: CliIo): Pr
 // ---------- AI & 人間向け 精密編集コマンド ----------
 // @implements core.ai-cli
 
-async function cmdCard(positionals: string[], flags: CliFlags, io: CliIo): Promise<number> {
-  const sub = positionals[0]
-  const { projectRoot } = resolveCliPaths(flags)
-
-  if (sub === 'create') {
-    const body = await resolveBodyContent(flags, io, { required: true })
-    if (!body) throw new CliArgError('card create requires --body - or --body-file with card JSON')
-    const result = await createCard(projectRoot, JSON.parse(body))
-    if (result.isErr()) {
-      io.err(`✗ ${result.error.reason}`)
-      return 1
-    }
-    if (flags.json === true) {
-      printJson(io, result.value)
-    } else {
-      io.out(`Created card: ${result.value.id} (${result.value.fillable === 'yes' ? 'fillable' : 'blocking'})`)
-    }
-    return 0
-  }
-
-  if (sub === 'list') {
-    const cards = await listCards(projectRoot)
-    if (flags.json === true) {
-      printJson(io, cards)
-      return 0
-    }
-    io.out(`Cards (${cards.length}):`)
-    for (const card of cards) {
-      const state = card.answer ? card.answer.finish : card.incomprehensible ? 'broken' : 'open'
-      io.out(`  [${state}] ${card.id} — ${card.title}`)
-    }
-    return 0
-  }
-
-  if (sub === 'get') {
-    const id = positionals[1]
-    if (!id) throw new CliArgError('card get requires a card id')
-    const result = await getCard(projectRoot, id)
-    if (result.isErr()) {
-      io.err(`✗ Card not found: ${id}`)
-      return 1
-    }
-    printJson(io, result.value)
-    return 0
-  }
-
-  if (sub === 'answer') {
-    const id = positionals[1]
-    if (!id) throw new CliArgError('card answer requires a card id')
-    const option = getStringFlag(flags, 'option')
-    const finish = getStringFlag(flags, 'finish')
-    if (!option || (finish !== 'provisional' && finish !== 'committed')) {
-      throw new CliArgError('card answer requires --option <id> and --finish provisional|committed')
-    }
-    const result = await answerCard(projectRoot, id, {
-      selectedOptionId: option,
-      writeIn: getStringFlag(flags, 'write-in'),
-      finish,
-      answeredAt: new Date().toISOString(),
-    })
-    if (result.isErr()) {
-      io.err(`✗ ${'reason' in result.error ? result.error.reason : `Card not found: ${id}`}`)
-      return 1
-    }
-    if (flags.json === true) printJson(io, result.value)
-    else io.out(`Answered card: ${id} [${finish}] option=${option}`)
-    return 0
-  }
-
-  if (sub === 'distill') {
-    const id = positionals[1]
-    if (!id) throw new CliArgError('card distill requires a card id')
-    const result = await distillCard(projectRoot, id)
-    if (result.isErr()) {
-      io.err(`✗ ${'reason' in result.error ? result.error.reason : `Card not found: ${id}`}`)
-      return 1
-    }
-    io.out(`Distilled card: ${id} → docs/decisions/`)
-    return 0
-  }
-
-  throw new CliArgError('card requires a subcommand: create | list | get | answer | distill')
-}
-
 async function cmdBlock(positionals: string[], flags: CliFlags, io: CliIo): Promise<number> {
   const action = positionals[0]
   if (action !== 'add' && action !== 'update' && action !== 'rename') {
@@ -1814,38 +1660,6 @@ async function cmdScaffold(positionals: string[], flags: CliFlags, io: CliIo): P
   return 0
 }
 
-async function cmdBuildSite(flags: CliFlags, io: CliIo): Promise<number> {
-  const { docsDir, docsMounts, projectRoot, testReportPath, testReportPaths } = resolveCliPaths(flags)
-  const outDir = path.resolve(typeof flags.out === 'string' ? flags.out : 'dist-site')
-  const basePath = typeof flags.base === 'string' ? flags.base : undefined
-  const maxRevisions = typeof flags.revisions === 'string' ? Number(flags.revisions) : undefined
-
-  try {
-    const result = await buildStaticSite({
-      docsDir,
-      mounts: docsMounts,
-      projectRoot,
-      testReportPath,
-      testReportPaths,
-      outDir,
-      basePath,
-      includeCode: flags['no-code'] !== true,
-      maxRevisions: maxRevisions !== undefined && Number.isFinite(maxRevisions) ? maxRevisions : undefined,
-    })
-    io.out(`✓ Built static site → ${result.outDir}`)
-    io.out(
-      `  documents: ${result.documentCount}, revisions: ${result.revisionCount}, code files: ${result.codeFileCount}, snippets: ${result.sourceSnippetCount}, icons: ${result.iconCount}, media: ${result.mediaFileCount}`,
-    )
-    return 0
-  } catch (error) {
-    io.err(`✗ Static site build failed: ${error instanceof Error ? error.message : String(error)}`)
-    return 1
-  }
-}
-
-/**
- * CLI エントリポイント（テストから直接呼び出せるように分離）。
- */
 export async function runCli(argv: string[], io: CliIo = DEFAULT_IO): Promise<number> {
   let parsed: ParsedArgs
   try {
@@ -1867,13 +1681,10 @@ export async function runCli(argv: string[], io: CliIo = DEFAULT_IO): Promise<nu
   try {
     validateCommandFlags(command, flags)
     if (command === 'init') return await cmdInit(flags, io)
-    if (command === 'serve') return await cmdServe(flags)
     if (command === 'mcp') return await cmdMcp(flags)
     if (command === 'check') return await cmdCheck(flags, io)
     if (command === 'approve') return await cmdApprove(positionals, flags, io)
     if (command === 'unapprove') return await cmdUnapprove(positionals, flags, io)
-    if (command === 'export') return await cmdExport(flags, io)
-    if (command === 'build-site') return await cmdBuildSite(flags, io)
     if (command === 'map') return await cmdMap(flags, io)
     if (command === 'list') return await cmdList(flags, io)
     if (command === 'show') return await cmdShow(positionals, flags, io)
@@ -1883,7 +1694,6 @@ export async function runCli(argv: string[], io: CliIo = DEFAULT_IO): Promise<nu
     if (command === 'index') return await cmdIndex(flags, io)
     if (command === 'query') return await cmdQuery(flags, io)
     if (command === 'context') return await cmdContext(positionals, flags, io)
-    if (command === 'card') return await cmdCard(positionals, flags, io)
     if (command === 'block') return await cmdBlock(positionals, flags, io)
     if (command === 'term') return await cmdTerm(positionals, flags, io)
     if (command === 'scaffold') return await cmdScaffold(positionals, flags, io)

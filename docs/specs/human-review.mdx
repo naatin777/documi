@@ -1,7 +1,7 @@
 ---
 type: spec
 title: 人間レビュー・承認ガード仕様
-description: docs/guard/reviews.json による承認管理・Suspect Links・承認時点 Diff・/review 受信箱・最終確認 URL・AI クイズ連携の仕様
+description: docs/guard/reviews.json による承認管理・Suspect Links・承認時点 Diffの仕様
 tags: [spec, review, governance]
 ---
 
@@ -28,28 +28,9 @@ tags: [spec, review, governance]
 - **承認者名の決定ルール (`approvedBy`)**: 明示指定された `author` を最優先し、未指定時は `git config user.name` を使用する。いずれも取得できない場合は `undefined`（`reviews.json` へキーを出力しない）とし、OS ユーザー名（`process.env.USER`）や固定ダミー値（`"human"`）へフォールバックしない。
 - **承認取り消し (`unapproveBlock`)**: 対象ブロックが未存在なら `BlockNotFoundError`（REST API では `404`）、未承認なら `{ removed: false }`（冪等）、承認済み／`stale` なら `reviews.json` からキーを削除しローカルキャッシュも掃除して `{ removed: true }` を返す。
 
-## 2. レビュー受信箱・最終確認 URL・AI チャット連携 (`/review`)
-
-<Spec id="ui.human-review" stability="stable" derives="goals/low-friction-governance">
-  **When** 人間が Web UI でセマンティックブロックまたは専用 `/review` 受信箱を閲覧するとき、
-  **the** Web UI **shall** `docs/guard/reviews.json` と連動した承認・承認取り消し・Markdown/MDX レンダリング・承認時点コミットからの Diff 表示（`/review` の `stale` は自動展開）・Git 変更分フィルタ・最終確認 URL モード（`/review?ids=...&note=...` で対象確認と編集可能な確認メモ付きまとめて承認）・AI チャットへ渡す参照コピーおよび `documi-review` クイズ依頼コピー・ブロック種別フィルタ・Realization トレース詳細を提供し、MDX 本文自体は変更しない。
-</Spec>
-
-- **`/review` のタブと初期表示優先順位**:
-  - タブ一覧: `変更あり (changed)` / `要再確認 (stale / suspect)` / `未承認 (unreviewed)` / `承認済み (approved)` / `すべて (all)` ＋ ブロック種別チップ（`ALL` / `SPEC` / `OUTCOME` / `CONSTRAINT` / `TERM`）。
-  - URL `?ids=` 未指定時の初期タブ自動選択順: **変更あり (`changed > 0`) → 要再確認 (`attention > 0`) → 未承認 (`unreviewed > 0`) → 要再確認**（空画面回避）。
-  - `?filter=changed|attention|unreviewed|approved|all` による直接遷移に対応。
-- **最終確認 URL モード (`/review?ids=id1,id2&note=...`)**:
-  - URL を開いただけ（GET）では一切承認せず、上部に最終確認パネル（対象件数・`note` 初期値入りの編集可能メモ欄・**「この N 件をまとめて承認」** ボタン・絞り込み解除ボタン）を表示する。
-  - ボタン押下で `POST /api/blocks/approve-batch` を呼び、対象ブロックを確認メモ付きで `docs/guard/reviews.json` へ記録する。
-- **カード表示と AI 往復補助**:
-  - `stale` カードは承認時点からの行 Diff を初期展開し枠線を強調する。`suspect` のみのカードは控えめな参考通知バナーに留める。
-  - ローカルモード時のみ、複数選択チェックボックス＋「選択した N 件を AI クイズでレビュー」コピー、各カードの「AI クイズ」「AI へ伝える」コピー、承認・承認取り消しボタンを表示する（静的サイトモードでは非表示）。
-  - Stability は MDX 由来の読み取り専用バッジとして表示する（`reviews.json` 側の上書き UI は持たない）。
-
 ## 保証シナリオ
 
-<Test id="test.human-review" verifies="core.human-review, ui.human-review" level="integration">
+<Test id="test.human-review" verifies="core.human-review" level="integration">
   - **Given**: 未承認・承認済み・変更済み（stale）・上流変更（suspect）のブロックと `guard/reviews.json`
   - **When**: ローカル Origin / 非ローカル Origin から承認 API・CLI を実行する
   - **Then**: 非ローカル Origin は 403 で拒否され、正当な承認・メモ記録・取り消し・ハッシュ差分算出がサイドカーへ正確に反映される

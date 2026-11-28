@@ -1,38 +1,29 @@
 ---
 type: spec
-title: Git 鮮度・変更ハイライト・過去版履歴比較仕様
-description: 読み取り専用 Git 鮮度算出・最新変更行ハイライト・過去コミット版 Side-by-Side 参照の仕様
+title: Git 鮮度・変更ブロック検出仕様
+description: 読み取り専用 Git 鮮度算出と変更ブロック抽出による drift 検知の仕様
 tags: [spec, history, git]
 ---
 
-# Git 鮮度・変更ハイライト・過去版履歴比較仕様
+# Git 鮮度・変更ブロック検出仕様
 
-## 1. 読み取り専用 Git 鮮度・変更範囲・過去版取得
+## 1. 読み取り専用 Git 鮮度・変更ブロック抽出
 
 <Spec id="core.doc-history" stability="evolving" derives="goals/human-comprehension">
-  **When** Document Core が `docs/` を読み込むか、指定ドキュメントの履歴・過去バージョンを要求されたとき、
-  **the** Document Core **shall** 読み取り専用の Git 連携（非 Git 環境ではファイル時刻へのフォールバック）により各文書の作成日時・最終更新日時・未コミット変更状態・コミット履歴・最新変更の本文基準行レンジを算出し、検証済みのコミット SHA に対して過去バージョンの文書本文を安全に返却する。Git リポジトリへの書き込み操作は一切行わない。
+  **When** Document Core が `docs/` を読み込むとき、
+  **the** Document Core **shall** 読み取り専用の Git 連携（非 Git 環境ではファイル時刻へのフォールバック）により各文書の作成日時・最終更新日時・未コミット変更状態を算出し、変更行が重なるブロック ID を抽出できるようにする。Git リポジトリへの書き込み操作は一切行わない。
 </Spec>
 
 - **鮮度算出の優先順位**:
   1. Git リポジトリ内: 単一 `git log --name-status -M`（リネーム追跡込み）と `git status --porcelain -uall` で全文書の `createdAt`・`updatedAt`・`lastCommitSha`・`lastCommitSubject`・`commitCount`・`workingStatus`（`modified` / `added` / `untracked`）を一括付与する。未コミット変更がある場合は `updatedAt` に FS `mtime` を反映する。
   2. 非 Git 環境: FS の `birthtime` / `mtime` へ安全にフォールバックし、`gitAvailable: false` を返す。
-- **変更箇所ハイライト基準 (`getDocumentHistory`)**: 未コミット変更あり → 作業ツリー差分（`highlightBasis: "working"`）、未コミットなし → 最新コミット差分（`highlightBasis: "last-commit"`）、履歴なし → `none`。frontmatter のみの変更は本文ハイライト対象から除外する。
 - **Git 変更ブロック抽出 (`getChangedBlockIds`)**:
-  - `main` / `master` 以外のブランチ上では `origin/main` → `main` → `origin/master` → `master` の順で `merge-base` を探索し、`git diff -U0 <base>` と作業ツリー新規ファイル（`untracked` / `added`）を統合して変更行が重なるブロック ID のみを抽出する。
-- **過去版参照の安全性 (`getDocumentRevision`)**: コミット SHA は `^[0-9a-f]{7,40}$` で検証（違反時は HTTP `400`）、未存在コミット／対象文書未存在は HTTP `404`、非 Git 環境は `404` を返す。
-
-## 2. Web UI の鮮度表示・変更行ハイライト・過去版比較
-
-<Spec id="ui.doc-history" stability="evolving" derives="goals/human-comprehension">
-  **When** ユーザーが Overview・Explorer・ドキュメント閲覧画面を操作するとき、
-  **the** Web UI **shall** 各文書の作成日時・最終更新日時・未コミット変更マーク・最近更新された文書一覧を表示し、本文内の最新変更箇所（未コミット変更または最新コミット由来）を左アクセントバーと目次ドットで強調表示（ON/OFF 切替可）するとともに、Context Inspector の `History` タブから過去のコミット時点の文書を右ペインへ並べて参照できるようにする。
-</Spec>
+  - `main` / `master` 以外のブランチ上では `origin/main` → `main` → `origin/master` → `master` の順で `merge-base` を探索し、`git diff -U0 <base>` と作業ツリー新規ファイル（`untracked` / `added`）を統合して変更行が重なるブロック ID のみを抽出する。drift 検知の入力として使われる。
 
 ## 保証シナリオ
 
-<Test id="test.history" verifies="core.doc-history, ui.doc-history" level="integration">
+<Test id="test.history" verifies="core.doc-history" level="integration">
   - **Given**: 複数コミット履歴を持つドキュメント
-  - **When**: `GET /api/documents/*/history` および履歴 Diff UI を表示する
-  - **Then**: コミット一覧と行単位の Unified Diff が返され、非 Git 環境でも安全にフォールバックする
+  - **When**: 鮮度算出と変更ブロック抽出を行う
+  - **Then**: 作成日時・最終更新・未コミット状態が付与され、非 Git 環境でも安全にフォールバックする
 </Test>

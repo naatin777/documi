@@ -42,7 +42,6 @@ YAML frontmatter を分離し、省略時はディレクトリ名・ファイル
 ## 2. AST 精密編集とオンデマンド履歴参照
 
 - **AST 位置ベース編集 (`src/core/editor.ts`)**: ブロック更新・追記・用語登録・雛形生成・プロジェクト横断 ID リネームを AST の正確な行範囲で行い、書き換え前に MDX 安全性・パストラバーサル・`reviews.json` 書き込み禁止を検証する。
-- **オンデマンド履歴・過去版 (`src/core/git.ts`)**: 文書閲覧時のみ `getDocumentHistory()` と `getDocumentRevision()` でコミット履歴・本文基準の変更行レンジ（`git diff -U0` / `git show -U0`）・検証済み SHA の過去本文を取得する。Git 書き込み操作は一切行わない（[ADR](../decisions/2026-11-git-freshness-and-history.mdx)）。
 
 ## 3. コア実装参照
 
@@ -54,6 +53,5 @@ YAML frontmatter を分離し、省略時はディレクトリ名・ファイル
 
 <SourceRef file="src/core/git.ts" symbol="applyGitFreshness" satisfies="core.doc-history" />
 
-<SourceRef file="src/core/git.ts" symbol="getDocumentHistory" satisfies="core.doc-history" />
 
 <SourceRef file="src/core/source.ts" mode="exports" satisfies="core.ast-exports" />

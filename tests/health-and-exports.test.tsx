@@ -9,8 +9,6 @@ import { computeDocumentHealth } from '../src/core/health'
 import { loadDocuments } from '../src/core/loader'
 import { buildProjectMap, buildValidationPayload, collectSourceRefExports } from '../src/core/query'
 import { extractExportedSymbols, extractExportedSymbolsFromSource } from '../src/core/source'
-import { createApp } from '../src/server/app'
-import { DocsStore } from '../src/server/store'
 
 const tempDirs: string[] = []
 
@@ -85,14 +83,6 @@ describe('Document Health & Coverage (core.doc-health)', () => {
     expect(validation.ok).toBe(true)
     expect(validation.health.bloatedSpecDocs).toHaveLength(1)
 
-    const store = await DocsStore.open(docsDir, { projectRoot })
-    const app = createApp(store, { projectRoot })
-    const overviewRes = await app.request('/api/overview')
-    expect(overviewRes.status).toBe(200)
-    const overviewJson = (await overviewRes.json()) as { health: { designCoveredSpecs: number; hints: unknown[] } }
-    expect(overviewJson.health.designCoveredSpecs).toBe(1)
-    expect(overviewJson.health.hints.length).toBeGreaterThan(0)
-
     const lines: string[] = []
     const exitCode = await runCli(['check', '--project', projectRoot], {
       out: (s) => lines.push(s),
@@ -156,8 +146,8 @@ describe('Document Health & Coverage (core.doc-health)', () => {
     expect(report.ok).toBe(true)
   })
 
-  test('[core.doc-health] <TermDef antiTerms> 違反を anti-term-used ヒントで検知し、domainInvariants と /api/terms usedIn を返す', async () => {
-    const { projectRoot, docsDir } = await makeTempProject({
+  test('[core.doc-health] <TermDef antiTerms> 違反を anti-term-used ヒントで検知し、domainInvariants を返す', async () => {
+    const { docsDir } = await makeTempProject({
       'docs/goals/root.mdx': `---\ntype: goal\ntitle: Root\n---\n\n# Root\n\n<Constraint id="goal.pre-release" scope="workflow" stability="evolving">\n  未リリース期間中は後方互換シムを溜めない。\n</Constraint>\n`,
       'docs/designs/system-overview.mdx': `---\ntype: design\nscope: system\ntitle: System Overview\n---\n\n# System Overview\n\n<Constraint id="sys.no-arbitrary-js" scope="mdx" stability="stable">\n  任意 JS を実行しない。\n</Constraint>\n`,
       'docs/domain/glossary.mdx': `---\ntype: domain\ntitle: Glossary\n---\n\n# Glossary\n\n<TermDef id="Customer" aliases="顧客" antiTerms="Client, UserEntity" context="billing">\n  請求対象の契約者。\n</TermDef>\n`,
@@ -180,17 +170,6 @@ describe('Document Health & Coverage (core.doc-health)', () => {
     expect(map.domainInvariants.map((c) => c.id)).toEqual(['domain.customer-id'])
     expect(map.terms[0]?.antiTerms).toEqual(['Client', 'UserEntity'])
     expect(map.terms[0]?.context).toBe('billing')
-
-    const store = await DocsStore.open(docsDir, { projectRoot })
-    const app = createApp(store, { projectRoot })
-    const termsRes = await app.request('/api/terms')
-    expect(termsRes.status).toBe(200)
-    const termsJson = (await termsRes.json()) as {
-      terms: Array<{ id: string; antiTerms: string[]; context?: string; usedIn: Array<{ docId: string }> }>
-    }
-    expect(termsJson.terms[0]?.antiTerms).toEqual(['Client', 'UserEntity'])
-    expect(termsJson.terms[0]?.context).toBe('billing')
-    expect(termsJson.terms[0]?.usedIn.map((u) => u.docId)).toEqual(['specs/billing'])
   })
 
   test('[core.doc-health] 脆い <SourceRef lines=...>・design 外 <SourceRef>・コード/スキル変更時の docs 未更新を Advisory ヒントで検知する', async () => {
@@ -302,7 +281,7 @@ pub fn run_engine() {}
     expect(rsRes.symbols.map((s) => `${s.kind}:${s.name}`)).toEqual(['struct:PublicEngine', 'function:run_engine'])
   })
 
-  test('[core.ast-exports] <SourceRef mode="exports"> の検証・REST API・Code Explorer・CLI context が連動する', async () => {
+  test('[core.ast-exports] <SourceRef mode="exports"> の検証と CLI context が連動する', async () => {
     const { projectRoot, docsDir } = await makeTempProject({
       'src/service.ts': [
         'export interface ServiceInput { name: string }',
@@ -324,28 +303,6 @@ pub fn run_engine() {}
     expect(report.ok).toBe(true)
     expect(report.health.designCoveredSpecs).toBe(1)
     expect(report.health.testCoveredSpecs).toBe(1)
-
-    // 2. REST API (/api/source/exports & /api/code/file)
-    const store = await DocsStore.open(docsDir, { projectRoot })
-    const app = createApp(store, { projectRoot })
-
-    const exportsRes = await app.request('/api/source/exports?file=src/service.ts')
-    expect(exportsRes.status).toBe(200)
-    const exportsJson = (await exportsRes.json()) as { symbols: Array<{ name: string; kind: string }> }
-    expect(exportsJson.symbols.map((s) => `${s.kind}:${s.name}`)).toEqual([
-      'interface:ServiceInput',
-      'class:GreetingService',
-      'function:buildGreeting',
-    ])
-
-    const codeFileRes = await app.request('/api/code/file?path=src/service.ts')
-    expect(codeFileRes.status).toBe(200)
-    const codeFileJson = (await codeFileRes.json()) as { exportedSymbols: Array<{ name: string }> }
-    expect(codeFileJson.exportedSymbols.map((s) => s.name)).toEqual([
-      'ServiceInput',
-      'GreetingService',
-      'buildGreeting',
-    ])
 
     // 3. collectSourceRefExports & CLI context
     const collected = await collectSourceRefExports(projectRoot, [
