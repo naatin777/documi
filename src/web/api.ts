@@ -35,7 +35,7 @@ export function staticAssetUrl(relPath: string): string {
   return `${cleanBase}${cleanRel}`
 }
 
-const rpc = hc<ApiRoutes>('/')
+export const rpc = hc<ApiRoutes>('/')
 
 /** サーバー側 Hono ルート定義から自動推論されるレスポンス型（手書き二重管理なし） */
 // Hono の JSONParsed は再帰型 DocTreeNode[] / CodeTreeNode[] を JSONValue へ丸めるため tree のみ復元する

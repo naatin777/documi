@@ -28,7 +28,7 @@ bun src/cli.ts init --project /path/to/your-repo
 # Add --ja for Japanese templates and Agent Skills
 ```
 
-This creates a minimal `docs/` starter and installs 4 standard Agent Skills under `.agents/skills/` without touching your existing `AGENTS.md`.
+This creates a minimal `docs/` starter and installs 5 standard Agent Skills under `.agents/skills/` without touching your existing `AGENTS.md`.
 
 ### 3. Write one `<Spec>` and link it to code
 

@@ -79,7 +79,8 @@
     "uncommittedUntracked": "Untracked new document",
     "updatedTooltip": "Updated: {{time}}",
     "openMenu": "Open Explorer",
-    "closeMenu": "Close menu"
+    "closeMenu": "Close menu",
+    "reviewCards": "Cards"
   },
   "tabs": {
     "workspaceTabs": "Workspace tabs",
@@ -425,5 +426,47 @@
     "tabsRequireTab": "<Tabs> requires at least one <Tabs.Tab>",
     "stepIndexed": "Step {{index}}",
     "stepsRequireStep": "<Steps> requires at least one <Steps.Step>"
+  },
+  "cards": {
+    "eyebrow": "Prototype",
+    "title": "Review Cards",
+    "subtitle": "A fixed-data prototype for testing whether humans can decide by comparing options and four buttons instead of writing prose.",
+    "prototypeNotice": "Operations are saved to .documi/cards/",
+    "otherApproach": "I have another approach…",
+    "otherApproachPlaceholder": "Your approach in one line…",
+    "otherApproachHint": "The text is sent to chat and the AI writes it up as a proper option. Not implemented in this prototype.",
+    "listLabel": "Review cards",
+    "empty": "No cards yet. When the AI writes one at a decision point during work, it appears here.",
+    "whyNow": "Why decide now",
+    "options": "Options",
+    "notPersistedTitle": "Session only",
+    "notPersistedBody": "In this prototype, selections, provisional/committed finishes, and feedback signals are kept only in React state. They are lost on reload.",
+    "actions": {
+      "incomprehensible": "I can't understand this",
+      "objection": "I don't buy it",
+      "provisional": "Provisional",
+      "committed": "Confirm",
+      "distill": "Save decision",
+      "distilling": "Saving…"
+    },
+    "example": "Concrete example",
+    "impactScope": "Impact scope",
+    "axisHeader": "Axis",
+    "axisConsequence": "What you gain",
+    "axisLoses": "What you lose",
+    "merit": "Merit",
+    "demerit": "Demerit",
+    "defaultPath": "If nothing is decided",
+    "provisionalDisabledHint": "This question is classified as non-fillable",
+    "finish": {
+      "provisional": "Provisional",
+      "committed": "Confirmed"
+    },
+    "stateProvisional": "Provisional",
+    "stateCommitted": "Confirmed",
+    "stateIncomprehensible": "Incomprehensible",
+    "stateObjected": "Objected",
+    "distillError": "Could not save the decision. Try again.",
+    "loading": "Loading…"
   }
 }

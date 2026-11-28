@@ -223,6 +223,48 @@ export function TestBlock({ id, verifies, level, stability, title, children }: T
   )
 }
 
+export interface SignalBlockProps {
+  id?: string
+  method?: string
+  cadence?: string
+  metric?: string
+  op?: string
+  value?: string
+  stability?: string
+  title?: string
+  children?: ReactNode
+}
+
+export function SignalBlock({ id, method, cadence, metric, op, value, stability, title, children }: SignalBlockProps) {
+  const { block, onMutate } = useSemanticBlock(id)
+  const safeStability = block?.stability ?? (isStability(stability) ? stability : 'evolving')
+  const reviewClass = block ? ` sem-state-${block.review}${block.suspect ? ' sem-state-suspect' : ''}` : ''
+  const machineExpr = metric ? `${metric} ${op ?? 'eq'} ${value ?? ''}`.trim() : undefined
+
+  return (
+    <section id={id ? `block-${id}` : undefined} className={`sem-block sem-signal${reviewClass}`}>
+      <header className="sem-header">
+        <span className="sem-kind sem-kind-signal">SIGNAL</span>
+        {id && <code className="sem-id">{id}</code>}
+        {title && <span className="sem-title">{title}</span>}
+        <span className="sem-badges">
+          {method && <span className="sem-pill sem-pill-scope">{method}</span>}
+          {cadence && <span className="sem-pill sem-pill-scope">{cadence}</span>}
+          {!block && <span className={`sem-pill sem-pill-${safeStability}`}>{safeStability}</span>}
+        </span>
+      </header>
+      {block && onMutate && <BlockReviewControls block={block} onMutate={onMutate} />}
+      <div className="sem-body">{children}</div>
+      {machineExpr && (
+        <footer className="sem-footer">
+          <span className="sem-meta-label">metric</span>
+          <code className="sem-ref-chip">{machineExpr}</code>
+        </footer>
+      )}
+    </section>
+  )
+}
+
 export interface NoteBlockProps {
   intent?: string
   title?: string

@@ -170,6 +170,7 @@ export default function ReviewLayout() {
       test: 0,
       constraint: 0,
       term: 0,
+      signal: 0,
     }
     for (const b of statusFiltered) {
       if (b.kind !== 'note') counts[b.kind]++

@@ -22,7 +22,9 @@ export {
   validateSourceLinks,
   enrichWithRealization,
 } from './trace'
+export { CARDS_REL_DIR, createCard, getCard, listCards, answerCard, flagCard, storedCardSchema } from './cards'
+export type { StoredCard, StoredCardAnswer } from './cards'
 export { runDocsCheck } from './checker'
-export type { CheckFinding, CheckOptions, CheckReport } from './checker'
+export type { CheckFinding, CheckOptions, CheckReport, SignalEvaluation } from './checker'
 export { resolveBundleDocuments, searchIndex } from './bundle'
 export type { BundleSelector, ResolvedBundle, SearchHit } from './bundle'

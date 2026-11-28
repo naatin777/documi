@@ -84,21 +84,27 @@
 .type-goal {
   --tc: light-dark(#b45309, #f0a04b);
 }
+
 .type-decision {
   --tc: light-dark(#be123c, #f2708a);
 }
+
 .type-domain {
   --tc: light-dark(#0369a1, #56b6f0);
 }
+
 .type-spec {
   --tc: light-dark(#2563eb, #6ea0f7);
 }
+
 .type-contract {
   --tc: light-dark(#15803d, #5fce85);
 }
+
 .type-design {
   --tc: light-dark(#0f766e, #45c8bc);
 }
+
 .type-guide {
   --tc: light-dark(#a21caf, #e070d8);
 }

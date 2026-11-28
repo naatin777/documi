@@ -79,7 +79,8 @@
     "uncommittedUntracked": "未追跡の新規文書",
     "updatedTooltip": "更新: {{time}}",
     "openMenu": "サイドバーを開く",
-    "closeMenu": "メニューを閉じる"
+    "closeMenu": "メニューを閉じる",
+    "reviewCards": "カード"
   },
   "tabs": {
     "workspaceTabs": "ワークスペースタブ",
@@ -425,5 +426,47 @@
     "tabsRequireTab": "<Tabs> には <Tabs.Tab> が必要です",
     "stepIndexed": "ステップ {{index}}",
     "stepsRequireStep": "<Steps> には <Steps.Step> が必要です"
+  },
+  "cards": {
+    "eyebrow": "Prototype",
+    "title": "Review Cards",
+    "subtitle": "人間が文章を書かずに、選択肢の比較と4つのボタンで判断できるかを検証する固定データプロトタイプです。",
+    "prototypeNotice": "操作は .documi/cards/ に保存されます",
+    "otherApproach": "他のやり方がある…",
+    "otherApproachPlaceholder": "あなたのやり方を一言で…",
+    "otherApproachHint": "入力された内容はチャットに送られ、AI が選択肢として書き起こす。プロトタイプでは未実装。",
+    "listLabel": "判断カード",
+    "empty": "カードはまだありません。AI が作業中の判断点で書き出すと、ここに現れます。",
+    "whyNow": "なぜ今決めるか",
+    "options": "選択肢",
+    "notPersistedTitle": "セッション内のみ",
+    "notPersistedBody": "このプロトタイプでは、選択・仮置き・確定・フィードバックの信号は React state にだけ保持されます。リロードすると失われます。",
+    "actions": {
+      "incomprehensible": "意味がわからない",
+      "objection": "納得いかない",
+      "provisional": "仮置き",
+      "committed": "確定",
+      "distill": "記録に残す",
+      "distilling": "記録中…"
+    },
+    "example": "具体例",
+    "impactScope": "影響範囲",
+    "axisHeader": "比較軸",
+    "axisConsequence": "得るもの",
+    "axisLoses": "失うもの",
+    "merit": "メリット",
+    "demerit": "デメリット",
+    "defaultPath": "何もしないと",
+    "provisionalDisabledHint": "この問いは仮置きできないと判定されています",
+    "finish": {
+      "provisional": "仮置き",
+      "committed": "確定"
+    },
+    "stateProvisional": "仮置き",
+    "stateCommitted": "確定",
+    "stateIncomprehensible": "理解不能",
+    "stateObjected": "異議あり",
+    "distillError": "記録に残せませんでした。もう一度試してください。",
+    "loading": "読み込み中…"
   }
 }

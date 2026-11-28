@@ -1,7 +1,16 @@
 import { createHash } from 'node:crypto'
 import type { MdxJsxFlowElement, MdxJsxTextElement } from 'mdast-util-mdx'
 import { ALLOWED_MDX_COMPONENTS, parseMarkdownAst } from './mdast-parser'
-import { BLOCK_ID_PATTERN, isNoteIntent, isSpecIntent, isStability, isTestLevel } from './types'
+import {
+  BLOCK_ID_PATTERN,
+  SIGNAL_METRICS,
+  SIGNAL_METHODS,
+  SIGNAL_OPS,
+  isNoteIntent,
+  isSpecIntent,
+  isStability,
+  isTestLevel,
+} from './types'
 import type {
   BlockKind,
   DecisionRejectedOption,
@@ -9,6 +18,9 @@ import type {
   DocIssue,
   NoteIntent,
   SemanticBlock,
+  SignalMethod,
+  SignalMetric,
+  SignalOp,
   SourceRefDecl,
   SpecIntent,
   Stability,
@@ -24,6 +36,7 @@ const SEMANTIC_BLOCK_TAGS: Record<string, BlockKind> = {
   Test: 'test',
   Note: 'note',
   TermDef: 'term',
+  Signal: 'signal',
 }
 
 export interface ExtractedMdx {
@@ -367,6 +380,66 @@ function extractSemanticBlock(
       ...(level ? { level } : {}),
     }
   }
+  if (kind === 'signal') {
+    const method = props.method?.trim()
+    if (!method || !SIGNAL_METHODS.includes(method as SignalMethod)) {
+      issues.push({
+        code: 'invalid-block-attr',
+        message: `Invalid <Signal> method: ${props.method ?? '(missing)'} (expected: machine / experiment / manual-review / llm-judge)`,
+        blockId: id,
+      })
+      return undefined
+    }
+    const signalMethod = method as SignalMethod
+    const cadence = props.cadence?.trim() || undefined
+    let metric: SignalMetric | undefined
+    let op: SignalOp | undefined
+    let value: number | undefined
+    if (signalMethod === 'machine') {
+      const rawMetric = props.metric?.trim()
+      if (!rawMetric || !SIGNAL_METRICS.includes(rawMetric as SignalMetric)) {
+        issues.push({
+          code: 'invalid-block-attr',
+          message: `Invalid <Signal> metric: ${props.metric ?? '(missing)'} (machine requires one of: ${SIGNAL_METRICS.join(' / ')})`,
+          blockId: id,
+        })
+        return undefined
+      }
+      metric = rawMetric as SignalMetric
+      const rawOp = props.op?.trim()
+      if (rawOp !== undefined && rawOp !== '') {
+        if (!SIGNAL_OPS.includes(rawOp as SignalOp)) {
+          issues.push({
+            code: 'invalid-block-attr',
+            message: `Invalid <Signal> op: ${rawOp} (expected: eq / neq / lt / lte / gt / gte)`,
+            blockId: id,
+          })
+          return undefined
+        }
+        op = rawOp as SignalOp
+      }
+      const rawValue = props.value?.trim()
+      if (rawValue === undefined || rawValue === '' || !/^-?\d+$/.test(rawValue)) {
+        issues.push({
+          code: 'invalid-block-attr',
+          message: `Invalid <Signal> value: ${props.value ?? '(missing)'} (machine requires an integer)`,
+          blockId: id,
+        })
+        return undefined
+      }
+      value = parseInt(rawValue, 10)
+    }
+    return {
+      ...base,
+      kind: 'signal',
+      intent: specIntent,
+      method: signalMethod,
+      ...(cadence ? { cadence } : {}),
+      ...(metric ? { metric } : {}),
+      ...(op ? { op } : {}),
+      ...(value !== undefined ? { value } : {}),
+    }
+  }
   return { ...base, kind: 'spec', intent: specIntent }
 }
 
@@ -473,6 +546,8 @@ function capitalizeKind(kind: BlockKind): string {
       return 'Note'
     case 'term':
       return 'TermDef'
+    case 'signal':
+      return 'Signal'
   }
 }
 

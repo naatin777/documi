@@ -1,4 +1,4 @@
-import { ChevronRight, FileCode2, Home, ListChecks, Network, Search, X } from 'lucide-react'
+import { ChevronRight, FileCode2, Home, ListChecks, Network, Search, SquareStack, X } from 'lucide-react'
 import { useMemo, useState, type CSSProperties, type ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
 import { NavLink } from 'react-router'
@@ -177,6 +177,10 @@ export default function Explorer({
               {reviewBadgeCount}
             </span>
           )}
+        </NavLink>
+        <NavLink to="/cards" className={primaryNavClass} onClick={onClose}>
+          <SquareStack size={15} strokeWidth={1.75} aria-hidden="true" />
+          <span>{t('nav.reviewCards')}</span>
         </NavLink>
         <NavLink to="/graph" className={primaryNavClass} onClick={onClose}>
           <GraphIcon />

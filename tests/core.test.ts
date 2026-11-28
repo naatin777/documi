@@ -61,6 +61,27 @@ describe('loadDocuments', () => {
     expect(doc.issues.some((i) => i.code === 'missing-frontmatter')).toBe(true)
   })
 
+  test('[core.type-inference] 推論キーは完全一致のみで部分一致・中間階層は guide へフォールバックする', async () => {
+    await writeDoc('notes/my-spec.mdx', { title: '部分一致のみ' })
+    await writeDoc('foo/specs/bar.mdx', { title: '中間階層 specs' })
+    await writeDoc('Glossary.mdx', { title: '大文字ファイル名' })
+    await writeDoc('auth/spec.mdx', { title: 'ファイル名一致' })
+
+    const index = await loadDocuments(root)
+
+    const partial = getDocument(index, 'notes/my-spec')!
+    expect(partial.type).toBe('guide')
+    expect(partial.typeInferred).toBe(true)
+    expect(partial.issues.some((i) => i.code === 'inferred-default-type')).toBe(true)
+
+    const middle = getDocument(index, 'foo/specs/bar')!
+    expect(middle.type).toBe('guide')
+    expect(middle.issues.some((i) => i.code === 'inferred-default-type')).toBe(true)
+
+    expect(getDocument(index, 'Glossary')?.type).toBe('domain')
+    expect(getDocument(index, 'auth/spec')?.type).toBe('spec')
+  })
+
   test('[core.mdx-blocks] MDX セマンティックブロックを AST 抽出し contentHash を計算する', async () => {
     await writeDoc(
       'goals/core.mdx',

@@ -74,3 +74,41 @@ export function useCopyText(): { copied: boolean; copy: (text: string) => void }
 
   return { copied, copy }
 }
+
+import type { StoredCard } from '../core/cards'
+import type { ReviewCardStateMap } from './reviewCards'
+
+/** カードストアの一覧と、そこから種まきした初期回答状態を返す。未取得は null、取得失敗は空。 */
+export function useReviewCards(): { cards: StoredCard[] | null; seededStates: ReviewCardStateMap } {
+  const [result, setResult] = useState<{ cards: StoredCard[]; seededStates: ReviewCardStateMap } | null>(null)
+
+  useEffect(() => {
+    let cancelled = false
+    void (async () => {
+      try {
+        const { rpc } = await import('./api')
+        const res = await rpc.api.cards.$get()
+        const data = await res.json()
+        if (cancelled) return
+        const seededStates: ReviewCardStateMap = {}
+        for (const card of data.cards) {
+          seededStates[card.id] = {
+            selectedOptionId: card.answer?.selectedOptionId,
+            finish: card.answer?.finish,
+            writeIn: card.answer?.writeIn,
+            incomprehensible: card.incomprehensible,
+            objected: card.objected,
+          }
+        }
+        setResult({ cards: data.cards, seededStates })
+      } catch {
+        if (!cancelled) setResult({ cards: [], seededStates: {} })
+      }
+    })()
+    return () => {
+      cancelled = true
+    }
+  }, [])
+
+  return { cards: result?.cards ?? null, seededStates: result?.seededStates ?? {} }
+}

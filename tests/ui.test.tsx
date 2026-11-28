@@ -102,6 +102,7 @@ describe('Web UI & Live Spec Dogfooding', () => {
     )
     expect(html).toContain('ホーム')
     expect(html).toContain('レビュー')
+    expect(html).toContain('カード')
     expect(html).toContain('>3<')
     expect(html).toContain('グラフ')
     expect(html).toContain('流れ順')
@@ -120,6 +121,7 @@ describe('Web UI & Live Spec Dogfooding', () => {
     )
     expect(enHtml).toContain('Home')
     expect(enHtml).toContain('Review Queue')
+    expect(enHtml).toContain('Cards')
     expect(enHtml).toContain('Goals')
     setAppLocale('ja')
 

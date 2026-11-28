@@ -3,6 +3,7 @@ import { existsSync } from 'node:fs'
 import { mkdir, readFile, writeFile } from 'node:fs/promises'
 import path from 'node:path'
 import { parseArgs as parseNodeArgs } from 'node:util'
+import { answerCard, createCard, distillCard, getCard, listCards } from './core/cards'
 import { runDocsCheck } from './core/checker'
 import { RAG_PROVIDERS, REVIEW_GATES, resolveProjectPaths } from './core/config'
 import type { RagConfig, RagProvider, ReviewGate } from './core/config'
@@ -120,6 +121,12 @@ Usage:
   documi query [filters] [options]               Filter semantic blocks across multiple dimensions
   documi context <id> [options]                  Aggregate upstream Goals, related docs, Outcomes, Terms, and SourceRefs for a Spec
 
+  documi card create [options]                   Create a review card from JSON (--body - for stdin)
+  documi card list [options]                     List review cards in the operational store
+  documi card get <card-id> [options]            Show one review card with its answer state
+  documi card answer <card-id> [options]         Record an answer (--option <id> --finish provisional|committed [--write-in <text>])
+  documi card distill <card-id> [options]        Distill a committed card into docs/decisions/ as a decision record
+
   [Precision Edit Commands for AI & Humans (all support --json)]
   documi block add <doc-id> [options]            Append a semantic block to a document
   documi block update <block-id> [options]       Safely update only the line range of an existing semantic block
@@ -211,6 +218,9 @@ const CLI_OPTIONS = {
   'test-report': { type: 'string' },
   author: { type: 'string' },
   note: { type: 'string' },
+  option: { type: 'string' },
+  finish: { type: 'string' },
+  'write-in': { type: 'string' },
   format: { type: 'string' },
   scope: { type: 'string' },
   ids: { type: 'string' },
@@ -286,6 +296,7 @@ class CliArgError extends Error {
 const GLOBAL_ALLOWED_FLAGS = new Set<string>(['docs', 'project', 'help'])
 
 const COMMAND_ALLOWED_FLAGS: Record<string, ReadonlySet<string>> = {
+  card: new Set(['json', 'body', 'body-file', 'option', 'finish', 'write-in']),
   init: new Set(['ja', 'en', 'lang', 'skills-dir', 'skills-only', 'no-skills', 'force-skills', 'json']),
   serve: new Set(['port', 'host', 'test-report']),
   mcp: new Set(['test-report']),
@@ -764,6 +775,7 @@ async function cmdCheck(flags: CliFlags, io: CliIo): Promise<number> {
       blockCount: report.blockCount,
       reviewCounts: report.reviewCounts,
       realizationCounts: report.realizationCounts,
+      signalEvaluations: report.signalEvaluations,
       health: report.health,
       errors: report.errors,
       warnings: report.warnings,
@@ -806,6 +818,21 @@ async function cmdCheck(flags: CliFlags, io: CliIo): Promise<number> {
   io.out(
     `  coverage:    design=${report.health.designCoveredSpecs}/${report.health.totalNormativeSpecs} test=${report.health.testCoveredSpecs}/${report.health.totalNormativeSpecs}`,
   )
+
+  if (report.signalEvaluations.length > 0) {
+    const achieved = report.signalEvaluations.filter((x) => x.status === 'achieved').length
+    const notAchieved = report.signalEvaluations.filter((x) => x.status === 'not-achieved').length
+    const unevaluated = report.signalEvaluations.filter((x) => x.status === 'unevaluated').length
+    io.out(`\nSignals (achieved=${achieved} not-achieved=${notAchieved} unevaluated=${unevaluated}):`)
+    for (const sig of report.signalEvaluations) {
+      if (sig.status === 'unevaluated') {
+        io.out(`  - [unevaluated] ${sig.id} (method=${sig.method})`)
+      } else {
+        const mark = sig.status === 'achieved' ? '✓' : '✗'
+        io.out(`  ${mark} [${sig.status}] ${sig.id}: ${sig.metric} ${sig.op} ${sig.expected} (actual=${sig.actual})`)
+      }
+    }
+  }
 
   if (report.health.hints.length > 0) {
     io.out(`\nHealth Hints (${report.health.hints.length}, advisory):`)
@@ -1471,6 +1498,90 @@ async function cmdContext(positionals: string[], flags: CliFlags, io: CliIo): Pr
 // ---------- AI & 人間向け 精密編集コマンド ----------
 // @implements core.ai-cli
 
+async function cmdCard(positionals: string[], flags: CliFlags, io: CliIo): Promise<number> {
+  const sub = positionals[0]
+  const { projectRoot } = resolveCliPaths(flags)
+
+  if (sub === 'create') {
+    const body = await resolveBodyContent(flags, io, { required: true })
+    if (!body) throw new CliArgError('card create requires --body - or --body-file with card JSON')
+    const result = await createCard(projectRoot, JSON.parse(body))
+    if (result.isErr()) {
+      io.err(`✗ ${result.error.reason}`)
+      return 1
+    }
+    if (flags.json === true) {
+      printJson(io, result.value)
+    } else {
+      io.out(`Created card: ${result.value.id} (${result.value.fillable === 'yes' ? 'fillable' : 'blocking'})`)
+    }
+    return 0
+  }
+
+  if (sub === 'list') {
+    const cards = await listCards(projectRoot)
+    if (flags.json === true) {
+      printJson(io, cards)
+      return 0
+    }
+    io.out(`Cards (${cards.length}):`)
+    for (const card of cards) {
+      const state = card.answer ? card.answer.finish : card.incomprehensible ? 'broken' : 'open'
+      io.out(`  [${state}] ${card.id} — ${card.title}`)
+    }
+    return 0
+  }
+
+  if (sub === 'get') {
+    const id = positionals[1]
+    if (!id) throw new CliArgError('card get requires a card id')
+    const result = await getCard(projectRoot, id)
+    if (result.isErr()) {
+      io.err(`✗ Card not found: ${id}`)
+      return 1
+    }
+    printJson(io, result.value)
+    return 0
+  }
+
+  if (sub === 'answer') {
+    const id = positionals[1]
+    if (!id) throw new CliArgError('card answer requires a card id')
+    const option = getStringFlag(flags, 'option')
+    const finish = getStringFlag(flags, 'finish')
+    if (!option || (finish !== 'provisional' && finish !== 'committed')) {
+      throw new CliArgError('card answer requires --option <id> and --finish provisional|committed')
+    }
+    const result = await answerCard(projectRoot, id, {
+      selectedOptionId: option,
+      writeIn: getStringFlag(flags, 'write-in'),
+      finish,
+      answeredAt: new Date().toISOString(),
+    })
+    if (result.isErr()) {
+      io.err(`✗ ${'reason' in result.error ? result.error.reason : `Card not found: ${id}`}`)
+      return 1
+    }
+    if (flags.json === true) printJson(io, result.value)
+    else io.out(`Answered card: ${id} [${finish}] option=${option}`)
+    return 0
+  }
+
+  if (sub === 'distill') {
+    const id = positionals[1]
+    if (!id) throw new CliArgError('card distill requires a card id')
+    const result = await distillCard(projectRoot, id)
+    if (result.isErr()) {
+      io.err(`✗ ${'reason' in result.error ? result.error.reason : `Card not found: ${id}`}`)
+      return 1
+    }
+    io.out(`Distilled card: ${id} → docs/decisions/`)
+    return 0
+  }
+
+  throw new CliArgError('card requires a subcommand: create | list | get | answer | distill')
+}
+
 async function cmdBlock(positionals: string[], flags: CliFlags, io: CliIo): Promise<number> {
   const action = positionals[0]
   if (action !== 'add' && action !== 'update' && action !== 'rename') {
@@ -1772,6 +1883,7 @@ export async function runCli(argv: string[], io: CliIo = DEFAULT_IO): Promise<nu
     if (command === 'index') return await cmdIndex(flags, io)
     if (command === 'query') return await cmdQuery(flags, io)
     if (command === 'context') return await cmdContext(positionals, flags, io)
+    if (command === 'card') return await cmdCard(positionals, flags, io)
     if (command === 'block') return await cmdBlock(positionals, flags, io)
     if (command === 'term') return await cmdTerm(positionals, flags, io)
     if (command === 'scaffold') return await cmdScaffold(positionals, flags, io)

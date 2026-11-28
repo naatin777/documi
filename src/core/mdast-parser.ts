@@ -39,6 +39,7 @@ export const ALLOWED_MDX_COMPONENTS: ReadonlySet<string> = new Set([
   'Note',
   'TermDef',
   'Term',
+  'Signal',
 ])
 
 const mdProcessor = unified().use(remarkParse).use(remarkGfm).use(remarkMath)

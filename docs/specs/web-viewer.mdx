@@ -27,6 +27,9 @@ tags: [spec, ui, viewer]
 </Spec>
 
 - **Flow 読み順**: `goal → domain → spec → contract → design → decision (date 降順) → guide`。
+- **既定モードとセッション状態**: ドキュメント一覧の既定は **Flow** とし、Flow / Files 切替および Type セクション・フォルダの折りたたみ状態はセッション限定とする（永続化せずリロードで初期状態へ戻る）。
+- **マルチマウントスコープフィルタ**: 複数 docs マウント構成時のみ、一覧上部に `All` + マウント別スコープチップ（各マウントの文書数付き）を表示し、選択スコープで Flow / Files 両方の一覧を絞り込む。単一マウント構成時は非表示とする。
+- **Type セクションの表示**: Flow では文書 0 件の Type を含む全 7 種のセクションを表示し、空セクションにはプレースホルダメッセージを示す。タイプ内の並びは Document Core の整列規則（[ドキュメントモデル仕様](document-model.mdx)）をそのまま引き継ぐ。
 - サイドバー幅はドラッグ伸縮・ダブルクリックリセット対応。ヘッダーにテーマ切替（Light/Dark/System）・言語切替（`ja` / `en`）・`Cmd+K` 検索・Export ボタンを配置する。
 
 <Spec id="ui.live-reload" stability="stable" derives="goals/low-friction-governance">

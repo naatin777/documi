@@ -7,6 +7,7 @@ import {
   Home,
   ListChecks,
   Network,
+  SquareStack,
   PanelLeftClose,
   PanelLeftOpen,
   X,
@@ -98,6 +99,7 @@ export default function DocTabs({ sidebarOpen, onToggleSidebar }: DocTabsProps) 
     if (tab.kind === 'doc') return tab.title
     if (tab.viewId === 'home') return t('nav.home')
     if (tab.viewId === 'review') return t('nav.reviewQueue')
+    if (tab.viewId === 'cards') return t('nav.reviewCards')
     if (tab.viewId === 'code') return t('nav.codeExplorer')
     return t('nav.graph')
   }
@@ -308,6 +310,7 @@ function ViewTabIcon({ viewId, active }: { viewId: ViewTabId; active: boolean })
   }
   if (viewId === 'home') return <Home {...props} />
   if (viewId === 'review') return <ListChecks {...props} />
+  if (viewId === 'cards') return <SquareStack {...props} />
   if (viewId === 'code') return <FileCode2 {...props} />
   return <Network {...props} />
 }

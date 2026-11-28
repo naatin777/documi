@@ -1,0 +1,56 @@
+---
+type: decision
+title: 成功基準を操作的に書くための Signal ブロック導入
+description: Goal の Success Signals を「誰が見ても同じ判定に至る」操作的基準として構造化するため、新ブロック種 <Signal> を導入する決定
+tags: [document-model, goal, measurement, operational-criteria]
+---
+
+# 成功基準を操作的に書くための `<Signal>` ブロック導入
+
+<Decision id="dec.signal-block" summary="Goal の成功基準を操作的判定手続きつきで構造化する新ブロック種 <Signal> を導入する。docs 全体の執筆 tenet として『基準は操作的に書く』を採用する" date="2026-11-27">
+
+<Context>
+Root Goal 改訂の議論で、Success Signals が「ズレの再発防止: 減る」のような解釈の幅がある散文で書かれており、人間と AI の認識のズレを減らすツールの Goal 自体がズレの発生源になっていることが判明した。楽観的な AI は全達成と判定し、慎重な人間は未達と判定しうる状態は、convergent-ai-review の思想とも矛盾する。要求工学の先行事例（Volere の fit criterion・品質属性シナリオの response measure）も、基準は測定可能な判定手続きと抱き合わせで書くべきことを示している。
+</Context>
+
+<Chosen>
+1. **新ブロック種 `<Signal>` を導入する**。Goal の成功基準を個別アドレス可能・検索可能・レビュー可能なブロックとして構造化する。属性: `id`・`method`（machine / experiment / manual-review / llm-judge）・`cadence`（任意の観測頻度）。本文に条件と判定手続きを書く。
+2. **method 体系は 4 種**:
+   - `machine`: check が計算する閉じた語彙のメトリクスで自動判定する
+   - `experiment`: 定義済み手順の再現実験で人間が判定する
+   - `manual-review`: 手順を固定した人間判断で判定する
+   - `llm-judge`: LLM 判定。型だけ定義し、評価実装は後回し（「未評価」扱い）
+3. **machine 評価は閉じた語彙のみ**: `check.errors` / `check.warnings` / `realization.{verified|implemented|in-progress|unimplemented|drifted}` / `review.{approved|unreviewed|stale|suspect}` に対し、`op`（eq/neq/lt/lte/gt/gte、既定 eq）と `value`（整数）で比較する。任意コマンドや式言語は導入しない。
+4. **machine Signal の未達は check のエラーにしない**: 内部整合性（consistency）と目標達成（attainment）は別概念であり、check 出力では独立セクションとして報告するに留める。
+5. **docs 全体の執筆 tenet として「基準は操作的に書く」を採用する**。check では強制せず規約として運用し、Root Goal で犬食いしてから横展開を判断する。適用範囲はまず Goal のみ。
+6. **「docs はデータ、解釈はコード」**: MDX は React/JSX 形式だがドキュメントを実行可能にはしない。集計・評価は宣言的な属性をツールが解釈する形で実現する。
+</Chosen>
+
+<Rejected option="MDX の実行可能性を利用して集計・検証ロジックを docs に埋め込む">
+docs-as-data の不変条件（core.mdx-safety が ESM import・JSX 式を禁止する理由）を破壊し、レビュー・差分・承認保護・マルチマウントでの信頼モデルが全て崩れるため。
+</Rejected>
+
+<Rejected option="任意シェルコマンドを Signal に宣言して check が実行する">
+柔軟だが docs が実行コードの配布経路化し、レビュー負荷と危険性が大きい。閉じた語彙で足りないものは experiment/manual-review に回すべき。
+</Rejected>
+
+<Rejected option="LLM-as-judge の評価まで今回実装する">
+LLM 判定は非決定的で「誰が見ても同じ」に原理的に反する面があり、記録・監査の設計（モデル名・日付つき判定履歴）が必要。一方でモデル間判定の収束は操作化の試金石にもなりうるため、型だけは定義して将来実装に備える。convergent-ai-review の成果が出てから統合するのが筋。
+</Rejected>
+
+<Rejected option="メトリクス基盤（判定履歴の蓄積・推移表示）まで作る">
+現状 machine 判定可能な現象は 1〜2 個しかなく過剰。計装（ワークフローの痕跡がアーティファクトに残る仕組み）が育ってから再検討する。
+</Rejected>
+
+<Tradeoff>
+現状で machine 判定できるのは check が既に計算する値の言い換えに近く、自動評価の即時の追加価値は小さい。それでも仕組みを先に入れるのは、書き方の規約が先に育つことで「機械が見れないものを machine と偽って書く」最悪のパターンを防ぎ、計装が進んだときに自然に育つようにするため。llm-judge を型だけ定義するのは、method 体系の将来拡張で属性語彙を揺らさないための予約であり、実装を約束するものではない。
+</Tradeoff>
+
+</Decision>
+
+## 影響
+
+- `src/core/types.ts` / `mdx.ts` / `mdast-parser.ts`: `signal` ブロック種の追加
+- `src/core/checker.ts`: machine Signal の評価と独立セクション報告
+- CLI/Web: ブロックの検索・表示対応
+- Root Goal の Success Signals は後続作業で `<Signal>` へ操作化して犬食いする
