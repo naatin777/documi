@@ -5,3 +5,6 @@ coverage/
 *.log
 .DS_Store
 **/.documi/
+
+# local session notes (working memory, not for publication)
+notes/
