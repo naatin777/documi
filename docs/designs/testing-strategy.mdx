@@ -18,7 +18,7 @@ Documi の検証は **仕様同居の保証シナリオ（`<Test>`）** と **�
 | **実行証拠層** | `tests/*.test.ts(x)` + `.documi/test-results.xml` | `test('[<spec.id>] ...', ...)` と JUnit XML で実挙動を自動検証し、各 `<Spec>` の `realization`（`verified` / `drifted`）を自動算出する |
 
 - **ビルド通過や自己申告を完了とみなさない**: 仕様・契約・修正の完了は、自動テスト実行結果（JUnit XML）および静的・構造チェックの通過という客観的証拠で証明する。
-- **形骸テストと過剰モックの禁止**: 定数を写しただけの落ちないテストや、内部実装を過剰モックしたテストは避け、実際のファイルシステム（一時ディレクトリ）・Hono アプリ・`bun:sqlite`・mdast / `@ast-grep/napi`・MCP ツールを通して振る舞いを検証する。
+- **形骸テストと過剰モックの禁止**: 定数を写しただけの落ちないテストや、内部実装を過剰モックしたテストは避け、実際のファイルシステム（一時ディレクトリ）・`bun:sqlite`・mdast / `@ast-grep/napi`・MCP ツールを通して振る舞いを検証する。
 - **バグ修正は Red → Green で確認**: 不具合修正時は、修正前の状態で失敗する再現テストを先に確認してから修正を通す。
 
 ## 2. テストスイートと対象領域
@@ -26,10 +26,8 @@ Documi の検証は **仕様同居の保証シナリオ（`<Test>`）** と **�
 | 領域 | 仕様ドキュメント | 主なテストスイート |
 |---|---|---|
 | 文書モデル・MDX・グラフ・履歴 | [document-model](../specs/document-model.mdx), [trace-graph](../specs/trace-graph.mdx), [history](../specs/history.mdx) | `core`, `mdx`, `media`, `history`, `impact-and-supersedes` |
-| レビュー・Realization・AST 検証・健全性 | [human-review](../specs/human-review.mdx), [realization-and-check](../specs/realization-and-check.mdx), [code-explorer](../specs/code-explorer.mdx) | `reviews`, `trace`, `source`, `health-and-exports`, `config`, `code`, `multi-docs` |
+| レビュー・Realization・AST 検証・健全性 | [human-review](../specs/human-review.mdx), [realization-and-check](../specs/realization-and-check.mdx) | `reviews`, `trace`, `source`, `health-and-exports`, `config`, `multi-docs` |
 | 検索・Hybrid RAG・AI ワークフロー | [retrieval](../specs/retrieval.mdx), [ai-workflow](../specs/ai-workflow.mdx) | `retrieval`, `hybrid-rag`, `cli-agent`, `mcp-edit`, `init` |
-| Web UI・REST API・i18n | [web-viewer](../specs/web-viewer.mdx) | `ui`, `api`, `i18n` |
-| バンドル書き出し・静的サイト | [bundle-export](../specs/bundle-export.mdx), [static-site](../specs/static-site.mdx) | `bundle`, `site` |
 
 ## 3. 品質ゲート（マージ前必須コマンド）
 

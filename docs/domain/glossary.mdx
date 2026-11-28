@@ -61,10 +61,6 @@ Documi の仕様・設計・ソースコードで共有される共通語彙を�
   コードアンカー (`@implements` / `<SourceRef>`)・テスト (`@verifies` / `test("[id]")`)・JUnit 実行結果・PR 情報から完全自動で算出される仕様の実現状態 (`unimplemented` / `in-progress` / `implemented` / `verified` / `drifted`)。
 </TermDef>
 
-<TermDef id="Bundle" aliases="まとめ出力, バンドル" symbols="src/core/bundle.ts#resolveBundleDocuments, src/server/pdf.ts#renderPdfFromUrl">
-  複数ドキュメント（全文書・ディレクトリ配下・Goal 関連一式・任意選択）を表紙・自動目次・ページ内アンカー・全タブ展開付きの 1 冊の HTML / PDF として出力する仕組み。
-</TermDef>
-
 <TermDef id="HybridRAG" aliases="ローカル Hybrid RAG, セマンティック検索, グラフ検索" symbols="src/core/retrieval.ts#retrieveContext, src/core/hybrid-retrieval.ts#retrieveContextHybrid, src/core/vector-store.ts#syncVectorIndex">
   日本語・英語・コード識別子トークナイザによる BM25 検索と `<TermDef aliases>` 自動同義語展開に、任意のローカル Embedding（Ollama / OpenAI 互換 HTTP）と `bun:sqlite` `contentHash` 差分キャッシュを RRF で統合し、さらに明示グラフに沿って上流 Goal・`<Decision>` 結論（マイクロ ADR 含む）・`<SourceRef>` まで 1 発で収集する検索基盤。
 </TermDef>
@@ -73,24 +69,12 @@ Documi の仕様・設計・ソースコードで共有される共通語彙を�
   `documi init` で `<projectRoot>/.agents/skills/` に生成される AI エージェント向け標準手順書 5 種（日常運用 `documi`・上流設計 `documi-design`・既存コード導入 `documi-bootstrap`・対話レビュークイズ `documi-review`・再現性監査 `documi-audit`）。`AGENTS.md` と競合せず、CLI ベースで自己完結したワークフローを提供する。
 </TermDef>
 
-<TermDef id="StaticSite" aliases="静的サイト, 静的書き出し" symbols="src/server/site.ts#buildStaticSite">
-  `documi build-site` によって生成される、サーバー不要・読み取り専用の Web UI 配布物。事前計算した JSON・ハッシュ索引化コード・`HashRouter` 対応 SPA を含み、任意の静的ホスティングでそのまま配信できる。
-</TermDef>
-
 <TermDef id="Provisional" aliases="仮置き">
-  <Term name="ReviewCard" /> で人間が選んだ選択肢を暫定適用して先に進める仕上げ状態。確定ではないため覆せる。見直しは義務ではなく、必要になったとき（その上に大きく建てるとき・問題が起きたとき）に行う。仮置きできないと判定されたカードでは仮置きボタン自体が表示されない。
+  決定レコードの仮の状態 (`status: provisional`)。仮に適用して先に進めるが確定ではないため覆せる。見直しは義務ではなく、必要になったとき（その上に大きく建てるとき・問題が起きたとき）に行う。何が確かめられたら確定に進むかをレコードに添える。
 </TermDef>
 
 <TermDef id="Committed" aliases="確定">
-  <Term name="ReviewCard" /> で人間が選んだ選択肢を確定する仕上げ状態。その方向の判断を人間が確定したことを示し、後続の「記録に残す」操作で `<Decision>` として docs に蒸留できる。「やらない」選択肢の確定も通常の確定として扱い、やらないと決めた記録が再検討の蒸発を防ぐ。
-</TermDef>
-
-<TermDef id="Incomprehensible" aliases="理解不能, 破損状態">
-  <Term name="ReviewCard" /> で「意味がわからない」が押された状態。カードは破損し、決定も仮置きもできなくなる。問いや選択肢の説明が人間に通じなかった信号であり、カードの修理が必要なことを示す。
-</TermDef>
-
-<TermDef id="CardObjection" aliases="異議あり, 納得いかない">
-  <Term name="ReviewCard" /> で「納得いかない」が押された状態の異議フラグ。進行は妨げない。前提や枠組みへの違和感の信号で、チャットでの修理経路につながる。人間が選択肢にないやり方を持っている場合は「他のやり方がある」書き込み選択肢を使う。
+  決定レコードの確定状態 (`status: accepted`)。人間がその方向の判断を確定したことを示す。「やらない」と決めた記録も通常の確定として扱い、再検討の蒸発を防ぐ。確定後は immutable とし、変更は新しいレコードで supersede する。
 </TermDef>
 
 ## 混同しやすい言葉・使わない表現（Anti-Terms）
@@ -107,6 +91,3 @@ AI や人間が語彙を混同して仕様・実装・レビューがブレる�
 
 概念同士の関係・状態遷移・ドメイン不変条件は [ドメインモデル](./domain-model.mdx) を参照。
 
-<TermDef id="ReviewCard" aliases="判断カード, レビューカード, カード" antiTerms="Decision Card" symbols="src/core/cards.ts#StoredCard, src/web/components/ReviewCardsLayout.tsx#ReviewCardsLayout">
-  AI が作業中の判断点で書き出し、人間が選択肢の比較と4つのボタン（意味がわからない・納得いかない・<Term name="Provisional" />・<Term name="Committed" />）だけで判断する入力界面。問い・状況となぜ今か・何もしないとどうなるか・具体例・選択肢（得るもの/失うもの付き）を持ち、選択肢には固有の「やらない」選択肢1つと人間が一行で書き込める「他のやり方がある」を含む。`<Decision>` は確定した判断の記録であり、Review Card は判断を求めるための入力界面である。操作状態は `.documi/cards/` に永続化され、確定内容は「記録に残す」操作で `<Decision>` として docs に蒸留される。蒸留済みカードは操作対象として一覧から消える。
-</TermDef>

@@ -1,0 +1,47 @@
+---
+type: design
+title: チャット駆動の決定記録設計
+description: Review Card UI を廃止し、チャット応答から決定を docs/decisions に記録する方式の設計
+tags:
+  - design
+  - decision
+  - workflow
+---
+
+# チャット駆動の決定記録設計
+
+## 背景と証拠
+
+Review Card プロトタイプは、人間がカード UI で判断する interaction layer を仮定していた。しかし実使用で以下が観測された。
+
+- カードを5件作成したセッションで、実際の決定（notes 非公開化・history rewrite・commit 規約修正）は**すべてチャットで行われ、カードは1件も回答されなかった**
+- 「意味がわからない」に理由を書く場所がなく、フラグが行き止まりになった。認知インタビューの研究では、理解不能の**理由こそがデータ**であり、理由なしの信号では書き直しができない
+- 「記録に残す」のラベルは機構の名前であり、ユーザーに結果を伝えなかった
+- カード作成は CLI のみで API になく、経路が非対称だった
+
+HCI の研究とも一致する。CUI（会話型インタフェース）は GUI を置き換えないが、複雑な決定は永続的で検査可能な表現の恩恵を受ける。結論は置き換えではなく役割分担である。
+
+## 設計方針
+
+- **チャットが唯一の interaction surface である**: 人間はカード UI に行かない。AI は決定点に当たったらチャットで問いを立て、選択肢と帰結と negative option（やらない）を示す。人間は自然言語で答える。「仮置きで」と言えば仮置きになり、何も言わなければ AI の提示した仮置き方向で進む
+- **台帳は docs/decisions/ 一本**: 決定は成熟度の違いだけであり、種類の違うシステムは作らない。状態は ADR の実務に倣い `provisional`（仮置き）/ `accepted`（確定）/ `superseded`（置き換え済み）を frontmatter に持つ。pending（未回答の問い）も同じ形式で置ける
+- **手順は skill が担う**: 問いの立て方（選択肢の列挙・帰結・negative option・具体例・何もしない場合の成り行きの提示）と、記録のタイミングは、生成される skill の文章として規律化する。UI の構造で強制するのではなく、AI の振る舞いとして記述する
+- **検証は documi check が担う**: skill は非決定的な指示なので、 enforcement は決定的な層に寄せる。provisional の滞留・pending の放置を `documi check` が可視化し、signal で評価できるようにする
+- **確定後は immutable**: accepted な決定を編集しない。変更は新しい決定レコードを書き、旧レコードを superseded にしてつなぐ（ADR 実務標準）
+- **削除するもの**: `.documi/cards/` JSON ストア、cards API ルート、card CLI、ReviewCardsLayout UI、蒸留ロジック。選択肢の事前列挙フォーマット（JSON schema）も不要になる。選択肢は会話の中で iteratively に出るものであり、事前列挙は premature だった
+
+## 決定レコードの形式
+
+既存の `<Decision>` ブロックを拡張する。frontmatter に `status` を追加し、問い・決定・得るもの/失うもの・判断材料は現行の蒸留フォーマットを踏襲する。provisional には「何が確かめられたら確定に進むか」を書く。superseded には後継レコードへのリンクを書く。
+
+## 移行
+
+- 既存の決定レコード（`docs/decisions/*.mdx`）はそのまま accepted 相当として残る
+- 未回答のカード5件は、カードシステム削除時に pending 決定レコードへ転記するか、チャットで問い直すかを選べるようにする
+- review-cards の spec は superseded として残し、この設計に置き換わったことを記録する
+
+## 検証
+
+- AI がチャットで提示された問いに応答したとき、対応する決定レコードが docs/decisions/ に作られることを手動確認する
+- `documi check` が provisional / pending の件数を表示すること
+- provisional のまま古くなったレコードが warning として出ること

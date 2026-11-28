@@ -28,4 +28,4 @@ tags: [adr, api, hono, rpc, zod, openapi]
 
 1. **入力スキーマの単一情報源化**: 各エンドポイントの query / json バリデーションを Zod v4 スキーマ (`src/server/validator.ts`) に統一する。
 2. **コードファースト OpenAPI 出力**: VS Code 拡張や外部 CI 連携で言語非依存のコントラクトが必要になった時点で、同じ Zod スキーマから `/api/openapi.json` を自動生成する。
-3. **Living Contract 検証**: 将来的には自動生成された OpenAPI 定義と `docs/contracts/rest-api.mdx` の乖離を `documi check` で検知できるようにする。
+3. **Living Contract 検証**: 将来的には自動生成された OpenAPI 定義と REST API 契約の乖離を `documi check` で検知できるようにする。

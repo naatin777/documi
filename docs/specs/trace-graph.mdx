@@ -1,11 +1,11 @@
 ---
 type: spec
-title: トレーサビリティグラフ・可視化仕様
-description: Rooted DAG・supersedes 現行/廃止分離・自動 mentions・ローカルメディア検証・Sigma.js 力学グラフ可視化の仕様
+title: トレーサビリティグラフ仕様
+description: Rooted DAG・supersedes 現行/廃止分離・自動 mentions・ローカルメディア検証の仕様
 tags: [spec, graph, traceability]
 ---
 
-# トレーサビリティグラフ・可視化仕様
+# トレーサビリティグラフ仕様
 
 ## 1. Rooted DAG と `supersedes` 現行／廃止分離
 
@@ -36,18 +36,9 @@ tags: [spec, graph, traceability]
 - `<Term name="..." />` は登録済み `<TermDef>` の `id` または `aliases`（大文字小文字無視）を解決して `mentions` 辺を張り、未登録用語は `unknown-term` issue を記録する。
 - **ローカルメディア参照検証**: Markdown の画像構文 `![alt](./path.ext)`（参照形式含む）は画像（`.png` / `.jpg` / `.jpeg` / `.gif` / `.webp` / `.svg` / `.avif` / `.ico`）・動画（`.mp4` / `.m4v` / `.webm` / `.mov`）・音声（`.mp3` / `.wav` / `.ogg` / `.m4a` / `.flac` / `.aac`）を対象とし、`docs/` 外への脱出（`..`・symlink・`guard/`・ドットファイル）・存在しないファイル・未許可拡張子・危険なスキーム（`javascript:` や `data:image/svg+xml`）を `broken-media` issue として検出する。
 
-## 3. 力学ネットワークグラフ (`/graph`)
-
-<Spec id="ui.graph-view" stability="evolving" derives="goals/human-comprehension">
-  **When** ユーザーが `/graph` を開いたとき、
-  **the** Web UI **shall** **Sigma.js (WebGL) + Graphology** によるフルビューポートのリアルタイム力学ネットワークグラフ（円形展開・小さめドット＋下中央ラベル表示・ノードドラッグ時の弾性追従・Forces スライダー・Figma 風トラックパッドパン／ピンチズーム・ホバー／選択ハイライト・クリック時の右側ドキュメント即時プレビュー＆繋がりタブ・検索フォーカス・粒度切替 `Documents` / `Docs + Blocks`・リンク層切替 `All Links` / `Traceability Only`）を提供する。
-</Spec>
-
-- **操作規約**: トラックパッド 2 本指スワイプ＝慣性付きパン、ピンチ操作または `⌘`/`Ctrl`＋ホイール＝カーソル位置中心のズーム、ノードドラッグ＝接続ノードの弾性追従、ノードクリック＝右ペインへ文書本文＆繋がりを即時プレビュー。
-
 ## 保証シナリオ
 
-<Test id="test.trace-graph" verifies="core.rooted-dag, core.auto-mentions, ui.graph-view" level="integration">
+<Test id="test.trace-graph" verifies="core.rooted-dag, core.auto-mentions" level="integration">
   - **Given**: Goal へ到達する Spec・孤立 Spec・循環 derives・本文相対リンクおよび `<Term>` を含むドキュメント群
   - **When**: グラフ構築および Graph View を描画する
   - **Then**: 循環と `orphan-spec` が検出され、相対リンクと用語参照から `mentions` エッジが自動抽出される

@@ -1,9 +1,7 @@
 #!/usr/bin/env bun
-import { existsSync } from 'node:fs'
-import { mkdir, readFile, writeFile } from 'node:fs/promises'
+import { readFile } from 'node:fs/promises'
 import path from 'node:path'
 import { parseArgs as parseNodeArgs } from 'node:util'
-import { answerCard, createCard, distillCard, getCard, listCards } from './core/cards'
 import { runDocsCheck } from './core/checker'
 import { RAG_PROVIDERS, REVIEW_GATES, resolveProjectPaths } from './core/config'
 import type { RagConfig, RagProvider, ReviewGate } from './core/config'
@@ -62,12 +60,7 @@ import type {
   TestLevel,
 } from './core/types'
 import { syncVectorIndex } from './core/vector-store'
-import { createApp } from './server/app'
-import { resolveDefaultClientDist } from './server/dist'
-import { startServer } from './server/index'
 import { startMcpStdio } from './server/mcp'
-import { PdfError, renderPdfFromUrl, renderStandaloneHtmlFromUrl } from './server/pdf'
-import { buildStaticSite } from './server/site'
 import { DocsStore } from './server/store'
 
 export interface CliIo {
@@ -102,13 +95,10 @@ const USAGE_TEXT = `Documi CLI
 
 Usage:
   documi init [options]                          Scaffold docs/ templates and Agent Skills for new or existing projects
-  documi serve [options]                         Start Web UI, REST API, and MCP (HTTP) server
   documi mcp [options]                           Start MCP server over stdio (for AI editor integration)
   documi check [options]                         Validate documents, graph, AST symbols, and test results
   documi approve <block-id...> [opts]            Approve specified semantic blocks (updates reviews.json)
   documi unapprove <block-id...> [opts]          Revoke approval for specified semantic blocks (back to unreviewed)
-  documi export [options]                        Export multiple documents as a single PDF or HTML bundle
-  documi build-site [options]                    Build a read-only static site for any static hosting provider
 
   [Read & Search Commands for AI & Humans (all support --json)]
   documi map [options]                           Get Goals, Architecture, Outcomes, Glossary, and summary stats
@@ -120,12 +110,6 @@ Usage:
   documi index [options]                         Build or incrementally sync the local Embedding cache (bun:sqlite)
   documi query [filters] [options]               Filter semantic blocks across multiple dimensions
   documi context <id> [options]                  Aggregate upstream Goals, related docs, Outcomes, Terms, and SourceRefs for a Spec
-
-  documi card create [options]                   Create a review card from JSON (--body - for stdin)
-  documi card list [options]                     List review cards in the operational store
-  documi card get <card-id> [options]            Show one review card with its answer state
-  documi card answer <card-id> [options]         Record an answer (--option <id> --finish provisional|committed [--write-in <text>])
-  documi card distill <card-id> [options]        Distill a committed card into docs/decisions/ as a decision record
 
   [Precision Edit Commands for AI & Humans (all support --json)]
   documi block add <doc-id> [options]            Append a semantic block to a document
@@ -143,8 +127,6 @@ Options:
   --skills-only           Generate Agent Skills only without creating docs/ (init)
   --no-skills             Skip Agent Skills generation (init)
   --force-skills          Overwrite existing Documi SKILL.md files with the latest version (init)
-  --port <number>         Listening port (serve, default: 3000 or PORT)
-  --host <addr>           Bind address (serve, default: 127.0.0.1 or HOST)
   --test-report <xml>     Path to JUnit XML test report (check / map / query / context)
   --review-gate <level>   Graduated review gate: none|stable|all (check, default: config reviewGate or none)
   --strict                Treat all unreviewed, stale, and drifted blocks as errors (check)
@@ -184,20 +166,15 @@ Options:
   --tags <a,b>            Comma-separated tags (scaffold)
   --description <text>    Short description (scaffold)
   --date <YYYY-MM-DD>     Decision date (scaffold)
-  --scope <scope>         Export scope (export), Document scope "system" (scaffold), or Constraint scope (block)
+  --scope <scope>         Document scope "system" (scaffold) or Constraint scope (block)
   --aliases <a,b>         Comma-separated term aliases (block / term)
   --anti-terms <a,b>      Comma-separated forbidden/confused anti-terms (block / term)
   --domain-context <ctx>  Optional Bounded Context name for a term (block / term)
   --symbols <a,b>         Comma-separated code symbols (block / term)
   --doc <doc-id>          Target glossary document ID (term upsert, default: domain/glossary)
   --dry-run               Preview planned changes without writing files (block rename)
-  --format <fmt>          Output format: text|github (check, default: text) or pdf|html (export, default: pdf)
-  --ids <a,b,c>           Comma-separated document IDs to export (export)
-  --title <text>          Cover title (export) or document/block title (scaffold / block)
-  --out <file>            Output file or directory (export default: documi-bundle.pdf|html / build-site default: ./dist-site)
-  --base <path>           Asset base path for static site (build-site, default: ./)
-  --no-code               Exclude Code Explorer and source snippets (build-site)
-  --revisions <n>         Max historical commits bundled per document (build-site, default: 5)
+  --format <fmt>          Output format: text|github (check, default: text)
+  --title <text>          Document/block title (scaffold / block)
   --json                  Output results as JSON
   --full                  Include full body and detail arrays in map / query / context JSON output
   -h, --help              Show this help`
@@ -296,15 +273,11 @@ class CliArgError extends Error {
 const GLOBAL_ALLOWED_FLAGS = new Set<string>(['docs', 'project', 'help'])
 
 const COMMAND_ALLOWED_FLAGS: Record<string, ReadonlySet<string>> = {
-  card: new Set(['json', 'body', 'body-file', 'option', 'finish', 'write-in']),
   init: new Set(['ja', 'en', 'lang', 'skills-dir', 'skills-only', 'no-skills', 'force-skills', 'json']),
-  serve: new Set(['port', 'host', 'test-report']),
   mcp: new Set(['test-report']),
   check: new Set(['mount', 'test-report', 'strict', 'review-gate', 'no-review-edit', 'prs', 'format', 'json']),
   approve: new Set(['author', 'note']),
   unapprove: new Set([]),
-  export: new Set(['format', 'scope', 'ids', 'title', 'out', 'test-report']),
-  'build-site': new Set(['out', 'base', 'no-code', 'revisions', 'test-report']),
   map: new Set(['test-report', 'full', 'json']),
   list: new Set(['type', 'mount', 'json']),
   show: new Set(['test-report', 'json']),
@@ -646,27 +619,7 @@ async function cmdInit(flags: CliFlags, io: CliIo): Promise<number> {
   io.out('\nNext steps:')
   io.out('  documi check')
   io.out('  documi map')
-  io.out('  documi serve')
-  return 0
-}
-
-async function cmdServe(flags: CliFlags): Promise<number> {
-  const { docsDir, docsMounts, projectRoot, testReportPath, testReportPaths, config } = resolveCliPaths(flags)
-  const port = typeof flags.port === 'string' ? Number(flags.port) : undefined
-  const hostname = typeof flags.host === 'string' ? flags.host : undefined
-
-  await startServer({
-    docsDir,
-    mounts: docsMounts,
-    projectRoot,
-    testReportPath,
-    testReportPaths,
-    ragConfig: config.rag,
-    port: Number.isFinite(port) ? port : undefined,
-    hostname,
-  })
-  // サーバー稼働中は終了させない
-  await new Promise(() => {})
+  io.out('  documi mcp')
   return 0
 }
 
@@ -903,49 +856,6 @@ async function cmdUnapprove(ids: string[], flags: CliFlags, io: CliIo): Promise<
     io.out(res.value.removed ? `✓ Unapproved ${id}` : `- ${id} is not approved (no changes)`)
   }
   return failed > 0 ? 1 : 0
-}
-
-async function cmdExport(flags: CliFlags, io: CliIo): Promise<number> {
-  const format = flags.format === 'html' ? 'html' : 'pdf'
-  const { docsDir, docsMounts, projectRoot, testReportPath, testReportPaths } = resolveCliPaths(flags)
-  const clientDist = resolveDefaultClientDist()
-  if (!existsSync(clientDist)) {
-    io.err(`Built frontend not found (${clientDist}). Run "bun run build" first.`)
-    return 1
-  }
-
-  const outPath = path.resolve(typeof flags.out === 'string' ? flags.out : `documi-bundle.${format}`)
-  const store = await DocsStore.open(docsDir, { mounts: docsMounts, projectRoot, testReportPath, testReportPaths })
-  const app = createApp(store, { clientDist, projectRoot })
-  const server = Bun.serve({ port: 0, hostname: '127.0.0.1', fetch: app.fetch })
-
-  try {
-    const qs = new URLSearchParams()
-    if (typeof flags.ids === 'string' && flags.ids.trim()) qs.set('ids', flags.ids.trim())
-    else qs.set('scope', typeof flags.scope === 'string' ? flags.scope : 'all')
-    if (typeof flags.title === 'string' && flags.title.trim()) qs.set('title', flags.title.trim())
-    qs.set('mode', format)
-
-    const url = `http://127.0.0.1:${server.port}/bundle?${qs.toString()}`
-    await mkdir(path.dirname(outPath), { recursive: true })
-
-    if (format === 'pdf') {
-      const bytes = await renderPdfFromUrl(url)
-      await writeFile(outPath, bytes)
-    } else {
-      const html = await renderStandaloneHtmlFromUrl(url)
-      await writeFile(outPath, html, 'utf-8')
-    }
-
-    io.out(`✓ Exported ${format.toUpperCase()} → ${outPath}`)
-    return 0
-  } catch (e) {
-    const msg = e instanceof PdfError ? e.message : String(e)
-    io.err(`✗ Export failed: ${msg}`)
-    return 1
-  } finally {
-    void server.stop(true)
-  }
 }
 
 // ---------- AI & 人間向け 読み取り・検索コマンド ----------
@@ -1498,90 +1408,6 @@ async function cmdContext(positionals: string[], flags: CliFlags, io: CliIo): Pr
 // ---------- AI & 人間向け 精密編集コマンド ----------
 // @implements core.ai-cli
 
-async function cmdCard(positionals: string[], flags: CliFlags, io: CliIo): Promise<number> {
-  const sub = positionals[0]
-  const { projectRoot } = resolveCliPaths(flags)
-
-  if (sub === 'create') {
-    const body = await resolveBodyContent(flags, io, { required: true })
-    if (!body) throw new CliArgError('card create requires --body - or --body-file with card JSON')
-    const result = await createCard(projectRoot, JSON.parse(body))
-    if (result.isErr()) {
-      io.err(`✗ ${result.error.reason}`)
-      return 1
-    }
-    if (flags.json === true) {
-      printJson(io, result.value)
-    } else {
-      io.out(`Created card: ${result.value.id} (${result.value.fillable === 'yes' ? 'fillable' : 'blocking'})`)
-    }
-    return 0
-  }
-
-  if (sub === 'list') {
-    const cards = await listCards(projectRoot)
-    if (flags.json === true) {
-      printJson(io, cards)
-      return 0
-    }
-    io.out(`Cards (${cards.length}):`)
-    for (const card of cards) {
-      const state = card.answer ? card.answer.finish : card.incomprehensible ? 'broken' : 'open'
-      io.out(`  [${state}] ${card.id} — ${card.title}`)
-    }
-    return 0
-  }
-
-  if (sub === 'get') {
-    const id = positionals[1]
-    if (!id) throw new CliArgError('card get requires a card id')
-    const result = await getCard(projectRoot, id)
-    if (result.isErr()) {
-      io.err(`✗ Card not found: ${id}`)
-      return 1
-    }
-    printJson(io, result.value)
-    return 0
-  }
-
-  if (sub === 'answer') {
-    const id = positionals[1]
-    if (!id) throw new CliArgError('card answer requires a card id')
-    const option = getStringFlag(flags, 'option')
-    const finish = getStringFlag(flags, 'finish')
-    if (!option || (finish !== 'provisional' && finish !== 'committed')) {
-      throw new CliArgError('card answer requires --option <id> and --finish provisional|committed')
-    }
-    const result = await answerCard(projectRoot, id, {
-      selectedOptionId: option,
-      writeIn: getStringFlag(flags, 'write-in'),
-      finish,
-      answeredAt: new Date().toISOString(),
-    })
-    if (result.isErr()) {
-      io.err(`✗ ${'reason' in result.error ? result.error.reason : `Card not found: ${id}`}`)
-      return 1
-    }
-    if (flags.json === true) printJson(io, result.value)
-    else io.out(`Answered card: ${id} [${finish}] option=${option}`)
-    return 0
-  }
-
-  if (sub === 'distill') {
-    const id = positionals[1]
-    if (!id) throw new CliArgError('card distill requires a card id')
-    const result = await distillCard(projectRoot, id)
-    if (result.isErr()) {
-      io.err(`✗ ${'reason' in result.error ? result.error.reason : `Card not found: ${id}`}`)
-      return 1
-    }
-    io.out(`Distilled card: ${id} → docs/decisions/`)
-    return 0
-  }
-
-  throw new CliArgError('card requires a subcommand: create | list | get | answer | distill')
-}
-
 async function cmdBlock(positionals: string[], flags: CliFlags, io: CliIo): Promise<number> {
   const action = positionals[0]
   if (action !== 'add' && action !== 'update' && action !== 'rename') {
@@ -1814,38 +1640,6 @@ async function cmdScaffold(positionals: string[], flags: CliFlags, io: CliIo): P
   return 0
 }
 
-async function cmdBuildSite(flags: CliFlags, io: CliIo): Promise<number> {
-  const { docsDir, docsMounts, projectRoot, testReportPath, testReportPaths } = resolveCliPaths(flags)
-  const outDir = path.resolve(typeof flags.out === 'string' ? flags.out : 'dist-site')
-  const basePath = typeof flags.base === 'string' ? flags.base : undefined
-  const maxRevisions = typeof flags.revisions === 'string' ? Number(flags.revisions) : undefined
-
-  try {
-    const result = await buildStaticSite({
-      docsDir,
-      mounts: docsMounts,
-      projectRoot,
-      testReportPath,
-      testReportPaths,
-      outDir,
-      basePath,
-      includeCode: flags['no-code'] !== true,
-      maxRevisions: maxRevisions !== undefined && Number.isFinite(maxRevisions) ? maxRevisions : undefined,
-    })
-    io.out(`✓ Built static site → ${result.outDir}`)
-    io.out(
-      `  documents: ${result.documentCount}, revisions: ${result.revisionCount}, code files: ${result.codeFileCount}, snippets: ${result.sourceSnippetCount}, icons: ${result.iconCount}, media: ${result.mediaFileCount}`,
-    )
-    return 0
-  } catch (error) {
-    io.err(`✗ Static site build failed: ${error instanceof Error ? error.message : String(error)}`)
-    return 1
-  }
-}
-
-/**
- * CLI エントリポイント（テストから直接呼び出せるように分離）。
- */
 export async function runCli(argv: string[], io: CliIo = DEFAULT_IO): Promise<number> {
   let parsed: ParsedArgs
   try {
@@ -1867,13 +1661,10 @@ export async function runCli(argv: string[], io: CliIo = DEFAULT_IO): Promise<nu
   try {
     validateCommandFlags(command, flags)
     if (command === 'init') return await cmdInit(flags, io)
-    if (command === 'serve') return await cmdServe(flags)
     if (command === 'mcp') return await cmdMcp(flags)
     if (command === 'check') return await cmdCheck(flags, io)
     if (command === 'approve') return await cmdApprove(positionals, flags, io)
     if (command === 'unapprove') return await cmdUnapprove(positionals, flags, io)
-    if (command === 'export') return await cmdExport(flags, io)
-    if (command === 'build-site') return await cmdBuildSite(flags, io)
     if (command === 'map') return await cmdMap(flags, io)
     if (command === 'list') return await cmdList(flags, io)
     if (command === 'show') return await cmdShow(positionals, flags, io)
@@ -1883,7 +1674,6 @@ export async function runCli(argv: string[], io: CliIo = DEFAULT_IO): Promise<nu
     if (command === 'index') return await cmdIndex(flags, io)
     if (command === 'query') return await cmdQuery(flags, io)
     if (command === 'context') return await cmdContext(positionals, flags, io)
-    if (command === 'card') return await cmdCard(positionals, flags, io)
     if (command === 'block') return await cmdBlock(positionals, flags, io)
     if (command === 'term') return await cmdTerm(positionals, flags, io)
     if (command === 'scaffold') return await cmdScaffold(positionals, flags, io)

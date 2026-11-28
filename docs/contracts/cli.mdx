@@ -1,27 +1,25 @@
 ---
 type: contract
 title: CLI コントラクト
-description: 初期化・サーバー起動・stdio MCP・CI チェック・承認・複数まとめ出力に使う documi CLI コマンド仕様
+description: 初期化・stdio MCP・CI チェック・承認・読み取り検索・精密編集に使う documi CLI コマンド仕様
 tags: [cli, contract]
 satisfies:
   - core.ast-check
   - core.human-review
-  - core.bundle-export
   - core.project-config
   - core.agent-skills-init
   - core.ai-cli
-  - core.static-site
   - core.graph-retrieval
   - core.hybrid-rag
 ---
 
 # CLI コントラクト
 
-`bun src/cli.ts <command>`（または `package.json` の `bin: documi` / `bun run documi:check` / `bun run documi:export`）で実行する。
+`bun src/cli.ts <command>`（または `package.json` の `bin: documi` / `bun run documi:check`）で実行する。
 
 ## パス解決と設定ファイル (`--project` / `--docs` / `.documi.json`・`.documi.yml`)
 
-CLI・HTTP サーバー・stdio MCP はすべて `resolveProjectPaths()` による双方向推論を共有する。
+CLI・stdio MCP はすべて `resolveProjectPaths()` による双方向推論を共有する。
 
 - **既定**: `projectRoot = cwd`、`docsDir = <projectRoot>/docs`（両方省略可）
 - **`--project <dir>`（または `DOCUMI_PROJECT_ROOT`）のみ指定**: 指定したプロジェクトルート直下の設定ファイル（あれば）の `docs`、無ければ `<projectRoot>/docs` を自動参照する（MCP 連携では `--project /path/to/repo` の 1 引数だけで完結する）。
@@ -71,17 +69,6 @@ AST 位置ベースで安全に局所編集し、再読込後の検証結果（`
 | `documi term upsert <term-id>` | `--definition`/`--body`/`--body-file`, `--aliases`, `--anti-terms`, `--domain-context`, `--symbols`, `--doc`, `--json` | 用語集に `<TermDef>` を追加または更新 |
 | `documi scaffold <rel-path>` | `--title`, `--mount <id>`, `--type`, `--scope`, `--description`, `--date`, `--tags`, `--derives`, `--satisfies`, `--verifies`, `--body`/`--body-file`, `--json` | 規約通りの frontmatter を持つ新規 `.mdx` を作成（上書き禁止、`--mount` 省略時はプライマリへ出力、`--scope system` で全体設計を作成） |
 
-## `documi serve`
-
-Web UI・Hono RPC REST API・SSE・Streamable HTTP MCP (`/mcp`) を起動し、`docs/` 配下を自動監視する。
-
-| Option | 説明 |
-|---|---|
-| `--docs <dir>` | 対象 docs ディレクトリ |
-| `--project <dir>` | ソースコード参照のプロジェクトルート |
-| `--port <number>` | 待ち受けポート（既定: `3000` または `PORT`） |
-| `--host <addr>` | バインドアドレス（既定: `127.0.0.1` または `HOST`） |
-
 ## `documi mcp`
 
 AI エディタ・CLI エージェント向けに **stdio トランスポート** で MCP サーバーを起動する。HTTP サーバーを常駐させずに全 MCP ツールを利用でき、`fs.watch` により起動中の `docs/` 編集もリアルタイムに反映される。`--project /path/to/repo` を 1 つ渡すだけで設定ファイルまたは `<project>/docs` を自動参照する。
@@ -115,29 +102,6 @@ AI エディタ・CLI エージェント向けに **stdio トランスポート*
 ## `documi unapprove <block-id...>`
 
 指定した 1 つ以上のセマンティックブロックの承認を取り消し、`unreviewed` 状態へ戻す（承認レコードとローカルキャッシュを削除）。
-
-## `documi export`
-
-複数ドキュメントを `/bundle` × `Bun.WebView` 経由で 1 冊の PDF または単一 HTML にまとめて出力する（事前に `bun run build` が必要）。
-
-| Option | 説明 |
-|---|---|
-| `--format <pdf\|html>` | 出力形式（既定: `pdf`） |
-| `--scope <scope>` | `all` / `dir:<path>` / `goal:<id>`（既定: `all`） |
-| `--ids <a,b,c>` | 含めるドキュメント ID をカンマ区切りで明示指定 |
-| `--title <text>` | 表紙タイトル |
-| `--out <file>` | 出力先ファイルパス（既定: `documi-bundle.pdf` / `.html`） |
-
-## `documi build-site`
-
-Cloudflare Pages / Workers Static Assets・Vercel・Netlify・GitHub Pages・AWS S3 等の任意の静的ホスティングへそのまま配置できる **プロバイダ非依存・読み取り専用の静的 Documi サイト** をオプションで生成する（事前に `bun run build` が必要）。`index.html`（`window.__DOCUMI_STATIC__` 注入済み）・`404.html`・`_headers`（Cloudflare Pages / Netlify 用キャッシュ制御）・`.nojekyll`・`assets/`（CSS フォント URL および動的チャンク preload パスを相対/ベースパス対応化）・`data/*.json`（コードファイルは特殊文字・ドットファイル衝突を避けるためハッシュ索引化）を出力し、フロントエンドは `HashRouter` と静的 JSON フェッチへ自動切替する。
-
-| Option | 説明 |
-|---|---|
-| `--out <dir>` | 出力先ディレクトリ（既定: `./dist-site`） |
-| `--base <path>` | アセット参照のベースパス（既定: `./`） |
-| `--no-code` | Code Explorer 用ソース全文および `<SourceRef>` スニペットを含めない |
-| `--revisions <n>` | 各ドキュメントで同梱する過去コミット版の最大件数（既定: `5`） |
 
 ## 終了コードと副作用の規約
 

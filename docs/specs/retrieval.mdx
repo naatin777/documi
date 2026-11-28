@@ -1,13 +1,13 @@
 ---
 type: spec
-title: 全文検索・グラフ文脈検索・Hybrid RAG・クイック検索仕様
-description: 日英・識別子 BM25 全文検索・用語集同義語展開・グラフ連動コンテキスト検索・Hybrid RAG・Cmd+K 検索モーダルの仕様
+title: 全文検索・グラフ文脈検索・Hybrid RAG 仕様
+description: 日英・識別子 BM25 全文検索・用語集同義語展開・グラフ連動コンテキスト検索・Hybrid RAG の仕様
 tags: [spec, search, rag]
 ---
 
-# 全文検索・グラフ文脈検索・Hybrid RAG・クイック検索仕様
+# 全文検索・グラフ文脈検索・Hybrid RAG 仕様
 
-## 1. 横断全文検索と `Cmd+K` クイック検索
+## 1. 横断全文検索
 
 <Spec id="core.full-text-search" stability="evolving" derives="goals/human-comprehension">
   **When** 検索クエリが与えられたとき、
@@ -16,11 +16,6 @@ tags: [spec, search, rag]
 
 - **検索対象と返却形式**: `kind: "doc" | "block"` 混在の `SearchHit[]`（`id`, `docId`, `type`, `title`, `blockKind?`, `snippet`, `score`）をスコア降順で返す。
 - **空クエリ・上限**: 空白のみのクエリは空配列を返す。`limit` は既定 `20`（REST API は既定 `30`・最大 `100`）、任意の `type` で絞り込み可能。
-
-<Spec id="ui.search-palette" stability="evolving" derives="goals/human-comprehension">
-  **When** ユーザーが `Cmd+K` / `Ctrl+K` または検索ボタンを押したとき、
-  **the** Web UI **shall** ドキュメントとセマンティックブロックを横断検索できるクイック検索モーダルを開き、キーボード操作（上下矢印・Enter・Esc）で該当文書・ブロックへ即座に遷移できるようにする。
-</Spec>
 
 ## 2. BM25・用語集同義語展開・グラフ連動コンテキスト検索
 
@@ -65,7 +60,7 @@ tags: [spec, search, rag]
 
 ## 保証シナリオ
 
-<Test id="test.retrieval" verifies="core.full-text-search, ui.search-palette, core.graph-retrieval, core.hybrid-rag" level="integration">
+<Test id="test.retrieval" verifies="core.full-text-search, core.graph-retrieval, core.hybrid-rag" level="integration">
   - **Given**: 用語別名・グラフ関係・複数マウント・SQLite ベクトルキャッシュを持つドキュメント群
   - **When**: `documi search`（`--context` / `--semantic`）および検索モーダルを実行する
   - **Then**: BM25＋用語展開＋RRF＋文字数予算内グラフ展開が期待通りに動作し、増分キャッシュ更新も破綻しない
