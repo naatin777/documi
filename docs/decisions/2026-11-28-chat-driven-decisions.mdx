@@ -1,0 +1,19 @@
+---
+type: decision
+title: 決定のやりとりはカードUIではなくチャットで行い、台帳は docs/decisions に一本化する
+description: Review Card interaction layer の廃止とチャット駆動への転換
+date: 2026-11-28
+status: provisional
+tags: [decision, workflow]
+---
+
+# 決定のやりとりはカードUIではなくチャットで行い、台帳は docs/decisions に一本化する
+
+<Decision id="dec.chat-driven-decisions" summary="カードUIを廃止しチャット駆動+docs/decisions台帳に転換する" stability="evolving">
+  問い: 選択式の Review Card システムは必要か。チャットで決定をやりとりして仮置きは保存するだけでよいのではないか
+
+決定: カード UI を廃止し、チャットで問いを立てて応答を docs/decisions/ に記録する方式に転換するを選んだ。status は provisional。実装して使い、問いの提示・記録・見直しが実際に回ることを確かめられたら accepted に進める。
+得るもの: 人間が実際に使うチャネル一本に集約でき、JSON ストア・API・専用 UI・蒸留ロジックを削除できる。失うもの: 構造化された選択肢の事前列挙と、UI による強制力。記録忘れ・解釈違いは skill 非決定性のリスクとして残り、documi check と signal で補う必要がある。
+
+判断材料: カードを5件作ったセッションで実際の決定はすべてチャットで行われカードは1件も回答されなかった。「意味がわからない」の理由を書く場所がなくフィードバックループが閉じなかった。HCI 研究では複雑な決定は永続的で検査可能な表現の恩恵を受けるとされ、会話と台帳の役割分担が示唆される。ADR 実務では provisional は確立された status であり、仮置きを別システムにする必要はない。放っておくと、カード UI を残したまま使われないチャネルが二重に存在し続ける。
+</Decision>
